@@ -1,4 +1,5 @@
 import { registerCCW } from "./patching.js";
+import { testCCWBenchmarkSight } from "./benchmark.js";
 
 export const MODULE_ID = 'testccw';
 
@@ -26,6 +27,9 @@ export function log(...args) {
 
 Hooks.once('init', async function() {
   registerCCW();
+  
+  window[MODULE_ID] = { use_ccw: true,
+                        benchmark: testCCWBenchmarkSight }
 });
 
 // modules ready
