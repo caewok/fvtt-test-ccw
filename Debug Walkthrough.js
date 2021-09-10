@@ -1,3 +1,6 @@
+// Useful commands
+w = canvas.walls.controlled[0]; // get selected wall
+
 // Create RadialSweepPolygon
 // (use let b/c we are pasting into console a lot)
 
@@ -46,7 +49,7 @@ if ( isInterior ) return true;
 if ( !wall.data[type] || wall.isOpen ) return false;
 
 // Ignore one-directional walls which are facing away from the origin
-if ( !wall.data.dir ) return true;
+if ( !wall.data.dir ) return true;  // wall.data.dir is BOTH: 0, LEFT: 1, RIGHT: 2  CONST.WALL_DIRECTIONS
 const mp = wall.midpoint;
 const wa = Math.atan2(mp[1] - Poly.origin.y, mp[0] - Poly.origin.x);
 const d = Math.normalizeRadians(wa - wall.direction);

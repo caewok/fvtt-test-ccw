@@ -3,7 +3,9 @@ import { testCCWInitializeEndpoints,
          testCCWIncludeWall,
          testCCWSweepEndpoints } from "./radial_sweep.js";
 
-import { wallCCW, wallWhichSide } from "./wall.js";
+import { wallCCW, 
+         wallWhichSide, 
+         wallEffectSide } from "./wall.js";
 
 export function registerCCW() {
   libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED');
@@ -23,6 +25,12 @@ Object.defineProperty(Wall.prototype, "ccw", {
 
 Object.defineProperty(Wall.prototype, "whichSide", {
   value: wallWhichSide,
+  writable: true,
+  configurable: true
+});
+
+Object.defineProperty(Wall.prototype, "effectSide", {
+  value: wallEffectSide,
   writable: true,
   configurable: true
 });
