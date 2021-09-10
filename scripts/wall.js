@@ -13,7 +13,7 @@ import { orient2d } from "./lib/orient2d.min.js";
  */ 
 export function wallCCW(origin) {
   const c = this.coords;
-  retur orient2d(origin.x, origin.y,
+  return orient2d(origin.x, origin.y,
            c[0], c[1],
            c[2], c[3]);
 }
