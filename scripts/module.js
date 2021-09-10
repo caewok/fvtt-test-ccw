@@ -1,5 +1,6 @@
 import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
+import { orient2d } from "./lib/orient2d.min.js";
 
 export const MODULE_ID = 'testccw';
 
@@ -29,7 +30,8 @@ Hooks.once('init', async function() {
   registerCCW();
   
   window[MODULE_ID] = { use_ccw: true,
-                        benchmark: testCCWBenchmarkSight }
+                        benchmark: testCCWBenchmarkSight,
+                        orient2d: orient2d }
 });
 
 // modules ready
