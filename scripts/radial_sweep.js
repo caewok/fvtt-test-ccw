@@ -183,21 +183,21 @@ export function testCCWSweepEndpoints(wrapped) {
 
 
 function sortEndpoints(origin, endpoints) {
-    return endpoints.sort((a, b) => {
-      // arbitrarily declare upper hemisphere to be first
-      // so x < vision_point (above) is before x > vision_point (below)
-      // walk quadrants, so Q1 is upper left, Q3 is lower right
-      // return > 0 to sort b before a
-      if(a.y >= origin.y && b.y < origin.y) return 1;
-      if(a.y < origin.y && b.y >= origin.y) return -1;
+  return endpoints.sort((a, b) => {
+    // arbitrarily declare upper hemisphere to be first
+    // so x < vision_point (above) is before x > vision_point (below)
+    // walk quadrants, so Q1 is upper left, Q3 is lower right
+    // return > 0 to sort b before a
+    if(a.y >= origin.y && b.y < origin.y) return 1;
+    if(a.y < origin.y && b.y >= origin.y) return -1;
       
-      // in same hemisphere      
-      return orient2d(origin.x, origin.y, 
-                      a.x, a.y,
-                      b.x, b.y);
-    });
-  }
+    // in same hemisphere      
+    return orient2d(origin.x, origin.y, 
+                    a.x, a.y,
+                    b.x, b.y);
+  });
 }
+
 
 
 
