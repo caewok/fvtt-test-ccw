@@ -1,11 +1,13 @@
 // Additions to the wall class
 import { orient2d } from "./lib/orient2d.min.js";
+import { almostEqual } from "./util.js";
+import { log } from "./module.js";
 
 /*
  * Wall.prototype.ccw
  *
  * Check if the wall is counter-clockwise or clockwise in relation to an origin point.
- * origin --> first wall coord --> second wall coord
+ * origin --> northern/western wall coord --> southern/eastern wall coord
  * See whichSide method.
  * 
  * @param {PIXI.point} origin   PIXI.point or other object with {x, y}.
@@ -14,18 +16,21 @@ import { orient2d } from "./lib/orient2d.min.js";
 export function wallCCW(origin) {
   const c = this.coords;
   
-  // always go from origin --> southern wall coord --> northern wall coord
+  // always go from origin --> northern wall coord --> southern wall coord
   let p_northern = { x: c[0], y: c[1] }
   let p_southern = { x: c[2], y: c[3]} 
   let flip = false;
   
   
-  if(almostEqual(c[1], c[3]) && (c[0] < c[2])) {
-    // wall segment is horizontal. By convention, counter-clockwise for northern
+  if(almostEqual(c[1], c[3]) && (c[2] > c[0])) {
+    // wall segment is horizontal and point 0 is east of point 1. 
+    // By convention, counter-clockwise for northern
     // flip points so origin --> western wall coord --> eastern wall coord
-    flip = true;
+   //log("Wall is horizontal; flipping."); 
+   flip = true;
   
   } else if(c[1] > c[3]) {
+   //log("Wall points reversed; flipping.");
     flip = true;
   }
   
@@ -35,8 +40,8 @@ export function wallCCW(origin) {
   }
   
   return orient2d(origin.x, origin.y,
-                  p_southern.x, p_southern.y,
-                  p_northern.x, p_northern.y);
+                  p_northern.x, p_northern.y,
+                  p_southern.x, p_southern.y);
 }
 
 
