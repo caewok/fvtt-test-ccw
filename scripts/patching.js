@@ -4,6 +4,7 @@ import { testCCWInitializeEndpoints,
          testCCWSweepEndpoints } from "./radial_sweep.js";
 
 export function registerCCW() {
-  libWrapper.register(MODULE_ID, 'RadialSweep.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED');
-  libWrapper.register(MODULE_ID, 'RadialSweep.prototype._sweepEndpoints', testCCWSweepEndpoints, 'MIXED');
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED');
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._sweepEndpoints', testCCWSweepEndpoints, 'MIXED');
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._includeWall', testCCWIncludeWall, 'MIXED');
 }
