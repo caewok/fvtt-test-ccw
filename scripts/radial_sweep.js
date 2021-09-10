@@ -98,11 +98,9 @@ export function testCCWIncludeWall(wrapped, wall, type) {
   if ( !wall.data[type] || wall.isOpen ) return false;
 
   // Ignore one-directional walls which are facing away from the origin
-  if ( !wall.data.dir ) return true;
-  const mp = wall.midpoint;
-  const wa = Math.atan2(mp[1] - this.origin.y, mp[0] - this.origin.x);
-  const d = Math.normalizeRadians(wa - wall.direction);
-  return d.between(-Math.PI/2, Math.PI/2);
+  if ( !wall.data.dir ) return true; // wall not one-directional
+  
+  return wall.whichSide(this.origin) === wall.effectSide();
 }
 
 /**
