@@ -46,13 +46,13 @@ Object.defineProperty(Wall.prototype, "effectSide", {
 });
 
 Object.defineProperty(Wall.prototype, "A", {
-  value: wallA,
+  get: wallA,
   writable: true,
   configurable: true
 });
 
 Object.defineProperty(Wall.prototype, "B", {
-  value: wallB,
+  get: wallB,
   writable: true,
   configurable: true
 });
