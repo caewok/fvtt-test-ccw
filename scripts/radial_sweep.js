@@ -398,8 +398,26 @@ function closestWall(walls, origin) {
  * Construct a sight ray given an endpoint and radius
  */
 function constructRay(origin, endpoint, radius) {
-  return (new SightRay(origin, endpoint)).projectDistance(radius);
+  let ray = (new SightRay(origin, endpoint)).projectDistance(radius);
+  
+  // don't extend past the canvas
+  const canvas_rays = [
+    new Ray({x: 0, y: 0}, {x: canvas.dimensions.sceneWidth, y: 0}),
+    new Ray({x: 0, y: 0}, {x: 0, y: canvas.dimensions.sceneHeight}),
+    new Ray({x: canvas.dimensions.sceneWidth, y: 0}, {x: canvas.dimensions.sceneWidth, y: canvas.dimensions.sceneHeight}),
+    new Ray({x: canvas.dimensions.sceneWidth, y: canvas.dimensions.sceneHeight}, {x: 0, y: canvas.dimensions.sceneHeight})
+  ];
+  
+  const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
+  if(canvas_ray) {
+    const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
+    ray = new SightRay(ray.A, intersect_pt);
+  }
+  
+  return ray;
 }
+
+
 
 /*
  * Add array of walls to the potential list and sort

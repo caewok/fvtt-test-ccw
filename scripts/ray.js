@@ -44,7 +44,7 @@ export function rayInFrontOfPoint(point, visionPoint) {
   const ABV = ccwPoints(this.A, this.B, visionPoint);
   const VAP = ccwPoints(visionPoint, this.A, point);
   
-  if(ABP !== AVP && ABP !== VAP) return true;
+  if(ABP !== ABV && ABP !== VAP) return true;
   return false;
 } 
 

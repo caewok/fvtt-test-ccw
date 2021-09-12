@@ -42,6 +42,8 @@ function arraysEqual(a1,a2) {
 }
 
 function closestWall(walls, origin) {
+  if(walls.length === 0) return undefined;
+  if(walls.length === 1) return walls[0];
   return walls.reduce((closest, w) => {
       if(w.toRay().inFrontOf(closest.toRay(), origin)) return w;
       return closest;
@@ -53,7 +55,23 @@ function closestWall(walls, origin) {
  * Construct a sight ray given an endpoint and radius
  */
 function constructRay(origin, endpoint, radius) {
-  return (new SightRay(origin, endpoint)).projectDistance(radius);
+  let ray = (new SightRay(origin, endpoint)).projectDistance(radius);
+  
+  // don't extend past the canvas
+  const canvas_rays = [
+    new Ray({x: 0, y: 0}, {x: canvas.dimensions.sceneWidth, y: 0}),
+    new Ray({x: 0, y: 0}, {x: 0, y: canvas.dimensions.sceneHeight}),
+    new Ray({x: canvas.dimensions.sceneWidth, y: 0}, {x: canvas.dimensions.sceneWidth, y: canvas.dimensions.sceneHeight}),
+    new Ray({x: canvas.dimensions.sceneWidth, y: canvas.dimensions.sceneHeight}, {x: 0, y: canvas.dimensions.sceneHeight})
+  ];
+  
+  const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
+  if(canvas_ray) {
+    const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
+    ray = new SightRay(ray.A, intersect_pt);
+  }
+  
+  return ray;
 }
 
 /*
@@ -418,19 +436,20 @@ needs_padding = false;
   
       // mark endpoint
       collisions.push(endpoint);      
-      continue;
+      //continue;
     }  
     
     // is this endpoint at the end of the closest_wall?
-    if(almostEqual(endpoint, closest_wall.A) || almostEqual(endpoint, closest_wall.B)) {
+    if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)) {
        // then add the endpoint, remove the wall from potential list.
        collisions.push(endpoint);
        
-       const ray = constructRay(origin, endpoint, radius);
+       ray = constructRay(origin, endpoint, radius);
+       //drawRay(ray, COLORS.blue)
               
        // what is the next-closest wall? 
        closest_wall = potentially_blocking_walls.pop();
-       let intersection = undefined
+       intersection = undefined
        if(closest_wall) {
          // get the new intersection point: where the ray hits the next-closest wall
          intersection = ray.intersectSegment(closest_wall.coords);
@@ -442,7 +461,7 @@ needs_padding = false;
          // if radius-limited, it is possible for next-closest to be outside the radius
          // endpoint is the intersection with the radius circle (endpoint of the ray)
          // all other potentially blocking segments are outside radius at this point 
-         //   (otherwise, we would have hit their endpoints by now)
+         //   (otherwise, we would have hit their endpoints by now)         
          
          collisions.push(ray.B);
          potentially_blocking_walls = [];
@@ -456,14 +475,14 @@ needs_padding = false;
           collisions.push(intersection);
        } 
          
-       continue;  
+       //continue;  
     } 
     
     // is this endpoint within the closest_wall? [Can this happen? limited angle of vision?]
     
     // is this endpoint behind the closest wall?
     
-    if(closest_wall.inFrontOfPoint(endpoint)) { 
+    if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // then this endpoint wall should be added to potential list; move to next endpoint
       potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls);     
        //continue;
