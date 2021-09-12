@@ -150,6 +150,9 @@ export function testCCWSweepEndpoints(wrapped) {
   const has_radius = this.config.hasRadius;
   let endpoints = Array.from(this.endpoints.values());
   
+  // walls should be an iterable set 
+  const walls = new Map(Object.entries(Poly.walls));
+  
   // add 4-corners endpoints if not limited radius
   // used to draw polygon from the edges of the map.
   if(!has_radius) {
@@ -165,7 +168,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // Skip endpoints which are not within our limited angle
   //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
 
-  // Sort endpoints by angle
+  // Sort endpoints from west to north to east to south
   endpoints = sortEndpoints(this.origin, endpoints);
   
 /*  
@@ -206,19 +209,20 @@ export function testCCWSweepEndpoints(wrapped) {
   // If yes, then get the closest segment 
   // If no, the starting endpoint is the first in the sort list
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
+  let needs_padding = false;
   let closest_wall = undefined;
-  let potentially_blocking_walls = []; // set of walls that could block given current sweep. Ordered furthest to closest.
+  let potentially_blocking_walls = new Map(); // ordered furthest to closest
+  intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
   
-  const intersecting_walls = [...this.walls].filter(w => lastRay.intersects(w));
   if(intersecting_walls.length > 0) {
     closest_wall = closestWall(intersecting_walls, origin);
-    potentially_blocking_walls.push(closest_wall);
+    potentially_blocking_walls.set(closest_wall.data.id, closest_wall);
   }
   
   
   // TO-DO: remove endpoints that are not within our limited angle
   
-  let needs_padding = false;
+  
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
   
@@ -232,7 +236,7 @@ export function testCCWSweepEndpoints(wrapped) {
   
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
-    if(hasRadius && needs_padding) {
+    if(has_radius && needs_padding) {
       const prior_ray = needs_padding;
       needs_padding = false;
       
@@ -250,9 +254,8 @@ export function testCCWSweepEndpoints(wrapped) {
     // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
     if(!closest_wall) {
       // endpoint can be for one or more walls. Get the closest
-      closest_wall = closestWall([...endpoint.walls], origin); 
-      
-      if(closest_wall) potentially_blocking_walls.push(closest_wall);
+      addToPotentialList(endpoint.walls, potentially_blocking_walls, origin); 
+      closest_wall = popMap(potentially_blocking_walls);
   
       // mark endpoint
       collisions.push(endpoint);      
@@ -260,7 +263,8 @@ export function testCCWSweepEndpoints(wrapped) {
     }  
     
     // is this endpoint at the end of the closest_wall?
-    if(almostEqual(endpoint, closest_wall.A) || almostEqual(endpoint, closest_wall.B)) {
+    if(pointsAlmostEqual(endpoint, closest_wall.A) || 
+       pointsAlmostEqual(endpoint, closest_wall.B)) {
        // then add the endpoint, remove the wall from potential list.
        collisions.push(endpoint);
        
@@ -283,7 +287,7 @@ export function testCCWSweepEndpoints(wrapped) {
          //   (otherwise, we would have hit their endpoints by now)
          
          collisions.push(ray.B);
-         potentially_blocking_walls = [];
+         potentially_blocking_walls = new Map();
          closest_wall = undefined;
          
          // padding  
@@ -301,24 +305,26 @@ export function testCCWSweepEndpoints(wrapped) {
     
     // is this endpoint behind the closest wall?
     
-    if(closest_wall.inFrontOfPoint(endpoint)) { 
+    if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // then this endpoint wall should be added to potential list; move to next endpoint
-      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls);     
+      potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);     
        //continue;
       
     } else {
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
-      potentially_blocking_walls.push(closest_wall);
-      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls);
-      closest_wall = potentially_blocking_walls.pop();
+      const walls_to_add = endpoint.wall; // this is a Set
+      walls_to_add.add(closest_wall);
+      
+      addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
+      closest_wall = popMap(potentially_blocking_walls);
       collisions.push(endpoint);
             
        //continue; 
     }
     
  
-  }
+  } // end of endpoints loop
     
   // close between last / first endpoint
   if(has_radius && needs_padding) {
@@ -422,16 +428,29 @@ function constructRay(origin, endpoint, radius) {
 /*
  * Add array of walls to the potential list and sort
  */
-function addToPotentialList(endpoint, potentially_blocking_walls) {
-  [...endpoint.walls].forEach(w => {
-    potentially_blocking_walls.push(w);
+function addToPotentialList(walls, potentially_blocking_walls) {
+  if(walls.size === 0) return potentially_blocking_walls;
+
+  [...walls].forEach(w => {
+    potentially_blocking_walls.set(w.id, w);
   });
-  potentially_blocking_walls.sort((a, b) => {
+  return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
     // greater than 0: a in front of b
     return a.toRay().inFrontOfSegment(b.toRay()) ? 1 : -1;
-  });
-  
-  return potentially_blocking_walls;
+  }));    
+}
+
+/*
+ * Pop a wall from the potential wall Map
+ */
+function popMap(potentially_blocking_walls) {
+  if(potentially_blocking_walls.size === 0) return undefined;
+
+  const keys = [...potentially_blocking_walls.keys()];
+  const popkey = keys[keys.length - 1];
+  const obj = potentially_blocking_walls.get(popkey);
+  potentially_blocking_walls.delete(popkey);
+  return obj;
 }
 
 

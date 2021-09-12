@@ -77,16 +77,29 @@ function constructRay(origin, endpoint, radius) {
 /*
  * Add array of walls to the potential list and sort
  */
-function addToPotentialList(endpoint, potentially_blocking_walls) {
-  [...endpoint.walls].forEach(w => {
-    potentially_blocking_walls.push(w);
+function addToPotentialList(walls, potentially_blocking_walls) {
+  if(walls.size === 0) return potentially_blocking_walls;
+
+  [...walls].forEach(w => {
+    potentially_blocking_walls.set(w.id, w);
   });
-  potentially_blocking_walls.sort((a, b) => {
+  return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
     // greater than 0: a in front of b
     return a.toRay().inFrontOfSegment(b.toRay()) ? 1 : -1;
-  });
-  
-  return potentially_blocking_walls;
+  }));    
+}
+
+/*
+ * Pop a wall from the potential wall Map
+ */
+function popMap(potentially_blocking_walls) {
+  if(potentially_blocking_walls.size === 0) return undefined;
+
+  const keys = [...potentially_blocking_walls.keys()];
+  const popkey = keys[keys.length - 1];
+  const obj = potentially_blocking_walls.get(popkey);
+  potentially_blocking_walls.delete(popkey);
+  return obj;
 }
 
 
@@ -317,12 +330,9 @@ collisions = [];  // array to store collisions in lieu of rays
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
 
-// walls need to be an iterable set 
+// walls should to be an iterable set 
 
-walls = new Map();
-Object.getOwnPropertyNames(Poly.walls).forEach(id => {
- walls.set(id, Poly.walls[id]);
-});  
+walls = new Map(Object.entries(Poly.walls));
   
 endpoints = Array.from(Poly.endpoints.values());
   
@@ -430,8 +440,8 @@ needs_padding = false;
       
       
       if(closest_wall) {
-        addToPotentialList(endpoint, potentially_blocking_walls); 
-        closest_wall = potentially_blocking_walls.pop()
+        addToPotentialList(endpoint, potentially_blocking_walls, origin); 
+        closest_wall = popMap(potentially_blocking_walls);
       }
   
       // mark endpoint
@@ -484,15 +494,17 @@ needs_padding = false;
     
     if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // then this endpoint wall should be added to potential list; move to next endpoint
-      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls);     
+      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls, origin);     
        //continue;
       
     } else {
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
-      potentially_blocking_walls.push(closest_wall);
-      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls);
-      closest_wall = potentially_blocking_walls.pop();
+      walls_to_add = endpoint.wall; // this is a Set
+      walls_to_add.add(closest_wall);
+      
+      addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
+      closest_wall = popMap(potentially_blocking_walls);
       collisions.push(endpoint);
             
        //continue; 
