@@ -1,9 +1,97 @@
+// imported functions
+function almostEqual(x, y, EPSILON = 1e-10) {
+  return Math.abs(x - y) < EPSILON;
+}
+
+function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
+  return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
+}
+
+function orient2dPoints(p1, p2, p3) {
+  return orient2d(p1.x, p1.y,
+                  p2.x, p2.y,
+                  p3.x, p3.y);
+}
+
+function ccwPoints(p1, p2, p3) {
+  const res = orient2dPoints(p1, p2, p3);
+                         
+  return res < 0 ? -1 : 
+         res > 0 ?  1 : 0;
+}
+
+function sortEndpoints(origin, endpoints) {
+  return endpoints.sort((a, b) => {
+    // arbitrarily declare upper hemisphere to be first
+    // so x < vision_point (above) is before x > vision_point (below)
+    // walk quadrants, so Q1 is upper left, Q3 is lower right
+    // return > 0 to sort b before a
+    if(a.y >= origin.y && b.y < origin.y) return 1;
+    if(a.y < origin.y && b.y >= origin.y) return -1;
+      
+    // in same hemisphere      
+    return orient2d(origin.x, origin.y, 
+                    a.x, a.y,
+                    b.x, b.y);
+  });
+}
+
+function arraysEqual(a1,a2) {
+    /* WARNING: arrays must not contain {objects} or behavior may be undefined */
+    return JSON.stringify(a1)==JSON.stringify(a2);
+}
+
+function closestWall(walls, origin) {
+  return walls.reduce((closest, w) => {
+      if(w.toRay().inFrontOf(closest.toRay(), origin)) return w;
+      return closest;
+    });
+}
+
+
+/*
+ * Construct a sight ray given an endpoint and radius
+ */
+function constructRay(origin, endpoint, radius) {
+  return (new SightRay(origin, endpoint)).projectDistance(radius);
+}
+
+/*
+ * Add array of walls to the potential list and sort
+ */
+function addToPotentialList(endpoint, potentially_blocking_walls) {
+  [...endpoint.walls].forEach(w => {
+    potentially_blocking_walls.push(w);
+  });
+  potentially_blocking_walls.sort((a, b) => {
+    // greater than 0: a in front of b
+    return a.toRay().inFrontOfSegment(b.toRay()) ? 1 : -1;
+  });
+  
+  return potentially_blocking_walls;
+}
+
+
+
+
 // Useful commands
 w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
 t = canvas.tokens.controlled[0];
 await window.testccw.benchmark(1000, t.center)
+
+const COLORS = {
+  orange: 0xFFA500,
+  yellow: 0xFFFF00,
+  greenyellow: 0xADFF2F,
+  blue: 0x0000FF,
+  lightblue: 0xADD8E6,
+  red: 0xFF0000,
+  gray: 0x808080,
+  black: 0x000000,
+  white: 0xFFFFFF
+}
 
 // Create RadialSweepPolygon
 // (use let b/c we are pasting into console a lot)
@@ -132,6 +220,8 @@ if ( isLimited || (endpoints.length === 1) ) {
   endpoints.push(pFinal);
 }
 
+
+
 // Sweep each endpoint
 for ( let endpoint of endpoints ) {
 // endpoint = endpoints[0]
@@ -186,6 +276,19 @@ if ( debug ) {
 
 
 // NEW VERSION ----- this._sweepEndpoints();-------------------- 
+orient2d = window.testccw.orient2d;
+MODULE_ID = "testccw"
+
+function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
+  canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
+}
+
+function drawRay(ray, color = 0xFF0000, width = 1) {
+   canvas.controls.debug.lineStyle(width, color, 1).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
+}
+
+canvas.controls.debug.clear();
+
 
   // Configure inputs
 origin = Poly.origin;
@@ -195,7 +298,13 @@ collisions = [];  // array to store collisions in lieu of rays
   //const angles = new Set();
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
-  
+
+// walls need to be an iterable set 
+
+walls = new Map();
+Object.getOwnPropertyNames(Poly.walls).forEach(id => {
+ walls.set(id, Poly.walls[id]);
+});  
   
 endpoints = Array.from(Poly.endpoints.values());
   
@@ -218,19 +327,14 @@ endpoints = Array.from(Poly.endpoints.values());
   
   endpoints = sortEndpoints(Poly.origin, endpoints);
   
-  
-  if(window[MODULE_ID].debug) {
-    // confirm that the sort matches the old sort method
-    const angles = endpoints.map(e => e.angle);
-    endpoints.sort((a, b) => a.angle - b.angle);
-    const new_angles = endpoints.map(e => e.angle);
-    if(!arraysEqual(angles, new_angles)) {
-      console.warn(`testccw|Sorted CCW angles not equivalent`, endpoints);
-    }
-  }
+// drawEndpoint(endpoints[0])
 
+  
   // Begin with a ray at the lowest angle to establish initial conditions
-  let lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
+  // radius extends far beyond canvas edge in most instances
+lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
+
+drawRay(lastRay)
 
   // We may need to explicitly include a first ray
   if ( isLimited || (endpoints.length === 0) ) {
@@ -256,10 +360,10 @@ endpoints = Array.from(Poly.endpoints.values());
   // If yes, then get the closest segment 
   // If no, the starting endpoint is the first in the sort list
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
-  let closest_wall = undefined;
-  let potentially_blocking_walls = []; // set of walls that could block given current sweep. Ordered furthest to closest.
-  
-  const intersecting_walls = [...Poly.walls].filter(w => lastRay.intersects(w));
+closest_wall = undefined;
+potentially_blocking_walls = []; // set of walls that could block given current sweep. Ordered furthest to closest.
+    
+intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
   if(intersecting_walls.length > 0) {
     closest_wall = closestWall(intersecting_walls, origin);
     potentially_blocking_walls.push(closest_wall);
@@ -268,9 +372,12 @@ endpoints = Array.from(Poly.endpoints.values());
   
   // TO-DO: remove endpoints that are not within our limited angle
   
-  let needs_padding = false;
+needs_padding = false;
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
+  // endpoint = endpoints[0]
+  // drawEndpoint(endpoint)
+  
   
     // TO-DO: Catch crossed walls, create new endpoint at the cross
     // Probably sort endpoints other direction so can pop from array.
@@ -301,8 +408,13 @@ endpoints = Array.from(Poly.endpoints.values());
     if(!closest_wall) {
       // endpoint can be for one or more walls. Get the closest
       closest_wall = closestWall([...endpoint.walls], origin); 
+      //drawRay(closest_wall.toRay())
       
-      if(closest_wall) potentially_blocking_walls.push(closest_wall);
+      
+      if(closest_wall) {
+        addToPotentialList(endpoint, potentially_blocking_walls); 
+        closest_wall = potentially_blocking_walls.pop()
+      }
   
       // mark endpoint
       collisions.push(endpoint);      
@@ -388,4 +500,7 @@ endpoints = Array.from(Poly.endpoints.values());
   }
     
   this.collisions = collisions;
+
+
+
 
