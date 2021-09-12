@@ -21,15 +21,13 @@ export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
 }
 
 export function orient2dPoints(p1, p2, p3) {
-  return orient2d(origin.x, origin.y,
-                  p_northern.x, p_northern.y,
-                  p_southern.x, p_southern.y);
+  return orient2d(p1.x, p1.y,
+                  p2.x, p2.y,
+                  p3.x, p3.y);
 }
 
 export function ccwPoints(p1, p2, p3) {
-  const res = orient2d(this.A.x, this.A.y, 
-                         this.B.x, this.B.y,
-                         r.A.x, r.A.y);
+  const res = orient2dPoints(p1, p2, p3);
                          
   return res < 0 ? -1 : 
          res > 0 ?  1 : 0;

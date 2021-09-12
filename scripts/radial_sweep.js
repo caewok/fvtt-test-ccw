@@ -148,7 +148,7 @@ export function testCCWSweepEndpoints(wrapped) {
   //const angles = new Set();
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
-  const endpoints = Array.from(this.endpoints.values());
+  let endpoints = Array.from(this.endpoints.values());
   
   // add 4-corners endpoints if not limited radius
   // used to draw polygon from the edges of the map.
@@ -168,7 +168,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // Sort endpoints by angle
   endpoints = sortEndpoints(this.origin, endpoints);
   
-  
+/*  
   if(window[MODULE_ID].debug) {
     // confirm that the sort matches the old sort method
     const angles = endpoints.map(e => e.angle);
@@ -178,7 +178,7 @@ export function testCCWSweepEndpoints(wrapped) {
       console.warn(`testccw|Sorted CCW angles not equivalent`, endpoints);
     }
   }
-
+*/
   // Begin with a ray at the lowest angle to establish initial conditions
   let lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
 
@@ -385,6 +385,8 @@ function arraysEqual(a1,a2) {
 }
 
 function closestWall(walls, origin) {
+  if(walls.length === 0) return undefined;
+  if(walls.length === 1) return walls[0];
   return walls.reduce((closest, w) => {
       if(w.toRay().inFrontOf(closest.toRay(), origin)) return w;
       return closest;
@@ -416,6 +418,7 @@ function addToPotentialList(endpoint, potentially_blocking_walls) {
 
 
 // expensive
+/*
 function _padRays(r0, r1, padding, rays, requireTest) {
 
     // Determine padding delta
@@ -446,7 +449,7 @@ function _padRays(r0, r1, padding, rays, requireTest) {
       rays.push(r);
     }
   }
- 
+*/
 
 
 

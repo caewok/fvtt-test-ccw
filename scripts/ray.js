@@ -48,7 +48,6 @@ export function rayInFrontOfPoint(point, visionPoint) {
   return false;
 } 
 
- */
 /*
  * Return true if this segment is in front of another segment
  *
@@ -68,7 +67,7 @@ export function rayInFrontOfSegment(segment, visionPoint) {
   let shared_endpoint = false;
   
   // if the segments share an endpoint, must interpolate away from that endpoint for each.
-  if(pointsAlmostEqual(thisA, segmentA) {
+  if(pointsAlmostEqual(thisA, segmentA)) {
     shared_endpoint = true;
     thisA = this.project(0.01); 
     segmentA = segment.project(0.01);
@@ -80,13 +79,13 @@ export function rayInFrontOfSegment(segment, visionPoint) {
     segmentB = segment.projectB(-0.01);
   }
   
-  if(pointsAlmostEqual(thisB, segmentB) {
+  if(pointsAlmostEqual(thisB, segmentB)) {
     shared_endpoint = true;
     thisB = this.projectB(-0.01); 
     segmentB = segment.projectB(-0.01);
   }
   
-  if(pointsAlmostEqual(thisB, segmentA) {
+  if(pointsAlmostEqual(thisB, segmentA)) {
     shared_endpoint = true;
     thisB = this.projectB(-0.01); 
     segmentA = segment.project(0.01);

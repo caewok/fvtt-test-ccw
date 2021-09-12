@@ -29,7 +29,7 @@ export function log(...args) {
 Hooks.once('init', async function() {
   registerCCW();
   
-  window[MODULE_ID] = { use_ccw: true,
+  window[MODULE_ID] = { use_ccw: false,
                         debug: true,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d }
