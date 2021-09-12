@@ -134,6 +134,7 @@ if ( isLimited || (endpoints.length === 1) ) {
 
 // Sweep each endpoint
 for ( let endpoint of endpoints ) {
+// endpoint = endpoints[0]
 
   // De-dupe repeated angles
   if ( angles.has(endpoint.angle) ) continue;

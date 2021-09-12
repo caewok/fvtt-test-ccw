@@ -89,3 +89,24 @@ export function wallEffectSide() {
   
   return undefined; // wall is a point
 }
+
+/*
+ * Wall.prototype.A
+ * 
+ * Get first endpoint coordinates for wall
+ * @return {x, y}
+ */
+export function wallA() {
+  return { x: this.coords[0], y: this.coords[1] };
+}
+
+/*
+ * Wall.prototype.B
+ * 
+ * Get second endpoint coordinates for wall
+ * @return {x, y}
+ */
+export function wallB() {
+  return { x: this.coords[2], y: this.coords[3] };
+}
+
