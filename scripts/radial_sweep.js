@@ -148,10 +148,11 @@ export function testCCWSweepEndpoints(wrapped) {
   //const angles = new Set();
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
+  const endpoints = Array.from(this.endpoints.values());
   
   // add 4-corners endpoints if not limited radius
   // used to draw polygon from the edges of the map.
-  if(!hasRadius) {
+  if(!has_radius) {
     endpoints.push(new WallEndpoint(0, 0));
     endpoints.push(new WallEndpoint(0, canvas.dimensions.sceneHeight));
     endpoints.push(new WallEndpoint(canvas.dimensions.sceneWidth, 0));
@@ -165,7 +166,6 @@ export function testCCWSweepEndpoints(wrapped) {
   //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
 
   // Sort endpoints by angle
-  const endpoints = Array.from(this.endpoints.values());
   endpoints = sortEndpoints(this.origin, endpoints);
   
   
@@ -321,7 +321,7 @@ export function testCCWSweepEndpoints(wrapped) {
   }
     
   // close between last / first endpoint
-  if(hasRadius && needs_padding) {
+  if(has_radius && needs_padding) {
     
   
     const prior_ray = needs_padding;
@@ -416,7 +416,7 @@ function addToPotentialList(endpoint, potentially_blocking_walls) {
 
 
 // expensive
-_padRays(r0, r1, padding, rays, requireTest) {
+function _padRays(r0, r1, padding, rays, requireTest) {
 
     // Determine padding delta
     let d = r1.angle - r0.angle;
