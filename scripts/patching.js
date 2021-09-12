@@ -47,13 +47,11 @@ Object.defineProperty(Wall.prototype, "effectSide", {
 
 Object.defineProperty(Wall.prototype, "A", {
   get: wallA,
-  writable: true,
   configurable: true
 });
 
 Object.defineProperty(Wall.prototype, "B", {
   get: wallB,
-  writable: true,
   configurable: true
 });
 

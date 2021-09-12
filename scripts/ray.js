@@ -12,7 +12,7 @@ import { ccwPoints, pointsAlmostEqual } from "./util.js";
 export function rayProjectDistance(dist) {
   const t = dist / this.distance;
   const B = this.project(t);
-  const r = new Ray(this.A, this.B);
+  const r = new Ray(this.A, B);
   r._distance = dist;
   r._angle = this._angle;
   return r;
