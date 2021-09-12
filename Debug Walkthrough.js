@@ -41,11 +41,11 @@ function arraysEqual(a1,a2) {
     return JSON.stringify(a1)==JSON.stringify(a2);
 }
 
-function closestWall(walls, origin) {
-  if(walls.length === 0) return undefined;
-  if(walls.length === 1) return walls[0];
-  return walls.reduce((closest, w) => {
-      if(w.toRay().inFrontOf(closest.toRay(), origin)) return w;
+function closestWall(walls_arr, origin) {
+  if(walls_arr.length === 0) return undefined;
+  if(walls_arr.length === 1) return walls_arr[0];
+  return walls_arr.reduce((closest, w) => {
+      if(w.toRay().inFrontOfPoint(closest.toRay(), origin)) return w;
       return closest;
     });
 }
@@ -77,15 +77,23 @@ function constructRay(origin, endpoint, radius) {
 /*
  * Add array of walls to the potential list and sort
  */
-function addToPotentialList(walls, potentially_blocking_walls) {
-  if(walls.size === 0) return potentially_blocking_walls;
+function addToPotentialList(walls, potentially_blocking_walls, origin) {
+  walls = [...walls]; // so walls can be Sets or arrays
 
-  [...walls].forEach(w => {
+  if(walls.length === 0) return potentially_blocking_walls;
+  
+  const no_sort_required = (walls.length === 1 && potentially_blocking_walls.size === 0);
+
+  walls.forEach(w => {
     potentially_blocking_walls.set(w.id, w);
   });
+  
+  if(no_sort_required) { return potentially_blocking_walls; }
+  
+  // entries() provides [key, value] for each
   return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
     // greater than 0: a in front of b
-    return a.toRay().inFrontOfSegment(b.toRay()) ? 1 : -1;
+    return a[1].toRay().inFrontOfSegment(b[1].toRay(), origin) ? 1 : -1;
   }));    
 }
 
@@ -146,6 +154,10 @@ Poly.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 9
 Poly.config.aMax = isLimited ? Poly.config.aMin + Math.toRadians(angle) : Math.PI;
 
 // Construct endpoints for each Wall
+
+
+
+Poly._initializeEndpoints(type)
 
 
 // ----- this._initializeEndpoints(type); -------------------- 
@@ -209,7 +221,7 @@ return d.between(-Math.PI/2, Math.PI/2);
 
 // END this._initializeEndpoints(type); -------------------- 
 
-Poly._initializeEndpoints(type)
+
 
 // Iterate over endpoints
 // ----- this._sweepEndpoints();-------------------- 
@@ -389,13 +401,16 @@ drawRay(lastRay)
   // If no, the starting endpoint is the first in the sort list
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
 closest_wall = undefined;
-potentially_blocking_walls = []; // set of walls that could block given current sweep. Ordered furthest to closest.
+potentially_blocking_walls = new Map(); // set of walls that could block given current sweep. Ordered furthest to closest.
     
 intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
-  if(intersecting_walls.length > 0) {
-    closest_wall = closestWall(intersecting_walls, origin);
-    potentially_blocking_walls.push(closest_wall);
-  }
+if(intersecting_walls.length > 0) {
+  // these walls are actually walls[0].wall
+  intersecting_walls = intersecting_walls.map(w => w.wall);
+  
+  potentially_blocking_walls = addToPotentialList(intersecting_walls, potentially_blocking_walls, origin);
+  closest_wall = popMap(potentially_blocking_walls);
+}
   
   
   // TO-DO: remove endpoints that are not within our limited angle
@@ -440,13 +455,13 @@ needs_padding = false;
       
       
       if(closest_wall) {
-        addToPotentialList(endpoint, potentially_blocking_walls, origin); 
+        addToPotentialList(endpoint.walls, potentially_blocking_walls, origin); 
         closest_wall = popMap(potentially_blocking_walls);
       }
   
       // mark endpoint
       collisions.push(endpoint);      
-      //continue;
+      continue;
     }  
     
     // is this endpoint at the end of the closest_wall?
@@ -458,7 +473,7 @@ needs_padding = false;
        //drawRay(ray, COLORS.blue)
               
        // what is the next-closest wall? 
-       closest_wall = potentially_blocking_walls.pop();
+       closest_wall = popMap(potentially_blocking_walls);
        intersection = undefined
        if(closest_wall) {
          // get the new intersection point: where the ray hits the next-closest wall
@@ -474,7 +489,7 @@ needs_padding = false;
          //   (otherwise, we would have hit their endpoints by now)         
          
          collisions.push(ray.B);
-         potentially_blocking_walls = [];
+         potentially_blocking_walls = new Map();;
          closest_wall = undefined;
          
          // padding  
@@ -482,10 +497,12 @@ needs_padding = false;
        
        } else if(intersection) {
           // intersection is our new endpoint
+          // (already set closest wall above)
+          // drawEndpoint(intersection);
           collisions.push(intersection);
        } 
          
-       //continue;  
+       continue;  
     } 
     
     // is this endpoint within the closest_wall? [Can this happen? limited angle of vision?]
@@ -493,14 +510,14 @@ needs_padding = false;
     // is this endpoint behind the closest wall?
     
     if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
-      // then this endpoint wall should be added to potential list; move to next endpoint
-      potentially_blocking_walls = addToPotentialList(endpoint, potentially_blocking_walls, origin);     
+      // then this endpoint wall (if any) should be added to potential list; move to next endpoint
+      potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);     
        //continue;
       
     } else {
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
-      walls_to_add = endpoint.wall; // this is a Set
+      walls_to_add = endpoint.walls; // this is a Set
       walls_to_add.add(closest_wall);
       
       addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
@@ -530,8 +547,34 @@ needs_padding = false;
     });  
   }
     
-  this.collisions = collisions;
+  Poly.collisions = collisions;
+  
 
+// draw collisions
+collisions.forEach(c => drawEndpoint(c));
+
+
+// ----------------- constructPoints -------------
+  
+  points = [];
+  isLimited = Poly.config.isLimited;
+
+  // Open a limited shape
+  if ( isLimited ) points.push(Poly.origin.x, Poly.origin.y);
+
+  // Add collision points from every ray
+  Poly.collisions.forEach(c => { points.push(c.x, c.y) });
+  
+  // Close a limited polygon
+  if ( isLimited ) points.push(Poly.origin.x, Poly.origin.y);
+  Poly.points = points;
+
+
+
+// draw polygon
+canvas.controls.debug.clear();
+p = new PIXI.Polygon(points);
+canvas.controls.debug.lineStyle(1, COLORS.red).drawShape(p);
 
 
 

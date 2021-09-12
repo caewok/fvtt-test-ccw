@@ -215,9 +215,12 @@ export function testCCWSweepEndpoints(wrapped) {
   intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
   
   if(intersecting_walls.length > 0) {
-    closest_wall = closestWall(intersecting_walls, origin);
-    potentially_blocking_walls.set(closest_wall.data.id, closest_wall);
-  }
+  // these walls are actually walls[0].wall
+  intersecting_walls = intersecting_walls.map(w => w.wall);
+  
+  potentially_blocking_walls = addToPotentialList(intersecting_walls, potentially_blocking_walls, origin);
+  closest_wall = popMap(potentially_blocking_walls);
+}
   
   
   // TO-DO: remove endpoints that are not within our limited angle
@@ -313,7 +316,7 @@ export function testCCWSweepEndpoints(wrapped) {
     } else {
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
-      const walls_to_add = endpoint.wall; // this is a Set
+      const walls_to_add = endpoint.walls; // this is a Set
       walls_to_add.add(closest_wall);
       
       addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
@@ -394,7 +397,7 @@ function closestWall(walls, origin) {
   if(walls.length === 0) return undefined;
   if(walls.length === 1) return walls[0];
   return walls.reduce((closest, w) => {
-      if(w.toRay().inFrontOf(closest.toRay(), origin)) return w;
+      if(w.toRay().inFrontOfPoint(closest.toRay(), origin)) return w;
       return closest;
     });
 }
@@ -428,15 +431,23 @@ function constructRay(origin, endpoint, radius) {
 /*
  * Add array of walls to the potential list and sort
  */
-function addToPotentialList(walls, potentially_blocking_walls) {
-  if(walls.size === 0) return potentially_blocking_walls;
+function addToPotentialList(walls, potentially_blocking_walls, origin) {
+  walls = [...walls]; // so walls can be Sets or arrays
 
-  [...walls].forEach(w => {
+  if(walls.length === 0) return potentially_blocking_walls;
+  
+  const no_sort_required = (walls.length === 1 && potentially_blocking_walls.size === 0);
+
+  walls.forEach(w => {
     potentially_blocking_walls.set(w.id, w);
   });
+  
+  if(no_sort_required) { return potentially_blocking_walls; }
+  
+  // entries() provides [key, value] for each
   return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
     // greater than 0: a in front of b
-    return a.toRay().inFrontOfSegment(b.toRay()) ? 1 : -1;
+    return a[1].toRay().inFrontOfSegment(b[1].toRay(), origin) ? 1 : -1;
   }));    
 }
 
