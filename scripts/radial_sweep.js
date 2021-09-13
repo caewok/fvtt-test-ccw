@@ -1,6 +1,6 @@
 import { MODULE_ID } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
-import { pointsAlmostEqual } from "./util.js";
+import { pointsAlmostEqual, ccwPoints } from "./util.js";
 
 /*
 RadialSweep class mostly works through the compute method. 
@@ -151,7 +151,7 @@ export function testCCWSweepEndpoints(wrapped) {
   let endpoints = Array.from(this.endpoints.values());
   
   // walls should be an iterable set 
-  const walls = new Map(Object.entries(Poly.walls));
+  const walls = new Map(Object.entries(this.walls));
   
   // add 4-corners endpoints if not limited radius
   // used to draw polygon from the edges of the map.
@@ -212,7 +212,7 @@ export function testCCWSweepEndpoints(wrapped) {
   let needs_padding = false;
   let closest_wall = undefined;
   let potentially_blocking_walls = new Map(); // ordered furthest to closest
-  intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
+  let intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
   
   if(intersecting_walls.length > 0) {
   // these walls are actually walls[0].wall
@@ -256,7 +256,7 @@ export function testCCWSweepEndpoints(wrapped) {
     // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
     if(!closest_wall) {
       // see where the vision point to the new endpoint intersects the canvas edge
-      ray = constructRay(origin, endpoint, radius);
+      const ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
       collisions.push(ray.B); 
     
@@ -273,7 +273,7 @@ export function testCCWSweepEndpoints(wrapped) {
     if(pointsAlmostEqual(endpoint, closest_wall.A) || 
        pointsAlmostEqual(endpoint, closest_wall.B)) {
        // add all other endpoint walls than closest to potential list, if any
-       walls_to_add = endpoint.walls; // this is a Set
+       const walls_to_add = endpoint.walls; // this is a Set
        walls_to_add.delete(closest_wall);
        potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);
        
@@ -283,14 +283,14 @@ export function testCCWSweepEndpoints(wrapped) {
        // then add the endpoint
        collisions.push(endpoint);
        
-       ray = constructRay(origin, endpoint, radius);
+       const ray = constructRay(origin, endpoint, radius);
        //drawRay(ray, COLORS.blue)
               
        // what is the next-closest wall? 
        closest_wall = popMap(potentially_blocking_walls);
        // drawRay(closest_wall)
        
-       intersection = undefined
+       let intersection = undefined
        if(closest_wall) {
          // get the new intersection point: where the ray hits the next-closest wall
          intersection = ray.intersectSegment(closest_wall.coords);
@@ -330,13 +330,13 @@ export function testCCWSweepEndpoints(wrapped) {
     if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // endpoint walls CW from origin --> endpoint should be added to list
       // if in line with origin? add? 
-      endpoint_walls = [...endpoint.walls];
-      to_add = endpoint_walls.filter(w => {
+      const endpoint_walls = [...endpoint.walls];
+      const to_add = endpoint_walls.filter(w => {
         return endpointWallCCW(origin, endpoint, w) >= 0;
       });
       
       // endpoint walls CCW from origin --> endpoint can be removed
-      to_remove = endpoint_walls.filter(w => {
+      const to_remove = endpoint_walls.filter(w => {
         return endpointWallCCW(origin, endpoint, w) < 0;
       });
       
@@ -356,7 +356,7 @@ export function testCCWSweepEndpoints(wrapped) {
       //drawRay(ray, COLORS.blue)
       
       if(ray.intersects(closest_wall)) {
-        const intersection = ray.intersectSegment(closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y);
+        const intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
         collisions.push(intersection);
       }
       
