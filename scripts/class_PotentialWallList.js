@@ -7,9 +7,10 @@
 // - walls should be added if CW of current sweep sight ray. 
 // - in line walls? Add?
 import { log, MODULE_ID } from "./module.js";
+import { pointsAlmostEqual, ccwPoints } from "./util.js";
 
 
-class PotentialWallList {
+export class PotentialWallList {
   constructor(origin) {
     this.origin = origin;
     this.potential_walls = new Map();
@@ -26,7 +27,7 @@ class PotentialWallList {
     walls.forEach(w => {
       this.walls_encountered.add(w.id);
       this.potential_walls.set(w.id, w);
-    })
+    });
     
     if(this.potential_walls.size > 0 || (walls.size > 1 || walls.length > 1)) { this.sort(); }
   }
@@ -40,7 +41,7 @@ class PotentialWallList {
     walls.forEach(w => {
       this.walls_encountered.delete(w.id);
       this.potential_walls.delete(w.id);
-    })
+    });
   } 
   
  /*
@@ -48,10 +49,10 @@ class PotentialWallList {
   * @param {Array|Set|Map} wall_ids   Walls to remove
   */
   removeById(wall_ids) {
-    wall_ids.forEach(id => 
+    wall_ids.forEach(id => {
       this.walls_encountered.delete(id);
       this.potential_walls.delete(id);
-    )
+    });
   } 
   
  /*
@@ -100,11 +101,17 @@ class PotentialWallList {
   closest(remove = true) {
     if(this.potential_walls.size === 0) return undefined;
     
-    const keys = [this.potential_walls.keys()];
+    const keys = [...this.potential_walls.keys()];
     const popkey = keys[keys.length - 1];
     const obj = this.potential_walls.get(popkey);
     
     if(remove) this.remove([obj]);
     return obj;
   }
+}
+
+// 1 if CCW, -1 if CW, 0 if in line
+function endpointWallCCW(origin, endpoint, wall) {
+  const non_anchor = pointsAlmostEqual(wall.A, endpoint) ? wall.B : wall.A;
+  return ccwPoints(origin, endpoint, non_anchor);
 }
