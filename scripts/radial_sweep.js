@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
+import { PotentialWallList } from "./class_PotentialWallList";
 
 /*
 RadialSweep class mostly works through the compute method. 
@@ -149,6 +150,7 @@ export function testCCWSweepEndpoints(wrapped) {
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
   let endpoints = Array.from(this.endpoints.values());
+  const potential_walls = new PotentialWallList(origin);
   
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
@@ -211,23 +213,32 @@ export function testCCWSweepEndpoints(wrapped) {
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
   let needs_padding = false;
   let closest_wall = undefined;
-  let potentially_blocking_walls = new Map(); // ordered furthest to closest
+
   let intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
   
   if(intersecting_walls.length > 0) {
-  // these walls are actually walls[0].wall
-  intersecting_walls = intersecting_walls.map(w => w.wall);
-  
-  potentially_blocking_walls = addToPotentialList(intersecting_walls, potentially_blocking_walls, origin);
-  closest_wall = popMap(potentially_blocking_walls);
-}
+    // these walls are actually walls[0].wall
+    intersecting_walls = intersecting_walls.map(w => w.wall);
+    potential_walls.add(intersecting_walls);
+    closest_wall = potential_walls.closest();
+  }
   
   
   // TO-DO: remove endpoints that are not within our limited angle
   
+  // TO-DO: 
+  // improve potential list algorithm
+  // As we sweep clockwise, we should encounter new endpoints with wals moving clockwise.
+  // Should be able to track walls already encountered by id
+  // if we see that wall id again, we know we are at the end of that wall and can remove
+  
+  // TO-DO: B-tree for sorting / storing potential list
+
+  
   
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
+    potential_walls.addFromEndpoint(endpoint);
   
     // TO-DO: Catch crossed walls, create new endpoint at the cross
     // Probably sort endpoints other direction so can pop from array.
@@ -261,9 +272,8 @@ export function testCCWSweepEndpoints(wrapped) {
       collisions.push(ray.B); 
     
       // endpoint can be for one or more walls. Get the closest
-      potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin); 
-      closest_wall = popMap(potentially_blocking_walls);
-  
+      closest_wall = potential_walls.closest();
+      
       // mark endpoint
       collisions.push({x: endpoint.x, y: endpoint.y});      
       continue;
@@ -273,22 +283,14 @@ export function testCCWSweepEndpoints(wrapped) {
     if(pointsAlmostEqual(endpoint, closest_wall.A) || 
        pointsAlmostEqual(endpoint, closest_wall.B)) {
        // add all other endpoint walls than closest to potential list, if any
-       const walls_to_add = endpoint.walls; // this is a Set
-       walls_to_add.delete(closest_wall);
-       potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);
-       
-       // need to ensure closest_wall is no longer in the potential list
-       potentially_blocking_walls.delete(closest_wall.id);
+       closest_wall = potential_walls.closest();
+       // drawRay(closest_wall)
        
        // then add the endpoint
        collisions.push({x: endpoint.x, y: endpoint.y});
        
        const ray = constructRay(origin, endpoint, radius);
        //drawRay(ray, COLORS.blue)
-              
-       // what is the next-closest wall? 
-       closest_wall = popMap(potentially_blocking_walls);
-       // drawRay(closest_wall)
        
        let intersection = undefined
        if(closest_wall) {
@@ -306,8 +308,6 @@ export function testCCWSweepEndpoints(wrapped) {
          //   (otherwise, we would have hit their endpoints by now)
          
          collisions.push(ray.B);
-         potentially_blocking_walls = new Map();
-         closest_wall = undefined;
          
          // padding  
          needs_padding = ray;
@@ -317,7 +317,7 @@ export function testCCWSweepEndpoints(wrapped) {
           //  with new closest.
           // (already set closest wall above)
           // drawEndpoint(intersection);
-          if(!pointsAlmostEqual(endpoint, intersection)) { collisions.push(intersection); }
+          if(!pointsAlmostEqual(endpoint, intersection)) { collisions.push({ x: intersection.x, y: intersection.y }); }
        } 
          
        continue;  
@@ -328,22 +328,8 @@ export function testCCWSweepEndpoints(wrapped) {
     // is this endpoint behind the closest wall?
     
     if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
-      // endpoint walls CW from origin --> endpoint should be added to list
-      // if in line with origin? add? 
-      const endpoint_walls = [...endpoint.walls];
-      const to_add = endpoint_walls.filter(w => {
-        return endpointWallCCW(origin, endpoint, w) >= 0;
-      });
-      
-      // endpoint walls CCW from origin --> endpoint can be removed
-      const to_remove = endpoint_walls.filter(w => {
-        return endpointWallCCW(origin, endpoint, w) < 0;
-      });
-      
-      potentially_blocking_walls = addToPotentialList(to_add, potentially_blocking_walls, origin);     
-       
-      to_remove.forEach(w => potentially_blocking_walls.delete(w.id));
-       
+      // update the potential walls for this endpoint
+     
       //continue;
       
     } else {
@@ -357,14 +343,11 @@ export function testCCWSweepEndpoints(wrapped) {
       
       if(ray.intersects(closest_wall)) {
         const intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
-        collisions.push(intersection);
+        collisions.push({ x: intersection.x, y: intersection.y });
       }
       
-      const walls_to_add = endpoint.walls; // this is a Set
-      walls_to_add.add(closest_wall);
-      
-      potentially_blocking_walls = addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
-      closest_wall = popMap(potentially_blocking_walls);
+      closest_wall = potential_walls.closest();
+     
       collisions.push({x: endpoint.x, y: endpoint.y});
             
        //continue; 
