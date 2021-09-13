@@ -269,7 +269,7 @@ export function testCCWSweepEndpoints(wrapped) {
       // see where the vision point to the new endpoint intersects the canvas edge
       const ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
-      collisions.push(ray.B); 
+      collisions.push({x: ray.B.x, y: ray.B.y}); 
     
       // endpoint can be for one or more walls. Get the closest
       closest_wall = potential_walls.closest();
@@ -307,7 +307,7 @@ export function testCCWSweepEndpoints(wrapped) {
          // all other potentially blocking segments are outside radius at this point 
          //   (otherwise, we would have hit their endpoints by now)
          
-         collisions.push(ray.B);
+         collisions.push({x: ray.B.x, y: ray.B.y});
          
          // padding  
          needs_padding = ray;

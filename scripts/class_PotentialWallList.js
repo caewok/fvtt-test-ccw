@@ -14,7 +14,7 @@ export class PotentialWallList {
   constructor(origin) {
     this.origin = origin;
     this.potential_walls = new Map();
-    this.walls_encountered = new Set();
+    this.walls_encountered = new Set(); // can just use potential_walls.keys()
   }
   
  /*
