@@ -265,7 +265,7 @@ export function testCCWSweepEndpoints(wrapped) {
       closest_wall = popMap(potentially_blocking_walls);
   
       // mark endpoint
-      collisions.push(endpoint);      
+      collisions.push({x: endpoint.x, y: endpoint.y});      
       continue;
     }  
     
@@ -281,7 +281,7 @@ export function testCCWSweepEndpoints(wrapped) {
        potentially_blocking_walls.delete(closest_wall.id);
        
        // then add the endpoint
-       collisions.push(endpoint);
+       collisions.push({x: endpoint.x, y: endpoint.y});
        
        const ray = constructRay(origin, endpoint, radius);
        //drawRay(ray, COLORS.blue)
@@ -365,7 +365,7 @@ export function testCCWSweepEndpoints(wrapped) {
       
       potentially_blocking_walls = addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
       closest_wall = popMap(potentially_blocking_walls);
-      collisions.push(endpoint);
+      collisions.push({x: endpoint.x, y: endpoint.y});
             
        //continue; 
     }

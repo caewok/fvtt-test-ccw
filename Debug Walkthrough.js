@@ -168,10 +168,33 @@ Poly.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 9
 Poly.config.aMax = isLimited ? Poly.config.aMin + Math.toRadians(angle) : Math.PI;
 
 // Construct endpoints for each Wall
-
-
+window.testccw.use_ccw = false;
+window.testccw.use_ccw = true;
 
 Poly._initializeEndpoints(type)
+test1 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test2 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+Poly._sweepEndpoints();
+test3 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test4 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+
+Poly._constructPoints();
+test5 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test6 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+
+// timing test
+t0 = performance.now();
+Poly._initializeEndpoints(type)
+Poly._sweepEndpoints();
+Poly._constructPoints();
+t1 = performance.now();
+console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
+Poly.visualize();
+
+
 
 
 // ----- this._initializeEndpoints(type); -------------------- 
