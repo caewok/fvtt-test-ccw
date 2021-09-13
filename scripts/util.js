@@ -20,12 +20,14 @@ export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
+// Positive if CCW, Negative if CW, 0 if in line
 export function orient2dPoints(p1, p2, p3) {
   return orient2d(p1.x, p1.y,
                   p2.x, p2.y,
                   p3.x, p3.y);
 }
 
+// 1 if CCW, -1 if CW, 0 if in line
 export function ccwPoints(p1, p2, p3) {
   const res = orient2dPoints(p1, p2, p3);
                          

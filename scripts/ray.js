@@ -119,8 +119,8 @@ export function rayInFrontOfSegment(segment, visionPoint) {
 
   if (B1 === B2 && B2 !== B3) return true;
   if (A1 === A2 && A2 === A3) return true;
-  if (A1 === A2 && A2 !== A3) return false;
-  if (B1 === B2 && B2 === B3) return false;
+  //if (A1 === A2 && A2 !== A3) return false;
+  //if (B1 === B2 && B2 === B3) return false;
 
   return false;
 }
