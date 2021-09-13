@@ -168,10 +168,33 @@ Poly.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 9
 Poly.config.aMax = isLimited ? Poly.config.aMin + Math.toRadians(angle) : Math.PI;
 
 // Construct endpoints for each Wall
-
-
+window.testccw.use_ccw = false;
+window.testccw.use_ccw = true;
 
 Poly._initializeEndpoints(type)
+test1 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test2 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+Poly._sweepEndpoints();
+test3 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test4 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+
+Poly._constructPoints();
+test5 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
+test6 = [...Poly.rays.values()].some(r => r._angle !== undefined);
+
+
+// timing test
+t0 = performance.now();
+Poly._initializeEndpoints(type)
+Poly._sweepEndpoints();
+Poly._constructPoints();
+t1 = performance.now();
+console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
+Poly.visualize();
+
+
 
 
 // ----- this._initializeEndpoints(type); -------------------- 
@@ -335,6 +358,7 @@ if ( debug ) {
 // NEW VERSION ----- this._sweepEndpoints();-------------------- 
 orient2d = window.testccw.orient2d;
 MODULE_ID = "testccw"
+PotentialWallList = window.testccw.PotentialWallList;
 
 function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
   canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
@@ -357,13 +381,12 @@ collisions = [];  // array to store collisions in lieu of rays
   //const angles = new Set();
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
+endpoints = Array.from(Poly.endpoints.values());
+potential_walls = new PotentialWallList(origin);
 
 // walls should to be an iterable set 
-
 walls = new Map(Object.entries(Poly.walls));
   
-endpoints = Array.from(Poly.endpoints.values());
-
 
 /*
 Test that endpoints are structured correctly
@@ -403,8 +426,7 @@ endpoint.walls.forEach(w => drawRay(w));
   // Begin with a ray at the lowest angle to establish initial conditions
   // radius extends far beyond canvas edge in most instances
 lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
-
-drawRay(lastRay)
+//drawRay(lastRay)
 
   // We may need to explicitly include a first ray
   if ( isLimited || (endpoints.length === 0) ) {
@@ -430,22 +452,22 @@ drawRay(lastRay)
   // If yes, then get the closest segment 
   // If no, the starting endpoint is the first in the sort list
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
+needs_padding = false;
 closest_wall = undefined;
-potentially_blocking_walls = new Map(); // set of walls that could block given current sweep. Ordered furthest to closest.
     
 intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
+
 if(intersecting_walls.length > 0) {
   // these walls are actually walls[0].wall
   intersecting_walls = intersecting_walls.map(w => w.wall);
   
-  potentially_blocking_walls = addToPotentialList(intersecting_walls, potentially_blocking_walls, origin);
-  closest_wall = popMap(potentially_blocking_walls);
+  potential_walls.add(intersecting_walls);
+  closest_wall = potential_walls.closest();
 }
   
   
   // TO-DO: remove endpoints that are not within our limited angle
   
-needs_padding = false;
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
   // for( let endpoint of endpoints.slice(0, 8)) {
@@ -454,6 +476,8 @@ needs_padding = false;
   // drawRay(closest_wall)
   // testray = constructRay(origin, endpoint, radius);
   // drawRay(testray, COLORS.blue)
+  
+    potential_walls.addFromEndpoint(endpoint);
   
   
     // TO-DO: Catch crossed walls, create new endpoint at the cross
@@ -487,39 +511,30 @@ needs_padding = false;
       // see where the vision point to the new endpoint intersects the canvas edge
       ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
-      collisions.push(ray.B);    
-    
+      if(!pointsAlmostEqual(endpoint, ray.B)) {
+        // likely equal points if at one of the corner endpoints
+        collisions.push({x: ray.B.x, y: ray.B.y});    
+      }
       // endpoint can be for one or more walls. Get the closest
-      potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin); 
-      closest_wall = popMap(potentially_blocking_walls);
+      closest_wall = potential_walls.closest();
       //drawRay(closest_wall.toRay())
       
       // mark endpoint
-      collisions.push(endpoint);      
+      collisions.push({x: endpoint.x, y: endpoint.y});      
       continue;
     }  
     
     // is this endpoint at the end of the closest_wall?
     if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)) {
-       // add all other endpoint walls than closest to potential list, if any
-       walls_to_add = endpoint.walls; // this is a Set
-       walls_to_add.delete(closest_wall);
-       potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);
-       
-       // need to ensure closest_wall is no longer in the potential list
-       // shouldn't be necessary, but just in case...
-       potentially_blocking_walls.delete(closest_wall.id);
+       closest_wall = potential_walls.closest();
+       // drawRay(closest_wall)
        
        // then add the endpoint
-       collisions.push(endpoint);
+       collisions.push({x: endpoint.x, y: endpoint.y});
        
        ray = constructRay(origin, endpoint, radius);
        //drawRay(ray, COLORS.blue)
               
-       // what is the next-closest wall? 
-       closest_wall = popMap(potentially_blocking_walls);
-       // drawRay(closest_wall)
-       
        intersection = undefined
        if(closest_wall) {
          // get the new intersection point: where the ray hits the next-closest wall
@@ -535,9 +550,7 @@ needs_padding = false;
          // all other potentially blocking segments are outside radius at this point 
          //   (otherwise, we would have hit their endpoints by now)         
          
-         collisions.push(ray.B);
-         potentially_blocking_walls = new Map(); //shouldn't be necessary but just in case
-         closest_wall = undefined; // shouldn't be necessary but just in case 
+         collisions.push({x: ray.B.x, y: ray.B.y});
          
          // padding  
          needs_padding = ray;
@@ -547,7 +560,7 @@ needs_padding = false;
           //  with new closest.
           // (already set closest wall above)
           // drawEndpoint(intersection);
-          if(!pointsAlmostEqual(endpoint, intersection)) { collisions.push(intersection); }
+          if(!pointsAlmostEqual(endpoint, intersection)) { collisions.push({ x: intersection.x, y: intersection.y }); }
           
           
        } 
@@ -562,19 +575,7 @@ needs_padding = false;
     if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // endpoint walls CW from origin --> endpoint should be added to list
       // if in line with origin? add? 
-      endpoint_walls = [...endpoint.walls];
-      to_add = endpoint_walls.filter(w => {
-        return endpointWallCCW(origin, endpoint, w) >= 0;
-      });
-      
-      // endpoint walls CCW from origin --> endpoint can be removed
-      to_remove = endpoint_walls.filter(w => {
-        return endpointWallCCW(origin, endpoint, w) < 0;
-      });
-      
-      potentially_blocking_walls = addToPotentialList(to_add, potentially_blocking_walls, origin);     
-       
-       to_remove.forEach(w => potentially_blocking_walls.delete(w.id));
+     
        
        //continue;
       
@@ -589,15 +590,11 @@ needs_padding = false;
       
       if(ray.intersects(closest_wall)) {
         intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
-        collisions.push(intersection);
+        collisions.push({ x: intersection.x, y: intersection.y });
       }
       
-      walls_to_add = endpoint.walls; // this is a Set
-      walls_to_add.add(closest_wall);
-      
-      potentially_blocking_walls = addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
-      closest_wall = popMap(potentially_blocking_walls);
-      collisions.push(endpoint);
+      closest_wall = potential_walls.closest();
+      collisions.push({x: endpoint.x, y: endpoint.y});
             
        //continue; 
     }

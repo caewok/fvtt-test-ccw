@@ -1,6 +1,7 @@
 import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
+import { PotentialWallList } from "./class_PotentialWallList.js";
 
 export const MODULE_ID = 'testccw';
 
@@ -30,9 +31,10 @@ Hooks.once('init', async function() {
   registerCCW();
   
   window[MODULE_ID] = { use_ccw: false,
-                        debug: true,
+                        debug: false,
                         benchmark: testCCWBenchmarkSight,
-                        orient2d: orient2d }
+                        orient2d: orient2d,
+                        PotentialWallList: PotentialWallList }
 });
 
 // modules ready

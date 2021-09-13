@@ -17,10 +17,10 @@ import { rayProjectDistance,
          rayProjectB } from "./ray.js";
 
 export function registerCCW() {
-  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED');
-  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._sweepEndpoints', testCCWSweepEndpoints, 'MIXED');
-  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._includeWall', testCCWIncludeWall, 'MIXED');
-  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._constructPoints', testCCWConstructPoints, 'MIXED');
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED', {perf_mode:  libWrapper.PERF_FAST});
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._sweepEndpoints', testCCWSweepEndpoints, 'MIXED', {perf_mode:  libWrapper.PERF_FAST});
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._includeWall', testCCWIncludeWall, 'MIXED', {perf_mode: libWrapper.PERF_FAST});
+  libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._constructPoints', testCCWConstructPoints, 'MIXED', {perf_mode: libWrapper.PERF_FAST});
 }
 
 // Add new properties to existing classes
