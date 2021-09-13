@@ -8,14 +8,23 @@
 // - in line walls? Add?
 import { log, MODULE_ID } from "./module.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
+import { BinaryTree } from "./class_BinaryTree.js";
 
 
-export class PotentialWallList {
+export class PotentialWallListBinary extends BinaryTree {
   constructor(origin) {
+    super();
     this.origin = origin;
-    this.potential_walls = new Map();
-    this.walls_encountered = new Set(); // can just use potential_walls.keys()
+    this.walls_encountered = new Set(); 
   }
+  
+ /*
+  * Compare function for BST
+  */
+  compare(a, b) {
+    if(a.id === b.id) return 0;
+    a.toRay().inFrontOfSegment(b.toRay(), this.origin) ? 1 : -1;
+  } 
   
  /*
   * Add walls to the list.
@@ -23,13 +32,12 @@ export class PotentialWallList {
   * @param {Array|Set|Map} walls    Walls to add.
   */ 
   add(walls) {  
-    if(walls.size === 0 || walls.length === 0) return;
     walls.forEach(w => {
-      this.walls_encountered.add(w.id);
-      this.potential_walls.set(w.id, w);
+      if(!this.walls_encountered.has(w.id)) {
+        this.walls_encountered.add(w.id);
+        this.insert(w);      
+      }
     });
-    
-    if(this.potential_walls.size > 0 || (walls.size > 1 || walls.length > 1)) { this.sort(); }
   }
   
  /*
@@ -39,34 +47,13 @@ export class PotentialWallList {
   */
   remove(walls) {  
     walls.forEach(w => {
-      this.walls_encountered.delete(w.id);
-      this.potential_walls.delete(w.id);
+      if(this.walls_encountered.has(w.id)) {
+        this.walls_encountered.delete(w.id);
+        this.potential_walls.remove(w);
+      }  
     });
   } 
-  
- /*
-  * Remove walls from list given array of ids
-  * @param {Array|Set|Map} wall_ids   Walls to remove
-  */
-  removeById(wall_ids) {
-    wall_ids.forEach(id => {
-      this.walls_encountered.delete(id);
-      this.potential_walls.delete(id);
-    });
-  } 
-  
- /*
-  * Sort list of walls.
-  */
-  sort() {
-    if(window[MODULE_ID].debug) log("sorting");
-    this.potential_walls = new Map([...this.potential_walls.entries()].sort((a, b) => {
-    // greater than 0: sort b before a (a is in front of b)
-    // less than 0: sort a before b (b is in front of a)
-    return a[1].toRay().inFrontOfSegment(b[1].toRay(), this.origin) ? 1 : -1;
-  }));    
-  } 
-
+    
  /*
   * Add walls connected to an endpoint to the list.
   * @param {Endpoint} endpoint    Endpoint containing 0+ walls connected to it.
@@ -81,14 +68,14 @@ export class PotentialWallList {
       // if we have already seen it, it must be CCW
       // or (unlikely) it is otherwise CCW
       if(this.walls_encountered.has(w.id) || 
-           PotentialWallList.endpointWallCCW(this.origin, endpoint, w) > 0) {
-         to_remove.push(w.id)
+           PotentialWallListBinary.endpointWallCCW(this.origin, endpoint, w) > 0) {
+         to_remove.push(w)
       } else {
         to_add.push(w);
       }
     })
     
-    this.removeById(to_remove);
+    this.remove(to_remove);
     this.add(to_add);
   }
    
@@ -99,14 +86,10 @@ export class PotentialWallList {
   * @return {Wall}
   */
   closest(remove = true) {
-    if(this.potential_walls.size === 0) return undefined;
+    if(this.walls_encountered.size === 0) return undefined;
     
-    const keys = [...this.potential_walls.keys()];
-    const popkey = keys[keys.length - 1];
-    const obj = this.potential_walls.get(popkey);
-    
-    if(remove) this.remove([obj]);
-    return obj;
+    if(remove) return this.pullMaxNode();
+    return this.findMaxNode();
   }
   
  /*

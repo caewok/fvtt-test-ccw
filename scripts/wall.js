@@ -3,6 +3,8 @@ import { orient2d } from "./lib/orient2d.min.js";
 import { almostEqual } from "./util.js";
 import { log } from "./module.js";
 
+// TO-DO: Add inFrontOf method for wall
+
 /*
  * Wall.prototype.ccw
  *

@@ -150,7 +150,8 @@ export function testCCWSweepEndpoints(wrapped) {
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
   let endpoints = Array.from(this.endpoints.values());
-  const potential_walls = new PotentialWallList(origin);
+  
+  const potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
   
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
