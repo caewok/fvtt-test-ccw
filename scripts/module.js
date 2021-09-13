@@ -30,7 +30,7 @@ Hooks.once('init', async function() {
   registerCCW();
   
   window[MODULE_ID] = { use_ccw: false,
-                        debug: true,
+                        debug: false,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d }
 });
