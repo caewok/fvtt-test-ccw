@@ -1,4 +1,6 @@
 import { MODULE_ID } from "./module.js";
+import { orient2d } from "./lib/orient2d.min.js";
+import { pointsAlmostEqual, ccwPoints } from "./util.js";
 
 /*
 RadialSweep class mostly works through the compute method. 
@@ -57,7 +59,7 @@ export function testCCWInitializeEndpoints(wrapped, type) {
       let a = this.endpoints.get(ak);
       if ( !a ) {
         a = new WallEndpoint(x0, y0);
-        a.angle = norm(Math.atan2(y0 - this.origin.y, x0 - this.origin.x));
+        //a.angle = norm(Math.atan2(y0 - this.origin.y, x0 - this.origin.x));
         a.isEndpoint = true;
         this.endpoints.set(ak, a);
       }
@@ -67,7 +69,7 @@ export function testCCWInitializeEndpoints(wrapped, type) {
       let b = this.endpoints.get(bk);
       if ( !b ) {
         b = new WallEndpoint(x1, y1);
-        b.angle = norm(Math.atan2(y1 - this.origin.y, x1 - this.origin.x));
+        //b.angle = norm(Math.atan2(y1 - this.origin.y, x1 - this.origin.x));
         b.isEndpoint = true;
         this.endpoints.set(bk, b);
       }
@@ -98,34 +100,88 @@ export function testCCWIncludeWall(wrapped, wall, type) {
   if ( !wall.data[type] || wall.isOpen ) return false;
 
   // Ignore one-directional walls which are facing away from the origin
-  if ( !wall.data.dir ) return true;
-  const mp = wall.midpoint;
-  const wa = Math.atan2(mp[1] - this.origin.y, mp[0] - this.origin.x);
-  const d = Math.normalizeRadians(wa - wall.direction);
-  return d.between(-Math.PI/2, Math.PI/2);
+  if ( !wall.data.dir ) return true; // wall not one-directional
+  
+  return wall.whichSide(this.origin) === wall.effectSide();
 }
 
 /**
  * Wrap _sweepEndpoints
  *
  * Sweep clockwise around known wall endpoints, constructing the polygon as we go.
+ * Goal here is to create a set of rays that have collision points. The collision points
+ *   are used by _constructPoints() to build the polygon. 
+ *   walls, endpoints, rays are then deleted by compute().
+ *   Collision points are just x,y: ray.collisions[0, 1, etc.] is {x, y}
+ *
+ * Sweep works by getting each counterclockwise-most endpoint in turn.
+ *   Keep a list of "collision" points---endpoints that are closest to the origin
+ *   Keep a sort list of potential walls from furthest to nearest.
+ *   Keep track of the closest wall
+ *   The origin --> endpoint --> end of vision is the sight line. 
+ *   Sight line sweeps clockwise. 
+ *   1. If a new endpoint, add it as a collision point. 
+ *      Add all endpoint walls to potential wall list and track the closest. 
+ *   2. If the end of a wall, add it as a collision point. 
+ *      Get the next closest wall in the potential wall list. 
+ *      Add the next closest wall intersect point to the sight line. 
+ *      If no other potential walls, add the endpoint of the sight line 
+ *      as a collision point.
+ *   3. If some other endpoint than the closest wall:
+ *      - If closer, add endpoint as collision point. Add endpoint walls to potential wall
+ *        list and track closest. Move previous closest wall to potential wall list.
+ *      - If further, add endpoint walls to potential wall list.      
+ *   4. If limited vision radius and you hit the end of the sight line, pad to the next
+ *      endpoint sight line. 
+ *
  * @private
  */
 export function testCCWSweepEndpoints(wrapped) {
   if(!window[MODULE_ID].use_ccw) { return wrapped(); }
   
+    
   // Configure inputs
   const origin = this.origin;
   const {maxR, isLimited, aMin, aMax} = this.config;
   const radius = this.config.radius ?? maxR;
-  const rays = [];
-  const angles = new Set();
+  const collisions = [];  // array to store collisions in lieu of rays
+  //const angles = new Set();
   const padding = Math.PI / Math.max(this.config.density, 6);
+  const has_radius = this.config.hasRadius;
+  let endpoints = Array.from(this.endpoints.values());
+  
+  // walls should be an iterable set 
+  const walls = new Map(Object.entries(this.walls));
+  
+  // add 4-corners endpoints if not limited radius
+  // used to draw polygon from the edges of the map.
+  if(!has_radius) {
+    endpoints.push(new WallEndpoint(0, 0));
+    endpoints.push(new WallEndpoint(0, canvas.dimensions.sceneHeight));
+    endpoints.push(new WallEndpoint(canvas.dimensions.sceneWidth, 0));
+    endpoints.push(new WallEndpoint(canvas.dimensions.sceneWidth, canvas.dimensions.sceneHeight));
+  }
+  
+  // if limited radius, then segments may start outside and enter the vision area.
+  // need to mark that intersection 
+  
+  // Skip endpoints which are not within our limited angle
+  //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
 
-  // Sort endpoints by angle
-  const endpoints = Array.from(this.endpoints.values());
-  endpoints.sort((a, b) => a.angle - b.angle);
-
+  // Sort endpoints from west to north to east to south
+  endpoints = sortEndpoints(this.origin, endpoints);
+  
+/*  
+  if(window[MODULE_ID].debug) {
+    // confirm that the sort matches the old sort method
+    const angles = endpoints.map(e => e.angle);
+    endpoints.sort((a, b) => a.angle - b.angle);
+    const new_angles = endpoints.map(e => e.angle);
+    if(!arraysEqual(angles, new_angles)) {
+      console.warn(`testccw|Sorted CCW angles not equivalent`, endpoints);
+    }
+  }
+*/
   // Begin with a ray at the lowest angle to establish initial conditions
   let lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
 
@@ -138,49 +194,377 @@ export function testCCWSweepEndpoints(wrapped) {
 
   // We may need to explicitly include a final ray
   if ( isLimited || (endpoints.length === 1) ) {
-    const aFinal = isLimited ? aMax : endpoints[0].angle + Math.PI;
+    let aFinal = aMax;
+    if(!isLimited) {
+      endpoints[0].angle = norm(Math.atan2(endpoint[0].y - this.origin.y, endpoint[0].x - this.origin.x))
+      aFinal = endpoints[0].angle + Math.PI;
+    }
     const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
     const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
     pFinal.angle = aFinal;
     endpoints.push(pFinal);
   }
-
+  
+  // Start by checking if the initial ray intersects any segments.
+  // If yes, then get the closest segment 
+  // If no, the starting endpoint is the first in the sort list
+  // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
+  let needs_padding = false;
+  let closest_wall = undefined;
+  let potentially_blocking_walls = new Map(); // ordered furthest to closest
+  let intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
+  
+  if(intersecting_walls.length > 0) {
+  // these walls are actually walls[0].wall
+  intersecting_walls = intersecting_walls.map(w => w.wall);
+  
+  potentially_blocking_walls = addToPotentialList(intersecting_walls, potentially_blocking_walls, origin);
+  closest_wall = popMap(potentially_blocking_walls);
+}
+  
+  
+  // TO-DO: remove endpoints that are not within our limited angle
+  
+  
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
-
-    // De-dupe repeated angles
-    if ( angles.has(endpoint.angle) ) continue;
-    angles.add(endpoint.angle);
-
-    // Skip endpoints which are not within our limited angle
-    if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
-
-    // Create a Ray targeting this endpoint
-    const ray = SightRay.fromAngle(origin.x, origin.y, endpoint.angle, radius);
-    ray.endpoint = endpoint;
-    endpoint._r = ray.dx !== 0 ? (endpoint.x - origin.x) / ray.dx : (endpoint.y - origin.y) / ray.dy;
-    if ( (ray.dx === 0) && (ray.dy === 0) ) endpoint._r = 0;
-
-    // Test the ray
-    this._testRay(ray, lastRay);
-    if ( ray.result.superfluous ) continue;
-
-    // Pad supplementary rays if an adjacent ray reached a terminal point
-    if ( lastRay.result.terminal || (this.config.hasRadius && ray.result.terminal) ) {
-      this._padRays(lastRay, ray, padding, rays, this.config.hasRadius);
+  
+    // TO-DO: Catch crossed walls, create new endpoint at the cross
+    // Probably sort endpoints other direction so can pop from array.
+    // Then add back in an endpoint at the cross
+    // Create new sub-walls from the cross. 
+    // Can identify by checking for intersections between closest wall and potential walls
+    // Need inFrontOfSegment to return undefined for a cross
+    // Sort will then need to take the left endpoint as the closest. 
+  
+    // if no walls between the last endpoint and this endpoint and 
+    // dealing with limited radius, need to pad by drawing an arc 
+    if(has_radius && needs_padding) {
+      const prior_ray = needs_padding;
+      needs_padding = false;
+      
+      // draw an arc from where the prior ray ended to the ray for the new endpoint
+      const ray = constructRay(origin, endpoint, radius);
+      
+      // TO-DO: Override _padRays to return a simple array of points to concat
+      const padding_rays = this._padRays(prior_ray, ray, padding, [], false);
+      padding_rays.forEach(r => {
+        collisions.push(r.collisions[0]);
+      });  
+    } 
+     
+    // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
+    if(!closest_wall) {
+      // see where the vision point to the new endpoint intersects the canvas edge
+      const ray = constructRay(origin, endpoint, radius);
+      //drawRay(ray, COLORS.blue)
+      collisions.push(ray.B); 
+    
+      // endpoint can be for one or more walls. Get the closest
+      potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin); 
+      closest_wall = popMap(potentially_blocking_walls);
+  
+      // mark endpoint
+      collisions.push(endpoint);      
+      continue;
+    }  
+    
+    // is this endpoint at the end of the closest_wall?
+    if(pointsAlmostEqual(endpoint, closest_wall.A) || 
+       pointsAlmostEqual(endpoint, closest_wall.B)) {
+       // add all other endpoint walls than closest to potential list, if any
+       const walls_to_add = endpoint.walls; // this is a Set
+       walls_to_add.delete(closest_wall);
+       potentially_blocking_walls = addToPotentialList(endpoint.walls, potentially_blocking_walls, origin);
+       
+       // need to ensure closest_wall is no longer in the potential list
+       potentially_blocking_walls.delete(closest_wall.id);
+       
+       // then add the endpoint
+       collisions.push(endpoint);
+       
+       const ray = constructRay(origin, endpoint, radius);
+       //drawRay(ray, COLORS.blue)
+              
+       // what is the next-closest wall? 
+       closest_wall = popMap(potentially_blocking_walls);
+       // drawRay(closest_wall)
+       
+       let intersection = undefined
+       if(closest_wall) {
+         // get the new intersection point: where the ray hits the next-closest wall
+         intersection = ray.intersectSegment(closest_wall.coords);
+         //drawEndpoint(intersection)
+       }  
+       if(!closest_wall || !intersection) {
+         // no next-closest wall
+         // hitting the radius or canvas edge. If radius, need to pad to next endpoint
+         
+         // if radius-limited, it is possible for next-closest to be outside the radius
+         // endpoint is the intersection with the radius circle (endpoint of the ray)
+         // all other potentially blocking segments are outside radius at this point 
+         //   (otherwise, we would have hit their endpoints by now)
+         
+         collisions.push(ray.B);
+         potentially_blocking_walls = new Map();
+         closest_wall = undefined;
+         
+         // padding  
+         needs_padding = ray;
+       
+       } else if(intersection) {
+           // intersection is our new endpoint unless we are at the join of prior closest
+          //  with new closest.
+          // (already set closest wall above)
+          // drawEndpoint(intersection);
+          if(!pointsAlmostEqual(endpoint, intersection)) { collisions.push(intersection); }
+       } 
+         
+       continue;  
+    } 
+    
+    // is this endpoint within the closest_wall? [Can this happen? limited angle of vision?]
+    
+    // is this endpoint behind the closest wall?
+    
+    if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
+      // endpoint walls CW from origin --> endpoint should be added to list
+      // if in line with origin? add? 
+      const endpoint_walls = [...endpoint.walls];
+      const to_add = endpoint_walls.filter(w => {
+        return endpointWallCCW(origin, endpoint, w) >= 0;
+      });
+      
+      // endpoint walls CCW from origin --> endpoint can be removed
+      const to_remove = endpoint_walls.filter(w => {
+        return endpointWallCCW(origin, endpoint, w) < 0;
+      });
+      
+      potentially_blocking_walls = addToPotentialList(to_add, potentially_blocking_walls, origin);     
+       
+      to_remove.forEach(w => potentially_blocking_walls.delete(w.id));
+       
+      //continue;
+      
+    } else {
+      // endpoint is in front. Make this the closest. 
+      // add current closest and all the endpoint walls to potential list; get the new closest
+      
+      // see where the vision point to the new endpoint intersects the prior wall
+      // if it does, this is a collision point.
+      const ray = constructRay(origin, endpoint, radius);
+      //drawRay(ray, COLORS.blue)
+      
+      if(ray.intersects(closest_wall)) {
+        const intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
+        collisions.push(intersection);
+      }
+      
+      const walls_to_add = endpoint.walls; // this is a Set
+      walls_to_add.add(closest_wall);
+      
+      potentially_blocking_walls = addToPotentialList(walls_to_add, potentially_blocking_walls, origin); 
+      closest_wall = popMap(potentially_blocking_walls);
+      collisions.push(endpoint);
+            
+       //continue; 
     }
-
-    // Push the ray
-    rays.push(ray);
-    lastRay = ray;
-  }
-
-  // For complete circles, pad gaps between the final ray and the initial one
-  if ( !isLimited && lastRay.result.terminal ) {
-    this._padRays(lastRay, rays[0], padding, rays, this.config.hasRadius);
-  }
-  this.rays = rays;
+    
+ 
+  } // end of endpoints loop
+    
+  // close between last / first endpoint
+  if(has_radius && needs_padding) {
+    
+  
+    const prior_ray = needs_padding;
+    needs_padding = false;
+    
+    // draw an arc from where the prior ray ended to the ray for the new endpoint
+    const ray = constructRay(origin, collisions[0], radius);
+    
+    // TO-DO: Override _padRays to return a simple array of points to concat
+    const padding_rays = this._padRays(prior_ray, ray, padding, [], false);
+    padding_rays.forEach(r => {
+      collisions.push(r.collisions[0]);
+    });  
+  } /*else if(needs_padding) {
+    console.warn("Need padding to complete non-radius sweep?")
+    
+    ray = constructRay(origin, endpoints[0], radius);
+    //drawRay(ray, COLORS.blue)
+    collisions.push(ray.B);
+    needs_padding = false;
+  }*/ // should already happen
+    
+  this.collisions = collisions;
 }
+
+/**
+ * Convert the set of rays into the polygon points
+ * @returns {number[]}        The polygon points
+ * @private
+ */
+export function testCCWConstructPoints(wrapped) {
+   if(!window[MODULE_ID].use_ccw) { return wrapped(); }
+
+  const points = [];
+  const isLimited = this.config.isLimited;
+
+  // Open a limited shape
+  if ( isLimited ) points.push(this.origin.x, this.origin.y);
+
+  // Add collision points from every ray
+  this.collisions.forEach(c => { points.push(c.x, c.y) });
+  
+  // Close a limited polygon
+  if ( isLimited ) points.push(this.origin.x, this.origin.y);
+  this.points = points;
+}
+
+
+function sortEndpoints(origin, endpoints) {
+  return endpoints.sort((a, b) => {
+    // arbitrarily declare upper hemisphere to be first
+    // so x < vision_point (above) is before x > vision_point (below)
+    // walk quadrants, so Q1 is upper left, Q3 is lower right
+    // return > 0 to sort b before a
+    if(a.y >= origin.y && b.y < origin.y) return 1;
+    if(a.y < origin.y && b.y >= origin.y) return -1;
+      
+    // in same hemisphere      
+    return orient2d(origin.x, origin.y, 
+                    a.x, a.y,
+                    b.x, b.y);
+  });
+}
+
+function arraysEqual(a1,a2) {
+    /* WARNING: arrays must not contain {objects} or behavior may be undefined */
+    return JSON.stringify(a1)==JSON.stringify(a2);
+}
+
+function closestWall(walls, origin) {
+  if(walls.length === 0) return undefined;
+  if(walls.length === 1) return walls[0];
+  return walls.reduce((closest, w) => {
+      if(w.toRay().inFrontOfPoint(closest.toRay(), origin)) return w;
+      return closest;
+    });
+}
+
+
+/*
+ * Construct a sight ray given an endpoint and radius
+ */
+function constructRay(origin, endpoint, radius) {
+  let ray = (new SightRay(origin, endpoint)).projectDistance(radius);
+  
+  // don't extend past the canvas  
+  // canvas.dimensions.sceneHeight and sceneWidth give the inner scene dimensions
+  // canvas.dimensions.height and width give dimensions with padding (what we want)
+  const canvas_rays = [
+    new Ray({ x: 0, y: 0 }, 
+            { x: canvas.dimensions.width, y: 0 }),
+    new Ray({ x: 0, y: 0 }, 
+            { x: 0, y: canvas.dimensions.height }),
+    new Ray({ x: canvas.dimensions.width, y: 0}, 
+            { x: canvas.dimensions.width, y: canvas.dimensions.height }),
+    new Ray({ x: canvas.dimensions.width, y: canvas.dimensions.height }, 
+            { x: 0, y: canvas.dimensions.height })
+  ];
+  
+  const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
+  if(canvas_ray) {
+    const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
+    ray = new SightRay(ray.A, intersect_pt);
+  }
+  
+  return ray;
+}
+
+
+
+/*
+ * Add array of walls to the potential list and sort
+ */
+function addToPotentialList(walls, potentially_blocking_walls, origin) {
+  walls = [...walls]; // so walls can be Sets or arrays
+
+  if(walls.length === 0) return potentially_blocking_walls;
+  
+  const no_sort_required = (walls.length === 1 && potentially_blocking_walls.size === 0);
+
+  walls.forEach(w => {
+    potentially_blocking_walls.set(w.id, w);
+  });
+  
+  if(no_sort_required) { return potentially_blocking_walls; }
+  
+  // entries() provides [key, value] for each
+  return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
+    // greater than 0: sort b before a (a is in front of b)
+    // less than 0: sort a before b (b is in front of a)
+    return a[1].toRay().inFrontOfSegment(b[1].toRay(), origin) ? 1 : -1;
+  }));    
+}
+
+/*
+ * Pop a wall from the potential wall Map
+ */
+function popMap(potentially_blocking_walls) {
+  if(potentially_blocking_walls.size === 0) return undefined;
+
+  const keys = [...potentially_blocking_walls.keys()];
+  const popkey = keys[keys.length - 1];
+  const obj = potentially_blocking_walls.get(popkey);
+  potentially_blocking_walls.delete(popkey);
+  return obj;
+}
+
+// 1 if CCW, -1 if CW, 0 if in line
+function endpointWallCCW(origin, endpoint, wall) {
+  const non_anchor = pointsAlmostEqual(wall.A, endpoint) ? wall.B : wall.A;
+  return ccwPoints(origin, endpoint, non_anchor);
+}
+
+
+// expensive
+/*
+function _padRays(r0, r1, padding, rays, requireTest) {
+
+    // Determine padding delta
+    let d = r1.angle - r0.angle;
+    if ( d < 0 ) d += (2*Math.PI); // Handle cycling past pi
+    const nPad = Math.floor(d / padding);
+    if ( nPad === 0 ) return [];
+
+    // Construct padding rays
+    const delta = d / nPad;
+    let lr = r0;
+    for ( let i=1; i<nPad; i++ ) {
+      let r = r0.shiftAngle(i*delta);
+
+      // If may be required to test the padded ray
+      if ( requireTest ) {
+        this._testRay(r, lr);
+        lr = r;
+        if ( r.result.superfluous ) continue;
+      }
+
+      // Otherwise we can assume it reaches the endpoint
+      else {
+        const pt = new WallEndpoint(r.B.x, r.B.y);
+        pt.isTerminal = r.result.terminal = true;
+        r.collisions = [pt];
+      }
+      rays.push(r);
+    }
+  }
+*/
+
+
+
 
 
 

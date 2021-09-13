@@ -1,14 +1,15 @@
 import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
+import { orient2d } from "./lib/orient2d.min.js";
 
 export const MODULE_ID = 'testccw';
 
 export function log(...args) {
   try {
-    const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
-    if (isDebugging) {
+   // const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
+   // if (isDebugging) {
       console.log(MODULE_ID, '|', ...args);
-    }
+   // }
   } catch (e) {}
 }
 
@@ -28,8 +29,10 @@ export function log(...args) {
 Hooks.once('init', async function() {
   registerCCW();
   
-  window[MODULE_ID] = { use_ccw: true,
-                        benchmark: testCCWBenchmarkSight }
+  window[MODULE_ID] = { use_ccw: false,
+                        debug: true,
+                        benchmark: testCCWBenchmarkSight,
+                        orient2d: orient2d }
 });
 
 // modules ready
