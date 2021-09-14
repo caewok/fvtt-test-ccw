@@ -187,6 +187,9 @@ export function testCCWSweepEndpoints(wrapped) {
   
   const potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
   
+  let needs_padding = false;
+  let closest_wall = undefined;
+  
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
   
@@ -222,7 +225,21 @@ export function testCCWSweepEndpoints(wrapped) {
   const minRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
   const maxRay = isLimited ? SightRay.fromAngle(origin.x, origin.y, aMax, radius) : undefined;
   
-  // if the angle is limited, trim the endpoints
+  // Start by checking if the initial ray intersects any segments.
+  // If yes, then get the closest segment 
+  // If no, the starting endpoint is the first in the sort list
+  let minRay_intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
+
+  if(minRay_intersecting_walls.length > 0) {
+    // these walls are actually walls[0].wall
+    minRay_intersecting_walls = minRay_intersecting_walls.map(w => w.wall);
+  
+    potential_walls.addWalls(minRay_intersecting_walls);
+    closest_wall = potential_walls.closest();
+    //drawRay(closest_wall)
+  }
+  
+  // if the angle is limited, trim the endpoints nd add endpoints for starting/ending ray 
   if(isLimited) {
     if((aMax - aMin) > Math.PI) {
        // if aMin to aMax is greater than 180º, easier to determine what is out
@@ -238,61 +255,50 @@ export function testCCWSweepEndpoints(wrapped) {
         ccwPoints(origin, minRay.B, e) <= 0 || ccwPoints(origin, maxRay.B, e) >= 0;
       });
     }
+    
+    // Add a collision for the minRay -----
+    let minRay_intersection = undefined;
+    if(closest_wall) {
+      minRay_intersection = minRay.intersectSegment(closest_wall.coords);
+    }
+    const minRay_endpoint = minRay_intersection ? new WallEndpoint(minRay_intersection.x, minRay_intersection.y) : new WallEndpoint(minRay.B.x, minRay.B.y);
+    
+    // conceivable, but unlikely, that the intersection is an existing endpoint
+    // probably best not to duplicate endpoints—--unclear how the algorithm would handle
+    // it would first remove the closest wall and then need to re-do the ray & collision
+//     if(!endpoints.some(e => pointsAlmostEqual(e, minRay_endpoint))) {
+//       endpoints.push(minRay_endpoint);
+//     }
+    collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
+    
+    // Add an endpoint for the maxRay -----
+    // Same basic structure as for minRay but for the need to create a tmp wall list
+    // Add as endpoint so algorithm can handle the details
+    let maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
+    const maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+    let maxRay_closest_wall = undefined;
+  
+    if(maxRay_intersecting_walls.length > 0) {
+      // these walls are actually walls[0].wall
+      maxRay_intersecting_walls = maxRay_intersecting_walls.map(w => w.wall);  
+      maxRay_potential_walls.addWalls(maxRay_intersecting_walls);
+      maxRay_closest_wall = maxRay_potential_walls.closest();
+    }
+    
+    let maxRay_intersection = undefined;
+    if(maxRay_closest_wall) {
+      maxRay_intersection = maxRay.intersectSegment(maxRay_closest_wall.coords);
+      //drawEndpoint(intersection)
+      //endpoints.some(e => pointsAlmostEqual(e, intersection))
+    }
+    
+    const maxRay_endpoint = maxRay_intersection ? new WallEndpoint(maxRay_intersection.x, maxRay_intersection.y) : new WallEndpoint(maxRay.B.x, maxRay.B.y);
+    
+    if(!endpoints.some(e => pointsAlmostEqual(e, maxRay_endpoint))) {
+      endpoints.push(maxRay_endpoint);
+    }
   }
  
-  
-
-  // We may need to explicitly include a first ray
-//   if ( isLimited || (endpoints.length === 0) ) {
-//     const pFirst = new WallEndpoint(lastRay.B.x, lastRay.B.y);
-//     pFirst.angle = aMin;
-//     endpoints.unshift(pFirst);
-//   }
-
-  // We may need to explicitly include a final ray
-//   if ( isLimited || (endpoints.length === 1) ) {
-//     let aFinal = aMax;
-//     if(!isLimited) {
-//       endpoints[0].angle = norm(Math.atan2(endpoint[0].y - this.origin.y, endpoint[0].x - this.origin.x))
-//       aFinal = endpoints[0].angle + Math.PI;
-//     }
-//     const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
-//     const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
-//     pFinal.angle = aFinal;
-//     endpoints.push(pFinal);
-//   }
-  
-  // Start by checking if the initial ray intersects any segments.
-  // If yes, then get the closest segment 
-  // If no, the starting endpoint is the first in the sort list
-  // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
-  let needs_padding = false;
-  let closest_wall = undefined;
-
-  let intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
-  
-  if(intersecting_walls.length > 0) {
-    // these walls are actually walls[0].wall
-    intersecting_walls = intersecting_walls.map(w => w.wall);
-    potential_walls.addWalls(intersecting_walls);
-    closest_wall = potential_walls.closest();
-  }
-  
-  // If the angle of vision is limited, add the starting intersection
-  // (See after the for loop for adding the ending intersection)
-  if(isLimited) {
-    // starting point
-    let intersection = undefined;
-    if(closest_wall) {
-      intersection = minRay.intersectSegment(closest_wall.coords);
-    }
-    if(intersection) {
-      collisions.push({ x: intersection.x, y: intersection.y });
-    } else {
-      collisions.push({ x: minRay.B.x, y: minRay.B.y });
-    }    
-  }
-  
   // Sort endpoints from west to north to east to south
   endpoints = sortEndpoints(this.origin, endpoints);
   
@@ -407,32 +413,6 @@ export function testCCWSweepEndpoints(wrapped) {
     
  
   } // end of endpoints loop
-  
-  // If the angle of vision is limited, add the ending intersection
-  if(isLimited) {
-     // if limited, need to get the intersection point for the maxRay
-    let intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
-    let tmp_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
-  
-    if(intersecting_walls.length > 0) {
-      // these walls are actually walls[0].wall
-      intersecting_walls = intersecting_walls.map(w => w.wall);
-  
-      tmp_potential_walls.addWalls(intersecting_walls);
-      closest_wall = tmp_potential_walls.closest();
-    }
-    
-    let intersection = undefined;
-    if(closest_wall) {
-      intersection = maxRay.intersectSegment(closest_wall.coords);
-    }
-    if(intersection) {
-      collisions.push({ x: intersection.x, y: intersection.y });
-    } else {
-      collisions.push({ x: maxRay.B.x, y: maxRay.B.y });
-    }    
-  }
-  
   
     
   // close between last / first endpoint
