@@ -509,6 +509,7 @@ if(minRay_intersecting_walls.length > 0) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
     minRay_endpoint = minRay_intersection ? new WallEndpoint(minRay_intersection.x, minRay_intersection.y) : new WallEndpoint(minRay.B.x, minRay.B.y);
+    //drawEndpoint(minRay_endpoint)
     
     // conceivable, but unlikely, that the intersection is an existing endpoint
     // probably best not to duplicate endpoints—--unclear how the algorithm would handle

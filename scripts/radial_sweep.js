@@ -222,8 +222,8 @@ export function testCCWSweepEndpoints(wrapped) {
   }
 */
   // Begin with a ray at the lowest angle to establish initial conditions
-  const minRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
-  const maxRay = isLimited ? SightRay.fromAngle(origin.x, origin.y, aMax, radius) : undefined;
+  const minRay = constructRayFromAngle(origin, aMin, radius);
+  const maxRay = isLimited ? constructRayFromAngle(origin, aMax, radius)  : undefined;
   
   // Start by checking if the initial ray intersects any segments.
   // If yes, then get the closest segment 
@@ -517,6 +517,32 @@ function constructRay(origin, endpoint, radius) {
             { x: canvas.dimensions.width, y: canvas.dimensions.height }),
     new Ray({ x: canvas.dimensions.width, y: canvas.dimensions.height }, 
             { x: 0, y: canvas.dimensions.height })
+  ];
+  
+  const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
+  if(canvas_ray) {
+    const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
+    ray = new SightRay(ray.A, intersect_pt);
+  }
+  
+  return ray;
+}
+
+/*
+ * Same as constructRay but when you have an angle instead of an endpoint
+ */
+function constructRayFromAngle(origin, angle, radius) {
+  let ray = SightRay.fromAngle(origin.x, origin.y, angle, radius);
+  
+  const canvas_rays = [
+    new Ray({ x: 0, y: 0 }, 
+            { x: canvas.dimensions.width, y: 0 }), // north canvas
+    new Ray({ x: 0, y: 0 }, 
+            { x: 0, y: canvas.dimensions.height }), // west canvas
+    new Ray({ x: canvas.dimensions.width, y: 0}, 
+            { x: canvas.dimensions.width, y: canvas.dimensions.height }), // east canvas
+    new Ray({ x: canvas.dimensions.width, y: canvas.dimensions.height }, 
+            { x: 0, y: canvas.dimensions.height }) // south canvas
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
