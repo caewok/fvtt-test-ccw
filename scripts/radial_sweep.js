@@ -261,7 +261,9 @@ export function testCCWSweepEndpoints(wrapped) {
     if(closest_wall) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
-    const minRay_endpoint = minRay_intersection ? new WallEndpoint(minRay_intersection.x, minRay_intersection.y) : new WallEndpoint(minRay.B.x, minRay.B.y);
+    const minRay_endpoint = minRay_intersection ? 
+            new WallEndpoint(minRay_intersection.x, minRay_intersection.y) : 
+            new WallEndpoint(minRay.B.x, minRay.B.y);
     
     // conceivable, but unlikely, that the intersection is an existing endpoint
     // probably best not to duplicate endpoints—--unclear how the algorithm would handle
@@ -292,7 +294,9 @@ export function testCCWSweepEndpoints(wrapped) {
       //endpoints.some(e => pointsAlmostEqual(e, intersection))
     }
     
-    const maxRay_endpoint = maxRay_intersection ? new WallEndpoint(maxRay_intersection.x, maxRay_intersection.y) : new WallEndpoint(maxRay.B.x, maxRay.B.y);
+    const maxRay_endpoint = maxRay_intersection ? 
+            new WallEndpoint(maxRay_intersection.x, maxRay_intersection.y) : 
+            new WallEndpoint(maxRay.B.x, maxRay.B.y);
     
     if(!endpoints.some(e => pointsAlmostEqual(e, maxRay_endpoint))) {
       endpoints.push(maxRay_endpoint);
@@ -327,7 +331,11 @@ export function testCCWSweepEndpoints(wrapped) {
       // see where the vision point to the new endpoint intersects the canvas edge
       const ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
-      collisions.push({x: ray.B.x, y: ray.B.y}); 
+      
+      if(!pointsAlmostEqual(endpoint, ray.B)) {
+        // likely equal points if at one of the corner endpoints
+        collisions.push({x: ray.B.x, y: ray.B.y});    
+      }
     
       // endpoint can be for one or more walls. Get the closest
       closest_wall = potential_walls.closest();
@@ -405,7 +413,6 @@ export function testCCWSweepEndpoints(wrapped) {
       }
       
       closest_wall = potential_walls.closest();
-     
       collisions.push({x: endpoint.x, y: endpoint.y});
             
        //continue; 
@@ -439,6 +446,8 @@ export function testCCWSweepEndpoints(wrapped) {
     needs_padding = false;
   }*/ // should already happen
     
+    
+  if(window[MODULE_ID].debug) { log(`${collisions.length} collisions`, collisions); }  
   this.collisions = collisions;
 }
 
@@ -503,6 +512,7 @@ function closestWall(walls, origin) {
  * Construct a sight ray given an endpoint and radius
  */
 function constructRay(origin, endpoint, radius) {
+  
   let ray = (new SightRay(origin, endpoint)).projectDistance(radius);
   
   // don't extend past the canvas  
@@ -510,13 +520,13 @@ function constructRay(origin, endpoint, radius) {
   // canvas.dimensions.height and width give dimensions with padding (what we want)
   const canvas_rays = [
     new Ray({ x: 0, y: 0 }, 
-            { x: canvas.dimensions.width, y: 0 }),
+            { x: canvas.dimensions.width, y: 0 }), // north canvas
     new Ray({ x: 0, y: 0 }, 
-            { x: 0, y: canvas.dimensions.height }),
+            { x: 0, y: canvas.dimensions.height }), // west canvas
     new Ray({ x: canvas.dimensions.width, y: 0}, 
-            { x: canvas.dimensions.width, y: canvas.dimensions.height }),
+            { x: canvas.dimensions.width, y: canvas.dimensions.height }), // east canvas
     new Ray({ x: canvas.dimensions.width, y: canvas.dimensions.height }, 
-            { x: 0, y: canvas.dimensions.height })
+            { x: 0, y: canvas.dimensions.height }) // south canvas
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
@@ -527,7 +537,6 @@ function constructRay(origin, endpoint, radius) {
   
   return ray;
 }
-
 /*
  * Same as constructRay but when you have an angle instead of an endpoint
  */
