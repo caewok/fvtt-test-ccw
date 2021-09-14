@@ -1,3 +1,10 @@
+// Useful commands
+w = canvas.walls.controlled[0]; // get selected wall
+
+// benchmark
+t = canvas.tokens.controlled[0];
+await window.testccw.benchmark(1000, t.center)
+
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
@@ -127,12 +134,7 @@ function endpointWallCCW(origin, endpoint, wall) {
 
 
 
-// Useful commands
-w = canvas.walls.controlled[0]; // get selected wall
 
-// benchmark
-t = canvas.tokens.controlled[0];
-await window.testccw.benchmark(1000, t.center)
 
 const COLORS = {
   orange: 0xFFA500,
@@ -151,7 +153,7 @@ const COLORS = {
 
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true})
-Poly.initialize(t.center)
+Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation}) // radius
 
 let {angle, debug, rotation, type} = Poly.config;
 
@@ -418,37 +420,60 @@ endpoint.walls.forEach(w => drawRay(w));
   // Skip endpoints which are not within our limited angle
   //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
 
-  // Sort endpoints by angle
-  
-  endpoints = sortEndpoints(Poly.origin, endpoints);
+ 
   
 // drawEndpoint(endpoints[0])
 
   
   // Begin with a ray at the lowest angle to establish initial conditions
-  // radius extends far beyond canvas edge in most instances
-lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
-//drawRay(lastRay)
+  // Begin with a ray at the lowest angle to establish initial conditions
+  minRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
+  maxRay = maxRay = isLimited ? SightRay.fromAngle(origin.x, origin.y, aMax, radius) : undefined;
+   //drawRay(minRay)
+  //drawRay(maxRay)
+  
+  // if the angle is limited, trim the endpoints
+  if(isLimited) {
+    //drawRay(maxRay)
+    if(Math.abs(aMax - aMin) > Math.PI) {
+       // if aMin to aMax is greater than 180º, easier to determine what is out
+      // if endpoint is CCW to minRay or CW to maxRay, it is outside
+      endpoints = endpoints.filter(e => {
+        return !(ccwPoints(origin, minRay.B, e) > 0 || ccwPoints(origin, maxRay.B, e) < 0);
+      });
+      
+    } else {
+      // if aMin to aMax is less than 180º, easier to determine what is in
+      // endpoint is CW to minRay and CCW to maxRay, it is inside
+      endpoints = endpoints.filter(e => {
+        return ccwPoints(origin, minRay.B, e) <= 0 && ccwPoints(origin, maxRay.B, e) >= 0;
+      });
+    }
+    
+    // canvas.controls.debug.clear();
+    // endpoints.forEach(e => drawEndpoint(e))
+  }
+
 
   // We may need to explicitly include a first ray
-  if ( isLimited || (endpoints.length === 0) ) {
-    const pFirst = new WallEndpoint(lastRay.B.x, lastRay.B.y);
-    pFirst.angle = aMin;
-    endpoints.unshift(pFirst);
-  }
+//   if ( isLimited || (endpoints.length === 0) ) {
+//     const pFirst = new WallEndpoint(lastRay.B.x, lastRay.B.y);
+//     pFirst.angle = aMin;
+//     endpoints.unshift(pFirst);
+//   }
 
   // We may need to explicitly include a final ray
-  if ( isLimited || (endpoints.length === 1) ) {
-    let aFinal = aMax;
-    if(!isLimited) {
-      endpoints[0].angle = norm(Math.atan2(endpoint[0].y - origin.y, endpoint[0].x - origin.x))
-      aFinal = endpoints[0].angle + Math.PI;
-    }
-    const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
-    const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
-    pFinal.angle = aFinal;
-    endpoints.push(pFinal);
-  }
+ //  if ( isLimited || (endpoints.length === 1) ) {
+//     let aFinal = aMax;
+//     if(!isLimited) {
+//       endpoints[0].angle = norm(Math.atan2(endpoint[0].y - origin.y, endpoint[0].x - origin.x))
+//       aFinal = endpoints[0].angle + Math.PI;
+//     }
+//     const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
+//     const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
+//     pFinal.angle = aFinal;
+//     endpoints.push(pFinal);
+//   }
   
   // Start by checking if the initial ray intersects any segments.
   // If yes, then get the closest segment 
@@ -457,15 +482,32 @@ lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
 needs_padding = false;
 closest_wall = undefined;
     
-intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
+intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
 
 if(intersecting_walls.length > 0) {
   // these walls are actually walls[0].wall
   intersecting_walls = intersecting_walls.map(w => w.wall);
   
-  potential_walls.add(intersecting_walls);
+  potential_walls.addWalls(intersecting_walls);
   closest_wall = potential_walls.closest();
 }
+
+  // If the angle of vision is limited, add the starting intersection
+  if(isLimited) {
+    // starting point
+    intersection = undefined;
+    if(closest_wall) {
+      intersection = minRay.intersectSegment(closest_wall.coords);
+    }
+    if(intersection) {
+      collisions.push({ x: intersection.x, y: intersection.y });
+    } else {
+      collisions.push({ x: minRay.B.x, y: minRay.B.y });
+    }    
+  }
+
+  // Sort endpoints by angle 
+  endpoints = sortEndpoints(Poly.origin, endpoints);
   
   
   // TO-DO: remove endpoints that are not within our limited angle
@@ -603,6 +645,33 @@ if(intersecting_walls.length > 0) {
     
  
   }
+  
+  // if limited, need to get the intersection point for the maxRay
+  intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
+  tmp_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+  
+if(intersecting_walls.length > 0) {
+  // these walls are actually walls[0].wall
+  intersecting_walls = intersecting_walls.map(w => w.wall);
+  
+  tmp_potential_walls.addWalls(intersecting_walls);
+  closest_wall = tmp_potential_walls.closest();
+}
+
+  // If the angle of vision is limited, add the starting intersection
+  if(isLimited) {
+    // starting point
+    intersection = undefined;
+    if(closest_wall) {
+      intersection = maxRay.intersectSegment(closest_wall.coords);
+    }
+    if(intersection) {
+      collisions.push({ x: intersection.x, y: intersection.y });
+    } else {
+      collisions.push({ x: maxRay.B.x, y: maxRay.B.y });
+    }    
+  }
+  
     
   // close between last / first endpoint
   if(has_radius && needs_padding) {
