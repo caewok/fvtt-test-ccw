@@ -193,7 +193,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // if the angle is limited, trim the endpoints
   if(aMax < Math.PI) {
     maxRay = SightRay.fromAngle(origin.x, origin.y, aMax, radius);
-    if(aMax - aMin > Math.PI / 2) {
+    if((aMax - aMin) > Math.PI / 2) {
        // if aMin to aMax is greater than 180º, easier to determine what is out
       // if endpoint is CCW to minRay and CW to maxRay, it is outside
       endpoints = endpoints.filter(e => {
@@ -204,7 +204,7 @@ export function testCCWSweepEndpoints(wrapped) {
       // if aMin to aMax is less than 180º, easier to determine what is in
       // endpoint is CW to minRay and CCW to maxRay, it is inside
       endpoints = endpoints.filter(e => {
-        ccwPoints(origin, minRay.B, e) >= 0 || ccwPoints(origin, maxRay.B, e) <= 0);
+        ccwPoints(origin, minRay.B, e) >= 0 || ccwPoints(origin, maxRay.B, e) <= 0;
       });
     }
   }
