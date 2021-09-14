@@ -162,7 +162,7 @@ export function testCCWIncludeWall(wrapped, wall, type) {
 export function testCCWSweepEndpoints(wrapped) {
   if(window[MODULE_ID].debug) {
     log(`Padding: ${Math.PI / Math.max(this.config.density, 6)}, density ${this.config.density}`);
-    log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}`);
+    log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}; aMin: ${this.config.aMin}; aMax: ${this.config.aMax}`);
     this.config.debug = true;
   }
 
@@ -173,8 +173,7 @@ export function testCCWSweepEndpoints(wrapped) {
     return; 
 
   }
-  
-    
+      
   // Configure inputs
   const origin = this.origin;
   const {maxR, isLimited, aMin, aMax} = this.config;
@@ -241,7 +240,7 @@ export function testCCWSweepEndpoints(wrapped) {
   
   // if the angle is limited, trim the endpoints nd add endpoints for starting/ending ray 
   if(isLimited) {
-    if((aMax - aMin) > Math.PI) {
+    if(Math.abs(aMax - aMin) > Math.PI) {
        // if aMin to aMax is greater than 180º, easier to determine what is out
       // if endpoint is CCW to minRay and CW to maxRay, it is outside
       endpoints = endpoints.filter(e => {
