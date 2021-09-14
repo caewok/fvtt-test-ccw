@@ -8,10 +8,10 @@
 // - in line walls? Add?
 import { log, MODULE_ID } from "./module.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
-import { BinaryTree } from "./class_BinaryTree.js";
+import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 
-export class PotentialWallListBinary extends BinaryTree {
+export class PotentialWallListBinary extends BinarySearchTree {
   constructor(origin) {
     super();
     this.origin = origin;
@@ -23,7 +23,11 @@ export class PotentialWallListBinary extends BinaryTree {
   */
   compare(a, b) {
     if(a.id === b.id) return 0;
-    a.toRay().inFrontOfSegment(b.toRay(), this.origin) ? 1 : -1;
+    const res = a.toRay().inFrontOfSegment(b.toRay(), this.origin);
+    if(res === undefined) {
+     log(`BST compare returned undefined`, res, this);
+    }
+    return !res ? -1 : 1;
   } 
   
  /*
@@ -31,7 +35,7 @@ export class PotentialWallListBinary extends BinaryTree {
   * Triggers a sort.
   * @param {Array|Set|Map} walls    Walls to add.
   */ 
-  add(walls) {  
+  addWalls(walls) {  
     walls.forEach(w => {
       if(!this.walls_encountered.has(w.id)) {
         this.walls_encountered.add(w.id);
@@ -45,11 +49,13 @@ export class PotentialWallListBinary extends BinaryTree {
   * Should not require a sort.
   * @param {Array|Set|Map} walls    Walls to remove.
   */
-  remove(walls) {  
+  removeWalls(walls) {  
+    //log(`Checking to remove ${walls?.length}|${walls?.size}`, walls);
     walls.forEach(w => {
       if(this.walls_encountered.has(w.id)) {
+        //log(`Removing ${w?.id}`, w, this);
         this.walls_encountered.delete(w.id);
-        this.potential_walls.remove(w);
+        this.remove(w);
       }  
     });
   } 
@@ -75,8 +81,8 @@ export class PotentialWallListBinary extends BinaryTree {
       }
     })
     
-    this.remove(to_remove);
-    this.add(to_add);
+    this.removeWalls(to_remove);
+    this.addWalls(to_add);
   }
    
   
@@ -88,7 +94,12 @@ export class PotentialWallListBinary extends BinaryTree {
   closest(remove = true) {
     if(this.walls_encountered.size === 0) return undefined;
     
-    if(remove) return this.pullMaxNode();
+    if(remove) {
+      const w = this.pullMaxNode();
+      this.walls_encountered.delete(w.id);
+      return w;
+    }
+  
     return this.findMaxNode();
   }
   

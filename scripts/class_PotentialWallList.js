@@ -22,7 +22,7 @@ export class PotentialWallList {
   * Triggers a sort.
   * @param {Array|Set|Map} walls    Walls to add.
   */ 
-  add(walls) {  
+  addWalls(walls) {  
     if(walls.size === 0 || walls.length === 0) return;
     walls.forEach(w => {
       this.walls_encountered.add(w.id);
@@ -37,7 +37,7 @@ export class PotentialWallList {
   * Should not require a sort.
   * @param {Array|Set|Map} walls    Walls to remove.
   */
-  remove(walls) {  
+  removeWalls(walls) {  
     walls.forEach(w => {
       this.walls_encountered.delete(w.id);
       this.potential_walls.delete(w.id);
@@ -89,7 +89,7 @@ export class PotentialWallList {
     })
     
     this.removeById(to_remove);
-    this.add(to_add);
+    this.addWalls(to_add);
   }
    
   
@@ -105,7 +105,7 @@ export class PotentialWallList {
     const popkey = keys[keys.length - 1];
     const obj = this.potential_walls.get(popkey);
     
-    if(remove) this.remove([obj]);
+    if(remove) this.removeWalls([obj]);
     return obj;
   }
   
