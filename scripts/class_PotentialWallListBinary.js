@@ -1,5 +1,5 @@
 // Class to store list of potential walls.
-// Ultimately should probably be a binary search tree.
+// Binary search tree version
 // Assumptions:
 // - ordered from furtherest to closest walls.
 // - sweeping clockwise
