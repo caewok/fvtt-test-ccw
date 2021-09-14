@@ -187,27 +187,49 @@ export function testCCWSweepEndpoints(wrapped) {
   }
 */
   // Begin with a ray at the lowest angle to establish initial conditions
-  let lastRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
+  let minRay = SightRay.fromAngle(origin.x, origin.y, aMin, radius);
+  let maxRay = undefined;
+  
+  // if the angle is limited, trim the endpoints
+  if(aMax < Math.PI) {
+    maxRay = SightRay.fromAngle(origin.x, origin.y, aMax, radius);
+    if(aMax - aMin > Math.PI / 2) {
+       // if aMin to aMax is greater than 180º, easier to determine what is out
+      // if endpoint is CCW to minRay and CW to maxRay, it is outside
+      endpoints = endpoints.filter(e => {
+        !(ccwPoints(origin, minRay.B, e) < 0 || ccwPoints(origin, maxRay.B, e) > 0);
+      });
+      
+    } else {
+      // if aMin to aMax is less than 180º, easier to determine what is in
+      // endpoint is CW to minRay and CCW to maxRay, it is inside
+      endpoints = endpoints.filter(e => {
+        ccwPoints(origin, minRay.B, e) >= 0 || ccwPoints(origin, maxRay.B, e) <= 0);
+      });
+    }
+  }
+ 
+  
 
   // We may need to explicitly include a first ray
-  if ( isLimited || (endpoints.length === 0) ) {
-    const pFirst = new WallEndpoint(lastRay.B.x, lastRay.B.y);
-    pFirst.angle = aMin;
-    endpoints.unshift(pFirst);
-  }
+//   if ( isLimited || (endpoints.length === 0) ) {
+//     const pFirst = new WallEndpoint(lastRay.B.x, lastRay.B.y);
+//     pFirst.angle = aMin;
+//     endpoints.unshift(pFirst);
+//   }
 
   // We may need to explicitly include a final ray
-  if ( isLimited || (endpoints.length === 1) ) {
-    let aFinal = aMax;
-    if(!isLimited) {
-      endpoints[0].angle = norm(Math.atan2(endpoint[0].y - this.origin.y, endpoint[0].x - this.origin.x))
-      aFinal = endpoints[0].angle + Math.PI;
-    }
-    const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
-    const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
-    pFinal.angle = aFinal;
-    endpoints.push(pFinal);
-  }
+//   if ( isLimited || (endpoints.length === 1) ) {
+//     let aFinal = aMax;
+//     if(!isLimited) {
+//       endpoints[0].angle = norm(Math.atan2(endpoint[0].y - this.origin.y, endpoint[0].x - this.origin.x))
+//       aFinal = endpoints[0].angle + Math.PI;
+//     }
+//     const rFinal = SightRay.fromAngle(origin.x, origin.y, aFinal, radius);
+//     const pFinal = new WallEndpoint(rFinal.B.x, rFinal.B.y);
+//     pFinal.angle = aFinal;
+//     endpoints.push(pFinal);
+//   }
   
   // Start by checking if the initial ray intersects any segments.
   // If yes, then get the closest segment 
@@ -216,7 +238,7 @@ export function testCCWSweepEndpoints(wrapped) {
   let needs_padding = false;
   let closest_wall = undefined;
 
-  let intersecting_walls = [...walls.values()].filter(w => lastRay.intersects(w.wall.toRay()));
+  let intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
   
   if(intersecting_walls.length > 0) {
     // these walls are actually walls[0].wall
