@@ -9,9 +9,9 @@ export const MODULE_ID = 'testccw';
 export function log(...args) {
   try {
    // const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
-   // if (isDebugging) {
+   if (window[MODULE_ID].debug) {
       console.log(MODULE_ID, '|', ...args);
-   // }
+   }
   } catch (e) {}
 }
 
@@ -33,7 +33,7 @@ Hooks.once('init', async function() {
   
   window[MODULE_ID] = { use_ccw: false,
                         debug: false,
-                        use_bst: false,
+                        use_bst: true,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d,
                         PotentialWallList: PotentialWallList,

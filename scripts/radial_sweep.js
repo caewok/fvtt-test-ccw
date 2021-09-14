@@ -1,3 +1,5 @@
+'use strict';
+
 import { MODULE_ID, log } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
@@ -160,15 +162,12 @@ export function testCCWIncludeWall(wrapped, wall, type) {
  * @private
  */
 export function testCCWSweepEndpoints(wrapped) {
-  if(window[MODULE_ID].debug) {
-    log(`Padding: ${Math.PI / Math.max(this.config.density, 6)}, density ${this.config.density}`);
-    log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}; aMin: ${this.config.aMin}; aMax: ${this.config.aMax}`);
-    this.config.debug = true;
-  }
+  log(`Padding: ${Math.PI / Math.max(this.config.density, 6)}, density ${this.config.density}`);
+  log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}; aMin: ${this.config.aMin}; aMax: ${this.config.aMax}`);
 
   if(!window[MODULE_ID].use_ccw) {
     wrapped(); 
-    if(window[MODULE_ID].debug) { log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays); }
+    log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays);
     //return wrapped();
     return; 
 
@@ -188,7 +187,8 @@ export function testCCWSweepEndpoints(wrapped) {
   
   let needs_padding = false;
   let closest_wall = undefined;
-  
+
+  log(`${endpoints.length} endpoints at start.`);
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
   
@@ -244,16 +244,18 @@ export function testCCWSweepEndpoints(wrapped) {
        // if aMin to aMax is greater than 180º, easier to determine what is out
       // if endpoint is CCW to minRay and CW to maxRay, it is outside
       endpoints = endpoints.filter(e => {
-        !(ccwPoints(origin, minRay.B, e) > 0 || ccwPoints(origin, maxRay.B, e) < 0);
+        return !(ccwPoints(origin, minRay.B, e) > 0 || ccwPoints(origin, maxRay.B, e) < 0);
       });
       
     } else {
       // if aMin to aMax is less than 180º, easier to determine what is in
       // endpoint is CW to minRay and CCW to maxRay, it is inside
       endpoints = endpoints.filter(e => {
-        ccwPoints(origin, minRay.B, e) <= 0 || ccwPoints(origin, maxRay.B, e) >= 0;
+        return ccwPoints(origin, minRay.B, e) <= 0 && ccwPoints(origin, maxRay.B, e) >= 0;
       });
     }
+
+    log(`Sweep: isLimited ${endpoints.length} endpoints after filtering.`, endpoints);
     
     // Add a collision for the minRay -----
     let minRay_intersection = undefined;
@@ -305,6 +307,8 @@ export function testCCWSweepEndpoints(wrapped) {
   // Sort endpoints from west to north to east to south
   endpoints = sortEndpoints(this.origin, endpoints);
   
+  log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
+
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
     potential_walls.addFromEndpoint(endpoint);
@@ -446,7 +450,7 @@ export function testCCWSweepEndpoints(wrapped) {
   }*/ // should already happen
     
     
-  if(window[MODULE_ID].debug) { log(`${collisions.length} collisions`, collisions); }  
+  log(`${collisions.length} collisions`, collisions);  
   this.collisions = collisions;
 }
 
