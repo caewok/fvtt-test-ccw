@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./module.js";
+import { MODULE_ID, log } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
@@ -160,7 +160,19 @@ export function testCCWIncludeWall(wrapped, wall, type) {
  * @private
  */
 export function testCCWSweepEndpoints(wrapped) {
-  if(!window[MODULE_ID].use_ccw) { return wrapped(); }
+  if(window[MODULE_ID].debug) {
+    log(`Padding: ${Math.PI / Math.max(this.config.density, 6)}, density ${this.config.density}`);
+    log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}`);
+    this.config.debug = true;
+  }
+
+  if(!window[MODULE_ID].use_ccw) {
+    wrapped(); 
+    if(window[MODULE_ID].debug) { log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays); }
+    //return wrapped();
+    return; 
+
+  }
   
     
   // Configure inputs
@@ -456,7 +468,10 @@ export function testCCWSweepEndpoints(wrapped) {
  * @private
  */
 export function testCCWConstructPoints(wrapped) {
-   if(!window[MODULE_ID].use_ccw) { return wrapped(); }
+   if(!window[MODULE_ID].use_ccw) { 
+     if(window[MODULE_ID].debug) { log(`${this.points.length} points`, this.points); }
+
+     return wrapped(); }
 
   const points = [];
   const isLimited = this.config.isLimited;
