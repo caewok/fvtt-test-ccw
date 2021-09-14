@@ -2,6 +2,7 @@ import { MODULE_ID } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { pointsAlmostEqual, ccwPoints } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
+import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
 /*
 RadialSweep class mostly works through the compute method. 
@@ -150,7 +151,8 @@ export function testCCWSweepEndpoints(wrapped) {
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
   let endpoints = Array.from(this.endpoints.values());
-  const potential_walls = new PotentialWallList(origin);
+  
+  const potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
   
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
@@ -219,7 +221,7 @@ export function testCCWSweepEndpoints(wrapped) {
   if(intersecting_walls.length > 0) {
     // these walls are actually walls[0].wall
     intersecting_walls = intersecting_walls.map(w => w.wall);
-    potential_walls.add(intersecting_walls);
+    potential_walls.addWalls(intersecting_walls);
     closest_wall = potential_walls.closest();
   }
   

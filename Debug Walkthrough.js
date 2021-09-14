@@ -359,6 +359,7 @@ if ( debug ) {
 orient2d = window.testccw.orient2d;
 MODULE_ID = "testccw"
 PotentialWallList = window.testccw.PotentialWallList;
+PotentialWallListBinary = window.testccw.PotentialWallListBinary;
 
 function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
   canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
@@ -382,7 +383,8 @@ collisions = [];  // array to store collisions in lieu of rays
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
 endpoints = Array.from(Poly.endpoints.values());
-potential_walls = new PotentialWallList(origin);
+potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+
 
 // walls should to be an iterable set 
 walls = new Map(Object.entries(Poly.walls));
@@ -470,7 +472,7 @@ if(intersecting_walls.length > 0) {
   
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
-  // for( let endpoint of endpoints.slice(0, 8)) {
+  // for( let endpoint of endpoints.slice(0, 2)) {
   // endpoint = endpoints[0]
   // drawEndpoint(endpoint)
   // drawRay(closest_wall)
