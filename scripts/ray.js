@@ -1,6 +1,6 @@
 // Ray Class additions
 
-import { ccwPoints, pointsAlmostEqual } from "./util.js";
+import { ccwPoints, pointsAlmostEqual, discriminant, rootsReal } from "./util.js";
 
 /*
  * Project a ray by exact distance.
@@ -28,6 +28,66 @@ export function rayIntersects(r) {
   return ccwPoints(this.A, this.B, r.A) != ccwPoints(this.A, this.B, r.B) &&
          ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
 }
+
+
+/*
+ * Does this ray intersect a circle?
+ *   
+ * Equation for circle: x^2 + y^2 = r^2
+ * Equation for line: y = mx + b
+ * @param {x, y} center   Center of the cirle
+ * @param {Number} r      Radius of circle. Should be > 0.
+ */
+export function rayPotentialIntersectionsCircle(center, radius) {
+  // Line: y = mx + c
+  //   m is slope; c is intercept
+  // Circle: (x - p)^2 + (y - q)^2 = r^2
+  //   p is center.x, q is center.y, r is radius
+  // Must flip the y-axis
+  const p = center.x;
+  const q = -center.y;  
+  const m = - this.slope;
+  const c = -this.y0 - m * this.x0;
+  const r = radius;
+  
+  if(is.Finite(this.slope)) {
+    // Quadratic in terms of x: 
+    // (m^2 + 1)x^2 + 2(mc - mq -p)x + (q^2 - r^2 + p^2 - 2cq + c^2)
+    
+    // could pass this to discriminant to get number of roots
+    // 2 if positive, 1 if 0, 0 (imaginary) if negative.
+  
+    const roots_x = rootsReal(m * m + 1,
+                              2 * (m*c - m*q - p),
+                              q*q - r*r + p*p - 2*c*q + c*c);
+    if(roots_x.length === 0) return [];      
+    
+    // y = mx + c
+    roots_y = roots_x.map(x => m * x + c);                
+  
+  } else {
+    // x is constant b/c line is vertical
+    // need to get roots in terms of y  
+    const k = this.x0; 
+    // Quadratic in terms of y:
+    // y^2 - 2qy + (p^2 + q^2 - r^2 - 2kp + k^2)
+    const roots_y = rootsReal(1,
+                              -2*q
+                              p*p + q*q - r*r - 2*k*p + k*k);
+    if(roots_y.length === 0) return [];    
+    
+    // x is constant
+    roots_x = roots_y.map(y => k);                     
+  }
+   
+  // flip the y-values
+  roots_y = roots_y.map(y => -y);
+  
+  if(roots_x.length === 1) return [{x: roots_x[0], y: roots_y[0]}];
+  if(roots_x.length > 1) return [{x: roots_x[0], y: roots_y[0]},
+                                 {x: roots_x[1], y: roots_y[1]}];
+  return undefined;
+} 
 
 /*
  * Return true if the point is in front of the ray, based on a vision point

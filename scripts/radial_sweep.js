@@ -2,7 +2,7 @@
 
 import { MODULE_ID, log } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
-import { pointsAlmostEqual, ccwPoints } from "./util.js";
+import { pointsAlmostEqual, ccwPoints, calculateDistance } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
@@ -533,7 +533,7 @@ function constructRay(origin, endpoint, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.length > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }
@@ -558,7 +558,7 @@ function constructRayFromAngle(origin, angle, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.lenght > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }

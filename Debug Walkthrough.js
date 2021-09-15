@@ -5,6 +5,11 @@ w = canvas.walls.controlled[0]; // get selected wall
 t = canvas.tokens.controlled[0];
 await window.testccw.benchmark(1000, t.center)
 
+// benchmark light
+// lights appear to be hardcoding to density 60. See Light Source Initialization      
+l = [...canvas.lighting.sources][0];
+await window.testccw.benchmark(1000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
@@ -12,6 +17,17 @@ function almostEqual(x, y, EPSILON = 1e-10) {
 
 function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
+}
+
+function calculateDistance(A, B, EPSILON = 1e-10) {
+  // could use pointsAlmostEqual function but this avoids double-calculating
+  const dx = Math.abs(B.x - A.x); 
+  const dy = Math.abs(B.y - A.y);
+  if(dy < EPSILON && dx < EPSILON) { return 0; }
+  if(dy < EPSILON) { return dx; }
+  if(dx < EPSILON) { return dy; }
+
+  return Math.hypot(dy, dx);
 }
 
 function orient2dPoints(p1, p2, p3) {
@@ -80,7 +96,7 @@ function constructRay(origin, endpoint, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.length > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }
@@ -106,7 +122,7 @@ function constructRayFromAngle(origin, angle, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.length > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }
@@ -160,7 +176,13 @@ function endpointWallCCW(origin, endpoint, wall) {
 }
 
 
+function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
+  canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
+}
 
+function drawRay(ray, color = 0xFF0000, width = 1) {
+   canvas.controls.debug.lineStyle(width, color, 1).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
+}
 
 
 
@@ -182,11 +204,23 @@ const COLORS = {
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true})
 
+
+
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
 calc_radius = undefined
 
 Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation, radius: calc_radius}) // radius
+
+
+/*
+Lights version
+l = [...canvas.lighting.sources][0];
+Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
+Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+*/
+
+
 
 let {angle, debug, rotation, type} = Poly.config;
 
@@ -230,6 +264,10 @@ console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
 canvas.controls.debug.clear();
 Poly.visualize();
 
+// drawings
+for(i = 0; i < Poly.points.length; i += 2) {
+  drawEndpoint({x: Poly.points[i], y: Poly.points[i+1]})
+}
 
 
 
@@ -397,13 +435,7 @@ MODULE_ID = "testccw"
 PotentialWallList = window.testccw.PotentialWallList;
 PotentialWallListBinary = window.testccw.PotentialWallListBinary;
 
-function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
-  canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
-}
 
-function drawRay(ray, color = 0xFF0000, width = 1) {
-   canvas.controls.debug.lineStyle(width, color, 1).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
-}
 
 
 Poly._initializeEndpoints(type)
@@ -449,22 +481,32 @@ endpoint.walls.forEach(w => drawRay(w));
     endpoints.push(new WallEndpoint(0, canvas.dimensions.height));
     endpoints.push(new WallEndpoint(canvas.dimensions.width, 0));
     endpoints.push(new WallEndpoint(canvas.dimensions.width, canvas.dimensions.height));
+  } else {
+    // if limited radius, then segments may start outside and enter the vision area.
+    // need to mark that intersection 
+    
+    // easy part: if endpoint is outside the radius, ignore it
+    // store the distance b/c we will need to reference it later
+    endpoints = endpoints.filter(e => {
+      e.distance_to_origin = calculateDistance(origin, e);
+      return e.distance_to_origin <= radius;
+    });
+    // drawEndpoint(origin, COLORS.yellow)
+    // endpoints.forEach(e => drawEndpoint(e))
+  
   }
   
-  // if limited radius, then segments may start outside and enter the vision area.
-  // need to mark that intersection 
-  
-  // Skip endpoints which are not within our limited angle
-  //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
+
+
+
 
  
-  
-// drawEndpoint(endpoints[0])
 
   
   // Begin with a ray at the lowest angle to establish initial conditions
-  // Begin with a ray at the lowest angle to establish initial conditions
-  minRay = constructRayFromAngle(origin, aMin, radius);
+  // Can avoid using FromAngle if aMin is -π, which means it goes due west
+  minRay = aMin === -Math.PI ? constructRay(origin, {x: origin.x - 100, y: origin.y}, radius) :
+     constructRayFromAngle(origin, aMin, radius);  
   maxRay = isLimited ? constructRayFromAngle(origin, aMax, radius) : undefined;
    //drawRay(minRay, COLORS.blue)
   //drawRay(maxRay, COLORS.blue)
