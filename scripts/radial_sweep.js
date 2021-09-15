@@ -681,7 +681,7 @@ function endpointWallCCW(origin, endpoint, wall) {
  * @param {boolean} requireTest   Require padding rays to be tested, instead of assuming their reach their endpoint
  * @private
  */
-export function testCCWPadRays(wrap, r0, r1, padding, rays, requireTest) {
+export function testCCWPadRays(wrapped, r0, r1, padding, rays, requireTest) {
   if(!window[MODULE_ID].use_ccw) { return wrapped(r0, r1, padding, rays, requireTest); }
 
   // Determine padding delta
