@@ -49,15 +49,17 @@ export function rayPotentialIntersectionsCircle(center, radius) {
   const m = - this.slope;
   const c = -this.y0 - m * this.x0;
   const r = radius;
+  let roots_x = [];
+  let roots_y = [];
   
-  if(is.Finite(this.slope)) {
+  if(isFinite(this.slope)) {
     // Quadratic in terms of x: 
     // (m^2 + 1)x^2 + 2(mc - mq -p)x + (q^2 - r^2 + p^2 - 2cq + c^2)
     
     // could pass this to discriminant to get number of roots
     // 2 if positive, 1 if 0, 0 (imaginary) if negative.
   
-    const roots_x = rootsReal(m * m + 1,
+    roots_x = rootsReal(m * m + 1,
                               2 * (m*c - m*q - p),
                               q*q - r*r + p*p - 2*c*q + c*c);
     if(roots_x.length === 0) return [];      
@@ -71,8 +73,8 @@ export function rayPotentialIntersectionsCircle(center, radius) {
     const k = this.x0; 
     // Quadratic in terms of y:
     // y^2 - 2qy + (p^2 + q^2 - r^2 - 2kp + k^2)
-    const roots_y = rootsReal(1,
-                              -2*q
+    roots_y = rootsReal(1,
+                              -2*q,
                               p*p + q*q - r*r - 2*k*p + k*k);
     if(roots_y.length === 0) return [];    
     
