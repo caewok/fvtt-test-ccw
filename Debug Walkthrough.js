@@ -467,7 +467,7 @@ if(has_radius) {
     // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
     w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
     w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
-       return w.wall.toRay.contains(p);
+       return w.wall.toRay().contains(p);
     });
     
   });
@@ -475,6 +475,7 @@ if(has_radius) {
 }
 
 
+endpoints = Array.from(Poly.endpoints.values());
 
 
 
@@ -504,14 +505,26 @@ endpoint.walls.forEach(w => drawRay(w));
     // if limited radius, then segments may start outside and enter the vision area.
     // need to mark that intersection 
     
-    // easy part: if endpoint is outside the radius, ignore it
-    // store the distance b/c we will need to reference it later
+    // easy part: 
+    // if endpoint is outside the circle, and has no walls that intersect the circle, ignore
     endpoints = endpoints.filter(e => {
       e.distance_to_origin = calculateDistance(origin, e);
-      return e.distance_to_origin <= radius;
+      if(e.distance_to_origin <= radius) return true;
+      
+      // endpoint outside wall
+      // 1. trim the wall set to only those with actual intersections
+      // 2. drop endpoint if set is empty
+      e.walls.forEach(w => {
+        if(w.radius_actual_intersect.length === 0) e.walls.delete(w);
+      })
+      
+      return e.walls.size > 0;
     });
     // drawEndpoint(origin, COLORS.yellow)
     // endpoints.forEach(e => drawEndpoint(e))
+    
+    // hard part:
+    // what to do about the intersection point? create new endpoints?
   
   }
   

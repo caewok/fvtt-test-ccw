@@ -11,13 +11,17 @@ import { orient2d } from "./lib/orient2d.min.js";
   * See Number.EPSILON for smallest possible error number.
   * Given the use in light measurements over long distances, probably make this 
   * relatively small in case comparing small angles.
+  * 
+  * Testing for whether a ray contains a point can fail with 1e-10. 
+  *   (points created by intersecting the ray to the circle)
+  *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = 1e-10) {
+export function almostEqual(x, y, EPSILON = 1e-8) {
   return Math.abs(x - y) < EPSILON;
 }
 
-export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
+export function pointsAlmostEqual(p1, p2, EPSILON = 1e-8) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
@@ -27,7 +31,7 @@ export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
   * @param {PIXI.Point} B   Point in {x, y} format.
   * @return The distance between the two points.
   */
-export function calculateDistance(A, B, EPSILON = 1e-6) {
+export function calculateDistance(A, B, EPSILON = 1e-8) {
   // could use pointsAlmostEqual function but this avoids double-calculating
   const dx = Math.abs(B.x - A.x); 
   const dy = Math.abs(B.y - A.y);
@@ -49,9 +53,8 @@ export function orient2dPoints(p1, p2, p3) {
 // 1 if CCW, -1 if CW, 0 if in line
 export function ccwPoints(p1, p2, p3) {
   const res = orient2dPoints(p1, p2, p3);
-                         
-  return res < 0 ? -1 : 
-         res > 0 ?  1 : 0;
+  if(almostEqual(res, 0)) return 0;
+  return res < 0 ? -1 : 1;                       
 }
 
 
