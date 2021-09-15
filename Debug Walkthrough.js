@@ -199,26 +199,24 @@ const COLORS = {
 }
 
 // Create RadialSweepPolygon
-// (use let b/c we are pasting into console a lot)
 
+
+// Token version
+/*
 t = canvas.tokens.controlled[0];
-Poly = new RadialSweepPolygon(t.center, {debug: true})
-
-
+Poly = new RadialSweepPolygon(t.center, {debug: true});
+Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
+*/
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
-calc_radius = undefined
-
-Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation, radius: calc_radius}) // radius
 
 
-/*
-Lights version
+//Lights version
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
-*/
+
 
 
 
@@ -477,6 +475,11 @@ if(has_radius) {
 
 endpoints = Array.from(Poly.endpoints.values());
 
+/*
+canvas.controls.debug.clear();
+endpoints.forEach(e => drawEndpoint(e));
+
+*/
 
 
   
@@ -507,16 +510,27 @@ endpoint.walls.forEach(w => drawRay(w));
     
     // easy part: 
     // if endpoint is outside the circle, and has no walls that intersect the circle, ignore
+    new_endpoints = new Set;
+    
     endpoints = endpoints.filter(e => {
       e.distance_to_origin = calculateDistance(origin, e);
-      if(e.distance_to_origin <= radius) return true;
+      if(e.distance_to_origin <= radius) { return true; }
       
       // endpoint outside wall
       // 1. trim the wall set to only those with actual intersections
       // 2. drop endpoint if set is empty
       e.walls.forEach(w => {
-        if(w.radius_actual_intersect.length === 0) e.walls.delete(w);
-      })
+        if(w.radius_actual_intersect.length === 0) {
+          e.walls.delete(w);
+        } else {
+          // wall intersections exist; make new endpoints
+          w.radius_actual_intersect.forEach(pt => {
+            pt = new WallEndpoint(pt.x, pt.y);
+            pt.radius_edge = true;
+            new_endpoints.add(pt)
+          });
+        }
+      });
       
       return e.walls.size > 0;
     });
@@ -525,7 +539,7 @@ endpoint.walls.forEach(w => drawRay(w));
     
     // hard part:
     // what to do about the intersection point? create new endpoints?
-  
+    endpoints.push(...new_endpoints)  
   }
   
 
@@ -652,13 +666,14 @@ if(minRay_intersecting_walls.length > 0) {
     
   // Sort endpoints by angle 
   endpoints = sortEndpoints(Poly.origin, endpoints);
-  
+  //endpoints.forEach(e => drawEndpoint(e))
   
   // TO-DO: remove endpoints that are not within our limited angle
   
   // Sweep each endpoint
   for ( let endpoint of endpoints ) {
-  // for( let endpoint of endpoints.slice(0, 2)) {
+  // for( let endpoint of endpoints.slice(0, 5)) {
+  // canvas.controls.debug.clear();
   // endpoint = endpoints[0]
   // drawEndpoint(endpoint)
   // drawRay(closest_wall)
@@ -678,14 +693,18 @@ if(minRay_intersecting_walls.length > 0) {
   
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
-    if(has_radius && needs_padding) {
-      const prior_ray = needs_padding;
+    if(has_radius && Boolean(needs_padding)) {
+      prior_ray = needs_padding;
       
       // draw an arc from where the prior ray ended to the ray for the new endpoint
-      const ray = constructRay(origin, endpoint, radius);
+      ray = constructRay(origin, endpoint, radius);
+      
+      // Foundry version of padding expects r.result.terminal
+      prior_ray.result = {terminal: true};
+      ray.result = {terminal: true};
       
       // TO-DO: Override _padRays to return a simple array of points to concat
-      const padding_rays = this._padRays(prior_ray, ray, padding, [], false);
+      padding_rays = Poly._padRays(prior_ray, ray, padding, [], false);
       padding_rays.forEach(r => {
         collisions.push(r.collisions[0]);
       });  
@@ -713,7 +732,9 @@ if(minRay_intersecting_walls.length > 0) {
     }  
     
     // is this endpoint at the end of the closest_wall?
-    if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)) {
+    
+    if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)){
+       // find the next-closet wall b/c we are at the end of the current one
        closest_wall = potential_walls.closest();
        // drawRay(closest_wall)
        
@@ -754,7 +775,22 @@ if(minRay_intersecting_walls.length > 0) {
        } 
          
        continue;  
-    } 
+    }
+    
+    // if we hit the radius circle intersect, similar to hitting the end of the wall
+//     if(has_radius && closest_wall.radius_actual_intersect.length > 0) {
+//       const hit_intersect = closest_wall.radius_actual_intersect.some(i => {
+//         return pointsAlmostEqual(endpoint, i);
+//       });
+//       
+//       closest_wall = potential_walls.closest();
+//       collisions.push({x: endpoint.x, y: endpoint.y});
+//       
+//       needs_padding = 
+//     
+//     }
+     
+     
     
     // is this endpoint within the closest_wall? (Limited angle will do this)
     // Unclear if this is necessary, as can handle limited angle elsewhere.

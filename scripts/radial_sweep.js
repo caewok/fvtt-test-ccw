@@ -612,39 +612,37 @@ function endpointWallCCW(origin, endpoint, wall) {
 }
 
 
-// expensive
-/*
-function _padRays(r0, r1, padding, rays, requireTest) {
+/**
+ * Wrap _padRays.
+ * This version adds the collision points but avoids the r.result.terminal issue.
+ * 
+ * Create additional rays to fill gaps with a desired padding size
+ * @param {SightRay} r0       The prior SightRay that was tested
+ * @param {SightRay} r1       The next SightRay that will be tested
+ * @param {number} padding    The size of padding in radians to fill between r0 and r1
+ * @param {SightRay[]} rays   The accumulating array of Ray objects
+ * @param {boolean} requireTest   Require padding rays to be tested, instead of assuming their reach their endpoint
+ * @private
+ */
+export function testCCWPadRays(wrap, r0, r1, padding, rays, requireTest) {
+  if(!window[MODULE_ID].use_ccw) { return wrapped(r0, r1, padding, rays, requireTest); }
 
-    // Determine padding delta
-    let d = r1.angle - r0.angle;
-    if ( d < 0 ) d += (2*Math.PI); // Handle cycling past pi
-    const nPad = Math.floor(d / padding);
-    if ( nPad === 0 ) return [];
+  // Determine padding delta
+  let d = r1.angle - r0.angle;
+  if ( d < 0 ) d += (2*Math.PI); // Handle cycling past pi
+  const nPad = Math.floor(d / padding);
+  if ( nPad === 0 ) return [];
 
-    // Construct padding rays
-    const delta = d / nPad;
-    let lr = r0;
-    for ( let i=1; i<nPad; i++ ) {
-      let r = r0.shiftAngle(i*delta);
-
-      // If may be required to test the padded ray
-      if ( requireTest ) {
-        this._testRay(r, lr);
-        lr = r;
-        if ( r.result.superfluous ) continue;
-      }
-
-      // Otherwise we can assume it reaches the endpoint
-      else {
-        const pt = new WallEndpoint(r.B.x, r.B.y);
-        pt.isTerminal = r.result.terminal = true;
-        r.collisions = [pt];
-      }
-      rays.push(r);
-    }
+  // Construct padding rays
+  const delta = d / nPad;
+  let lr = r0;
+  for ( let i=1; i<nPad; i++ ) {
+    let r = r0.shiftAngle(i*delta);
+    rays.push(r.B);
   }
-*/
+  return rays;
+}
+
 
 
 
