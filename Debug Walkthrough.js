@@ -450,7 +450,7 @@ collisions = [];  // array to store collisions in lieu of rays
   //const angles = new Set();
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
-endpoints = Array.from(Poly.endpoints.values());
+
 potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
 
 needs_padding = false;
@@ -459,6 +459,25 @@ closest_wall = undefined;
 
 // walls should to be an iterable set 
 walls = new Map(Object.entries(Poly.walls));
+
+
+if(has_radius) {
+  // determine which walls intersect the circle
+  walls.forEach(w => {
+    // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
+    w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
+    w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
+       return w.wall.toRay.contains(p);
+    });
+    
+  });
+
+}
+
+
+
+
+
   
 
 /*

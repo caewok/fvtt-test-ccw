@@ -15,7 +15,8 @@ import { rayProjectDistance,
          rayInFrontOfPoint,
          rayInFrontOfSegment,
          rayProjectB,
-         rayPotentialIntersectionsCircle } from "./ray.js";
+         rayPotentialIntersectionsCircle,
+         rayContains } from "./ray.js";
 
 export function registerCCW() {
   libWrapper.register(MODULE_ID, 'RadialSweepPolygon.prototype._initializeEndpoints', testCCWInitializeEndpoints, 'MIXED', {perf_mode:  libWrapper.PERF_FAST});
@@ -93,3 +94,10 @@ Object.defineProperty(Ray.prototype, "potentialIntersectionsCircle", {
   writable: true,
   configurable: true
 });
+
+Object.defineProperty(Ray.prototype, "contains", {
+  value: rayContains,
+  writable: true,
+  configurable: true
+});
+

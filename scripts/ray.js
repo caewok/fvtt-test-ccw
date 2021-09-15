@@ -29,6 +29,35 @@ export function rayIntersects(r) {
          ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
 }
 
+/*
+  * Test if point is on the segment.
+  * @param {PIXI.Point} p   Point to test
+  * @param {boolean} true if segment includes point
+  */
+export function rayContains(p) {
+  // ensure the point is collinear with this ray
+  if(ccwPoints(this.A, this.B, p) !== 0) return false;
+
+  // test if is an endpoint
+  if(pointsAlmostEqual(this.A, p) || 
+     pointsAlmostEqual(this.B, p)) return true;  
+ 
+    
+  // test if between the endpoints
+  // recall that we already established the point is collinear above.
+  const within_x = (p.x < Math.max(this.A.x, this.B.x) &&
+                    p.x > Math.min(this.A.x, this.B.x)) ||
+                    almostEqual(p.x, this.A.x) ||
+                    almostEqual(p.x, this.B.x);
+
+  const within_y = (p.y < Math.max(this.A.y, this.B.y) &&
+                    p.y > Math.min(this.A.y, this.B.y)) ||
+                    almostEqual(p.y, this.A.y) ||
+                    almostEqual(p.y, this.B.y);
+ 
+  return within_x && within_y;
+}
+
 
 /*
  * Does this ray intersect a circle?
