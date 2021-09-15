@@ -30,6 +30,26 @@ export function rayIntersects(r) {
 }
 
 /*
+ * Given a point, get the point on the ray that is closest
+ */
+export function closestPoint(p) {
+  const dx_p = p.x - this.A.x;
+  const dy_p = p.y - this.A.y;
+  const dx = this.dx;
+  const dy = this.dy;
+  
+  const a_to_b_squared = dx * dx + dy * dy;
+  const a_to_p_dot = dx_p * dx + dy_p * dy;
+  
+  let t = a_to_p_dot / a_to_b_squared;
+  t = Math.min(1, t);
+  t = Math.max(0, t);
+  
+  return { x: this.A.x + dx_p * t,
+           y: this.A.y + dy_p * t}
+}
+
+/*
   * Test if point is on the segment.
   * @param {PIXI.Point} p   Point to test
   * @param {boolean} true if segment includes point
