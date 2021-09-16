@@ -526,34 +526,45 @@ endpoint.walls.forEach(w => drawRay(w));
       });
     
     });
-   
+    
+    // track outside the forEach loop to avoid removing new additions
+    const endpoints_to_add = [];
+    const endpoints_to_delete = [];
+    
+    // 1. trim the wall set of each endpoint to only those with actual intersections
     Poly.endpoints.forEach(e => {
       e.distance_to_origin = calculateDistance(origin, e);
       if(e.distance_to_origin > radius) {
-        // endpoint outside wall
-       
+        const walls_to_delete = [];
         e.walls.forEach(w => {
-          // 1. trim the wall set to only those with actual intersections
           if(w.radius_actual_intersect.length === 0) {
-            e.walls.delete(w);
+            walls_to_delete.push(w.id);
           } else {
             // wall intersections exist; make new endpoints
-            w.radius_actual_intersect.forEach(pt => {
-              pt = new SweepPoint(pt.x, pt.y);
-              pt.radius_edge = true;
-              k = WallEndpoint.getKey(pt.x, pt.y);
-              Poly.endpoints.set(k, pt); // add new endpoint at circle/wall intersect
-            }); 
+            // add new endpoint at circle/wall intersect
+            pt = new SweepPoint(pt.x, pt.y);
+            pt.radius_edge = true;
+            endpoints_to_add.push(pt);
           }
         });
-        // 2. drop endpoint if set is empty
-        if(e.walls.size === 0) {
-          k = WallEndpoint.getKey(e.x, e.y);
-          Poly.endpoints.delete(k);
-        }
+        walls_to_delete.forEach(k =>  e.walls.delete(k)); 
       }
     });
-  
+    
+    // 2. drop endpoint if set is empty
+    Poly.endpoints.forEach(e => {
+      if(e.walls.size === 0 && e.distance_to_origin > radius) {
+        k = WallEndpoint.getKey(e.x, e.y);
+        endpoints_to_delete.push(k);
+      }
+    });
+    
+    endpoints_to_delete.forEach(k => Poly.endpoints.delete(k));
+    endpoints_to_add.forEach(pt => {
+      k = WallEndpoint.getKey(pt.x, pt.y);
+      Poly.endpoints.set(k, pt);
+    });
+        
   } else {
     // add 4-corners endpoints if not limited radius
     // used to draw polygon from the edges of the canvas (including padding).
@@ -573,7 +584,7 @@ endpoint.walls.forEach(w => drawRay(w));
   
 
 
-
+// 3350, 1912
 
  
 
@@ -746,7 +757,7 @@ if(minRay_intersecting_walls.length > 0) {
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
-      if(collisions.length < 2) console.warn(`testccw|Sweep: Collisions length ${collisions.length}`, collisions, endpoints);
+      if(collisions.length < 1) console.warn(`testccw|Sweep: zero collisions`);
       needs_padding = false;
       
       // draw an arc from where the collisions ended to the ray for the new endpoint

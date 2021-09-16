@@ -204,32 +204,44 @@ export function testCCWSweepEndpoints(wrapped) {
       });
     });
     
-    this.endpoints.forEach(e => {
+    // track outside the forEach loop to avoid removing new additions
+    const endpoints_to_add = [];
+    const endpoints_to_delete = [];
+    
+    // 1. trim the wall set of each endpoint to only those with actual intersections
+    Poly.endpoints.forEach(e => {
       e.distance_to_origin = calculateDistance(origin, e);
       if(e.distance_to_origin > radius) {
-        // endpoint outside wall
-       
+        const walls_to_delete = [];
         e.walls.forEach(w => {
-          // 1. trim the wall set to only those with actual intersections
           if(w.radius_actual_intersect.length === 0) {
-            e.walls.delete(w);
+            walls_to_delete.push(w.id);
           } else {
             // wall intersections exist; make new endpoints
-            w.radius_actual_intersect.forEach(pt => {
-              pt = new SweepPoint(pt.x, pt.y);
-              pt.radius_edge = true;
-              const k = WallEndpoint.getKey(pt.x, pt.y);
-              this.endpoints.set(k, pt); // add new endpoint at circle/wall intersect
-            }); 
+            // add new endpoint at circle/wall intersect
+            const pt = new SweepPoint(pt.x, pt.y);
+            pt.radius_edge = true;
+            endpoints_to_add.push(pt);
           }
         });
-        // 2. drop endpoint if set is empty
-        if(e.walls.size === 0) {
-          const k = WallEndpoint.getKey(e.x, e.y);
-          this.endpoints.delete(k);
-        }
+        walls_to_delete.forEach(k =>  e.walls.delete(k)); 
       }
     });
+    
+    // 2. drop endpoint if set is empty
+    Poly.endpoints.forEach(e => {
+      if(e.walls.size === 0 && e.distance_to_origin > radius) {
+        const k = WallEndpoint.getKey(e.x, e.y);
+        endpoints_to_delete.push(k);
+      }
+    });
+    
+    endpoints_to_delete.forEach(k => Poly.endpoints.delete(k));
+    endpoints_to_add.forEach(pt => {
+      const k = WallEndpoint.getKey(pt.x, pt.y);
+      Poly.endpoints.set(k, pt);
+    });
+    
   } else {  
     // add 4-corners endpoints if not limited radius
     // used to draw polygon from the edges of the map.
@@ -350,13 +362,18 @@ export function testCCWSweepEndpoints(wrapped) {
     const k = WallEndpoint.getKey(e.x, e.y);
     this.endpoints.set(k, maxRay_endpoint);  
   }
+  
+  log(`${this.endpoints.size} endpoints before sort.`);
+  log(`${walls.size} walls before sort.`);
+  log(`Wall keys: ${[...walls.keys()]}`);
+  log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
  
   // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
   // (For this sort, a for loop would count down from last to 0)
   const endpoints = sortEndpointsCW(origin, [...this.endpoints.values()]);
   
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
-
+  
   // Sweep each endpoint
   // accessing array by index, pop, and push should be O(1) in time. 
   // use while loop and pop so that padding can re-insert an endpoint
