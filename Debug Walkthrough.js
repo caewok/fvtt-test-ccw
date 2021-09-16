@@ -542,9 +542,11 @@ endpoint.walls.forEach(w => drawRay(w));
           } else {
             // wall intersections exist; make new endpoints
             // add new endpoint at circle/wall intersect
-            pt = new SweepPoint(pt.x, pt.y);
-            pt.radius_edge = true;
-            endpoints_to_add.push(pt);
+            w.radius_actual_intersect.forEach(pt => { 
+              pt = new SweepPoint(pt.x, pt.y);
+              pt.radius_edge = true;
+              endpoints_to_add.push(pt);
+            });
           }
         });
         walls_to_delete.forEach(k =>  e.walls.delete(k)); 
