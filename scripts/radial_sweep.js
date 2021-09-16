@@ -365,7 +365,11 @@ export function testCCWSweepEndpoints(wrapped) {
  
   // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
   // (For this sort, a for loop would count down from last to 0)
-  const endpoints = sortEndpointsCW(origin, [...this.endpoints.values()]);
+  // For limited angle, sort from the minRay instead of from due west
+  // sorting from due west is a bit faster 
+  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  const endpoints = isLimited ? sortEndpointsCWFrom(origin, [...this.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...this.endpoints.values()]);
+
   
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
   
@@ -589,19 +593,75 @@ export function testCCWConstructPoints(wrapped) {
  * (to sort the other direction, reverse the signs)
  */ 
 function sortEndpointsCW(origin, endpoints) {
+  const TOP = 1;
+  const BOTTOM = -1;
+  const LEFT = 1;
+  const RIGHT = -1;
+  
   return endpoints.sort((a, b) => {
     // arbitrarily declare upper hemisphere to be first
     // so x < vision_point (above) is before x > vision_point (below)
     // walk quadrants, so Q1 is upper left, Q3 is lower right
     // return > 0 to sort b before a
-    if(a.y >= origin.y && b.y < origin.y) return -1;
-    if(a.y < origin.y && b.y >= origin.y) return 1;
-      
-    // in same hemisphere      
-    return -orient2d(origin.x, origin.y, 
-                    a.x, a.y,
-                    b.x, b.y);
+    
+    
+    // most of this is just to speed up the sort, by checking quadrant location first 
+    const a_hemisphere = a.y < origin.y ? TOP : BOTTOM;
+    const b_hemisphere = b.y < origin.y ? TOP : BOTTOM;
+    
+    // if not in same hemisphere, sort accordingly
+    if(a_hemisphere !== b_hemisphere) return a_hemisphere; 
+    // TOP:  b before a (1)
+    // BOTTOM: a before b (-1)
+    
+    a_quadrant = a.x < origin.x ? LEFT : RIGHT;
+    b_quadrant = b.x < origin.x ? LEFT : RIGHT;
+    
+    if(a_quadrant !== b_quadrant) {
+      // already know that a and b share hemispheres
+      if(a_hemisphere === TOP) {
+        return a_quadrant;
+        // TOP, LEFT: b before a (1)
+        // TOP, RIGHT: a before b (-1)
+      } else {
+        return -a_quadrant;
+        // BOTTOM, LEFT: a before b (-1)
+        // BOTTOM, RIGHT: b before a (1)
+      }
+    }
+        
+    return -orient2dPoints(origin, a, b);
+   
   });
+}
+
+/*
+ * Same as sortEndpointsCW but sort from a baseline other than due west.
+ * Accomplish by adding in a reference point to the endpoints list, then sorting.
+ * Then shift the array based on reference point
+ * sortEndpointsCWFrom(origin, endpoints, {x: origin.x - 100, y: origin.y}) should equal
+ * sortEndpointsCW(origin, endpoints)
+ */
+function sortEndpointsCWFrom(origin, endpoints, reference) {
+  reference.sort_baseline = true;
+  endpoints.push(reference);
+  
+  const sorted = sortEndpointsCW(origin, endpoints);
+  const idx = sorted.findIndex(e => Boolean(e?.sort_baseline));
+  const ln = sorted.length
+  
+  // easy cases
+  if(idx === 0) {
+    sorted.shift();
+    return sorted;
+  } else if(idx === ln) {
+    sorted.pop();
+    return sorted;
+  } else {
+     //sorted.slice(idx+1, ln).push([...sorted.slice(0, idx)])
+     //return sorted;
+     return sorted.slice(idx+1, ln).concat(sorted.slice(0, idx));
+  }
 }
 
 function arraysEqual(a1,a2) {
