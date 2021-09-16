@@ -5,6 +5,11 @@ w = canvas.walls.controlled[0]; // get selected wall
 t = canvas.tokens.controlled[0];
 await window.testccw.benchmark(1000, t.center)
 
+// benchmark light
+// lights appear to be hardcoding to density 60. See Light Source Initialization      
+l = [...canvas.lighting.sources][0];
+await window.testccw.benchmark(1000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
@@ -12,6 +17,17 @@ function almostEqual(x, y, EPSILON = 1e-10) {
 
 function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
+}
+
+function calculateDistance(A, B, EPSILON = 1e-10) {
+  // could use pointsAlmostEqual function but this avoids double-calculating
+  const dx = Math.abs(B.x - A.x); 
+  const dy = Math.abs(B.y - A.y);
+  if(dy < EPSILON && dx < EPSILON) { return 0; }
+  if(dy < EPSILON) { return dx; }
+  if(dx < EPSILON) { return dy; }
+
+  return Math.hypot(dy, dx);
 }
 
 function orient2dPoints(p1, p2, p3) {
@@ -27,17 +43,26 @@ function ccwPoints(p1, p2, p3) {
          res > 0 ?  1 : 0;
 }
 
-function sortEndpoints(origin, endpoints) {
+/*
+ * Sort an array of points from CW to CCW, in relation to line due west from origin.
+ * so array[0] would be the last point encountered if moving clockwise from the line.
+ *    array[last] would be the first point encountered.
+ * (to sort the other direction, reverse the signs)
+ */ 
+function sortEndpointsCW(origin, endpoints) {
   return endpoints.sort((a, b) => {
     // arbitrarily declare upper hemisphere to be first
     // so x < vision_point (above) is before x > vision_point (below)
     // walk quadrants, so Q1 is upper left, Q3 is lower right
     // return > 0 to sort b before a
-    if(a.y >= origin.y && b.y < origin.y) return 1;
-    if(a.y < origin.y && b.y >= origin.y) return -1;
+    
+    // 
+    
+    if(a.y >= origin.y && b.y < origin.y) return -1;
+    if(a.y < origin.y && b.y >= origin.y) return 1;
       
     // in same hemisphere      
-    return orient2d(origin.x, origin.y, 
+    return -orient2d(origin.x, origin.y, 
                     a.x, a.y,
                     b.x, b.y);
   });
@@ -80,7 +105,7 @@ function constructRay(origin, endpoint, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.length > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }
@@ -106,7 +131,7 @@ function constructRayFromAngle(origin, angle, radius) {
   ];
   
   const canvas_ray = canvas_rays.filter(r => ray.intersects(r));
-  if(canvas_ray) {
+  if(canvas_ray.length > 0) {
     const intersect_pt = canvas_ray[0].intersectSegment([ray.A.x, ray.A.y, ray.B.x, ray.B.y]);
     ray = new SightRay(ray.A, intersect_pt);
   }
@@ -160,8 +185,40 @@ function endpointWallCCW(origin, endpoint, wall) {
 }
 
 
+function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
+  canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
+}
 
+function drawRay(ray, color = 0xFF0000, width = 1) {
+   canvas.controls.debug.lineStyle(width, color, 1).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
+}
 
+/* 
+ * Subclass that operates comparably to WallEndpoint but does not round x, y
+ * Used for marking points on a line where integer points would not be sufficiently exact.
+ * E.g., cannot tell if a point is actually on a line if rounded. 
+ * Luckily, WallEndpoint.getKey already rounds x, y, so need not override here.
+ */
+class SweepPoint extends WallEndpoint {
+  constructor(x, y) {
+    super(x, y)
+    
+    // switch x, y back to non-integer
+    this.x = x;
+    this.y = y;
+  }
+  
+  /**
+   * Does this endpoint equal some other endpoint?
+   * This version treats points equivalent if rounded values are equal
+   * @param {Point} other     Some other point with x and y coordinates
+   * @returns {boolean}       Are the points equal?
+   */
+  equals(other) {
+    return (Math.round(other.x) === Math.round(this.x)) && 
+           (Math.round(other.y) === Math.round(this.y));
+  }
+}
 
 
 const COLORS = {
@@ -177,16 +234,26 @@ const COLORS = {
 }
 
 // Create RadialSweepPolygon
-// (use let b/c we are pasting into console a lot)
 
+
+// Token version
+/*
 t = canvas.tokens.controlled[0];
-Poly = new RadialSweepPolygon(t.center, {debug: true})
+Poly = new RadialSweepPolygon(t.center, {debug: true});
+Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
+*/
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
-calc_radius = undefined
 
-Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation, radius: calc_radius}) // radius
+
+//Lights version
+l = [...canvas.lighting.sources][0];
+Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
+Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+
+
+
 
 let {angle, debug, rotation, type} = Poly.config;
 
@@ -230,6 +297,10 @@ console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
 canvas.controls.debug.clear();
 Poly.visualize();
 
+// drawings
+for(i = 0; i < Poly.points.length; i += 2) {
+  drawEndpoint({x: Poly.points[i], y: Poly.points[i+1]})
+}
 
 
 
@@ -397,18 +468,12 @@ MODULE_ID = "testccw"
 PotentialWallList = window.testccw.PotentialWallList;
 PotentialWallListBinary = window.testccw.PotentialWallListBinary;
 
-function drawEndpoint(pt, color = 0xFF0000, radius = 5) {
-  canvas.controls.debug.beginFill(color).drawCircle(pt.x, pt.y, radius).endFill();
-}
 
-function drawRay(ray, color = 0xFF0000, width = 1) {
-   canvas.controls.debug.lineStyle(width, color, 1).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
-}
 
 
 Poly._initializeEndpoints(type)
 canvas.controls.debug.clear();
-
+window.testccw.use_ccw = true; // for _padRays
 
   // Configure inputs
 origin = Poly.origin;
@@ -418,7 +483,7 @@ collisions = [];  // array to store collisions in lieu of rays
   //const angles = new Set();
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
-endpoints = Array.from(Poly.endpoints.values());
+
 potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
 
 needs_padding = false;
@@ -427,6 +492,14 @@ closest_wall = undefined;
 
 // walls should to be an iterable set 
 walls = new Map(Object.entries(Poly.walls));
+
+/*
+canvas.controls.debug.clear();
+endpoints.forEach(e => drawEndpoint(e));
+
+*/
+
+
   
 
 /*
@@ -440,31 +513,88 @@ drawEndpoint(endpoint);
 endpoint.walls.forEach(w => drawRay(w));
 */
 
-  
-  // add 4-corners endpoints if not limited radius
-  // used to draw polygon from the edges of the canvas (including padding).
-  
-  if(!has_radius) {
-    endpoints.push(new WallEndpoint(0, 0));
-    endpoints.push(new WallEndpoint(0, canvas.dimensions.height));
-    endpoints.push(new WallEndpoint(canvas.dimensions.width, 0));
-    endpoints.push(new WallEndpoint(canvas.dimensions.width, canvas.dimensions.height));
+  if(has_radius) {
+    // if limited radius, then segments may start outside and enter the vision area.
+    // need to mark that intersection 
+    // if endpoint is outside the circle, and has no walls that intersect the circle, drop
+    // determine which walls intersect the circle
+    walls.forEach(w => {
+      // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
+      w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
+      w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
+         return w.wall.toRay().contains(p);
+      });
+    
+    });
+    
+    // track outside the forEach loop to avoid removing new additions
+    const endpoints_to_add = [];
+    const endpoints_to_delete = [];
+    
+    // 1. trim the wall set of each endpoint to only those with actual intersections
+    Poly.endpoints.forEach(e => {
+      e.distance_to_origin = calculateDistance(origin, e);
+      if(e.distance_to_origin > radius) {
+        const walls_to_delete = [];
+        e.walls.forEach(w => {
+          if(w.radius_actual_intersect.length === 0) {
+            walls_to_delete.push(w.id);
+          } else {
+            // wall intersections exist; make new endpoints
+            // add new endpoint at circle/wall intersect
+            w.radius_actual_intersect.forEach(pt => { 
+              pt = new SweepPoint(pt.x, pt.y);
+              pt.radius_edge = true;
+              endpoints_to_add.push(pt);
+            });
+          }
+        });
+        walls_to_delete.forEach(k =>  e.walls.delete(k)); 
+      }
+    });
+    
+    // 2. drop endpoint if set is empty
+    Poly.endpoints.forEach(e => {
+      if(e.walls.size === 0 && e.distance_to_origin > radius) {
+        k = WallEndpoint.getKey(e.x, e.y);
+        endpoints_to_delete.push(k);
+      }
+    });
+    
+    endpoints_to_delete.forEach(k => Poly.endpoints.delete(k));
+    endpoints_to_add.forEach(pt => {
+      k = WallEndpoint.getKey(pt.x, pt.y);
+      Poly.endpoints.set(k, pt);
+    });
+        
+  } else {
+    // add 4-corners endpoints if not limited radius
+    // used to draw polygon from the edges of the canvas (including padding).
+    pts = [{ x: 0, y: 0 }, 
+           { x: 0, y: canvas.dimensions.height },
+           { x: canvas.dimensions.width, y: 0 },
+           { x: canvas.dimensions.width, y: canvas.dimensions.height }];
+           
+    pts.forEach(pt => {
+      k = WallEndpoint.getKey(pt.x, pt.y);
+      Poly.endpoints.set(k, new WallEndpoint(pt.x, pt.y)); // don't need SweepPoint b/c 4 corners should be integers
+    });    
   }
+    
+    
+
   
-  // if limited radius, then segments may start outside and enter the vision area.
-  // need to mark that intersection 
-  
-  // Skip endpoints which are not within our limited angle
-  //  if ( isLimited && !endpoint.angle.between(aMin, aMax) ) continue;
+
+
+// 3350, 1912
 
  
-  
-// drawEndpoint(endpoints[0])
 
   
   // Begin with a ray at the lowest angle to establish initial conditions
-  // Begin with a ray at the lowest angle to establish initial conditions
-  minRay = constructRayFromAngle(origin, aMin, radius);
+  // Can avoid using FromAngle if aMin is -π, which means it goes due west
+  minRay = aMin === -Math.PI ? constructRay(origin, {x: origin.x - 100, y: origin.y}, radius) :
+     constructRayFromAngle(origin, aMin, radius);  
   maxRay = isLimited ? constructRayFromAngle(origin, aMax, radius) : undefined;
    //drawRay(minRay, COLORS.blue)
   //drawRay(maxRay, COLORS.blue)
@@ -488,15 +618,25 @@ if(minRay_intersecting_walls.length > 0) {
     if(Math.abs(aMax - aMin) > Math.PI) {
        // if aMin to aMax is greater than 180º, easier to determine what is out
       // if endpoint is CCW to minRay or CW to maxRay, it is outside
-      endpoints = endpoints.filter(e => {
-        return !(ccwPoints(origin, minRay.B, e) > 0 || ccwPoints(origin, maxRay.B, e) < 0);
+      Poly.endpoints.forEach(e => {
+        if(ccwPoints(origin, minRay.B, e) > 0 || 
+           ccwPoints(origin, maxRay.B, e) < 0) {
+          k = WallEndpoint.getKey(e.x, e.y);
+          Poly.endpoints.delete(k);
+          }
       });
+      
+     
       
     } else {
       // if aMin to aMax is less than 180º, easier to determine what is in
       // endpoint is CW to minRay and CCW to maxRay, it is inside
-      endpoints = endpoints.filter(e => {
-        return ccwPoints(origin, minRay.B, e) <= 0 && ccwPoints(origin, maxRay.B, e) >= 0;
+      Poly.endpoints.forEach(e => {
+        if(!(ccwPoints(origin, minRay.B, e) <= 0 && ccwPoints(origin, maxRay.B, e) >= 0)) {
+          k = WallEndpoint.getKey(e.x, e.y);
+          Poly.endpoints.delete(k);
+        }
+      
       });
     }
     
@@ -508,7 +648,7 @@ if(minRay_intersecting_walls.length > 0) {
     if(closest_wall) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
-    minRay_endpoint = minRay_intersection ? new WallEndpoint(minRay_intersection.x, minRay_intersection.y) : new WallEndpoint(minRay.B.x, minRay.B.y);
+    minRay_endpoint = minRay_intersection ? new SweepPoint(minRay_intersection.x, minRay_intersection.y) : new SweepPoint(minRay.B.x, minRay.B.y);
     //drawEndpoint(minRay_endpoint)
     
     // conceivable, but unlikely, that the intersection is an existing endpoint
@@ -541,12 +681,10 @@ if(minRay_intersecting_walls.length > 0) {
       //endpoints.some(e => pointsAlmostEqual(e, intersection))
     }
     
-    const maxRay_endpoint = maxRay_intersection ? new WallEndpoint(maxRay_intersection.x, maxRay_intersection.y) : new WallEndpoint(maxRay.B.x, maxRay.B.y);
+    maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : new SweepPoint(maxRay.B.x, maxRay.B.y);
     
-    if(!endpoints.some(e => pointsAlmostEqual(e, maxRay_endpoint))) {
-      endpoints.push(maxRay_endpoint);
-    }
-    
+    k = WallEndpoint.getKey(e.x, e.y);
+    Poly.endpoints.set(k, maxRay_endpoint);    
   }
 
 
@@ -576,22 +714,38 @@ if(minRay_intersecting_walls.length > 0) {
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
 
     
-  // Sort endpoints by angle 
-  endpoints = sortEndpoints(Poly.origin, endpoints);
+  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
+  // (For this sort, a for loop would count down from last to 0)
   
+  endpoints = sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+  //endpoints.forEach(e => drawEndpoint(e))
   
   // TO-DO: remove endpoints that are not within our limited angle
   
   // Sweep each endpoint
-  for ( let endpoint of endpoints ) {
-  // for( let endpoint of endpoints.slice(0, 2)) {
+  // accessing array by index, pop, and push should be O(1) in time. 
+  // use while loop and pop so that padding can re-insert an endpoint
+  
+  
+  // flag if there are no endpoints
+  has_endpoints = endpoints.length > 0;
+  
+  // safety for debugging
+  MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
+  iter = 0; // MAX_ITER = 7
+  while(endpoints.length > 0 && iter < MAX_ITER) {
+    iter += 1;
+    endpoint = endpoints.pop()
+  
+  // for( let endpoint of endpoints.slice(0, 6)) {
+  // canvas.controls.debug.clear();
   // endpoint = endpoints[0]
   // drawEndpoint(endpoint)
   // drawRay(closest_wall)
   // testray = constructRay(origin, endpoint, radius);
   // drawRay(testray, COLORS.blue)
   
-    potential_walls.addFromEndpoint(endpoint);
+    
   
   
     // TO-DO: Catch crossed walls, create new endpoint at the cross
@@ -605,20 +759,35 @@ if(minRay_intersecting_walls.length > 0) {
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
-      const prior_ray = needs_padding;
-      
-      // draw an arc from where the prior ray ended to the ray for the new endpoint
-      const ray = constructRay(origin, endpoint, radius);
-      
-      // TO-DO: Override _padRays to return a simple array of points to concat
-      const padding_rays = this._padRays(prior_ray, ray, padding, [], false);
-      padding_rays.forEach(r => {
-        collisions.push(r.collisions[0]);
-      });  
+      if(collisions.length < 1) console.warn(`testccw|Sweep: zero collisions`);
       needs_padding = false;
+      
+      // draw an arc from where the collisions ended to the ray for the new endpoint
+      prior_ray = constructRay(origin, collisions[collisions.length - 1], radius); 
+
+      
+      ray = constructRay(origin, endpoint, radius);
+      
+      // drawRay(prior_ray, COLORS.blue)
+      // drawRay(ray, COLORS.blue)
+            
+      // TO-DO: Override _padRays to return a simple array of points to concat
+      pts = Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
+      //collisions.push(...pts);
+      
+      // the endpoint is now the end of the ray, which may or may not be in front of the 
+      // next endpoint
+      endpoints.push(endpoint);
+      
+      
+      //canvas.controls.debug.clear();
+      //collisions.forEach(c => drawEndpoint(c));
+      
+      continue;
       
     } 
   
+    potential_walls.addFromEndpoint(endpoint);
      
     // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
     if(!closest_wall) {
@@ -634,17 +803,29 @@ if(minRay_intersecting_walls.length > 0) {
       //drawRay(closest_wall.toRay())
       
       // mark endpoint
-      collisions.push({x: endpoint.x, y: endpoint.y});      
+      if(has_radius && !ray.contains(endpoint)) {
+        // endpoint is outside the radius so don't add it to collisions. 
+        // need to pad b/c no wall in front of the endpoint, so empty space to next point
+        needs_padding = true;
+      } else {
+        collisions.push({x: endpoint.x, y: endpoint.y}); 
+      }         
       continue;
     }  
     
     // is this endpoint at the end of the closest_wall?
-    if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)) {
+    
+    if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)){
+       // find the next-closet wall b/c we are at the end of the current one
        closest_wall = potential_walls.closest();
        // drawRay(closest_wall)
        
-       // then add the endpoint
-       collisions.push({x: endpoint.x, y: endpoint.y});
+       // then add the endpoint unless it is out of radius
+       inside_radius = !radius || endpoint?.distance_to_origin <= radius;
+       
+       if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
+       
+       
        
        ray = constructRay(origin, endpoint, radius);
        //drawRay(ray, COLORS.blue)
@@ -664,10 +845,10 @@ if(minRay_intersecting_walls.length > 0) {
          // all other potentially blocking segments are outside radius at this point 
          //   (otherwise, we would have hit their endpoints by now)         
          
-         collisions.push({x: ray.B.x, y: ray.B.y});
+         if(inside_radius) { collisions.push({x: ray.B.x, y: ray.B.y}); }
          
          // padding  
-         needs_padding = ray;
+         needs_padding = true;
        
        } else if(intersection) {
           // intersection is our new endpoint unless we are at the join of prior closest
@@ -680,15 +861,28 @@ if(minRay_intersecting_walls.length > 0) {
        } 
          
        continue;  
-    } 
+    }
     
-    // is this endpoint within the closest_wall? (Limited angle will do this)
-    // Unclear if this is necessary, as can handle limited angle elsewhere.
+    // if we hit the radius circle intersect, similar to hitting the end of the wall
+//     if(has_radius && closest_wall.radius_actual_intersect.length > 0) {
+//       const hit_intersect = closest_wall.radius_actual_intersect.some(i => {
+//         return pointsAlmostEqual(endpoint, i);
+//       });
+//       
+//       closest_wall = potential_walls.closest();
+//       collisions.push({x: endpoint.x, y: endpoint.y});
+//       
+//       needs_padding = 
+//     
+//     }
+     
+     
+    // TO-DO: which of these tests is faster? 
+    // is this endpoint within the closest_wall? (Limited radius will do this)
+    if(has_radius && closest_wall.toRay().contains(endpoint)) {
+      collisions.push({x: endpoint.x, y: endpoint.y});
     
-    
-    // is this endpoint behind the closest wall?
-    
-    if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
+    } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
       // endpoint walls CW from origin --> endpoint should be added to list
       // if in line with origin? add? 
      
@@ -722,31 +916,49 @@ if(minRay_intersecting_walls.length > 0) {
 
 
     
-  // close between last / first endpoint
-  if(has_radius && needs_padding) {
-    
+// close between last / first endpoint
+// deal with unique case where there are no endpoints
+// (no blocking walls for radius vision)
+if(has_radius && (needs_padding || !has_endpoints)) {
+  collisions_ln = collisions.length;
   
-    const prior_ray = needs_padding;
-    needs_padding = false;
+  p_last = collisions[collisions_ln - 1];
+  p_current = collisions[0]
+  
+  // if 0 or 1 collisions, then just pick an appropriate point
+  // padding is best done in two hemispheres in that case
+  if(collisions_ln === 0) {
+    p_last = { x: origin.x - radius, y: origin.y }; 
+    p_current = { x: origin.x + radius, y: origin.y }
     
-    // draw an arc from where the prior ray ended to the ray for the new endpoint
-    const ray = constructRay(origin, collisions[0], radius);
+    collisions.push(p_last);
     
-    // TO-DO: Override _padRays to return a simple array of points to concat
-    const padding_rays = this._padRays(prior_ray, ray, padding, [], false);
-    padding_rays.forEach(r => {
-      collisions.push(r.collisions[0]);
-    });  
-  } /*else if(needs_padding) {
-    console.warn("Need padding to complete non-radius sweep?")
+  } else if(collisions_ln === 1) {
+    // get antipodal point
+    p_last = { x: origin.x - (p_current.x - origin.x),
+               y: origin.y - (p_current.y - origin.y) }
+  }
     
-    ray = constructRay(origin, endpoints[0], radius);
-    //drawRay(ray, COLORS.blue)
-    collisions.push(ray.B);
-    needs_padding = false;
-  } */ // should already happen
+  // draw an arc from where the collisions ended to the ray for the new endpoint
+  prior_ray = constructRay(origin, p_last, radius); 
+  ray = constructRay(origin, p_current, radius);
     
-  Poly.collisions = collisions;
+  // drawRay(prior_ray, COLORS.blue)
+  // drawRay(ray, COLORS.blue)
+          
+  // TO-DO: Override _padRays to return a simple array of points to concat
+  Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
+  //collisions.push(...pts);
+  
+  if(collisions_ln < 2) {
+    // get the second half
+    collisions.push(p_current);
+    Poly._padRays(ray, prior_ray, padding, collisions, false); 
+  }
+  
+ } 
+    
+Poly.collisions = collisions;
   
 
 // draw collisions

@@ -1,6 +1,6 @@
 // Ray Class additions
 
-import { ccwPoints, pointsAlmostEqual } from "./util.js";
+import { ccwPoints, almostEqual, pointsAlmostEqual, discriminant, rootsReal } from "./util.js";
 
 /*
  * Project a ray by exact distance.
@@ -28,6 +28,117 @@ export function rayIntersects(r) {
   return ccwPoints(this.A, this.B, r.A) != ccwPoints(this.A, this.B, r.B) &&
          ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
 }
+
+/*
+ * Given a point, get the point on the ray that is closest
+ */
+export function closestPoint(p) {
+  const dx_p = p.x - this.A.x;
+  const dy_p = p.y - this.A.y;
+  const dx = this.dx;
+  const dy = this.dy;
+  
+  const a_to_b_squared = dx * dx + dy * dy;
+  const a_to_p_dot = dx_p * dx + dy_p * dy;
+  
+  let t = a_to_p_dot / a_to_b_squared;
+  t = Math.min(1, t);
+  t = Math.max(0, t);
+  
+  return { x: this.A.x + dx_p * t,
+           y: this.A.y + dy_p * t}
+}
+
+/*
+  * Test if point is on the segment.
+  * @param {PIXI.Point} p   Point to test
+  * @param {boolean} true if segment includes point
+  */
+export function rayContains(p) {
+  // ensure the point is collinear with this ray
+  if(ccwPoints(this.A, this.B, p) !== 0) return false;
+
+  // test if is an endpoint
+  if(pointsAlmostEqual(this.A, p) || 
+     pointsAlmostEqual(this.B, p)) return true;  
+ 
+    
+  // test if between the endpoints
+  // recall that we already established the point is collinear above.
+  const within_x = (p.x < Math.max(this.A.x, this.B.x) &&
+                    p.x > Math.min(this.A.x, this.B.x)) ||
+                    almostEqual(p.x, this.A.x) ||
+                    almostEqual(p.x, this.B.x);
+
+  const within_y = (p.y < Math.max(this.A.y, this.B.y) &&
+                    p.y > Math.min(this.A.y, this.B.y)) ||
+                    almostEqual(p.y, this.A.y) ||
+                    almostEqual(p.y, this.B.y);
+ 
+  return within_x && within_y;
+}
+
+
+/*
+ * Does this ray intersect a circle?
+ *   
+ * Equation for circle: x^2 + y^2 = r^2
+ * Equation for line: y = mx + b
+ * @param {x, y} center   Center of the cirle
+ * @param {Number} r      Radius of circle. Should be > 0.
+ */
+export function rayPotentialIntersectionsCircle(center, radius) {
+  // Line: y = mx + c
+  //   m is slope; c is intercept
+  // Circle: (x - p)^2 + (y - q)^2 = r^2
+  //   p is center.x, q is center.y, r is radius
+  // Must flip the y-axis
+  const p = center.x;
+  const q = -center.y;  
+  const m = - this.slope;
+  const c = -this.y0 - m * this.x0;
+  const r = radius;
+  let roots_x = [];
+  let roots_y = [];
+  
+  if(isFinite(this.slope)) {
+    // Quadratic in terms of x: 
+    // (m^2 + 1)x^2 + 2(mc - mq -p)x + (q^2 - r^2 + p^2 - 2cq + c^2)
+    
+    // could pass this to discriminant to get number of roots
+    // 2 if positive, 1 if 0, 0 (imaginary) if negative.
+  
+    roots_x = rootsReal(m * m + 1,
+                              2 * (m*c - m*q - p),
+                              q*q - r*r + p*p - 2*c*q + c*c);
+    if(roots_x.length === 0) return [];      
+    
+    // y = mx + c
+    roots_y = roots_x.map(x => m * x + c);                
+  
+  } else {
+    // x is constant b/c line is vertical
+    // need to get roots in terms of y  
+    const k = this.x0; 
+    // Quadratic in terms of y:
+    // y^2 - 2qy + (p^2 + q^2 - r^2 - 2kp + k^2)
+    roots_y = rootsReal(1,
+                              -2*q,
+                              p*p + q*q - r*r - 2*k*p + k*k);
+    if(roots_y.length === 0) return [];    
+    
+    // x is constant
+    roots_x = roots_y.map(y => k);                     
+  }
+   
+  // flip the y-values
+  roots_y = roots_y.map(y => -y);
+  
+  if(roots_x.length === 1) return [{x: roots_x[0], y: roots_y[0]}];
+  if(roots_x.length > 1) return [{x: roots_x[0], y: roots_y[0]},
+                                 {x: roots_x[1], y: roots_y[1]}];
+  return undefined;
+} 
 
 /*
  * Return true if the point is in front of the ray, based on a vision point
