@@ -358,6 +358,10 @@ export function testCCWSweepEndpoints(wrapped) {
   // accessing array by index, pop, and push should be O(1) in time. 
   // use while loop and pop so that padding can re-insert an endpoint
   
+  // flag if there are no endpoints
+  // needed for padding with radius
+  has_endpoints = endpoints.length > 0;
+  
   // safety for debugging
   const MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
   let iter = 0; 
@@ -369,6 +373,7 @@ export function testCCWSweepEndpoints(wrapped) {
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
+      if(collisions.length < 2) { console.warn(`testccw|Sweep: Collisions length ${collisions.length}`, collisions, endpoints); }
       needs_padding = false;
       
       // draw an arc from where the collisions ended to the ray for the new endpoint
@@ -492,15 +497,46 @@ export function testCCWSweepEndpoints(wrapped) {
   
     
   // close between last / first endpoint
-  if(has_radius && needs_padding) {
-    // draw an arc from where the collisions ended to the ray for the new endpoint
-    const prior_ray = constructRay(origin, collisions[collisions.length - 1], radius);  
-    const ray = constructRay(origin, collisions[0], radius);
+  // deal with unique case where there are no endpoints
+  // (no blocking walls for radius vision)
+  if(has_radius && (needs_padding || !has_endpoints)) {
+    const collisions_ln = collisions.length;
+  
+    let p_last = collisions[collisions_ln - 1];
+    let p_current = collisions[0]
+  
+    // if 0 or 1 collisions, then just pick an appropriate point
+    // padding is best done in two hemispheres in that case
+    if(collisions_ln === 0) {
+      p_last = { x: origin.x - radius, y: origin.y }; 
+      p_current = { x: origin.x + radius, y: origin.y }
     
+      collisions.push(p_last);
+    
+    } else if(collisions_ln === 1) {
+      // get antipodal point
+      p_last = { x: origin.x - (p_current.x - origin.x),
+                 y: origin.y - (p_current.y - origin.y) }
+    }
+    
+    // draw an arc from where the collisions ended to the ray for the new endpoint
+    const prior_ray = constructRay(origin, p_last, radius); 
+    const ray = constructRay(origin, p_current, radius);
+    
+    // drawRay(prior_ray, COLORS.blue)
+    // drawRay(ray, COLORS.blue)
+          
     // TO-DO: Override _padRays to return a simple array of points to concat
     this._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
-
-  } 
+    //collisions.push(...pts);
+  
+    if(collisions_ln < 2) {
+      // get the second half
+      collisions.push(p_current);
+      this._padRays(ray, prior_ray, padding, collisions, false); 
+    }
+  
+   } 
     
   log(`${collisions.length} collisions`, collisions);  
   this.collisions = collisions;

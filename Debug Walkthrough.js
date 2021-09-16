@@ -713,6 +713,10 @@ if(minRay_intersecting_walls.length > 0) {
   // accessing array by index, pop, and push should be O(1) in time. 
   // use while loop and pop so that padding can re-insert an endpoint
   
+  
+  // flag if there are no endpoints
+  has_endpoints = endpoints.length > 0;
+  
   // safety for debugging
   MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
   iter = 0; // MAX_ITER = 7
@@ -742,6 +746,9 @@ if(minRay_intersecting_walls.length > 0) {
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
+      if(collisions.length < 2) console.warn(`testccw|Sweep: Collisions length ${collisions.length}`, collisions, endpoints);
+      needs_padding = false;
+      
       // draw an arc from where the collisions ended to the ray for the new endpoint
       prior_ray = constructRay(origin, collisions[collisions.length - 1], radius); 
 
@@ -758,7 +765,7 @@ if(minRay_intersecting_walls.length > 0) {
       // the endpoint is now the end of the ray, which may or may not be in front of the 
       // next endpoint
       endpoints.push(endpoint);
-      needs_padding = false;
+      
       
       //canvas.controls.debug.clear();
       //collisions.forEach(c => drawEndpoint(c));
@@ -897,20 +904,45 @@ if(minRay_intersecting_walls.length > 0) {
 
     
 // close between last / first endpoint
-if(has_radius && needs_padding) {
-  // draw an arc from where the collisions ended to the ray for the new endpoint
-  prior_ray = constructRay(origin, collisions[collisions.length - 1], radius); 
+// deal with unique case where there are no endpoints
+// (no blocking walls for radius vision)
+if(has_radius && (needs_padding || !has_endpoints)) {
+  collisions_ln = collisions.length;
+  
+  p_last = collisions[collisions_ln - 1];
+  p_current = collisions[0]
+  
+  // if 0 or 1 collisions, then just pick an appropriate point
+  // padding is best done in two hemispheres in that case
+  if(collisions_ln === 0) {
+    p_last = { x: origin.x - radius, y: origin.y }; 
+    p_current = { x: origin.x + radius, y: origin.y }
     
-  ray = constructRay(origin, collisions[0], radius);
+    collisions.push(p_last);
+    
+  } else if(collisions_ln === 1) {
+    // get antipodal point
+    p_last = { x: origin.x - (p_current.x - origin.x),
+               y: origin.y - (p_current.y - origin.y) }
+  }
+    
+  // draw an arc from where the collisions ended to the ray for the new endpoint
+  prior_ray = constructRay(origin, p_last, radius); 
+  ray = constructRay(origin, p_current, radius);
     
   // drawRay(prior_ray, COLORS.blue)
   // drawRay(ray, COLORS.blue)
           
   // TO-DO: Override _padRays to return a simple array of points to concat
-  pts = Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
+  Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
   //collisions.push(...pts);
-    
-    
+  
+  if(collisions_ln < 2) {
+    // get the second half
+    collisions.push(p_current);
+    Poly._padRays(ray, prior_ray, padding, collisions, false); 
+  }
+  
  } 
     
 Poly.collisions = collisions;
