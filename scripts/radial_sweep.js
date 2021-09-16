@@ -209,7 +209,7 @@ export function testCCWSweepEndpoints(wrapped) {
     const endpoints_to_delete = [];
     
     // 1. trim the wall set of each endpoint to only those with actual intersections
-    Poly.endpoints.forEach(e => {
+    this.endpoints.forEach(e => {
       e.distance_to_origin = calculateDistance(origin, e);
       if(e.distance_to_origin > radius) {
         const walls_to_delete = [];
@@ -219,9 +219,11 @@ export function testCCWSweepEndpoints(wrapped) {
           } else {
             // wall intersections exist; make new endpoints
             // add new endpoint at circle/wall intersect
-            const pt = new SweepPoint(pt.x, pt.y);
-            pt.radius_edge = true;
-            endpoints_to_add.push(pt);
+            w.radius_actual_intersect.forEach(pt => {             
+              pt = new SweepPoint(pt.x, pt.y);
+              pt.radius_edge = true;
+              endpoints_to_add.push(pt);
+            });
           }
         });
         walls_to_delete.forEach(k =>  e.walls.delete(k)); 
@@ -229,17 +231,17 @@ export function testCCWSweepEndpoints(wrapped) {
     });
     
     // 2. drop endpoint if set is empty
-    Poly.endpoints.forEach(e => {
+    this.endpoints.forEach(e => {
       if(e.walls.size === 0 && e.distance_to_origin > radius) {
         const k = WallEndpoint.getKey(e.x, e.y);
         endpoints_to_delete.push(k);
       }
     });
     
-    endpoints_to_delete.forEach(k => Poly.endpoints.delete(k));
+    endpoints_to_delete.forEach(k => this.endpoints.delete(k));
     endpoints_to_add.forEach(pt => {
       const k = WallEndpoint.getKey(pt.x, pt.y);
-      Poly.endpoints.set(k, pt);
+      this.endpoints.set(k, pt);
     });
     
   } else {  
