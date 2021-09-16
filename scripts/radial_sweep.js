@@ -322,21 +322,15 @@ export function testCCWSweepEndpoints(wrapped) {
 
     log(`Sweep: isLimited ${this.endpoints.size} endpoints after filtering.`, this.endpoints);
     
-    // Add a collision for the minRay -----
+    // Add an endpoint for the minRay -----
     let minRay_intersection = undefined;
     if(closest_wall) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
     const minRay_endpoint = minRay_intersection ? new SweepPoint(minRay_intersection.x, minRay_intersection.y) : 
                                                   new SweepPoint(minRay.B.x, minRay.B.y);
-    
-    // conceivable, but unlikely, that the intersection is an existing endpoint
-    // probably best not to duplicate endpoints—--unclear how the algorithm would handle
-    // it would first remove the closest wall and then need to re-do the ray & collision
-//     if(!endpoints.some(e => pointsAlmostEqual(e, minRay_endpoint))) {
-//       endpoints.push(minRay_endpoint);
-//     }
-    collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
+    minRay_endpoint.minLimit = true;
+    this.endpoints.set(minRay_endpoint.key, minRay_endpoint);
     
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
@@ -361,8 +355,7 @@ export function testCCWSweepEndpoints(wrapped) {
     
     const maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : 
                                                   new SweepPoint(maxRay.B.x, maxRay.B.y);
-    const k = WallEndpoint.getKey(e.x, e.y);
-    this.endpoints.set(k, maxRay_endpoint);  
+    this.endpoints.set(maxRay_endpoint.key, maxRay_endpoint);  
   }
   
   log(`${this.endpoints.size} endpoints before sort.`);
@@ -429,17 +422,15 @@ export function testCCWSweepEndpoints(wrapped) {
       
       // mark endpoint
       // mark endpoint
-      if(has_radius && !ray.contains(endpoint)) {
+      if(has_radius && (!ray.contains(endpoint) || Boolean(endpoint?.minLimit))) {
         // endpoint is outside the radius so don't add it to collisions. 
         // need to pad b/c no wall in front of the endpoint, so empty space to next point
         needs_padding = true;
-      } else {
-        if(!pointsAlmostEqual(endpoint, ray.B)) {
+      } else if(!pointsAlmostEqual(endpoint, ray.B)) {
           // likely equal points if at one of the corner endpoints
           collisions.push({x: endpoint.x, y: endpoint.y}); 
-        }
-      }     
-       
+      }
+
       continue;
     }  
     
