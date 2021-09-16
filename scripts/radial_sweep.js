@@ -213,7 +213,7 @@ export function testCCWSweepEndpoints(wrapped) {
           } else {
             // wall intersections exist; make new endpoints
             w.radius_actual_intersect.forEach(pt => {
-              const pt = new SweepPoint(pt.x, pt.y);
+              pt = new SweepPoint(pt.x, pt.y);
               pt.radius_edge = true;
               const k = WallEndpoint.getKey(pt.x, pt.y);
               this.endpoints.set(k, pt); // add new endpoint at circle/wall intersect
@@ -236,7 +236,7 @@ export function testCCWSweepEndpoints(wrapped) {
                  { x: canvas.dimensions.width, y: canvas.dimensions.height }];
            
     pts.forEach(pt => {
-      k = WallEndpoint.getKey(pt.x, pt.y);
+      const k = WallEndpoint.getKey(pt.x, pt.y);
       this.endpoints.set(k, new WallEndpoint(pt.x, pt.y)); // don't need SweepPoint b/c 4 corners should be integers
     });    
   }
@@ -350,7 +350,7 @@ export function testCCWSweepEndpoints(wrapped) {
  
   // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
   // (For this sort, a for loop would count down from last to 0)
-  const endpoints = sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+  const endpoints = sortEndpointsCW(origin, [...this.endpoints.values()]);
   
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
 

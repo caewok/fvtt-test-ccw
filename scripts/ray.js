@@ -1,6 +1,6 @@
 // Ray Class additions
 
-import { ccwPoints, pointsAlmostEqual, discriminant, rootsReal } from "./util.js";
+import { ccwPoints, almostEqual, pointsAlmostEqual, discriminant, rootsReal } from "./util.js";
 
 /*
  * Project a ray by exact distance.
