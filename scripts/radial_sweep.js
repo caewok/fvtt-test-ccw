@@ -187,10 +187,13 @@ export function testCCWSweepEndpoints(wrapped) {
   let needs_padding = false;
   let closest_wall = undefined;
 
-  log(`${this.endpoints.length} endpoints at start.`);
   // walls should be an iterable set 
   const walls = new Map(Object.entries(this.walls));
-  
+  log(`${this.endpoints.size} endpoints at start.`);
+  log(`${walls.size} walls at start.`);
+  log(`Wall keys: ${[...walls.keys()]}`);
+  log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
+
   if(has_radius) {
     // determine which walls intersect the circle
     walls.forEach(w => {
@@ -303,7 +306,7 @@ export function testCCWSweepEndpoints(wrapped) {
       });
     }
 
-    log(`Sweep: isLimited ${this.endpoints.length} endpoints after filtering.`, this.endpoints);
+    log(`Sweep: isLimited ${this.endpoints.size} endpoints after filtering.`, this.endpoints);
     
     // Add a collision for the minRay -----
     let minRay_intersection = undefined;
@@ -360,7 +363,7 @@ export function testCCWSweepEndpoints(wrapped) {
   
   // flag if there are no endpoints
   // needed for padding with radius
-  has_endpoints = endpoints.length > 0;
+  const has_endpoints = endpoints.length > 0;
   
   // safety for debugging
   const MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
@@ -373,7 +376,9 @@ export function testCCWSweepEndpoints(wrapped) {
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
-      if(collisions.length < 2) { console.warn(`testccw|Sweep: Collisions length ${collisions.length}`, collisions, endpoints); }
+      if(collisions.length < 1) { 
+        console.warn(`testccw|Sweep: Collisions length 0`); 
+      }
       needs_padding = false;
       
       // draw an arc from where the collisions ended to the ray for the new endpoint
@@ -398,10 +403,7 @@ export function testCCWSweepEndpoints(wrapped) {
       const ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
       
-      if(!pointsAlmostEqual(endpoint, ray.B)) {
-        // likely equal points if at one of the corner endpoints
-        collisions.push({x: ray.B.x, y: ray.B.y});    
-      }
+      collisions.push({x: ray.B.x, y: ray.B.y});    
     
       // endpoint can be for one or more walls. Get the closest
       closest_wall = potential_walls.closest();
@@ -413,7 +415,10 @@ export function testCCWSweepEndpoints(wrapped) {
         // need to pad b/c no wall in front of the endpoint, so empty space to next point
         needs_padding = true;
       } else {
-        collisions.push({x: endpoint.x, y: endpoint.y}); 
+        if(!pointsAlmostEqual(endpoint, ray.B)) {
+          // likely equal points if at one of the corner endpoints
+          collisions.push({x: endpoint.x, y: endpoint.y}); 
+        }
       }     
        
       continue;
