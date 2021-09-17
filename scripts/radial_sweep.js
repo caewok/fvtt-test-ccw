@@ -175,7 +175,6 @@ export function testCCWSweepEndpoints(wrapped) {
     log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays);
     //return wrapped();
     return; 
-
   }
       
   // Configure inputs
@@ -376,8 +375,8 @@ export function testCCWSweepEndpoints(wrapped) {
   }
   
   log(`${this.endpoints.size} endpoints before sort.`);
-  log(`${walls.size} walls before sort.`);
-  log(`Wall keys: ${[...walls.keys()]}`);
+  log(`${this.walls.size} walls before sort.`);
+  log(`Wall keys: ${[...this.walls.keys()]}`);
   log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
  
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
@@ -390,7 +389,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // needed for padding with radius
   const has_endpoints = endpoints.length > 0;
   const ln = endpoints.length;
-  for(let i = (ln - 1); i > 0; i -+ 1) {
+  for(let i = (ln - 1); i > 0; i -= 1) {
     const endpoint = endpoints[i];   
 
     // if no walls between the last endpoint and this endpoint and 
