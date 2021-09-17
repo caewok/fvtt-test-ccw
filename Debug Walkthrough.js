@@ -3,12 +3,12 @@ w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
 t = canvas.tokens.controlled[0];
-await window.testccw.benchmark(10000, t.center)
+await game.modules.get(MODULE_ID).api.benchmark(10000, t.center)
 
 // benchmark light
 // lights appear to be hardcoding to density 60. See Light Source Initialization      
 l = [...canvas.lighting.sources][0];
-await window.testccw.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+await game.modules.get(MODULE_ID).api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
 
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
@@ -402,8 +402,8 @@ Poly.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 9
 Poly.config.aMax = isLimited ? Poly.config.aMin + Math.toRadians(angle) : Math.PI;
 
 // Construct endpoints for each Wall
-window.testccw.use_ccw = false;
-window.testccw.use_ccw = true;
+game.modules.get(MODULE_ID).api.use_ccw = false;
+game.modules.get(MODULE_ID).api.use_ccw = true;
 
 Poly._initializeEndpoints(type)
 test1 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
@@ -595,10 +595,10 @@ if ( debug ) {
 
 
 // NEW VERSION ----- this._sweepEndpoints();-------------------- 
-orient2d = window.testccw.orient2d;
+orient2d = game.modules.get(MODULE_ID).api.orient2d;
 MODULE_ID = "testccw"
-PotentialWallList = window.testccw.PotentialWallList;
-window.testccw.use_ccw = true; // for _padRays, initializeEndpoints test
+PotentialWallList = game.modules.get(MODULE_ID).api.PotentialWallList;
+game.modules.get(MODULE_ID).api.use_ccw = true; // for _padRays, initializeEndpoints test
 
 
 performance.clearMarks();

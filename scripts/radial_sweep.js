@@ -43,7 +43,7 @@ For debugging/testing, call the original version when config setting set.
  * @private
  */
 export function testCCWInitializeEndpoints(wrapped, type) {
-  if(!window[MODULE_ID].use_ccw) { return wrapped(type); }
+  if(!game.modules.get(MODULE_ID).api.use_ccw) { return wrapped(type); }
   
   // To handle walls that cross one another:
   // Sweep from west to east.
@@ -119,7 +119,7 @@ export function testCCWInitializeEndpoints(wrapped, type) {
  * @private
  */
 export function testCCWIncludeWall(wrapped, wall, type) {
-  if(!window[MODULE_ID].use_ccw) { return wrapped(wall, type); }
+  if(!game.modules.get(MODULE_ID).api.use_ccw) { return wrapped(wall, type); }
   
   // Special case - coerce interior walls to block light and sight
   const isInterior = ( type === "sight" ) && (wall.roof?.occluded === false);
@@ -169,7 +169,7 @@ export function testCCWSweepEndpoints(wrapped) {
   log(`Padding: ${Math.PI / Math.max(this.config.density, 6)}, density ${this.config.density}`);
   log(`Radius: ${this.config.radius}; Rotation: ${this.config.rotation}; Angle: ${this.config.angle}; aMin: ${this.config.aMin}; aMax: ${this.config.aMax}`);
 
-  if(!window[MODULE_ID].use_ccw) {
+  if(!game.modules.get(MODULE_ID).api.use_ccw) {
     wrapped(); 
     log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays);
     //return wrapped();
@@ -269,7 +269,7 @@ export function testCCWSweepEndpoints(wrapped) {
 
   
 /*  
-  if(window[MODULE_ID].debug) {
+  if(game.modules.get(MODULE_ID).api.debug) {
     // confirm that the sort matches the old sort method
     const angles = endpoints.map(e => e.angle);
     endpoints.sort((a, b) => a.angle - b.angle);
@@ -582,8 +582,8 @@ export function testCCWSweepEndpoints(wrapped) {
  * @private
  */
 export function testCCWConstructPoints(wrapped) {
-   if(!window[MODULE_ID].use_ccw) { 
-     if(window[MODULE_ID].debug) { log(`${this.points.length} points`, this.points); }
+   if(!game.modules.get(MODULE_ID).api.use_ccw) { 
+     if(game.modules.get(MODULE_ID).api.debug) { log(`${this.points.length} points`, this.points); }
 
      return wrapped(); }
 
@@ -808,9 +808,9 @@ function endpointWallCCW(origin, endpoint, wall) {
  * @private
  */
 export function testCCWPadRays(wrapped, r0, r1, padding, rays, requireTest) {
-  if(!window[MODULE_ID].use_ccw) { return wrapped(r0, r1, padding, rays, requireTest); }
+  if(!game.modules.get(MODULE_ID).api.use_ccw) { return wrapped(r0, r1, padding, rays, requireTest); }
   
-  if(window[MODULE_ID].use_bezier) { return bezierPadding(r0, r1, padding, rays); } 
+  if(game.modules.get(MODULE_ID).api.use_bezier) { return bezierPadding(r0, r1, padding, rays); } 
 
   // Determine padding delta
   let d = r1.angle - r0.angle;

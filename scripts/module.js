@@ -2,10 +2,13 @@ import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
-import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
 export const MODULE_ID = 'testccw';
 
+
+/**
+ * Basic log to console function for debugging.
+ */
 export function log(...args) {
   try {
    // const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
@@ -30,14 +33,14 @@ export function log(...args) {
 
 Hooks.once('init', async function() {
   registerCCW();
-
-  window[MODULE_ID] = { use_ccw: false,
-                        debug: false,
-                        use_bezier: false,
-                        use_fast_ccw: false,
-                        benchmark: testCCWBenchmarkSight,
-                        orient2d: orient2d,
-                        PotentialWallList: PotentialWallList }
+  
+  game.modules.get(MODULE_ID).api = { use_ccw: false,
+                                      debug: false,
+                                      use_bezier: false,
+                                      use_fast_ccw: false,
+                                      benchmark: testCCWBenchmarkSight,
+                                      orient2d: orient2d,
+                                      PotentialWallList: PotentialWallList }
 });
 
 // modules ready
@@ -51,7 +54,7 @@ Hooks.once('ready', async function() {
 });
 
 // https://github.com/League-of-Foundry-Developers/foundryvtt-devMode
-Hooks.once('devModeReady', ({ registerPackageDebugFlag }) => {
-  registerPackageDebugFlag(MODULE_ID);
-});
+// Hooks.once('devModeReady', ({ registerPackageDebugFlag }) => {
+//   registerPackageDebugFlag(MODULE_ID);
+// });
 

@@ -46,7 +46,7 @@ export function calculateDistance(A, B, EPSILON = 1e-8) {
 
 // Positive if CCW, Negative if CW, 0 if in line
 export function orient2dPoints(p1, p2, p3) {
-  if(window[MODULE_ID].use_fast_ccw) {
+  if(game.modules.get(MODULE_ID).api.use_fast_ccw) {
     return orient2dfast(p1.x, p1.y,
                         p2.x, p2.y,
                         p3.x, p3.y)
