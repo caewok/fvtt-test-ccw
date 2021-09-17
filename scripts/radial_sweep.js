@@ -912,54 +912,56 @@ function bezierPadding(r0, r1, padding, pts = []) {
   const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
   
   let quadrant = start_quadrant;
-  while(quadrant != end_quadrant) {
+  let done = false
+  while(!done) {
+    if(quadrant === end_quadrant) done = true;
+  
     for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
       const pt = bezierCircleForQuadrant(t, quadrant);
-      let add_pt = false
+      let add_pt = true
       
       // compare to start and end. if within, then keep
       if(quadrant === start_quadrant) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x > start_scaled.x) { add_pt = true; }
+            if(pt.x <= start_scaled.x) { add_pt = false; }
             break;
           case Q2:
             // x goes from 0 to 1
-            if(pt.x > start_scaled.x) { add_pt = true; }
+            if(pt.x <= start_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x < start_scaled.x) { add_pt = true; }
+            if(pt.x >= start_scaled.x) { add_pt = false; }
             break;
           case Q4:
             // x goes from 0 to -1
-            if(pt.x < start_scaled.x) { add_pt = true; }
+            if(pt.x >= start_scaled.x) { add_pt = false; }
             break;
         }
-      } else if(quadrant === end_quadrant) {
+      } 
+      
+      if(add_pt && quadrant === end_quadrant) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x < end_scaled.x) { add_pt = true; }
+            if(pt.x >= end_scaled.x) { add_pt = false; }
             break;
           case Q2:
             // x goes from 0 to 1
-            if(pt.x < end_scaled.x) { add_pt = true; }
+            if(pt.x >= end_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x > end_scaled.x) { add_pt = true; }
+            if(pt.x <= end_scaled.x) { add_pt = false; }
             break;
           case Q4:
             // x goes from 0 to -1
-            if(pt.x > end_scaled.x) { add_pt = true; }
+            if(pt.x <= end_scaled.x) { add_pt = false; }
             break;
         }
-      } else {
-        // in a middle quadrant; include all
-        add_pt = true;
-      }
+      } 
       
       // re-scale point
       if(add_pt) {

@@ -382,6 +382,7 @@ Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
+
 */
 
 
