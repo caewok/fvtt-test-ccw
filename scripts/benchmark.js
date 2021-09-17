@@ -10,6 +10,7 @@ import { MODULE_ID } from "./module.js";
 export async function testCCWBenchmarkSight(n=1000, ...args) {
   const stored_use_ccw = window[MODULE_ID].use_ccw;
   const stored_use_bst = window[MODULE_ID].use_bst;
+  const stored_use_bezier = window[MODULE_ID].use_bezier;
 
   // count number of unique endpoints
   const num_endpoints = new Set();
@@ -27,14 +28,23 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
 
   window[MODULE_ID].use_ccw = true;
   window[MODULE_ID].use_bst = false;
+  window[MODULE_ID].use_bezier = false;
   console.log("Testing CCW version");
   await benchmarkSight(n, ...args);
 
   window[MODULE_ID].use_ccw = true;
   window[MODULE_ID].use_bst = true;
+  window[MODULE_ID].use_bezier = false;
   console.log("Testing CCW with BST version");
+  await benchmarkSight(n, ...args);
+  
+  window[MODULE_ID].use_ccw = true;
+  window[MODULE_ID].use_bst = true;
+  window[MODULE_ID].use_bezier = true;
+  console.log("Testing CCW with BST, using bezier");
   await benchmarkSight(n, ...args);
 
   window[MODULE_ID].use_ccw = stored_use_ccw;
   window[MODULE_ID].use_bst = stored_use_bst;
+  window[MODULE_ID].use_bezier = stored_use_bezier;
 }
