@@ -10,7 +10,7 @@ import { MODULE_ID } from "./module.js";
 export async function testCCWBenchmarkSight(n=1000, ...args) {
   const stored_use_ccw = game.modules.get(MODULE_ID).api.use_ccw;
   const stored_use_bezier = game.modules.get(MODULE_ID).api.use_bezier;
-  const use_fast_ccw = game.modules.get(MODULE_ID).api.use_fast_ccw;
+  const use_fast_ccw = game.modules.get(MODULE_ID).api.use_robust_ccw;
 
   // count number of unique endpoints
   const num_endpoints = new Set();
@@ -28,23 +28,23 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
 
   game.modules.get(MODULE_ID).api.use_ccw = true;
   game.modules.get(MODULE_ID).api.use_bezier = false;
-  game.modules.get(MODULE_ID).api.use_fast_ccw = false;
+  game.modules.get(MODULE_ID).api.use_robust_ccw = true;
   console.log("Testing CCW version");
   await benchmarkSight(n, ...args);
   
   game.modules.get(MODULE_ID).api.use_ccw = true;
   game.modules.get(MODULE_ID).api.use_bezier = true;
-  game.modules.get(MODULE_ID).api.use_fast_ccw = false;
+  game.modules.get(MODULE_ID).api.use_robust_ccw = true;
   console.log("Testing CCW using bezier");
   await benchmarkSight(n, ...args);
   
   game.modules.get(MODULE_ID).api.use_ccw = true;
   game.modules.get(MODULE_ID).api.use_bezier = true;
-  game.modules.get(MODULE_ID).api.use_fast_ccw = true;
+  game.modules.get(MODULE_ID).api.use_robust_ccw = false;
   console.log("Testing CCW using bezier and fast non-robust ccw");
   await benchmarkSight(n, ...args);
 
   game.modules.get(MODULE_ID).api.use_ccw = stored_use_ccw;
   game.modules.get(MODULE_ID).api.use_bezier = stored_use_bezier;
-  game.modules.get(MODULE_ID).api.use_fast_ccw = use_fast_ccw;
+  game.modules.get(MODULE_ID).api.use_fast_ccw = use_robust_ccw;
 }

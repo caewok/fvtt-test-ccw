@@ -34,10 +34,24 @@ export function log(...args) {
 Hooks.once('init', async function() {
   registerCCW();
   
-  game.modules.get(MODULE_ID).api = { use_ccw: false,
-                                      debug: false,
-                                      use_bezier: false,
-                                      use_fast_ccw: false,
+ /**
+  * API switches 
+  * {Boolean}   use_ccw         Use this module's functions in lieu of base Foundry
+  * {Boolean}   debug           Toggles certain debug logging
+  * {Boolean}   use_bezier      Use Bezier approximation of Circle (faster)
+  * {Boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
+  *                               numerical overrides or if false, a faster version 
+  *                               without such checks.
+  * API methods
+  * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
+  * {Function}  orient2d          Method to check for CCW or CW relationship of 3 points
+  * {Class}     PotentialWallList BST for storing sorted wall list
+  */
+  
+  game.modules.get(MODULE_ID).api = { use_ccw: false, 
+                                      debug: false, 
+                                      use_bezier: false, 
+                                      use_robust_ccw: true, 
                                       benchmark: testCCWBenchmarkSight,
                                       orient2d: orient2d,
                                       PotentialWallList: PotentialWallList }
