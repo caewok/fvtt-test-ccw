@@ -2,7 +2,7 @@
 
 import { MODULE_ID, log } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
-import { pointsAlmostEqual, ccwPoints, calculateDistance } from "./util.js";
+import { pointsAlmostEqual, ccwPoints, orient2dPoints, calculateDistance } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
@@ -321,7 +321,17 @@ export function testCCWSweepEndpoints(wrapped) {
     }
 
     log(`Sweep: isLimited ${this.endpoints.size} endpoints after filtering.`, this.endpoints);
-    
+  }
+
+  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
+  // (For this sort, a for loop would count down from last to 0)
+  // For limited angle, sort from the minRay instead of from due west
+  // sorting from due west is a bit faster 
+  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  const endpoints = isLimited ? sortEndpointsCWFrom(origin, [...this.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...this.endpoints.values()]);
+
+  // for limited angle, add starting and ending endpoints after the sort, to ensure they are in correct position
+  if(isLimited) {
     // Add an endpoint for the minRay -----
     let minRay_intersection = undefined;
     if(closest_wall) {
@@ -330,8 +340,9 @@ export function testCCWSweepEndpoints(wrapped) {
     const minRay_endpoint = minRay_intersection ? new SweepPoint(minRay_intersection.x, minRay_intersection.y) : 
                                                   new SweepPoint(minRay.B.x, minRay.B.y);
     minRay_endpoint.minLimit = true;
-    this.endpoints.set(minRay_endpoint.key, minRay_endpoint);
-    
+    //this.endpoints.set(minRay_endpoint.key, minRay_endpoint);
+    endpoints.push(minRay_endpoint); // first endpoint encountered should be this one
+
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
@@ -355,7 +366,9 @@ export function testCCWSweepEndpoints(wrapped) {
     
     const maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : 
                                                   new SweepPoint(maxRay.B.x, maxRay.B.y);
-    this.endpoints.set(maxRay_endpoint.key, maxRay_endpoint);  
+    maxRay_endpoint.maxLimit = true;
+    //this.endpoints.set(maxRay_endpoint.key, maxRay_endpoint);  
+    endpoints.unshift(maxRay_endpoint);  // last endpoint encountered should be this one
   }
   
   log(`${this.endpoints.size} endpoints before sort.`);
@@ -363,14 +376,6 @@ export function testCCWSweepEndpoints(wrapped) {
   log(`Wall keys: ${[...walls.keys()]}`);
   log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
  
-  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
-  // (For this sort, a for loop would count down from last to 0)
-  // For limited angle, sort from the minRay instead of from due west
-  // sorting from due west is a bit faster 
-  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
-  const endpoints = isLimited ? sortEndpointsCWFrom(origin, [...this.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...this.endpoints.values()]);
-
-  
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
   
   // Sweep each endpoint
@@ -446,7 +451,7 @@ export function testCCWSweepEndpoints(wrapped) {
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       const inside_radius = !radius || endpoint?.distance_to_origin <= radius;
+       const inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
        const ray = constructRay(origin, endpoint, radius);
@@ -485,7 +490,9 @@ export function testCCWSweepEndpoints(wrapped) {
     
     // TO-DO: which of these tests is faster? 
     // is this endpoint within the closest_wall? (Limited radius will do this)
-    if(has_radius && closest_wall.toRay().contains(endpoint)) {
+    if((has_radius || 
+        (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
+        closest_wall.toRay().contains(endpoint)) {
       collisions.push({x: endpoint.x, y: endpoint.y});
       // continue;
       
@@ -614,8 +621,8 @@ function sortEndpointsCW(origin, endpoints) {
     // TOP:  b before a (1)
     // BOTTOM: a before b (-1)
     
-    a_quadrant = a.x < origin.x ? LEFT : RIGHT;
-    b_quadrant = b.x < origin.x ? LEFT : RIGHT;
+    const a_quadrant = a.x < origin.x ? LEFT : RIGHT;
+    const b_quadrant = b.x < origin.x ? LEFT : RIGHT;
     
     if(a_quadrant !== b_quadrant) {
       // already know that a and b share hemispheres
