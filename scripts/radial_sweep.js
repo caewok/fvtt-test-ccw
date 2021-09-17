@@ -126,7 +126,7 @@ export function testCCWIncludeWall(wrapped, wall, type) {
   // Ignore one-directional walls which are facing away from the origin
   if ( !wall.data.dir ) return true; // wall not one-directional
   
-  return wall.whichSide(this.origin) === wall.data.dir();
+  return wall.whichSide(this.origin) === wall.data.dir;
 }
 
 /**

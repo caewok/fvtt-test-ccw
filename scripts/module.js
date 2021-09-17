@@ -30,7 +30,7 @@ export function log(...args) {
 
 Hooks.once('init', async function() {
   registerCCW();
-  
+
   window[MODULE_ID] = { use_ccw: false,
                         debug: false,
                         use_bst: true,

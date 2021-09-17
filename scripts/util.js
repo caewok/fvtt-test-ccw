@@ -1,5 +1,6 @@
 // Utility functions
-import { orient2d } from "./lib/orient2d.min.js";
+import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
+import { MODULE_ID } from "./module.js"
 
  /*
   * Test if two numbers are almost equal, given a small error window.
@@ -45,17 +46,16 @@ export function calculateDistance(A, B, EPSILON = 1e-8) {
 
 // Positive if CCW, Negative if CW, 0 if in line
 export function orient2dPoints(p1, p2, p3) {
-  if(window[MODULE_ID].use_fast_ccw) { return orient2dFast(p1, p2, p3) }
+  if(window[MODULE_ID].use_fast_ccw) {
+    return orient2dfast(p1.x, p1.y,
+                        p2.x, p2.y,
+                        p3.x, p3.y)
+  }
 
   return orient2d(p1.x, p1.y,
                   p2.x, p2.y,
                   p3.x, p3.y);
 }
-
-function orient2dFast(A, B, C) {
-  return (B.x - A.x) * (C.y - A.y) > (B.y - A.y) * (C.x - A.x);
-}
-
 
 
 // 1 if CCW, -1 if CW, 0 if in line
