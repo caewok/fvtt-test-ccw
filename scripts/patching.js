@@ -7,7 +7,6 @@ import { testCCWInitializeEndpoints,
 
 import { wallCCW, 
          wallWhichSide, 
-         wallEffectSide,
          wallA,
          wallB  } from "./wall.js";
          
@@ -39,12 +38,6 @@ Object.defineProperty(Wall.prototype, "ccw", {
 
 Object.defineProperty(Wall.prototype, "whichSide", {
   value: wallWhichSide,
-  writable: true,
-  configurable: true
-});
-
-Object.defineProperty(Wall.prototype, "effectSide", {
-  value: wallEffectSide,
   writable: true,
   configurable: true
 });
