@@ -3,12 +3,12 @@ w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
 t = canvas.tokens.controlled[0];
-await window.testccw.benchmark(1000, t.center)
+await window.testccw.benchmark(10000, t.center)
 
 // benchmark light
 // lights appear to be hardcoding to density 60. See Light Source Initialization      
 l = [...canvas.lighting.sources][0];
-await window.testccw.benchmark(1000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+await window.testccw.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
 
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
