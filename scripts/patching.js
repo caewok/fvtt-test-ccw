@@ -52,6 +52,21 @@ Object.defineProperty(Wall.prototype, "B", {
   configurable: true
 });
 
+// put some Ray methods in Wall
+Object.defineProperty(Wall.prototype, "contains", {
+  value: rayContains,
+  writable: true,
+  configurable: true
+});
+
+Object.defineProperty(Wall.prototype, "inFrontOfPoint", {
+  value: rayInFrontOfPoint,
+  writable: true,
+  configurable: true
+});
+
+// potentialIntersectionsCircle
+
 // ---------------- Ray ------------- // 
 
 Object.defineProperty(Ray.prototype, "projectDistance", {
