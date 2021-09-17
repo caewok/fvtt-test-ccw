@@ -43,30 +43,160 @@ function ccwPoints(p1, p2, p3) {
          res > 0 ?  1 : 0;
 }
 
+function sortEndpointsCWOriginal(origin, endpoints) {
+  return endpoints.sort((a, b) => {
+    if(a.y >= origin.y && b.y < origin.y) return -1;
+    if(a.y < origin.y && b.y >= origin.y) return 1; // a is TOP, b is BOTTOM
+    return -orient2dPoints(origin, a, b);
+  });
+}
+
 /*
- * Sort an array of points from CW to CCW, in relation to line due west from origin.
+ * Sort an array of points CW in relation to line due west from origin.
  * so array[0] would be the last point encountered if moving clockwise from the line.
  *    array[last] would be the first point encountered.
  * (to sort the other direction, reverse the signs)
  */ 
 function sortEndpointsCW(origin, endpoints) {
+  const TOP = 1;
+  const BOTTOM = -1;
+  const LEFT = 1;
+  const RIGHT = -1;
+  
   return endpoints.sort((a, b) => {
     // arbitrarily declare upper hemisphere to be first
     // so x < vision_point (above) is before x > vision_point (below)
     // walk quadrants, so Q1 is upper left, Q3 is lower right
     // return > 0 to sort b before a
     
-    // 
     
-    if(a.y >= origin.y && b.y < origin.y) return -1;
-    if(a.y < origin.y && b.y >= origin.y) return 1;
-      
-    // in same hemisphere      
-    return -orient2d(origin.x, origin.y, 
-                    a.x, a.y,
-                    b.x, b.y);
+    // most of this is just to speed up the sort, by checking quadrant location first 
+    const a_hemisphere = a.y < origin.y ? TOP : BOTTOM;
+    const b_hemisphere = b.y < origin.y ? TOP : BOTTOM;
+    
+    // if not in same hemisphere, sort accordingly
+    if(a_hemisphere !== b_hemisphere) return a_hemisphere; 
+    // TOP:  b before a (1)
+    // BOTTOM: a before b (-1)
+    
+    a_quadrant = a.x < origin.x ? LEFT : RIGHT;
+    b_quadrant = b.x < origin.x ? LEFT : RIGHT;
+    
+    if(a_quadrant !== b_quadrant) {
+      // already know that a and b share hemispheres
+      if(a_hemisphere === TOP) {
+        return a_quadrant;
+        // TOP, LEFT: b before a (1)
+        // TOP, RIGHT: a before b (-1)
+      } else {
+        return -a_quadrant;
+        // BOTTOM, LEFT: a before b (-1)
+        // BOTTOM, RIGHT: b before a (1)
+      }
+    }
+        
+    return -orient2dPoints(origin, a, b);
+   
   });
 }
+
+/*
+ Currently fails to work
+function sortEndpointsCWStorageVersion(origin, endpoints) {
+  const TOP = 1;
+  const BOTTOM = -1;
+  const LEFT = 1;
+  const RIGHT = -1;
+  
+  return endpoints.sort((a, b) => {
+    // arbitrarily declare upper hemisphere to be first
+    // so x < vision_point (above) is before x > vision_point (below)
+    // walk quadrants, so Q1 is upper left, Q3 is lower right
+    // return > 0 to sort b before a
+    
+    
+    // most of this is just to speed up the sort, by checking quadrant location first 
+    a.hemisphere = Boolean(a?.hemisphere) ? a.hemisphere : (a.y < origin.y) ? TOP : BOTTOM;
+    b.hemisphere = Boolean(b?.hemisphere) ? b.hemisphere : (b.y < origin.y) ? TOP : BOTTOM;
+    
+    // if not in same hemisphere, sort accordingly
+    if(a.hemisphere !== b.hemisphere) return a.hemisphere; 
+    // TOP:  b before a (1)
+    // BOTTOM: a before b (-1)
+    
+    a.quadrant = Boolean(a?.quadrant) ? a.quadrant : (a.x < origin.x) ? LEFT : RIGHT;
+    b.quadrant = Boolean(b?.quadrant) ? b.quadrant : (b.x < origin.x) ? LEFT : RIGHT;
+    
+    if(a.quadrant !== b.quadrant) {
+      // already know that a and b share hemispheres
+      if(a.hemisphere === TOP) {
+        return a.quadrant;
+        // TOP, LEFT: b before a (1)
+        // TOP, RIGHT: a before b (-1)
+      } else {
+        return -a.quadrant;
+        // BOTTOM, LEFT: a before b (-1)
+        // BOTTOM, RIGHT: b before a (1)
+      }
+    }
+        
+    return -orient2dPoints(origin, a, b);
+   
+  });
+}
+*/
+
+/*
+ * Same as sortEndpointsCW but sort from a baseline other than due west.
+ * Probably slower than sortEndpointsCW b/c it cannot segregate by hemisphere.
+ * Also has to do additional tests to compare orientations.
+ * sortEndpointsCWFrom(origin, endpoints, {x: origin.x - 100, y: origin.y}) should equal
+ * sortEndpointsCW(origin, endpoints)
+ */
+function sortEndpointsCWFromOriginal(origin, endpoints, reference) {
+  return endpoints.sort((a, b) => {
+    const a_value = ccwPoints(origin, reference, a);
+    const b_value = ccwPoints(origin, reference, b);
+    if(a_value === b_value) {
+      return -orient2dPoints(origin, a, b);
+    
+    } else {
+      // a_value is -1, then a is CCW to the reference; b is CW
+      return -a_value;
+    }
+  });
+}
+
+/*
+ * Same as sortEndpointsCW but sort from a baseline other than due west.
+ * accomplish by adding in a reference point to the endpoints list, then sorting.
+ * Then shift the array based on reference point
+ * Also has to do additional tests to compare orientations.
+ * sortEndpointsCWFrom(origin, endpoints, {x: origin.x - 100, y: origin.y}) should equal
+ * sortEndpointsCW(origin, endpoints)
+ */
+function sortEndpointsCWFrom(origin, endpoints, reference) {
+  reference.sort_baseline = true;
+  endpoints.push(reference);
+  
+  const sorted = sortEndpointsCW(origin, endpoints);
+  const idx = sorted.findIndex(e => Boolean(e?.sort_baseline));
+  const ln = sorted.length
+  
+  // easy cases
+  if(idx === 0) {
+    sorted.shift();
+    return sorted;
+  } else if(idx === ln) {
+    sorted.pop();
+    return sorted;
+  } else {
+     //sorted.slice(idx+1, ln).push([...sorted.slice(0, idx)])
+     //return sorted;
+     return sorted.slice(idx+1, ln).concat(sorted.slice(0, idx));
+  }
+}
+
 
 function arraysEqual(a1,a2) {
     /* WARNING: arrays must not contain {objects} or behavior may be undefined */
@@ -237,21 +367,22 @@ const COLORS = {
 
 
 // Token version
-/*
+
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true});
 Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
-*/
+
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
 
 
 //Lights version
+/*
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
-Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
-
+Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
+*/
 
 
 
@@ -642,22 +773,34 @@ if(minRay_intersecting_walls.length > 0) {
     
     // canvas.controls.debug.clear();
     // endpoints.forEach(e => drawEndpoint(e))
-    
-    // Add a collision for the minRay -----
+  }
+  
+  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
+  // (For this sort, a for loop would count down from last to 0)
+  // For limited angle, sort from the minRay instead of from due west
+  // sorting from due west is a bit faster 
+  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  endpoints = isLimited ? sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+
+   
+   
+  if(isLimited) {
+    // for limited angle, add starting and ending endpoints after the sort, to ensure they are in correct position
+    // Add endpoint for the minRay -----
     minRay_intersection = undefined;
     if(closest_wall) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
     minRay_endpoint = minRay_intersection ? new SweepPoint(minRay_intersection.x, minRay_intersection.y) : new SweepPoint(minRay.B.x, minRay.B.y);
     //drawEndpoint(minRay_endpoint)
+    minRay_endpoint.minLimit = true;
     
-    // conceivable, but unlikely, that the intersection is an existing endpoint
-    // probably best not to duplicate endpoints—--unclear how the algorithm would handle
-    // it would first remove the closest wall and then need to re-do the ray & collision
-//     if(!endpoints.some(e => pointsAlmostEqual(e, minRay_endpoint))) {
-//       endpoints.push(minRay_endpoint);
-//     }
-    collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
+    endpoints.push(minRay_endpoint); // first endpoint encountered should be this one
+    
+    //k = minRay_endpoint.key;
+    //Poly.endpoints.set(k, minRay_endpoint);
+    
+    //collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
     
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
@@ -682,9 +825,11 @@ if(minRay_intersecting_walls.length > 0) {
     }
     
     maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : new SweepPoint(maxRay.B.x, maxRay.B.y);
+    maxRay_endpoint.maxLimit = true;
     
-    k = WallEndpoint.getKey(e.x, e.y);
-    Poly.endpoints.set(k, maxRay_endpoint);    
+    //k = maxRay_endpoint.key;
+    //Poly.endpoints.set(k, maxRay_endpoint);  
+    endpoints.unshift(maxRay_endpoint);  
   }
 
 
@@ -714,13 +859,64 @@ if(minRay_intersecting_walls.length > 0) {
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
 
     
-  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
-  // (For this sort, a for loop would count down from last to 0)
   
-  endpoints = sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+  
+/*
+Speed and accuracy testing for different sorts
+
+
+  
+  t0 = performance.now()
+  for(i = 0; i < 1000; i++) {
+    endpoints0 = sortEndpointsCWOriginal(origin, [...Poly.endpoints.values()]);
+  }
+  t0 = performance.now() - t0; // ~ 7.4
+  
+  t1 = performance.now()
+  for(i = 0; i < 1000; i++) {
+    endpoints1 = sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+  }
+  t1 = performance.now() - t1; // ~ 4.7
+  
+  t2 = performance.now()
+  for(i = 0; i < 1000; i++) {
+    endpoints2 = sortEndpointsCWFromOriginal(origin, [...Poly.endpoints.values()], {x: origin.x - 100, y: origin.y});
+    
+    //endpoints2 = sortEndpointsCWFromOriginal(origin, [...Poly.endpoints.values()], {x: origin.x - 100, y: origin.y - 100});
+  }
+  t2 = performance.now() - t2; // ~ 31.2
+  
+  t3 = performance.now()
+  for(i = 0; i < 1000; i++) {
+    endpoints3 = sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], {x: origin.x - 100, y: origin.y});
+    
+    //endpoints3 = sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], {x: origin.x - 100, y: origin.y - 100});
+  }
+  t3 = performance.now() - t3; // ~ 6.7
+  
+  t4 = performance.now()
+  for(i = 0; i < 1000; i++) {
+    endpoints4 = sortEndpointsCWStorageVersion(origin, [...Poly.endpoints.values()]);
+  }
+  t4 = performance.now() - t4; // ~ 4.7
+  
+  arraysEqual(endpoints0, endpoints1)
+  arraysEqual(endpoints0, endpoints2)
+  arraysEqual(endpoints2, endpoints3)
+  arraysEqual(endpoints0, endpoints4)
+  
+  reference = {x: origin.x - 100, y: origin.y - 100}
+  ray = new Ray(origin, reference)
+  ray = ray.projectDistance(radius)
+  
+  drawRay(ray, COLORS.blue)
+*/
+
+  
+  
   //endpoints.forEach(e => drawEndpoint(e))
   
-  // TO-DO: remove endpoints that are not within our limited angle
+  
   
   // Sweep each endpoint
   // accessing array by index, pop, and push should be O(1) in time. 
@@ -737,9 +933,7 @@ if(minRay_intersecting_walls.length > 0) {
     iter += 1;
     endpoint = endpoints.pop()
   
-  // for( let endpoint of endpoints.slice(0, 6)) {
   // canvas.controls.debug.clear();
-  // endpoint = endpoints[0]
   // drawEndpoint(endpoint)
   // drawRay(closest_wall)
   // testray = constructRay(origin, endpoint, radius);
@@ -794,20 +988,18 @@ if(minRay_intersecting_walls.length > 0) {
       // see where the vision point to the new endpoint intersects the canvas edge
       ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
-      if(!pointsAlmostEqual(endpoint, ray.B)) {
-        // likely equal points if at one of the corner endpoints
-        collisions.push({x: ray.B.x, y: ray.B.y});    
-      }
+      collisions.push({x: ray.B.x, y: ray.B.y});    
+      
       // endpoint can be for one or more walls. Get the closest
       closest_wall = potential_walls.closest();
       //drawRay(closest_wall.toRay())
       
       // mark endpoint
-      if(has_radius && !ray.contains(endpoint)) {
+      if(has_radius && (!ray.contains(endpoint) || Boolean(endpoint?.minLimit))) {
         // endpoint is outside the radius so don't add it to collisions. 
         // need to pad b/c no wall in front of the endpoint, so empty space to next point
         needs_padding = true;
-      } else {
+      } else if(!pointsAlmostEqual(endpoint, ray.B)) {
         collisions.push({x: endpoint.x, y: endpoint.y}); 
       }         
       continue;
@@ -821,7 +1013,7 @@ if(minRay_intersecting_walls.length > 0) {
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       inside_radius = !radius || endpoint?.distance_to_origin <= radius;
+       inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
        
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
@@ -879,7 +1071,9 @@ if(minRay_intersecting_walls.length > 0) {
      
     // TO-DO: which of these tests is faster? 
     // is this endpoint within the closest_wall? (Limited radius will do this)
-    if(has_radius && closest_wall.toRay().contains(endpoint)) {
+    if((has_radius || 
+        (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
+        closest_wall.toRay().contains(endpoint)) {
       collisions.push({x: endpoint.x, y: endpoint.y});
     
     } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 

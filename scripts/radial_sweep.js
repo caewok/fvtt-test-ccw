@@ -2,7 +2,7 @@
 
 import { MODULE_ID, log } from "./module.js";
 import { orient2d } from "./lib/orient2d.min.js";
-import { pointsAlmostEqual, ccwPoints, calculateDistance } from "./util.js";
+import { pointsAlmostEqual, ccwPoints, orient2dPoints, calculateDistance } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
@@ -321,23 +321,28 @@ export function testCCWSweepEndpoints(wrapped) {
     }
 
     log(`Sweep: isLimited ${this.endpoints.size} endpoints after filtering.`, this.endpoints);
-    
-    // Add a collision for the minRay -----
+  }
+
+  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
+  // (For this sort, a for loop would count down from last to 0)
+  // For limited angle, sort from the minRay instead of from due west
+  // sorting from due west is a bit faster 
+  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  const endpoints = isLimited ? sortEndpointsCWFrom(origin, [...this.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...this.endpoints.values()]);
+
+  // for limited angle, add starting and ending endpoints after the sort, to ensure they are in correct position
+  if(isLimited) {
+    // Add an endpoint for the minRay -----
     let minRay_intersection = undefined;
     if(closest_wall) {
       minRay_intersection = minRay.intersectSegment(closest_wall.coords);
     }
     const minRay_endpoint = minRay_intersection ? new SweepPoint(minRay_intersection.x, minRay_intersection.y) : 
                                                   new SweepPoint(minRay.B.x, minRay.B.y);
-    
-    // conceivable, but unlikely, that the intersection is an existing endpoint
-    // probably best not to duplicate endpoints—--unclear how the algorithm would handle
-    // it would first remove the closest wall and then need to re-do the ray & collision
-//     if(!endpoints.some(e => pointsAlmostEqual(e, minRay_endpoint))) {
-//       endpoints.push(minRay_endpoint);
-//     }
-    collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
-    
+    minRay_endpoint.minLimit = true;
+    //this.endpoints.set(minRay_endpoint.key, minRay_endpoint);
+    endpoints.push(minRay_endpoint); // first endpoint encountered should be this one
+
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
@@ -361,8 +366,9 @@ export function testCCWSweepEndpoints(wrapped) {
     
     const maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : 
                                                   new SweepPoint(maxRay.B.x, maxRay.B.y);
-    const k = WallEndpoint.getKey(e.x, e.y);
-    this.endpoints.set(k, maxRay_endpoint);  
+    maxRay_endpoint.maxLimit = true;
+    //this.endpoints.set(maxRay_endpoint.key, maxRay_endpoint);  
+    endpoints.unshift(maxRay_endpoint);  // last endpoint encountered should be this one
   }
   
   log(`${this.endpoints.size} endpoints before sort.`);
@@ -370,10 +376,6 @@ export function testCCWSweepEndpoints(wrapped) {
   log(`Wall keys: ${[...walls.keys()]}`);
   log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
  
-  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
-  // (For this sort, a for loop would count down from last to 0)
-  const endpoints = sortEndpointsCW(origin, [...this.endpoints.values()]);
-  
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
   
   // Sweep each endpoint
@@ -429,17 +431,15 @@ export function testCCWSweepEndpoints(wrapped) {
       
       // mark endpoint
       // mark endpoint
-      if(has_radius && !ray.contains(endpoint)) {
+      if(has_radius && (!ray.contains(endpoint) || Boolean(endpoint?.minLimit))) {
         // endpoint is outside the radius so don't add it to collisions. 
         // need to pad b/c no wall in front of the endpoint, so empty space to next point
         needs_padding = true;
-      } else {
-        if(!pointsAlmostEqual(endpoint, ray.B)) {
+      } else if(!pointsAlmostEqual(endpoint, ray.B)) {
           // likely equal points if at one of the corner endpoints
           collisions.push({x: endpoint.x, y: endpoint.y}); 
-        }
-      }     
-       
+      }
+
       continue;
     }  
     
@@ -451,7 +451,7 @@ export function testCCWSweepEndpoints(wrapped) {
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       const inside_radius = !radius || endpoint?.distance_to_origin <= radius;
+       const inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
        const ray = constructRay(origin, endpoint, radius);
@@ -490,7 +490,9 @@ export function testCCWSweepEndpoints(wrapped) {
     
     // TO-DO: which of these tests is faster? 
     // is this endpoint within the closest_wall? (Limited radius will do this)
-    if(has_radius && closest_wall.toRay().contains(endpoint)) {
+    if((has_radius || 
+        (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
+        closest_wall.toRay().contains(endpoint)) {
       collisions.push({x: endpoint.x, y: endpoint.y});
       // continue;
       
@@ -598,19 +600,75 @@ export function testCCWConstructPoints(wrapped) {
  * (to sort the other direction, reverse the signs)
  */ 
 function sortEndpointsCW(origin, endpoints) {
+  const TOP = 1;
+  const BOTTOM = -1;
+  const LEFT = 1;
+  const RIGHT = -1;
+  
   return endpoints.sort((a, b) => {
     // arbitrarily declare upper hemisphere to be first
     // so x < vision_point (above) is before x > vision_point (below)
     // walk quadrants, so Q1 is upper left, Q3 is lower right
     // return > 0 to sort b before a
-    if(a.y >= origin.y && b.y < origin.y) return -1;
-    if(a.y < origin.y && b.y >= origin.y) return 1;
-      
-    // in same hemisphere      
-    return -orient2d(origin.x, origin.y, 
-                    a.x, a.y,
-                    b.x, b.y);
+    
+    
+    // most of this is just to speed up the sort, by checking quadrant location first 
+    const a_hemisphere = a.y < origin.y ? TOP : BOTTOM;
+    const b_hemisphere = b.y < origin.y ? TOP : BOTTOM;
+    
+    // if not in same hemisphere, sort accordingly
+    if(a_hemisphere !== b_hemisphere) return a_hemisphere; 
+    // TOP:  b before a (1)
+    // BOTTOM: a before b (-1)
+    
+    const a_quadrant = a.x < origin.x ? LEFT : RIGHT;
+    const b_quadrant = b.x < origin.x ? LEFT : RIGHT;
+    
+    if(a_quadrant !== b_quadrant) {
+      // already know that a and b share hemispheres
+      if(a_hemisphere === TOP) {
+        return a_quadrant;
+        // TOP, LEFT: b before a (1)
+        // TOP, RIGHT: a before b (-1)
+      } else {
+        return -a_quadrant;
+        // BOTTOM, LEFT: a before b (-1)
+        // BOTTOM, RIGHT: b before a (1)
+      }
+    }
+        
+    return -orient2dPoints(origin, a, b);
+   
   });
+}
+
+/*
+ * Same as sortEndpointsCW but sort from a baseline other than due west.
+ * Accomplish by adding in a reference point to the endpoints list, then sorting.
+ * Then shift the array based on reference point
+ * sortEndpointsCWFrom(origin, endpoints, {x: origin.x - 100, y: origin.y}) should equal
+ * sortEndpointsCW(origin, endpoints)
+ */
+function sortEndpointsCWFrom(origin, endpoints, reference) {
+  reference.sort_baseline = true;
+  endpoints.push(reference);
+  
+  const sorted = sortEndpointsCW(origin, endpoints);
+  const idx = sorted.findIndex(e => Boolean(e?.sort_baseline));
+  const ln = sorted.length
+  
+  // easy cases
+  if(idx === 0) {
+    sorted.shift();
+    return sorted;
+  } else if(idx === ln) {
+    sorted.pop();
+    return sorted;
+  } else {
+     //sorted.slice(idx+1, ln).push([...sorted.slice(0, idx)])
+     //return sorted;
+     return sorted.slice(idx+1, ln).concat(sorted.slice(0, idx));
+  }
 }
 
 function arraysEqual(a1,a2) {
