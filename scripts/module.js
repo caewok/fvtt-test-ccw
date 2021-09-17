@@ -34,6 +34,7 @@ Hooks.once('init', async function() {
   window[MODULE_ID] = { use_ccw: false,
                         debug: false,
                         use_bst: true,
+                        use_bezier: false,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d,
                         PotentialWallList: PotentialWallList,

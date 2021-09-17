@@ -411,9 +411,12 @@ export function testCCWSweepEndpoints(wrapped) {
       
       // the endpoint is now the end of the ray, which may or may not be in front of the 
       // next endpoint
-      endpoints.push(endpoint);
+      //endpoints.push(endpoint);
       
-      continue;
+      //continue;
+      // don't need continue if not pushing the endpoint. 
+      // has_radius set to false here, so if pushed, the next endpoint would be this one
+      // and we would be right back where we started.
     } 
     
     potential_walls.addFromEndpoint(endpoint);
@@ -451,7 +454,7 @@ export function testCCWSweepEndpoints(wrapped) {
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       const inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
+       const inside_radius = !has_radius || Boolean(endpoint?.distance_to_origin <= radius);
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
        const ray = constructRay(origin, endpoint, radius);
@@ -511,10 +514,18 @@ export function testCCWSweepEndpoints(wrapped) {
       if(ray.intersects(closest_wall)) {
         const intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
         collisions.push({ x: intersection.x, y: intersection.y });
+      } else if(has_radius && Boolean(endpoint?.distance_to_origin > radius)) {
+        // (endpoint > radius test may not be necessary; should always be true if has_radius)
+        // ray did not reach the wall
+        // add the end of the ray point instead
+        collisions.push({x: ray.B.x, y: ray.B.y});
+        needs_padding = true;
+      
+      } else {
+        collisions.push({x: endpoint.x, y: endpoint.y});
       }
       
-      closest_wall = potential_walls.closest();
-      collisions.push({x: endpoint.x, y: endpoint.y});      
+      closest_wall = potential_walls.closest();      
       //continue; 
     }
     
@@ -801,6 +812,8 @@ function endpointWallCCW(origin, endpoint, wall) {
  */
 export function testCCWPadRays(wrapped, r0, r1, padding, rays, requireTest) {
   if(!window[MODULE_ID].use_ccw) { return wrapped(r0, r1, padding, rays, requireTest); }
+  
+  if(window[MODULE_ID].use_bezier) { return bezierPadding(r0, r1, padding, rays); } 
 
   // Determine padding delta
   let d = r1.angle - r0.angle;
@@ -816,6 +829,189 @@ export function testCCWPadRays(wrapped, r0, r1, padding, rays, requireTest) {
     rays.push(r.B);
   }
   return rays;
+}
+
+
+/**
+ * Bezier approximation of a circle arc in the northeast quadrant.
+ * See https://spencermortensen.com/articles/bezier-circle/
+ * Points returned will be for arc in southwest quadrant (Q4): (0, 1) to (1, 0)
+ 
+ * @param {Number} t  Value between 0 and 1
+ * @return {PIXI.point} {x, y} Point corresponding to that t
+  */
+function bezierCircle(t) {
+  const paren = 1 - t;
+  const paren2 = paren * paren;
+  const paren3 = paren2 * paren;
+  const t2 = t * t;
+  const t3 = t * t * t;
+  const c_times_3 = 3 * 0.551915024494;
+  
+  const x = c_times_3 * paren2 * t + 3 * paren * t2 + t3;
+  const y = c_times_3 * t2 * paren + 3 * t * paren2 + paren3;  
+  return { x: x, y: y };
+}
+
+/*
+ * Approximate bezier circle for each quadrant.
+ * @param {Number} t          Value between 0 and 1
+ * @param {1|2|3|4} quadrant  Which quadrant the arc is in (northwest to southwest clockwise)
+ * @return {PIXI.point} {x, y} Point corresponding to t, adjusted for quadrant.
+ *   t = 0 to t = 1 moves points clockwise through quadrants
+ */
+function bezierCircleForQuadrant(t, quadrant) {
+  const Q1 = 1;
+  const Q2 = 2;
+  const Q3 = 3;
+  const Q4 = 4;
+  
+  // recall that y is reversed: -y is at the top, +y is at the bottom
+  // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
+  let pt;
+  switch(quadrant) {
+    case Q1:
+      pt = bezierCircle(1 - t);
+      pt.x = -pt.x;
+      pt.y = -pt.y;
+      return pt;
+    case Q2:
+      pt = bezierCircle(t);
+      pt.y = -pt.y;
+      return pt;
+    case Q3:
+      return bezierCircle(1 - t);
+    case Q4: 
+      pt = bezierCircle(t)
+      pt.x = -pt.x;
+      return pt;
+  } 
+
+}
+
+/**
+ * Get padding using a bezier approximation to a circle
+ * @param {SightRay} r0       SightRay where A is the origin of the circle, B is start point for arc.
+ * @param {SightRay} r1       SightRay where A is the origin of the circle, B is end point for arc.
+ * @param {Number} padding    The size of padding in radians to fill between r0.B and r1.B.
+ * @param {Array} pts         Array to which to add points. Optional.
+ * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
+ */
+function bezierPadding(r0, r1, padding, pts = []) {
+  const radius = r0.distance;
+  const origin = r0.A;
+  const start = r0.B;
+  const end = r1.B;
+  
+  // quadrants clockwise from northwest
+  const Q1 = 1;
+  const Q2 = 2;
+  const Q3 = 3;
+  const Q4 = 4;
+  
+  // center and scale
+  const start_scaled = start;
+  const end_scaled = end;
+  start_scaled.x = (start_scaled.x - origin.x) / radius;
+  start_scaled.y = (start_scaled.y - origin.y) / radius;
+  end_scaled.x = (end_scaled.x - origin.x) / radius;
+  end_scaled.y = (end_scaled.y - origin.y) / radius;
+  
+  const start_quadrant = getQuadrant(start_scaled);
+  const end_quadrant = getQuadrant(end_scaled);
+  
+  const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
+  
+  let quadrant = start_quadrant;
+  let done = false
+  while(!done) {
+    if(quadrant === end_quadrant) done = true;
+  
+    for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
+      const pt = bezierCircleForQuadrant(t, quadrant);
+      let add_pt = true
+      
+      // compare to start and end. if within, then keep
+      if(quadrant === start_quadrant) {
+        switch(quadrant) {
+          case Q1:
+            // x goes from -1 to 0
+            if(pt.x <= start_scaled.x) { add_pt = false; }
+            break;
+          case Q2:
+            // x goes from 0 to 1
+            if(pt.x <= start_scaled.x) { add_pt = false; }
+            break;
+          case Q3:
+            // x goes from 1 to 0
+            if(pt.x >= start_scaled.x) { add_pt = false; }
+            break;
+          case Q4:
+            // x goes from 0 to -1
+            if(pt.x >= start_scaled.x) { add_pt = false; }
+            break;
+        }
+      } 
+      
+      if(add_pt && quadrant === end_quadrant) {
+        switch(quadrant) {
+          case Q1:
+            // x goes from -1 to 0
+            if(pt.x >= end_scaled.x) { add_pt = false; }
+            break;
+          case Q2:
+            // x goes from 0 to 1
+            if(pt.x >= end_scaled.x) { add_pt = false; }
+            break;
+          case Q3:
+            // x goes from 1 to 0
+            if(pt.x <= end_scaled.x) { add_pt = false; }
+            break;
+          case Q4:
+            // x goes from 0 to -1
+            if(pt.x <= end_scaled.x) { add_pt = false; }
+            break;
+        }
+      } 
+      
+      // re-scale point
+      if(add_pt) {
+        pt.x = (pt.x * radius) + origin.x;
+        pt.y = (pt.y * radius) + origin.y;
+      
+        pts.push(pt);
+      }
+      
+    } // end for loop
+    quadrant = (quadrant % 4) + 1;
+  } // end while loop
+  
+  return pts;
+}
+
+function getQuadrant(pt, origin = {x: 0, y: 0}) {
+  // quadrants clockwise from northwest
+  const Q1 = 1;
+  const Q2 = 2;
+  const Q3 = 3;
+  const Q4 = 4;
+  
+  if(pt.y <= origin.y) {
+    // top hemisphere
+    if(pt.x <= origin.x) {
+      // left
+      return Q1;
+    } else {
+      return Q2;
+    }
+  } else {
+    // bottom hemisphere
+    if(pt.x <= origin.x) {
+      return Q4; 
+    } else {
+      return Q3;
+    }
+  }
 }
 
 /* 
