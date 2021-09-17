@@ -367,21 +367,22 @@ const COLORS = {
 
 
 // Token version
-/*
+
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true});
 Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
-*/
+
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
 
 
 //Lights version
+/*
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
-
+*/
 
 
 
@@ -772,7 +773,19 @@ if(minRay_intersecting_walls.length > 0) {
     
     // canvas.controls.debug.clear();
     // endpoints.forEach(e => drawEndpoint(e))
-    
+  }
+  
+  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
+  // (For this sort, a for loop would count down from last to 0)
+  // For limited angle, sort from the minRay instead of from due west
+  // sorting from due west is a bit faster 
+  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  endpoints = isLimited ? sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...Poly.endpoints.values()]);
+
+   
+   
+  if(isLimited) {
+    // for limited angle, add starting and ending endpoints after the sort, to ensure they are in correct position
     // Add endpoint for the minRay -----
     minRay_intersection = undefined;
     if(closest_wall) {
@@ -782,8 +795,10 @@ if(minRay_intersecting_walls.length > 0) {
     //drawEndpoint(minRay_endpoint)
     minRay_endpoint.minLimit = true;
     
-    k = minRay_endpoint.key;
-    Poly.endpoints.set(k, minRay_endpoint);
+    endpoints.push(minRay_endpoint); // first endpoint encountered should be this one
+    
+    //k = minRay_endpoint.key;
+    //Poly.endpoints.set(k, minRay_endpoint);
     
     //collisions.push({ x: minRay_endpoint.x, y: minRay_endpoint.y });
     
@@ -810,9 +825,11 @@ if(minRay_intersecting_walls.length > 0) {
     }
     
     maxRay_endpoint = maxRay_intersection ? new SweepPoint(maxRay_intersection.x, maxRay_intersection.y) : new SweepPoint(maxRay.B.x, maxRay.B.y);
+    maxRay_endpoint.maxLimit = true;
     
-    k = maxRay_endpoint.key;
-    Poly.endpoints.set(k, maxRay_endpoint);    
+    //k = maxRay_endpoint.key;
+    //Poly.endpoints.set(k, maxRay_endpoint);  
+    endpoints.unshift(maxRay_endpoint);  
   }
 
 
@@ -842,12 +859,6 @@ if(minRay_intersecting_walls.length > 0) {
   // Query: How slow is wall.toRay? Should wall incorporate more Ray methods to avoid this?
 
     
-  // Sort endpoints from CW (0) to CCW (last), in relation to a line due west from origin.
-  // (For this sort, a for loop would count down from last to 0)
-  // For limited angle, sort from the minRay instead of from due west
-  // sorting from due west is a bit faster 
-  // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
-  endpoints = isLimited ? sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...Poly.endpoints.values()]);
   
   
 /*
@@ -922,9 +933,7 @@ Speed and accuracy testing for different sorts
     iter += 1;
     endpoint = endpoints.pop()
   
-  // for( let endpoint of endpoints.slice(0, 6)) {
   // canvas.controls.debug.clear();
-  // endpoint = endpoints[0]
   // drawEndpoint(endpoint)
   // drawRay(closest_wall)
   // testray = constructRay(origin, endpoint, radius);
@@ -1004,7 +1013,7 @@ Speed and accuracy testing for different sorts
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       inside_radius = !radius || endpoint?.distance_to_origin <= radius;
+       inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
        
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
@@ -1062,7 +1071,9 @@ Speed and accuracy testing for different sorts
      
     // TO-DO: which of these tests is faster? 
     // is this endpoint within the closest_wall? (Limited radius will do this)
-    if(has_radius && closest_wall.toRay().contains(endpoint)) {
+    if((has_radius || 
+        (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
+        closest_wall.toRay().contains(endpoint)) {
       collisions.push({x: endpoint.x, y: endpoint.y});
     
     } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
