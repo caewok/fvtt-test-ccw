@@ -3,12 +3,12 @@ w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
 t = canvas.tokens.controlled[0];
-await window.testccw.benchmark(1000, t.center)
+await window.testccw.benchmark(10000, t.center)
 
 // benchmark light
 // lights appear to be hardcoding to density 60. See Light Source Initialization      
 l = [...canvas.lighting.sources][0];
-await window.testccw.benchmark(1000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+await window.testccw.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
 
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
@@ -367,22 +367,22 @@ const COLORS = {
 
 
 // Token version
-/*
+
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true});
 Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
-*/
+
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
 
 
 //Lights version
-
+/*
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
-
+*/
 
 
 
@@ -599,14 +599,20 @@ orient2d = window.testccw.orient2d;
 MODULE_ID = "testccw"
 PotentialWallList = window.testccw.PotentialWallList;
 PotentialWallListBinary = window.testccw.PotentialWallListBinary;
+window.testccw.use_ccw = true; // for _padRays, initializeEndpoints test
 
 
+performance.clearMarks();
+performance.clearMeasures();
 
-
+performance.mark("_initializeEndpoints start")
 Poly._initializeEndpoints(type)
+performance.mark("_initializeEndpoints end")
 canvas.controls.debug.clear();
-window.testccw.use_ccw = true; // for _padRays
 
+
+
+performance.mark("_sweepEndpoints start");
   // Configure inputs
 origin = Poly.origin;
 let {maxR, isLimited, aMin, aMax} = Poly.config;
@@ -623,7 +629,9 @@ closest_wall = undefined;
 
 
 // walls should to be an iterable set 
-walls = new Map(Object.entries(Poly.walls));
+//performance.mark("create walls map start");
+//walls = new Map(Object.entries(Poly.walls));
+//performance.mark("create walls map end");
 
 /*
 canvas.controls.debug.clear();
@@ -646,19 +654,23 @@ endpoint.walls.forEach(w => drawRay(w));
 */
 
   if(has_radius) {
+    performance.mark("has radius filter start");
     // if limited radius, then segments may start outside and enter the vision area.
     // need to mark that intersection 
     // if endpoint is outside the circle, and has no walls that intersect the circle, drop
     // determine which walls intersect the circle
-    walls.forEach(w => {
+    
+    performance.mark("radius walls forEach")
+    Poly.walls.forEach(w => {
       // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
-         return w.wall.toRay().contains(p);
+         return w.wall.contains(p);
       });
     
     });
     
+    performance.mark("radius endpoints forEach")
     // track outside the forEach loop to avoid removing new additions
     const endpoints_to_add = [];
     const endpoints_to_delete = [];
@@ -685,7 +697,9 @@ endpoint.walls.forEach(w => drawRay(w));
       }
     });
     
+    
     // 2. drop endpoint if set is empty
+    performance.mark("radius endpoints drop forEach")
     Poly.endpoints.forEach(e => {
       if(e.walls.size === 0 && e.distance_to_origin > radius) {
         k = WallEndpoint.getKey(e.x, e.y);
@@ -693,15 +707,20 @@ endpoint.walls.forEach(w => drawRay(w));
       }
     });
     
+    performance.mark("radius endpoints drop forEach")
     endpoints_to_delete.forEach(k => Poly.endpoints.delete(k));
+    
+    performance.mark("radius walls add forEach")
     endpoints_to_add.forEach(pt => {
       k = WallEndpoint.getKey(pt.x, pt.y);
       Poly.endpoints.set(k, pt);
     });
         
+    performance.mark("has radius filter end");    
   } else {
     // add 4-corners endpoints if not limited radius
     // used to draw polygon from the edges of the canvas (including padding).
+    performance.mark("4-corners start");
     pts = [{ x: 0, y: 0 }, 
            { x: 0, y: canvas.dimensions.height },
            { x: canvas.dimensions.width, y: 0 },
@@ -710,7 +729,8 @@ endpoint.walls.forEach(w => drawRay(w));
     pts.forEach(pt => {
       k = WallEndpoint.getKey(pt.x, pt.y);
       Poly.endpoints.set(k, new WallEndpoint(pt.x, pt.y)); // don't need SweepPoint b/c 4 corners should be integers
-    });    
+    });   
+    performance.mark("4-corners end"); 
   }
     
     
@@ -722,7 +742,7 @@ endpoint.walls.forEach(w => drawRay(w));
 
  
 
-  
+performance.mark("minRay intersect");  
   // Begin with a ray at the lowest angle to establish initial conditions
   // Can avoid using FromAngle if aMin is -π, which means it goes due west
   minRay = aMin === -Math.PI ? constructRay(origin, {x: origin.x - 100, y: origin.y}, radius) :
@@ -731,7 +751,7 @@ endpoint.walls.forEach(w => drawRay(w));
    //drawRay(minRay, COLORS.blue)
   //drawRay(maxRay, COLORS.blue)
   
-minRay_intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
+minRay_intersecting_walls = [...Poly.walls.values()].filter(w => minRay.intersects(w.wall));
 
 if(minRay_intersecting_walls.length > 0) {
   // these walls are actually walls[0].wall
@@ -744,7 +764,7 @@ if(minRay_intersecting_walls.length > 0) {
   
   // if the angle is limited, trim the endpoints and add endpoints for starting/ending ray 
   if(isLimited) {
-  
+    performance.mark("limited filter");
     // Trim the endpoints -----
     //drawRay(maxRay)
     if(Math.abs(aMax - aMin) > Math.PI) {
@@ -781,11 +801,13 @@ if(minRay_intersecting_walls.length > 0) {
   // For limited angle, sort from the minRay instead of from due west
   // sorting from due west is a bit faster 
   // TO-DO: is minRay.B an acceptable target? What happens if another endpoint equals minRay.B?
+  performance.mark("endpoints sort start");
   endpoints = isLimited ? sortEndpointsCWFrom(origin, [...Poly.endpoints.values()], minRay.B) : sortEndpointsCW(origin, [...Poly.endpoints.values()]);
 
    
    
   if(isLimited) {
+    performance.mark("limited angle add minRay endpoint");
     // for limited angle, add starting and ending endpoints after the sort, to ensure they are in correct position
     // Add endpoint for the minRay -----
     minRay_intersection = undefined;
@@ -806,7 +828,9 @@ if(minRay_intersecting_walls.length > 0) {
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
-    maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
+    performance.mark("limited angle add maxRay endpoint");
+    
+    maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
    maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
    maxRay_closest_wall = undefined;
   
@@ -928,11 +952,19 @@ Speed and accuracy testing for different sorts
   has_endpoints = endpoints.length > 0;
   
   // safety for debugging
-  MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
-  iter = 0; // MAX_ITER = 7
-  while(endpoints.length > 0 && iter < MAX_ITER) {
-    iter += 1;
-    endpoint = endpoints.pop()
+  //MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
+  //iter = 0; // MAX_ITER = 7
+  
+  performance.mark("sweep start");
+  
+  const ln = endpoints.length;
+  for(let i = (ln - 1); i > 0; i -= 1) {
+  //while(endpoints.length > 0 && iter < MAX_ITER) {
+    //performance.mark(`sweep ${iter}`);
+    //iter += 1;
+    //endpoint = endpoints.pop()
+    endpoint = endpoints[i];
+    performance.mark(`sweep ${i}`);
   
   // canvas.controls.debug.clear();
   // drawEndpoint(endpoint)
@@ -954,6 +986,7 @@ Speed and accuracy testing for different sorts
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
+      performance.mark(`${i} sweep padding`);
       if(collisions.length < 1) console.warn(`testccw|Sweep: zero collisions`);
       needs_padding = false;
       
@@ -984,10 +1017,12 @@ Speed and accuracy testing for different sorts
       
     } 
   
+    performance.mark(`${i} add walls`);
     potential_walls.addFromEndpoint(endpoint);
      
     // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
     if(!closest_wall) {
+      performance.mark(`${i} not closest wall`);
       // see where the vision point to the new endpoint intersects the canvas edge
       ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
@@ -1011,6 +1046,7 @@ Speed and accuracy testing for different sorts
     // is this endpoint at the end of the closest_wall?
     
     if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)){
+       performance.mark(`${i} pointsAlmostEqual`);
        // find the next-closet wall b/c we are at the end of the current one
        closest_wall = potential_walls.closest();
        // drawRay(closest_wall)
@@ -1076,17 +1112,12 @@ Speed and accuracy testing for different sorts
     // is this endpoint within the closest_wall? (Limited radius will do this)
     if((has_radius || 
         (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
-        closest_wall.toRay().contains(endpoint)) {
+        closest_wall.contains(endpoint)) {
+      performance.mark(`${i} radius add collision`);  
       collisions.push({x: endpoint.x, y: endpoint.y});
     
-    } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
-      // endpoint walls CW from origin --> endpoint should be added to list
-      // if in line with origin? add? 
-     
-       
-       //continue;
-      
-    } else {
+    } else if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+      performance.mark(`${i} default`);
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
       
@@ -1113,11 +1144,13 @@ Speed and accuracy testing for different sorts
       
             
        //continue; 
-    }
+    } 
+    // if closest_wall.inFrontOfPoint(endpoint, origin) then 
+    // already added the closest wall; nothing else to do. 
     
  
   }
-  
+  performance.mark("sweep end");
  
 
 
@@ -1126,6 +1159,7 @@ Speed and accuracy testing for different sorts
 // deal with unique case where there are no endpoints
 // (no blocking walls for radius vision)
 if(has_radius && (needs_padding || !has_endpoints)) {
+  performance.mark("end padding");
   collisions_ln = collisions.length;
   
   p_last = collisions[collisions_ln - 1];
@@ -1166,6 +1200,8 @@ if(has_radius && (needs_padding || !has_endpoints)) {
     
 Poly.collisions = collisions;
   
+performance.mark("_sweepEndpoints end")
+
 
 // draw collisions
 
@@ -1198,5 +1234,28 @@ collisions.forEach(c => drawEndpoint(c));
 p = new PIXI.Polygon(points);
 canvas.controls.debug.lineStyle(1, COLORS.red).drawShape(p);
 
+// report on marks
+/*
+marks = performance.getEntriesByType('mark');
+for(i = 1; i < marks.length; i++) {
+  t = (marks[i].startTime - marks[i - 1].startTime) / 1000;
+  console.log(`${marks[i].name}: \t\t${t.toPrecision(2)} secs`);
+}
+*/
+
+// totals
+
+mark_initialize_start = performance.getEntriesByName("_initializeEndpoints start")[0].startTime;
+mark_initialize_end = performance.getEntriesByName("_initializeEndpoints end")[0].startTime;
+mark_sweep_start = performance.getEntriesByName("_sweepEndpoints start")[0].startTime;
+mark_sweep_sort_start = performance.getEntriesByName("endpoints sort start")[0].startTime;
+mark_sweep_loop_start = performance.getEntriesByName("endpoints sort start")[0].startTime;
+mark_sweep_loop_end = performance.getEntriesByName("sweep end")[0].startTime;
+mark_sweep_end = performance.getEntriesByName("_sweepEndpoints end")[0].startTime;
 
 
+console.log(`Initialize:\t\t${((mark_initialize_end - mark_initialize_start) / 1000).toPrecision(2)}`);
+console.log(`Sweep prep:\t\t${((mark_sweep_sort_start - mark_sweep_start) / 1000).toPrecision(2)}`);
+console.log(`Sweep sort:\t\t${((mark_sweep_loop_start - mark_sweep_sort_start) / 1000).toPrecision(2)}`);
+console.log(`Sweep loop:\t\t${((mark_sweep_loop_end - mark_sweep_loop_start) / 1000).toPrecision(2)}`);
+console.log(`Sweep total:\t${((mark_sweep_end - mark_sweep_start) / 1000).toPrecision(2)}`);

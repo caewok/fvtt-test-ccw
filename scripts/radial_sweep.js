@@ -175,7 +175,6 @@ export function testCCWSweepEndpoints(wrapped) {
     log(`${this.endpoints.size} endpoints; ${this.rays.length} rays`, this.endpoints, this.rays);
     //return wrapped();
     return; 
-
   }
       
   // Configure inputs
@@ -192,20 +191,19 @@ export function testCCWSweepEndpoints(wrapped) {
   let needs_padding = false;
   let closest_wall = undefined;
 
-  // walls should be an iterable set 
-  const walls = new Map(Object.entries(this.walls));
+
   log(`${this.endpoints.size} endpoints at start.`);
-  log(`${walls.size} walls at start.`);
-  log(`Wall keys: ${[...walls.keys()]}`);
+  log(`${this.walls.size} walls at start.`);
+  log(`Wall keys: ${[...this.walls.keys()]}`);
   log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
 
   if(has_radius) {
     // determine which walls intersect the circle
-    walls.forEach(w => {
+    this.walls.forEach(w => {
       // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
-         return w.wall.toRay().contains(p);
+         return w.wall.contains(p);
       });
     });
     
@@ -291,7 +289,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // Start by checking if the initial ray intersects any segments.
   // If yes, then get the closest segment 
   // If no, the starting endpoint is the first in the sort list
-  let minRay_intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
+  let minRay_intersecting_walls = [...this.walls.values()].filter(w => minRay.intersects(w.wall));
   if(minRay_intersecting_walls.length > 0) {
     // these walls are actually walls[0].wall
     minRay_intersecting_walls = minRay_intersecting_walls.map(w => w.wall);
@@ -351,7 +349,7 @@ export function testCCWSweepEndpoints(wrapped) {
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
-    let maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
+    let maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
     const maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
     let maxRay_closest_wall = undefined;
   
@@ -377,8 +375,8 @@ export function testCCWSweepEndpoints(wrapped) {
   }
   
   log(`${this.endpoints.size} endpoints before sort.`);
-  log(`${walls.size} walls before sort.`);
-  log(`Wall keys: ${[...walls.keys()]}`);
+  log(`${this.walls.size} walls before sort.`);
+  log(`Wall keys: ${[...this.walls.keys()]}`);
   log(`Endpoint keys: ${[...this.endpoints.keys()]}`);
  
   log(`Sweep: ${endpoints.length} endpoints; ${collisions.length} collisions before for loop`, endpoints, collisions);
@@ -390,15 +388,10 @@ export function testCCWSweepEndpoints(wrapped) {
   // flag if there are no endpoints
   // needed for padding with radius
   const has_endpoints = endpoints.length > 0;
-  
-  // safety for debugging
-  const MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
-  let iter = 0; 
-  
-  while(endpoints.length > 0 && iter < MAX_ITER) {
-    iter += 1;
-    const endpoint = endpoints.pop()
-   
+  const ln = endpoints.length;
+  for(let i = (ln - 1); i > 0; i -= 1) {
+    const endpoint = endpoints[i];   
+
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
@@ -500,11 +493,11 @@ export function testCCWSweepEndpoints(wrapped) {
     // is this endpoint within the closest_wall? (Limited radius will do this)
     if((has_radius || 
         (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
-        closest_wall.toRay().contains(endpoint)) {
+        closest_wall.contains(endpoint)) {
       collisions.push({x: endpoint.x, y: endpoint.y});
       // continue;
       
-    } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
+    } else if(closest_wall.inFrontOfPoint(endpoint, origin)) { 
       //continue;
       
     } else {
@@ -696,7 +689,7 @@ function closestWall(walls, origin) {
   if(walls.length === 0) return undefined;
   if(walls.length === 1) return walls[0];
   return walls.reduce((closest, w) => {
-      if(w.toRay().inFrontOfPoint(closest.toRay(), origin)) return w;
+      if(w.inFrontOfPoint(closest, origin)) return w;
       return closest;
     });
 }
@@ -779,7 +772,7 @@ function addToPotentialList(walls, potentially_blocking_walls, origin) {
   return new Map([...potentially_blocking_walls.entries()].sort((a, b) => {
     // greater than 0: sort b before a (a is in front of b)
     // less than 0: sort a before b (b is in front of a)
-    return a[1].toRay().inFrontOfSegment(b[1].toRay(), origin) ? 1 : -1;
+    return a[1].inFrontOfSegment(b[1], origin) ? 1 : -1;
   }));    
 }
 
@@ -941,16 +934,16 @@ function bezierPadding(r0, r1, padding, pts = []) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x <= start_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x <= start_scaled.x) { add_pt = false; }
+            //break;
           case Q2:
             // x goes from 0 to 1
             if(pt.x <= start_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x >= start_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x >= start_scaled.x) { add_pt = false; }
+            //break;
           case Q4:
             // x goes from 0 to -1
             if(pt.x >= start_scaled.x) { add_pt = false; }
@@ -962,16 +955,16 @@ function bezierPadding(r0, r1, padding, pts = []) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x >= end_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x >= end_scaled.x) { add_pt = false; }
+            //break;
           case Q2:
             // x goes from 0 to 1
             if(pt.x >= end_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x <= end_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x <= end_scaled.x) { add_pt = false; }
+            //break;
           case Q4:
             // x goes from 0 to -1
             if(pt.x <= end_scaled.x) { add_pt = false; }
