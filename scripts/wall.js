@@ -59,8 +59,8 @@ export function wallCCW(origin) {
 export function wallWhichSide(origin) {
   const orientation = this.ccw(origin);
   
-  return orientation < 0 ? CONST.WALL_DIRECTIONS.LEFT : 
-         orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : CONST.WALL_DIRECTIONS.BOTH;
+  return orientation > 0 ? CONST.WALL_DIRECTIONS.LEFT : 
+         orientation < 0 ? CONST.WALL_DIRECTIONS.RIGHT : CONST.WALL_DIRECTIONS.BOTH;
 }
 
 /*
