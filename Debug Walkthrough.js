@@ -629,9 +629,9 @@ closest_wall = undefined;
 
 
 // walls should to be an iterable set 
-performance.mark("create walls map start");
-walls = new Map(Object.entries(Poly.walls));
-performance.mark("create walls map end");
+//performance.mark("create walls map start");
+//walls = new Map(Object.entries(Poly.walls));
+//performance.mark("create walls map end");
 
 /*
 canvas.controls.debug.clear();
@@ -661,11 +661,11 @@ endpoint.walls.forEach(w => drawRay(w));
     // determine which walls intersect the circle
     
     performance.mark("radius walls forEach")
-    walls.forEach(w => {
+    Poly.walls.forEach(w => {
       // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
       w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
-         return w.wall.toRay().contains(p);
+         return w.wall.contains(p);
       });
     
     });
@@ -751,7 +751,7 @@ performance.mark("minRay intersect");
    //drawRay(minRay, COLORS.blue)
   //drawRay(maxRay, COLORS.blue)
   
-minRay_intersecting_walls = [...walls.values()].filter(w => minRay.intersects(w.wall.toRay()));
+minRay_intersecting_walls = [...Poly.walls.values()].filter(w => minRay.intersects(w.wall));
 
 if(minRay_intersecting_walls.length > 0) {
   // these walls are actually walls[0].wall
@@ -830,7 +830,7 @@ if(minRay_intersecting_walls.length > 0) {
     // Add as endpoint so algorithm can handle the details
     performance.mark("limited angle add maxRay endpoint");
     
-    maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall.toRay()));
+    maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
    maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
    maxRay_closest_wall = undefined;
   
@@ -952,15 +952,19 @@ Speed and accuracy testing for different sorts
   has_endpoints = endpoints.length > 0;
   
   // safety for debugging
-  MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
-  iter = 0; // MAX_ITER = 7
+  //MAX_ITER = endpoints.length * 2; // every time we hit an endpoint, could in theory pad and create another. So doubling number of endpoints should be a safe upper-bound.
+  //iter = 0; // MAX_ITER = 7
   
   performance.mark("sweep start");
   
-  while(endpoints.length > 0 && iter < MAX_ITER) {
-    performance.mark(`sweep ${iter}`);
-    iter += 1;
-    endpoint = endpoints.pop()
+  const ln = endpoints.length;
+  for(let i = (ln - 1); i > 0; i -= 1) {
+  //while(endpoints.length > 0 && iter < MAX_ITER) {
+    //performance.mark(`sweep ${iter}`);
+    //iter += 1;
+    //endpoint = endpoints.pop()
+    endpoint = endpoints[i];
+    performance.mark(`sweep ${i}`);
   
   // canvas.controls.debug.clear();
   // drawEndpoint(endpoint)
@@ -982,7 +986,7 @@ Speed and accuracy testing for different sorts
     // if no walls between the last endpoint and this endpoint and 
     // dealing with limited radius, need to pad by drawing an arc 
     if(has_radius && needs_padding) {
-      performance.mark(`${iter} sweep padding`);
+      performance.mark(`${i} sweep padding`);
       if(collisions.length < 1) console.warn(`testccw|Sweep: zero collisions`);
       needs_padding = false;
       
@@ -1013,12 +1017,12 @@ Speed and accuracy testing for different sorts
       
     } 
   
-    performance.mark(`${iter} add walls`);
+    performance.mark(`${i} add walls`);
     potential_walls.addFromEndpoint(endpoint);
      
     // If at the beginning or at a corner of the canvas, add this endpoint and go to next.
     if(!closest_wall) {
-      performance.mark(`${iter} not closest wall`);
+      performance.mark(`${i} not closest wall`);
       // see where the vision point to the new endpoint intersects the canvas edge
       ray = constructRay(origin, endpoint, radius);
       //drawRay(ray, COLORS.blue)
@@ -1042,7 +1046,7 @@ Speed and accuracy testing for different sorts
     // is this endpoint at the end of the closest_wall?
     
     if(pointsAlmostEqual(endpoint, closest_wall.A) || pointsAlmostEqual(endpoint, closest_wall.B)){
-       performance.mark(`${iter} pointsAlmostEqual`);
+       performance.mark(`${i} pointsAlmostEqual`);
        // find the next-closet wall b/c we are at the end of the current one
        closest_wall = potential_walls.closest();
        // drawRay(closest_wall)
@@ -1108,19 +1112,12 @@ Speed and accuracy testing for different sorts
     // is this endpoint within the closest_wall? (Limited radius will do this)
     if((has_radius || 
         (isLimited && (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)))) && 
-        closest_wall.toRay().contains(endpoint)) {
-      performance.mark(`${iter} radius add collision`);  
+        closest_wall.contains(endpoint)) {
+      performance.mark(`${i} radius add collision`);  
       collisions.push({x: endpoint.x, y: endpoint.y});
     
-    } else if(closest_wall.toRay().inFrontOfPoint(endpoint, origin)) { 
-      // endpoint walls CW from origin --> endpoint should be added to list
-      // if in line with origin? add? 
-     
-       
-       //continue;
-      
-    } else {
-      performance.mark(`${iter} default`);
+    } else if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+      performance.mark(`${i} default`);
       // endpoint is in front. Make this the closest. 
       // add current closest and all the endpoint walls to potential list; get the new closest
       
@@ -1147,7 +1144,9 @@ Speed and accuracy testing for different sorts
       
             
        //continue; 
-    }
+    } 
+    // if closest_wall.inFrontOfPoint(endpoint, origin) then 
+    // already added the closest wall; nothing else to do. 
     
  
   }
@@ -1236,14 +1235,16 @@ p = new PIXI.Polygon(points);
 canvas.controls.debug.lineStyle(1, COLORS.red).drawShape(p);
 
 // report on marks
+/*
 marks = performance.getEntriesByType('mark');
 for(i = 1; i < marks.length; i++) {
   t = (marks[i].startTime - marks[i - 1].startTime) / 1000;
   console.log(`${marks[i].name}: \t\t${t.toPrecision(2)} secs`);
 }
+*/
 
 // totals
-/*
+
 mark_initialize_start = performance.getEntriesByName("_initializeEndpoints start")[0].startTime;
 mark_initialize_end = performance.getEntriesByName("_initializeEndpoints end")[0].startTime;
 mark_sweep_start = performance.getEntriesByName("_sweepEndpoints start")[0].startTime;
@@ -1251,7 +1252,7 @@ mark_sweep_sort_start = performance.getEntriesByName("endpoints sort start")[0].
 mark_sweep_loop_start = performance.getEntriesByName("endpoints sort start")[0].startTime;
 mark_sweep_loop_end = performance.getEntriesByName("sweep end")[0].startTime;
 mark_sweep_end = performance.getEntriesByName("_sweepEndpoints end")[0].startTime;
-*/
+
 
 console.log(`Initialize:\t\t${((mark_initialize_end - mark_initialize_start) / 1000).toPrecision(2)}`);
 console.log(`Sweep prep:\t\t${((mark_sweep_sort_start - mark_sweep_start) / 1000).toPrecision(2)}`);
