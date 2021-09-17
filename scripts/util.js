@@ -3,7 +3,7 @@ import { orient2d } from "./lib/orient2d.min.js";
 
  /*
   * Test if two numbers are almost equal, given a small error window.
-  * From https://www.toptal.com/python/computational-geometry-in-python-from-theory-to-implementation
+  * See https://www.toptal.com/python/computational-geometry-in-python-from-theory-to-implementation
   * @param {Number} x         First number
   * @param {Number} y         Second number for comparison
   * @param {Number} EPSILON   Small number representing error within which the numbers 
@@ -45,10 +45,18 @@ export function calculateDistance(A, B, EPSILON = 1e-8) {
 
 // Positive if CCW, Negative if CW, 0 if in line
 export function orient2dPoints(p1, p2, p3) {
+  if(window[MODULE_ID].use_fast_ccw) { return orient2dFast(p1, p2, p3) }
+
   return orient2d(p1.x, p1.y,
                   p2.x, p2.y,
                   p3.x, p3.y);
 }
+
+function orient2dFast(A, B, C) {
+  return (B.x - A.x) * (C.y - A.y) > (B.y - A.y) * (C.x - A.x);
+}
+
+
 
 // 1 if CCW, -1 if CW, 0 if in line
 export function ccwPoints(p1, p2, p3) {

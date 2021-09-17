@@ -35,6 +35,7 @@ Hooks.once('init', async function() {
                         debug: false,
                         use_bst: true,
                         use_bezier: false,
+                        use_fast_ccw: false,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d,
                         PotentialWallList: PotentialWallList,

@@ -1,7 +1,6 @@
 'use strict';
 
 import { MODULE_ID, log } from "./module.js";
-import { orient2d } from "./lib/orient2d.min.js";
 import { pointsAlmostEqual, ccwPoints, orient2dPoints, calculateDistance } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
