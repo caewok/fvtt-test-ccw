@@ -1,4 +1,6 @@
-// Binary search Tree version of PotentialWallList
+// Binary search Tree
+// Used by PotentialWallList to store walls in order.
+
 /*
 Binary search adapted from: 
 https://levelup.gitconnected.com/deletion-in-binary-search-tree-with-javascript-fded82e1791c
@@ -32,6 +34,12 @@ bst.inorder()
 
 */
 
+/**
+ * Class to represent a single node/leaf of the tree
+ * @property {Object}     data  Any data object to be stored in the tree
+ * @property {Node|null}  left  Pointer to left child node
+ * @property {Node|null}  right Pointer to right child node     
+ */
 class Node {
   constructor(data){
     this.data = data;
@@ -40,21 +48,30 @@ class Node {
   }
 }
 
+/**
+ * Binary search tree.
+ * Each Node can branch in zero, one or two directions.
+ * @property {Node|null}  root  Base node of the tree. Null if tree is empty
+ */
 export class BinarySearchTree {
   constructor() {
     this.root = null;
   }
   
-  // ------ Basic compare, insert & remove functions -----
+  /* -------------------------------------------- */
+  /*  Methods                                     */
+  /* -------------------------------------------- */
   
-  /*
+  // ------ Basic compare, insert & remove methods -----
+  
+  /**
    * Compare data in two nodes
    * Left (a is lower value) is < 0
    * Right (a is higher value) is > 0
    * Equality is 0
    * @param {Object} a  Node data object
    * @param {Object} b  Node data object
-   * @return {Number} 
+   * @return {-1|0|1} 
    */
   compare(a, b) {
     return (a === b) ? 0 : 
@@ -62,7 +79,7 @@ export class BinarySearchTree {
   }
   
   /*
-   * User-facing helper method
+   * User-facing helper method to add data to the tree.
    * @param {Object} data   Node data to insert
    */
   insert(data) {
@@ -108,7 +125,7 @@ export class BinarySearchTree {
   }
   
   /*
-   * User-facing helper method
+   * User-facing helper method to remove something from the tree.
    * @param {Object} data   Node data to remove
    */
   remove(data) {
@@ -168,7 +185,7 @@ export class BinarySearchTree {
   
   // ------ Helper functions -----
     
-  /*
+  /**
    * Start at given subtree and traverse the tree
    * @param {Node} node   Node from which to traverse. Default root.
    * @return [{Object}]   Array of data in order
@@ -187,7 +204,7 @@ export class BinarySearchTree {
   // preorder(node)
   // postorder(node)
   
-  /*
+  /**
    * Get the minimum node of the tree, from a starting node
    * @param {Node} node   Staring node for the search. Search whole tree if omitted.
    */
@@ -200,7 +217,7 @@ export class BinarySearchTree {
     }
   }
   
-  /*
+  /**
    * Get the maximum node of the tree, from a starting node
    * @param {Node} node   Starting node for the search. Search whole tree if omitted.
    */
@@ -213,7 +230,7 @@ export class BinarySearchTree {
     }
   }
   
-  /*
+  /**
    * Get and remove the minimum node of the tree, from a starting node.
    * @return {Object} Data from the removed node.
    */
@@ -223,7 +240,7 @@ export class BinarySearchTree {
     return res.data;
   }
   
-  /*
+  /**
    * Get and remove the minimum node of the tree, from a starting node.
    * @param {Node} node   Starting node for the search. Search whole tree if omitted.
    * @return {node: {Node}, data: {Object}} Revised node tree and 
@@ -245,7 +262,7 @@ export class BinarySearchTree {
     }
   }
   
-  /*
+  /**
    * Get and remove the maximum node of the tree, from a starting node.
    * @return {Object} Data from the removed node.
    */
@@ -255,7 +272,7 @@ export class BinarySearchTree {
     return res.data;
   }
   
-  /*
+  /**
    * Get and remove the maximum node of the tree, from a starting node.
    * @param {Node} node   Starting node for the search. Search whole tree if omitted.
    * @return {node: {Node}, data: {Object}} Revised node tree and 

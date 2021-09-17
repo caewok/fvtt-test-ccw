@@ -3,7 +3,6 @@
 import { MODULE_ID, log } from "./module.js";
 import { pointsAlmostEqual, ccwPoints, orient2dPoints, calculateDistance } from "./util.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
-import { PotentialWallListBinary } from "./class_PotentialWallListBinary.js";
 
 /*
 RadialSweep class mostly works through the compute method. 
@@ -186,7 +185,7 @@ export function testCCWSweepEndpoints(wrapped) {
   const padding = Math.PI / Math.max(this.config.density, 6);
   const has_radius = this.config.hasRadius;
   
-  const potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+  const potential_walls = new PotentialWallList(origin);
   
   let needs_padding = false;
   let closest_wall = undefined;
@@ -350,7 +349,7 @@ export function testCCWSweepEndpoints(wrapped) {
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
     let maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
-    const maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+    const maxRay_potential_walls = new PotentialWallList(origin);
     let maxRay_closest_wall = undefined;
   
     if(maxRay_intersecting_walls.length > 0) {

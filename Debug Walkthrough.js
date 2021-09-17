@@ -598,7 +598,6 @@ if ( debug ) {
 orient2d = window.testccw.orient2d;
 MODULE_ID = "testccw"
 PotentialWallList = window.testccw.PotentialWallList;
-PotentialWallListBinary = window.testccw.PotentialWallListBinary;
 window.testccw.use_ccw = true; // for _padRays, initializeEndpoints test
 
 
@@ -622,7 +621,7 @@ collisions = [];  // array to store collisions in lieu of rays
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
 
-potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+potential_walls = new PotentialWallList(origin);
 
 needs_padding = false;
 closest_wall = undefined;
@@ -831,7 +830,7 @@ if(minRay_intersecting_walls.length > 0) {
     performance.mark("limited angle add maxRay endpoint");
     
     maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
-   maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+   maxRay_potential_walls = new PotentialWallList(origin);
    maxRay_closest_wall = undefined;
   
   if(maxRay_intersecting_walls.length > 0) {

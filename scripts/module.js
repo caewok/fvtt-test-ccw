@@ -33,13 +33,11 @@ Hooks.once('init', async function() {
 
   window[MODULE_ID] = { use_ccw: false,
                         debug: false,
-                        use_bst: true,
                         use_bezier: false,
                         use_fast_ccw: false,
                         benchmark: testCCWBenchmarkSight,
                         orient2d: orient2d,
-                        PotentialWallList: PotentialWallList,
-                        PotentialWallListBinary: PotentialWallListBinary }
+                        PotentialWallList: PotentialWallList }
 });
 
 // modules ready
