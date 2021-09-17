@@ -411,9 +411,12 @@ export function testCCWSweepEndpoints(wrapped) {
       
       // the endpoint is now the end of the ray, which may or may not be in front of the 
       // next endpoint
-      endpoints.push(endpoint);
+      //endpoints.push(endpoint);
       
-      continue;
+      //continue;
+      // don't need continue if not pushing the endpoint. 
+      // has_radius set to false here, so if pushed, the next endpoint would be this one
+      // and we would be right back where we started.
     } 
     
     potential_walls.addFromEndpoint(endpoint);
@@ -451,7 +454,7 @@ export function testCCWSweepEndpoints(wrapped) {
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       const inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
+       const inside_radius = !has_radius || Boolean(endpoint?.distance_to_origin <= radius);
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
        const ray = constructRay(origin, endpoint, radius);
@@ -511,10 +514,18 @@ export function testCCWSweepEndpoints(wrapped) {
       if(ray.intersects(closest_wall)) {
         const intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
         collisions.push({ x: intersection.x, y: intersection.y });
+      } else if(has_radius && Boolean(endpoint?.distance_to_origin > radius)) {
+        // (endpoint > radius test may not be necessary; should always be true if has_radius)
+        // ray did not reach the wall
+        // add the end of the ray point instead
+        collisions.push({x: ray.B.x, y: ray.B.y});
+        needs_padding = true;
+      
+      } else {
+        collisions.push({x: endpoint.x, y: endpoint.y});
       }
       
-      closest_wall = potential_walls.closest();
-      collisions.push({x: endpoint.x, y: endpoint.y});      
+      closest_wall = potential_walls.closest();      
       //continue; 
     }
     

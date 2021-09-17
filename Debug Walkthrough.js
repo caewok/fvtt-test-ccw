@@ -367,23 +367,23 @@ const COLORS = {
 
 
 // Token version
-
+/*
 t = canvas.tokens.controlled[0];
 Poly = new RadialSweepPolygon(t.center, {debug: true});
 Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.data.rotation});
-
+*/
 
 // calc_radius =  canvas.scene.data.globalLight ? undefined : 
 //                t.data.dimSight * canvas.scene.data.grid;
 
 
 //Lights version
-/*
+
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
 
-*/
+
 
 
 
@@ -967,18 +967,20 @@ Speed and accuracy testing for different sorts
       // drawRay(ray, COLORS.blue)
             
       // TO-DO: Override _padRays to return a simple array of points to concat
-      pts = Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
+      Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically
       //collisions.push(...pts);
-      
+            
       // the endpoint is now the end of the ray, which may or may not be in front of the 
       // next endpoint
-      endpoints.push(endpoint);
+      //endpoints.push(endpoint);
       
       
       //canvas.controls.debug.clear();
       //collisions.forEach(c => drawEndpoint(c));
       
-      continue;
+      //continue; // don't need continue if not pushing the endpoint. 
+      // has_radius set to false here, so if pushed, the next endpoint would be this one
+      // and we would be right back where we started.
       
     } 
   
@@ -1014,7 +1016,7 @@ Speed and accuracy testing for different sorts
        // drawRay(closest_wall)
        
        // then add the endpoint unless it is out of radius
-       inside_radius = !has_radius || endpoint?.distance_to_origin <= radius;
+       inside_radius = !has_radius || Boolean(endpoint?.distance_to_origin <= radius);
        
        if(inside_radius) { collisions.push({x: endpoint.x, y: endpoint.y}); }
        
@@ -1096,10 +1098,19 @@ Speed and accuracy testing for different sorts
       if(ray.intersects(closest_wall)) {
         intersection = ray.intersectSegment([closest_wall.A.x, closest_wall.A.y, closest_wall.B.x, closest_wall.B.y]);
         collisions.push({ x: intersection.x, y: intersection.y });
+      } else if(has_radius && Boolean(endpoint?.distance_to_origin > radius)) {
+        // (endpoint > radius test may not be necessary; should always be true if has_radius)
+        // ray did not reach the wall
+        // add the end of the ray point instead
+        collisions.push({x: ray.B.x, y: ray.B.y});
+        needs_padding = true;
+      
+      } else {
+        collisions.push({x: endpoint.x, y: endpoint.y});
       }
       
       closest_wall = potential_walls.closest();
-      collisions.push({x: endpoint.x, y: endpoint.y});
+      
             
        //continue; 
     }
