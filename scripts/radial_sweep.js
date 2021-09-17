@@ -857,21 +857,21 @@ function bezierCircleForQuadrant(t, quadrant) {
   
   // recall that y is reversed: -y is at the top, +y is at the bottom
   // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
- 
+  let pt;
   switch(quadrant) {
     case Q1:
-      const pt = bezierCircle(1 - t);
+      pt = bezierCircle(1 - t);
       pt.x = -pt.x;
       pt.y = -pt.y;
       return pt;
     case Q2:
-      const pt = bezierCircle(t);
+      pt = bezierCircle(t);
       pt.y = -pt.y;
       return pt;
     case Q3:
       return bezierCircle(1 - t);
     case Q4: 
-      const pt = bezierCircle(t)
+      pt = bezierCircle(t)
       pt.x = -pt.x;
       return pt;
   } 
@@ -909,13 +909,13 @@ function bezierPadding(r0, r1, padding, pts = []) {
   const start_quadrant = getQuadrant(start_scaled);
   const end_quadrant = getQuadrant(end_scaled);
   
-  const numQuadrantPoints = Math.floor(Math.pi / (2 * padding)); 
+  const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
   
   let quadrant = start_quadrant;
   while(quadrant != end_quadrant) {
     for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
       const pt = bezierCircleForQuadrant(t, quadrant);
-      const add_pt = false
+      let add_pt = false
       
       // compare to start and end. if within, then keep
       if(quadrant === start_quadrant) {
