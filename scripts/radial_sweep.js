@@ -934,16 +934,16 @@ function bezierPadding(r0, r1, padding, pts = []) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x <= start_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x <= start_scaled.x) { add_pt = false; }
+            //break;
           case Q2:
             // x goes from 0 to 1
             if(pt.x <= start_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x >= start_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x >= start_scaled.x) { add_pt = false; }
+            //break;
           case Q4:
             // x goes from 0 to -1
             if(pt.x >= start_scaled.x) { add_pt = false; }
@@ -955,16 +955,16 @@ function bezierPadding(r0, r1, padding, pts = []) {
         switch(quadrant) {
           case Q1:
             // x goes from -1 to 0
-            if(pt.x >= end_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x >= end_scaled.x) { add_pt = false; }
+            //break;
           case Q2:
             // x goes from 0 to 1
             if(pt.x >= end_scaled.x) { add_pt = false; }
             break;
           case Q3:
             // x goes from 1 to 0
-            if(pt.x <= end_scaled.x) { add_pt = false; }
-            break;
+            //if(pt.x <= end_scaled.x) { add_pt = false; }
+            //break;
           case Q4:
             // x goes from 0 to -1
             if(pt.x <= end_scaled.x) { add_pt = false; }
