@@ -71,13 +71,11 @@ export function testCCWInitializeEndpoints(wrapped, type) {
   this.endpoints.clear();
   const norm = a => a < this.config.aMin ? a + (2*Math.PI) : a;
   // Consider all walls in the Scene
+  // candidate walls sometimes a Set (lights), sometimes an Array (token)
   const candidate_walls = this._getCandidateWalls();
-  const ln = candidate_walls.length;
-  for(let i = 0; i < ln; i += 1) {
-    const wall = candidate_walls[i];
- 
+  candidate_walls.forEach(wall => { 
     // Test whether a wall should be included in the set considered for this polygon
-    if(!this._includeWall(wall, type)) continue;
+    if(!this._includeWall(wall, type)) return;
     
     // Register both endpoints for included walls
     let [x0, y0, x1, y1] = wall.data.c;
@@ -104,7 +102,7 @@ export function testCCWInitializeEndpoints(wrapped, type) {
     // Record the wall
     //this.walls[wall.id] = {wall, a, b};
     this.walls.set(wall.id, {wall, a, b});
-  } // end for loop
+  }); // end forEach loop
 }
 
 /**
