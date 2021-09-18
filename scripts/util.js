@@ -89,7 +89,7 @@ export function orient2dPoints(p1, p2, p3) {
  * @param {x, y} p1   Point in {x, y} format.
  * @param {x, y} p2   Point in {x, y} format.
  * @param {x, y} p3   Point in {x, y} format.
- * @return {-1|0|1} 1 if CCW, -1 if CW, 0 if in line
+ * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
  */
 export function ccwPoints(p1, p2, p3) {
   const res = orient2dPoints(p1, p2, p3);
