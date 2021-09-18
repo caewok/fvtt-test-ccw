@@ -84,7 +84,7 @@ export class PotentialWallList extends BinarySearchTree {
       // if we have already seen it, it must be CCW
       // or (unlikely) it is otherwise CCW
       if(this.walls_encountered.has(w.id) || 
-           PotentialWallListBinary.endpointWallCCW(this.origin, endpoint, w) > 0) {
+           PotentialWallList.endpointWallCCW(this.origin, endpoint, w) > 0) {
          to_remove.push(w)
       } else {
         to_add.push(w);

@@ -660,6 +660,7 @@ function sortEndpointsCWFrom(origin, endpoints, reference) {
  * @param {[]} a1   Array
  * @param {[]} a2   Array
  * @return {Boolean} True if arrays are equal
+ */
 function arraysEqual(a1,a2) {
     /* WARNING: arrays must not contain {objects} or behavior may be undefined */
     return JSON.stringify(a1)==JSON.stringify(a2);
