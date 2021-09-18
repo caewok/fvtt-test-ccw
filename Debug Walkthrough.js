@@ -1,4 +1,9 @@
 // Useful commands
+game.modules.get('testccw').api.use_ccw = true
+game.modules.get('testccw').api.use_bezier = true
+game.modules.get('testccw').api.debug = true
+game.modules.get('testccw').api.use_robust_ccw = false
+
 w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
