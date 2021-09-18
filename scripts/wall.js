@@ -1,3 +1,5 @@
+'use strict';
+
 // Additions to the wall class
 import { almostEqual, orient2dPoints } from "./util.js";
 import { log } from "./module.js";

@@ -1,3 +1,5 @@
+'use strict';
+
 // Utility functions
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
 import { MODULE_ID } from "./module.js"

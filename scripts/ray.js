@@ -1,3 +1,5 @@
+'use strict';
+
 // Ray Class additions
 
 import { ccwPoints, 

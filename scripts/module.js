@@ -1,3 +1,5 @@
+'use strict';
+
 import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
