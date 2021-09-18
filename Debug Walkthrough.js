@@ -15,6 +15,9 @@ await game.modules.get(MODULE_ID).api.benchmark(10000, t.center)
 l = [...canvas.lighting.sources][0];
 await game.modules.get(MODULE_ID).api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
 
+
+MODULE_ID = "testccw"
+
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
@@ -1188,7 +1191,7 @@ if(has_radius && (needs_padding || !has_endpoints)) {
   ray = constructRay(origin, p_current, radius);
     
   // drawRay(prior_ray, COLORS.blue)
-  // drawRay(ray, COLORS.blue)
+  // drawRay(ray, COLORS.orange)
           
   // TO-DO: Override _padRays to return a simple array of points to concat
   Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically

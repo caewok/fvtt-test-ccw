@@ -1,5 +1,7 @@
 'use strict';
 
+import { round } from "./util.js";
+
 // Bezier approximation of Circle
 // Used for padding limited-radius polygons.
 // Main method: Bezier.bezierPadding
@@ -82,22 +84,17 @@ export class Bezier {
    * @param {Array} pts         Array to which to add points. Optional.
    * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
    */
-  static bezierPadding(r0, r1, padding, pts = []) {
-    console.log(`Q1: ${Q1}, Q2: ${Q2}, Q3: ${Q3}, Q4: ${Q4}`);
-  
+  static bezierPadding(r0, r1, padding, pts = []) {  
     const radius = r0.distance;
     const origin = r0.A;
-    const start = r0.B;
-    const end = r1.B;
     
-    // center and scale
-    const start_scaled = start;
-    const end_scaled = end;
-    start_scaled.x = (start_scaled.x - origin.x) / radius;
-    start_scaled.y = (start_scaled.y - origin.y) / radius;
-    end_scaled.x = (end_scaled.x - origin.x) / radius;
-    end_scaled.y = (end_scaled.y - origin.y) / radius;
-  
+    // center and scale 
+    // round to avoid errors near 1, 0, -1       
+    const start_scaled = { x: round((r0.B.x - origin.x) / radius),
+                           y: round((r0.B.y - origin.y) / radius) };
+    const end_scaled = { x: round((r1.B.x - origin.x) / radius),
+                         y: round((r1.B.y - origin.y) / radius) };
+    
     const start_quadrant = Bezier.getQuadrant(start_scaled);
     const end_quadrant = Bezier.getQuadrant(end_scaled);
   
@@ -105,13 +102,11 @@ export class Bezier {
   
     let quadrant = start_quadrant;
     let done = false
-    while(!done) {
-      console.log(`Bezier quadrant ${quadrant}`);
-      
+    while(!done) {      
       if(quadrant === end_quadrant) done = true;
   
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
-        const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
+        const pt = round(Bezier.bezierCircleForQuadrant(t, quadrant));
         let add_pt = true
       
         // compare to start and end. if within, then keep

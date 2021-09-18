@@ -4,6 +4,7 @@ import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
+import { Bezier } from "./class_Bezier.js";
 
 export const MODULE_ID = 'testccw';
 
@@ -48,6 +49,7 @@ Hooks.once('init', async function() {
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
   * {Function}  orient2d          Method to check for CCW or CW relationship of 3 points
   * {Class}     PotentialWallList BST for storing sorted wall list
+  * {Class}     Bezier            Class for approximating circle arcs using bezier curves
   */
   
   game.modules.get(MODULE_ID).api = { use_ccw: false, 
@@ -56,7 +58,8 @@ Hooks.once('init', async function() {
                                       use_robust_ccw: true, 
                                       benchmark: testCCWBenchmarkSight,
                                       orient2d: orient2d,
-                                      PotentialWallList: PotentialWallList }
+                                      PotentialWallList: PotentialWallList,
+                                      Bezier: Bezier }
 });
 
 // modules ready

@@ -17,8 +17,21 @@ import { MODULE_ID } from "./module.js"
   *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = 1e-8) {
+export function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
+}
+
+/*
+ * Round number to specific precision
+ * e.g. round(Math.PI);
+ * from: https://stackoverflow.com/questions/7342957/how-do-you-round-to-1-decimal-place-in-javascript
+ * @param {Number} value      Number to round
+ * @param {Number} precision  Number of decimal places to use.
+ * @return {Number} The rounded number
+ */
+export function round(value, precision = 10) {
+  const multiplier = Math.pow(10, precision || 0);
+  return Math.round(value * multiplier) / multiplier;
 }
 
 /**
@@ -29,7 +42,7 @@ export function almostEqual(x, y, EPSILON = 1e-8) {
  *                              will be considered equal
  * @return {Boolean} True if points are within the error of each other.
  */
-export function pointsAlmostEqual(p1, p2, EPSILON = 1e-8) {
+export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
@@ -41,7 +54,7 @@ export function pointsAlmostEqual(p1, p2, EPSILON = 1e-8) {
  *                              will be considered 0
  * @return The distance between the two points.
  */
-export function calculateDistance(A, B, EPSILON = 1e-8) {
+export function calculateDistance(A, B, EPSILON = 1e-10) {
   // could use pointsAlmostEqual function but this avoids double-calculating
   const dx = Math.abs(B.x - A.x); 
   const dy = Math.abs(B.y - A.y);
