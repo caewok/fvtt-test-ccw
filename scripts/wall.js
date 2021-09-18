@@ -31,15 +31,15 @@ export function wallCCW(origin) {
  * Wall left/right direction measured in Foundry from wall.B --> wall.A
  * 
  * @param {PIXI.point} origin   PIXI.point or other object with {x, y}.
- * @return {0|1|2} LEFT if wall.B --> wall.A --> origin is a CCW (left) turn
- *                 RIGHT if wall.B --> wall.A --> origin is a CW (right) turn
+ * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
+ *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
  *                 BOTH if all three points are in line.
  */
 export function wallWhichSide(origin) {
   const orientation = this.ccw(origin);
   
-  return orientation > 0 ? CONST.WALL_DIRECTIONS.LEFT : 
-         orientation < 0 ? CONST.WALL_DIRECTIONS.RIGHT : CONST.WALL_DIRECTIONS.BOTH;
+  return orientation < 0 ? CONST.WALL_DIRECTIONS.LEFT : 
+         orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : CONST.WALL_DIRECTIONS.BOTH;
 }
 
 
