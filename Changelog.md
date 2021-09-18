@@ -1,5 +1,7 @@
 # 0.0.1
-Initial release. Changes too many to list here, but these are the major additions:
+Initial release. Working with no obvious errors in Foundry v9 Prototype 1 (v. 9.220).
+
+Changes too many to list here, but these are the major additions:
 - `patching.js` uses libWrapper to wrap Foundry `RadialSweep` vision methods and add new ones.
 - `orient2d.js` code from https://github.com/mourner/robust-predicates. MIT licensed.
 - `ray.js` containing methods added to the Ray class.
