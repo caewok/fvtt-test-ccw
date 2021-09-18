@@ -4,6 +4,13 @@
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
 import { MODULE_ID } from "./module.js"
 
+// Ray.prototype.potentialIntersectionsCircle is precise to ~ 1e-10
+// May be ways to address that, but for now, setting EPSILON to 1e-8
+// works, so that once an intersection point is found, it is determined to be 
+// on the line for any future tests, like for contains.
+// See Number.EPSILON for smallest possible error number.
+const PRESET_EPSILON = 1e-8;
+
  /*
   * Test if two numbers are almost equal, given a small error window.
   * See https://www.toptal.com/python/computational-geometry-in-python-from-theory-to-implementation
@@ -17,7 +24,7 @@ import { MODULE_ID } from "./module.js"
   *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = 1e-10) {
+export function almostEqual(x, y, EPSILON = PRESET_EPSILON) {
   return Math.abs(x - y) < EPSILON;
 }
 
@@ -42,7 +49,7 @@ export function round(value, precision = 0) {
  *                              will be considered equal
  * @return {Boolean} True if points are within the error of each other.
  */
-export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
+export function pointsAlmostEqual(p1, p2, EPSILON = PRESET_EPSILON) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
@@ -54,7 +61,7 @@ export function pointsAlmostEqual(p1, p2, EPSILON = 1e-10) {
  *                              will be considered 0
  * @return The distance between the two points.
  */
-export function calculateDistance(A, B, EPSILON = 1e-10) {
+export function calculateDistance(A, B, EPSILON = PRESET_EPSILON) {
   // could use pointsAlmostEqual function but this avoids double-calculating
   const dx = Math.abs(B.x - A.x); 
   const dy = Math.abs(B.y - A.y);
