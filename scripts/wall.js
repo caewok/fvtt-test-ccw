@@ -1,8 +1,8 @@
+'use strict';
+
 // Additions to the wall class
 import { almostEqual, orient2dPoints } from "./util.js";
 import { log } from "./module.js";
-
-// TO-DO: Add inFrontOf method for wall
 
 /*
  * Wall.prototype.ccw
@@ -31,7 +31,9 @@ export function wallCCW(origin) {
  * Wall left/right direction measured in Foundry from wall.B --> wall.A
  * 
  * @param {PIXI.point} origin   PIXI.point or other object with {x, y}.
- * @return {Number} 0 if origin is in line with the wall, 1 if left, 2 if right
+ * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
+ *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
+ *                 BOTH if all three points are in line.
  */
 export function wallWhichSide(origin) {
   const orientation = this.ccw(origin);
@@ -45,7 +47,8 @@ export function wallWhichSide(origin) {
 /*
  * Wall.prototype.A
  * 
- * Get first endpoint coordinates for wall
+ * Get first endpoint coordinates for wall.
+ * Used for compatibility with Ray methods.
  * @return {x, y}
  */
 export function wallA() {
@@ -56,6 +59,7 @@ export function wallA() {
  * Wall.prototype.B
  * 
  * Get second endpoint coordinates for wall
+ * Used for compatibility with Ray methods.
  * @return {x, y}
  */
 export function wallB() {

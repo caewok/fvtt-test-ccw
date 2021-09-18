@@ -1,14 +1,26 @@
 // Useful commands
+game.modules.get('testccw').api.use_ccw = true
+game.modules.get('testccw').api.use_bezier = true
+game.modules.get('testccw').api.debug = true
+game.modules.get('testccw').api.use_robust_ccw = false
+
 w = canvas.walls.controlled[0]; // get selected wall
 
 // benchmark
 t = canvas.tokens.controlled[0];
-await window.testccw.benchmark(10000, t.center)
+await game.modules.get(MODULE_ID).api.benchmark(10000, t.center)
 
 // benchmark light
 // lights appear to be hardcoding to density 60. See Light Source Initialization      
 l = [...canvas.lighting.sources][0];
-await window.testccw.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+await game.modules.get(MODULE_ID).api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
+
+
+MODULE_ID = "testccw"
+
+orient2d = game.modules.get(MODULE_ID).api.orient2d;
+PotentialWallList = game.modules.get(MODULE_ID).api.PotentialWallList;
+
 
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
@@ -382,6 +394,7 @@ Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
+
 */
 
 
@@ -402,8 +415,8 @@ Poly.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 9
 Poly.config.aMax = isLimited ? Poly.config.aMin + Math.toRadians(angle) : Math.PI;
 
 // Construct endpoints for each Wall
-window.testccw.use_ccw = false;
-window.testccw.use_ccw = true;
+game.modules.get(MODULE_ID).api.use_ccw = false;
+game.modules.get(MODULE_ID).api.use_ccw = true;
 
 Poly._initializeEndpoints(type)
 test1 = [...Poly.endpoints.values()].some(e => e.angle !== undefined);
@@ -595,11 +608,7 @@ if ( debug ) {
 
 
 // NEW VERSION ----- this._sweepEndpoints();-------------------- 
-orient2d = window.testccw.orient2d;
-MODULE_ID = "testccw"
-PotentialWallList = window.testccw.PotentialWallList;
-PotentialWallListBinary = window.testccw.PotentialWallListBinary;
-window.testccw.use_ccw = true; // for _padRays, initializeEndpoints test
+game.modules.get(MODULE_ID).api.use_ccw = true; // for _padRays, initializeEndpoints test
 
 
 performance.clearMarks();
@@ -610,7 +619,7 @@ Poly._initializeEndpoints(type)
 performance.mark("_initializeEndpoints end")
 canvas.controls.debug.clear();
 
-
+// Poly.endpoints.forEach(e => drawEndpoint(e))
 
 performance.mark("_sweepEndpoints start");
   // Configure inputs
@@ -622,7 +631,7 @@ collisions = [];  // array to store collisions in lieu of rays
 padding = Math.PI / Math.max(Poly.config.density, 6);
 has_radius = Poly.config.hasRadius;
 
-potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+potential_walls = new PotentialWallList(origin);
 
 needs_padding = false;
 closest_wall = undefined;
@@ -831,7 +840,7 @@ if(minRay_intersecting_walls.length > 0) {
     performance.mark("limited angle add maxRay endpoint");
     
     maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
-   maxRay_potential_walls = window[MODULE_ID].use_bst ? (new PotentialWallListBinary(origin)) : (new PotentialWallList(origin));
+   maxRay_potential_walls = new PotentialWallList(origin);
    maxRay_closest_wall = undefined;
   
   if(maxRay_intersecting_walls.length > 0) {
@@ -958,7 +967,8 @@ Speed and accuracy testing for different sorts
   performance.mark("sweep start");
   
   const ln = endpoints.length;
-  for(let i = (ln - 1); i > 0; i -= 1) {
+  for(let i = (ln - 1); i >= 0; i -= 1) {
+    // for(let i = (ln - 1); i > 1; i -= 1) {
   //while(endpoints.length > 0 && iter < MAX_ITER) {
     //performance.mark(`sweep ${iter}`);
     //iter += 1;
@@ -1118,7 +1128,10 @@ Speed and accuracy testing for different sorts
     
     } else if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
       performance.mark(`${i} default`);
-      // endpoint is in front. Make this the closest. 
+      // endpoint is in front of the current closest wall.
+      // Find and mark intersection of sightline --> endpoint --> current closest wall
+      
+      
       // add current closest and all the endpoint walls to potential list; get the new closest
       
       // see where the vision point to the new endpoint intersects the prior wall
@@ -1135,11 +1148,13 @@ Speed and accuracy testing for different sorts
         // add the end of the ray point instead
         collisions.push({x: ray.B.x, y: ray.B.y});
         needs_padding = true;
-      
-      } else {
-        collisions.push({x: endpoint.x, y: endpoint.y});
-      }
-      
+      } 
+        
+      // mark this closer endpoint and retrieve the closest wall
+      // endpoint is definitely seen, b/c of the CW sweep.
+      // endpoint may or may not be part of closest wall, but probably an endpoint for
+      // that wall.
+      collisions.push({x: endpoint.x, y: endpoint.y});
       closest_wall = potential_walls.closest();
       
             
@@ -1184,7 +1199,7 @@ if(has_radius && (needs_padding || !has_endpoints)) {
   ray = constructRay(origin, p_current, radius);
     
   // drawRay(prior_ray, COLORS.blue)
-  // drawRay(ray, COLORS.blue)
+  // drawRay(ray, COLORS.orange)
           
   // TO-DO: Override _padRays to return a simple array of points to concat
   Poly._padRays(prior_ray, ray, padding, collisions, false); // adds to collisions automatically

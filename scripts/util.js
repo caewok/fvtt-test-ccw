@@ -1,6 +1,15 @@
+'use strict';
+
 // Utility functions
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
 import { MODULE_ID } from "./module.js"
+
+// Ray.prototype.potentialIntersectionsCircle is precise to ~ 1e-10
+// May be ways to address that, but for now, setting EPSILON to 1e-8
+// works, so that once an intersection point is found, it is determined to be 
+// on the line for any future tests, like for contains.
+// See Number.EPSILON for smallest possible error number.
+const PRESET_EPSILON = 1e-8;
 
  /*
   * Test if two numbers are almost equal, given a small error window.
@@ -12,27 +21,47 @@ import { MODULE_ID } from "./module.js"
   * See Number.EPSILON for smallest possible error number.
   * Given the use in light measurements over long distances, probably make this 
   * relatively small in case comparing small angles.
-  * 
-  * Testing for whether a ray contains a point can fail with 1e-10. 
-  *   (points created by intersecting the ray to the circle)
   *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = 1e-8) {
+export function almostEqual(x, y, EPSILON = PRESET_EPSILON) {
   return Math.abs(x - y) < EPSILON;
 }
 
-export function pointsAlmostEqual(p1, p2, EPSILON = 1e-8) {
+/*
+ * Round number to specific precision
+ * e.g. round(Math.PI);
+ * from: https://stackoverflow.com/questions/7342957/how-do-you-round-to-1-decimal-place-in-javascript
+ * @param {Number} value      Number to round
+ * @param {Number} precision  Number of decimal places to use. Can be negative.
+ * @return {Number} The rounded number
+ */
+export function round(value, precision = 0) {
+  const multiplier = Math.pow(10, precision || 0);
+  return Math.round(value * multiplier) / multiplier;
+}
+
+/**
+ * Are two points basically at the same spot?
+ * @param {x, y}    p1        First point
+ * @param {x, y}    p2        Second point
+ * @param {Number}  EPSILON   Small number representing error within which the points 
+ *                              will be considered equal
+ * @return {Boolean} True if points are within the error of each other.
+ */
+export function pointsAlmostEqual(p1, p2, EPSILON = PRESET_EPSILON) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
- /*
-  * Calculate the distance between two points in {x,y} dimensions.
-  * @param {PIXI.Point} A   Point in {x, y} format.
-  * @param {PIXI.Point} B   Point in {x, y} format.
-  * @return The distance between the two points.
-  */
-export function calculateDistance(A, B, EPSILON = 1e-8) {
+/**
+ * Calculate the distance between two points in {x,y} dimensions.
+ * @param {x, y} A   Point in {x, y} format.
+ * @param {x, y} B   Point in {x, y} format.
+ * @param {Number}  EPSILON   Small number representing error within which the distance 
+ *                              will be considered 0
+ * @return The distance between the two points.
+ */
+export function calculateDistance(A, B, EPSILON = PRESET_EPSILON) {
   // could use pointsAlmostEqual function but this avoids double-calculating
   const dx = Math.abs(B.x - A.x); 
   const dy = Math.abs(B.y - A.y);
@@ -43,10 +72,15 @@ export function calculateDistance(A, B, EPSILON = 1e-8) {
   return Math.hypot(dy, dx);
 }
 
-
-// Positive if CCW, Negative if CW, 0 if in line
+/**
+ * Is point 3 clockwise or counterclockwise (CCW) of the line from p1 -> p2 -> p3
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
+ */
 export function orient2dPoints(p1, p2, p3) {
-  if(window[MODULE_ID].use_fast_ccw) {
+  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
     return orient2dfast(p1.x, p1.y,
                         p2.x, p2.y,
                         p3.x, p3.y)
@@ -57,8 +91,13 @@ export function orient2dPoints(p1, p2, p3) {
                   p3.x, p3.y);
 }
 
-
-// 1 if CCW, -1 if CW, 0 if in line
+/**
+ * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
+ */
 export function ccwPoints(p1, p2, p3) {
   const res = orient2dPoints(p1, p2, p3);
   if(almostEqual(res, 0)) return 0;
@@ -98,6 +137,5 @@ export function rootsReal(a, b, c) {
   } 
   
   return []; // imaginary roots; don't bother calculating
-  
 }
 
