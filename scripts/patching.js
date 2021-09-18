@@ -17,7 +17,7 @@ import { rayProjectDistance,
          rayInFrontOfPoint,
          rayInFrontOfSegment,
          rayProjectB,
-         rayPotentialIntersectionsCircle,
+         rayPotentialIntersectionsWithCircle,
          rayContains } from "./ray.js";
 
 export function registerCCW() {
@@ -101,8 +101,8 @@ Object.defineProperty(Ray.prototype, "projectB", {
   configurable: true
 });
 
-Object.defineProperty(Ray.prototype, "potentialIntersectionsCircle", {
-  value: rayPotentialIntersectionsCircle,
+Object.defineProperty(Ray.prototype, "potentialIntersectionsWithCircle", {
+  value: rayPotentialIntersectionsWithCircle,
   writable: true,
   configurable: true
 });

@@ -188,8 +188,8 @@ export function testCCWSweepEndpoints(wrapped) {
   if(has_radius) {
     // determine which walls intersect the circle
     this.walls.forEach(w => {
-      // w.radius_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
-      w.wall.radius_potential_intersect = w.wall.toRay().potentialIntersectionsCircle(origin, radius);
+      // w.radius_intersect = w.wall.toRay().potentialIntersectionsWithCircle(origin, radius);
+      w.wall.radius_potential_intersect = w.wall.toRay().potentialintersectionsWithCircle(origin, radius);
       w.wall.radius_actual_intersect = w.wall.radius_potential_intersect.filter(p => {
          return w.wall.contains(p);
       });
