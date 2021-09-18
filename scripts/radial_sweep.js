@@ -359,7 +359,7 @@ export function testCCWSweepEndpoints(wrapped) {
   // needed for padding with radius
   const has_endpoints = endpoints.length > 0;
   const ln = endpoints.length;
-  for(let i = (ln - 1); i > 0; i -= 1) {
+  for(let i = (ln - 1); i >= 0; i -= 1) {
     const endpoint = endpoints[i];   
     
     // Add any walls from the endpoint
@@ -462,12 +462,9 @@ export function testCCWSweepEndpoints(wrapped) {
       collisions.push({x: endpoint.x, y: endpoint.y});
       // continue;
       
-    } else if(closest_wall.inFrontOfPoint(endpoint, origin)) { 
-      //continue;
-      
-    } else {
-      // endpoint is in front. Make this the closest. 
-      // add current closest and all the endpoint walls to potential list; get the new closest
+    } else if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+      // endpoint is in front of the current closest wall.
+      // Find and mark intersection of sightline --> endpoint --> current closest wall
       
       // see where the vision point to the new endpoint intersects the prior wall
       // if it does, this is a collision point.
@@ -484,10 +481,12 @@ export function testCCWSweepEndpoints(wrapped) {
         collisions.push({x: ray.B.x, y: ray.B.y});
         needs_padding = true;
       
-      } else {
-        collisions.push({x: endpoint.x, y: endpoint.y});
-      }
-      
+      } 
+      // mark this closer endpoint and retrieve the closest wall
+      // endpoint is definitely seen, b/c of the CW sweep.
+      // endpoint may or may not be part of closest wall, but probably an endpoint for
+      // that wall.
+      collisions.push({x: endpoint.x, y: endpoint.y});
       closest_wall = potential_walls.closest();      
       //continue; 
     }

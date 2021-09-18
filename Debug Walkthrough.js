@@ -18,6 +18,10 @@ await game.modules.get(MODULE_ID).api.benchmark(10000, {x: l.x, y: l.y}, {angle:
 
 MODULE_ID = "testccw"
 
+orient2d = game.modules.get(MODULE_ID).api.orient2d;
+PotentialWallList = game.modules.get(MODULE_ID).api.PotentialWallList;
+
+
 // imported functions
 function almostEqual(x, y, EPSILON = 1e-10) {
   return Math.abs(x - y) < EPSILON;
@@ -390,6 +394,7 @@ Poly.initialize(t.center, {type: "sight", angle: t.data.sightAngle, rotation: t.
 l = [...canvas.lighting.sources][0];
 Poly = new RadialSweepPolygon({ x:l.x, y: l.y }, {debug: true})
 Poly.initialize({ x:l.x, y: l.y }, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
+
 */
 
 
@@ -603,9 +608,6 @@ if ( debug ) {
 
 
 // NEW VERSION ----- this._sweepEndpoints();-------------------- 
-orient2d = game.modules.get(MODULE_ID).api.orient2d;
-MODULE_ID = "testccw"
-PotentialWallList = game.modules.get(MODULE_ID).api.PotentialWallList;
 game.modules.get(MODULE_ID).api.use_ccw = true; // for _padRays, initializeEndpoints test
 
 
@@ -617,7 +619,7 @@ Poly._initializeEndpoints(type)
 performance.mark("_initializeEndpoints end")
 canvas.controls.debug.clear();
 
-
+// Poly.endpoints.forEach(e => drawEndpoint(e))
 
 performance.mark("_sweepEndpoints start");
   // Configure inputs
@@ -965,7 +967,8 @@ Speed and accuracy testing for different sorts
   performance.mark("sweep start");
   
   const ln = endpoints.length;
-  for(let i = (ln - 1); i > 0; i -= 1) {
+  for(let i = (ln - 1); i >= 0; i -= 1) {
+    // for(let i = (ln - 1); i > 1; i -= 1) {
   //while(endpoints.length > 0 && iter < MAX_ITER) {
     //performance.mark(`sweep ${iter}`);
     //iter += 1;
@@ -1125,7 +1128,10 @@ Speed and accuracy testing for different sorts
     
     } else if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
       performance.mark(`${i} default`);
-      // endpoint is in front. Make this the closest. 
+      // endpoint is in front of the current closest wall.
+      // Find and mark intersection of sightline --> endpoint --> current closest wall
+      
+      
       // add current closest and all the endpoint walls to potential list; get the new closest
       
       // see where the vision point to the new endpoint intersects the prior wall
@@ -1142,11 +1148,13 @@ Speed and accuracy testing for different sorts
         // add the end of the ray point instead
         collisions.push({x: ray.B.x, y: ray.B.y});
         needs_padding = true;
-      
-      } else {
-        collisions.push({x: endpoint.x, y: endpoint.y});
-      }
-      
+      } 
+        
+      // mark this closer endpoint and retrieve the closest wall
+      // endpoint is definitely seen, b/c of the CW sweep.
+      // endpoint may or may not be part of closest wall, but probably an endpoint for
+      // that wall.
+      collisions.push({x: endpoint.x, y: endpoint.y});
       closest_wall = potential_walls.closest();
       
             
