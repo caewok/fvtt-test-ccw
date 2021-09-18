@@ -2,8 +2,6 @@
 import { almostEqual, orient2dPoints } from "./util.js";
 import { log } from "./module.js";
 
-// TO-DO: Add inFrontOf method for wall
-
 /*
  * Wall.prototype.ccw
  *
@@ -45,7 +43,8 @@ export function wallWhichSide(origin) {
 /*
  * Wall.prototype.A
  * 
- * Get first endpoint coordinates for wall
+ * Get first endpoint coordinates for wall.
+ * Used for compatibility with Ray methods.
  * @return {x, y}
  */
 export function wallA() {
@@ -56,6 +55,7 @@ export function wallA() {
  * Wall.prototype.B
  * 
  * Get second endpoint coordinates for wall
+ * Used for compatibility with Ray methods.
  * @return {x, y}
  */
 export function wallB() {
