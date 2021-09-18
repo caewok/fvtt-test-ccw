@@ -12,7 +12,7 @@ import { MODULE_ID } from "./module.js";
 export async function testCCWBenchmarkSight(n=1000, ...args) {
   const stored_use_ccw = game.modules.get(MODULE_ID).api.use_ccw;
   const stored_use_bezier = game.modules.get(MODULE_ID).api.use_bezier;
-  const use_fast_ccw = game.modules.get(MODULE_ID).api.use_robust_ccw;
+  const use_robust_ccw = game.modules.get(MODULE_ID).api.use_robust_ccw;
 
   // count number of unique endpoints
   const num_endpoints = new Set();
@@ -48,5 +48,5 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
 
   game.modules.get(MODULE_ID).api.use_ccw = stored_use_ccw;
   game.modules.get(MODULE_ID).api.use_bezier = stored_use_bezier;
-  game.modules.get(MODULE_ID).api.use_fast_ccw = use_robust_ccw;
+  game.modules.get(MODULE_ID).api.use_robust_ccw = use_robust_ccw;
 }

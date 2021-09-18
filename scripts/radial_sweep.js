@@ -328,7 +328,7 @@ export function testCCWSweepEndpoints(wrapped) {
     // Add an endpoint for the maxRay -----
     // Same basic structure as for minRay but for the need to create a tmp wall list
     // Add as endpoint so algorithm can handle the details
-    let maxRay_intersecting_walls = [...walls.values()].filter(w => maxRay.intersects(w.wall));
+    let maxRay_intersecting_walls = [...this.walls.values()].filter(w => maxRay.intersects(w.wall));
     const maxRay_potential_walls = new PotentialWallList(origin);
     let maxRay_closest_wall = undefined;
   
