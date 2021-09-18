@@ -87,13 +87,14 @@ export class Bezier {
   static bezierPadding(r0, r1, padding, pts = []) {  
     const radius = r0.distance;
     const origin = r0.A;
+    const PRECISION = 10; // number of digits to round
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
-    const start_scaled = { x: round((r0.B.x - origin.x) / radius),
-                           y: round((r0.B.y - origin.y) / radius) };
-    const end_scaled = { x: round((r1.B.x - origin.x) / radius),
-                         y: round((r1.B.y - origin.y) / radius) };
+    const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION),
+                           y: round((r0.B.y - origin.y) / radius, PRECISION) };
+    const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION),
+                         y: round((r1.B.y - origin.y) / radius, PRECISION) };
     
     const start_quadrant = Bezier.getQuadrant(start_scaled);
     const end_quadrant = Bezier.getQuadrant(end_scaled);
@@ -106,7 +107,9 @@ export class Bezier {
       if(quadrant === end_quadrant) done = true;
   
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
-        const pt = round(Bezier.bezierCircleForQuadrant(t, quadrant));
+        const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
+        pt.x = round(pt.x, PRECISION);
+        pt.y = round(pt.y, PRECISION);
         let add_pt = true
       
         // compare to start and end. if within, then keep

@@ -26,10 +26,10 @@ export function almostEqual(x, y, EPSILON = 1e-10) {
  * e.g. round(Math.PI);
  * from: https://stackoverflow.com/questions/7342957/how-do-you-round-to-1-decimal-place-in-javascript
  * @param {Number} value      Number to round
- * @param {Number} precision  Number of decimal places to use.
+ * @param {Number} precision  Number of decimal places to use. Can be negative.
  * @return {Number} The rounded number
  */
-export function round(value, precision = 10) {
+export function round(value, precision = 0) {
   const multiplier = Math.pow(10, precision || 0);
   return Math.round(value * multiplier) / multiplier;
 }
