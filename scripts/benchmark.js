@@ -1,3 +1,5 @@
+'use strict';
+
 import { MODULE_ID } from "./module.js";
 
 /* 
