@@ -1,8 +1,11 @@
 // Ray Class additions
 
-import { ccwPoints, almostEqual, pointsAlmostEqual, discriminant, rootsReal } from "./util.js";
+import { ccwPoints, 
+         almostEqual, 
+         pointsAlmostEqual, 
+         rootsReal } from "./util.js";
 
-/*
+/**
  * Project a ray by exact distance.
  * Requires calculating current ray distance.
  *
@@ -18,7 +21,7 @@ export function rayProjectDistance(dist) {
   return r;
 }
 
-/*
+/**
  * Quick function to determine if this ray intersects another
  *
  * @param {Ray} r Other ray to test for intersection
@@ -29,30 +32,10 @@ export function rayIntersects(r) {
          ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
 }
 
-/*
- * Given a point, get the point on the ray that is closest
- */
-export function closestPoint(p) {
-  const dx_p = p.x - this.A.x;
-  const dy_p = p.y - this.A.y;
-  const dx = this.dx;
-  const dy = this.dy;
-  
-  const a_to_b_squared = dx * dx + dy * dy;
-  const a_to_p_dot = dx_p * dx + dy_p * dy;
-  
-  let t = a_to_p_dot / a_to_b_squared;
-  t = Math.min(1, t);
-  t = Math.max(0, t);
-  
-  return { x: this.A.x + dx_p * t,
-           y: this.A.y + dy_p * t}
-}
-
-/*
+ /**
   * Test if point is on the segment.
   * @param {PIXI.Point} p   Point to test
-  * @param {boolean} true if segment includes point
+  * @return{boolean} true if segment includes point
   */
 export function rayContains(p) {
   // ensure the point is collinear with this ray
@@ -79,13 +62,17 @@ export function rayContains(p) {
 }
 
 
-/*
- * Does this ray intersect a circle?
+/**
+ * Does this ray intersect a circle? Return intersection points if any.
  *   
  * Equation for circle: x^2 + y^2 = r^2
  * Equation for line: y = mx + b
+ *
+ * Solves the quadratic equation for x or y: gets the roots if any non-imaginary. 
+ *
  * @param {x, y} center   Center of the cirle
  * @param {Number} r      Radius of circle. Should be > 0.
+ * @return {[{x,y}]|undefined} One or two intersection points or undefined.
  */
 export function rayPotentialIntersectionsCircle(center, radius) {
   // Line: y = mx + c
@@ -140,12 +127,13 @@ export function rayPotentialIntersectionsCircle(center, radius) {
   return undefined;
 } 
 
-/*
+/**
  * Return true if the point is in front of the ray, based on a vision point
  *
  * @param {PIXI.Point} point              Point to test
  * @param {PIXI.Point} relativePoint      Vision/observer point
- * @return {boolean} true if this point is in front. False if behind or on the segment line
+ * @return {boolean} true if this point is in front. 
+ *                   False if behind or on the segment line
  */
 export function rayInFrontOfPoint(point, visionPoint) {
   if(pointsAlmostEqual(this.A, point) || pointsAlmostEqual(this.B, point)) return false;
@@ -159,7 +147,7 @@ export function rayInFrontOfPoint(point, visionPoint) {
   return false;
 } 
 
-/*
+/**
  * Return true if this segment is in front of another segment
  *
  * "In front of" defined as whether one segment partially blocks vision of the other.
@@ -240,7 +228,7 @@ export function rayInFrontOfSegment(segment, visionPoint) {
  * Project the Ray from B by some proportion of its initial distance.
  * Return the coordinates of that point B along the path.
  * @param {number} t    The distance along the Ray
- * @return {Object}     The coordinates of the projected point
+ * @return {x, y} The coordinates of the projected point
  */
 export function rayProjectB(t) {
   return {
