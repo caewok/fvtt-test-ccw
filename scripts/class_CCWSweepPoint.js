@@ -9,7 +9,7 @@
  * @property {number} x     The integer x-coordinate
  * @property {number} y     The integer y-coordinate
  */
-class CCWSweepPoint extends PIXI.Point {
+export class CCWSweepPoint extends PIXI.Point {
   constructor(x, y, {origin, radius} = {}) {
     super(x, y)
 
@@ -77,11 +77,11 @@ class CCWSweepPoint extends PIXI.Point {
   get origin() { return this._origin; }
   
   /* 
-   * Is this point associated with a radius?
+   * Is this point associated with a radius? Radius 0 does not count.
    * @return {boolean}
    */
   get hasRadius() {
-    return this.radius !=== undefined;
+    return Boolean(this.radius);
   }
   
   /*

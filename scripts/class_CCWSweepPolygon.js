@@ -15,7 +15,7 @@ import { Bezier }             from "./class_Bezier.js";
  * 
  * @extends {PointSourcePolygon}
  */
-class CCWSweepPolygon extends PointSourcePolygon {
+export class CCWSweepPolygon extends PointSourcePolygon {
 
   /**
    * The limiting radius of the polygon, if applicable
@@ -136,7 +136,7 @@ class CCWSweepPolygon extends PointSourcePolygon {
            // add the intersection points to the set of endpoints to sweep
            wall.radiusIntersections.forEach(i => {
              const pt = new CCWSweepPoint(i.x, i.y, 
-                                         {origin: this.origin, radius: this.radius}) }
+                                         {origin: this.origin, radius: this.radius});
              pt.walls.add(wall);
              this.endpoints.set(pt.key, pt);
            });  
@@ -161,17 +161,19 @@ class CCWSweepPolygon extends PointSourcePolygon {
    * Add to the walls and endpoints sets, respectively.
    */
    _addCanvasEdges() {
+     const opts = {origin: this.origin, radius: this.config.radius};
+
      let canvas_pts = [{ x: 0, y: 0 }, 
                  { x: 0, y: canvas.dimensions.height },
                  { x: canvas.dimensions.width, y: 0 },
                  { x: canvas.dimensions.width, y: canvas.dimensions.height }];
-     canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y));
+     canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
      
      const canvas_walls = [
-         new CCWSweepWall(canvas_pts[0], canvas_pts[1]),
-         new CCWSweepWall(canvas_pts[1], canvas_pts[2]),
-         new CCWSweepWall(canvas_pts[2], canvas_pts[3]),
-         new CCWSweepWall(canvas_pts[3], canvas_pts[0]),
+         new CCWSweepWall(canvas_pts[0], canvas_pts[1], opts),
+         new CCWSweepWall(canvas_pts[1], canvas_pts[2], opts),
+         new CCWSweepWall(canvas_pts[2], canvas_pts[3], opts),
+         new CCWSweepWall(canvas_pts[3], canvas_pts[0], opts),
        ];
      
      
@@ -212,7 +214,6 @@ class CCWSweepPolygon extends PointSourcePolygon {
    */
   _includeWall(wall, type) { 
     // Special case - coerce interior walls to block light and sight
-    const type = this.config.type;
     const isInterior = ( type === "sight" ) && wall.isInterior;
     if(isInterior) return true;
 

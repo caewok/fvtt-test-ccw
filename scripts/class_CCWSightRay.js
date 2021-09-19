@@ -9,7 +9,7 @@ import { ccwPoints,
  * Subclass of Ray used specifically for computing in the CCW Sweep algorithm.
  * @extends {Ray}
  */
-class CCWSightRay extends Ray {
+export class CCWSightRay extends Ray {
 
   /* -------------------------------------------- */
   /*  Factory Function                            */
@@ -57,8 +57,9 @@ class CCWSightRay extends Ray {
     return {
       x: this.B.x + (t * this.dx),
       y: this.B.y + (t * this.dy)
+    }
   }
-  
+
   /**
    * Quick function to determine if this ray intersects another
    *

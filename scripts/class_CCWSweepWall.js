@@ -8,7 +8,7 @@ import { almostEqual, orient2dPoints } from "./util.js";
  * CCWSightRay extends Ray, so these are basically Ray versions of Wall segments
  * @extends{CCWSightRay}
  */
-class CCWSweepWall extends CCWSightRay {
+export class CCWSweepWall extends CCWSightRay {
   constructor(A, B, {origin, radius} = {}) {
     super(A, B);
 
@@ -78,11 +78,11 @@ class CCWSweepWall extends CCWSightRay {
   get origin() { return this._origin; }
   
   /* 
-   * Is this point associated with a radius?
+   * Is this point associated with a radius? Radius 0 does not count.
    * @return {boolean}
    */
   get hasRadius() {
-    return this.radius !=== undefined;
+    return Boolean(this.radius);
   }
   
   /*
@@ -126,8 +126,8 @@ class CCWSweepWall extends CCWSightRay {
    */
   static createCCWSweepWall(wall) {
     const c = wall.coords;
-    const w = new CCWSweepWall({x: this.coords[0], y: this.coords[1]},
-                                x: this.coords[2], y: this.coords[3]);
+    const w = new CCWSweepWall({ x: this.coords[0], y: this.coords[1] },
+                               { x: this.coords[2], y: this.coords[3] });
     w.isOpen = wall.isOpen;
     w.data = duplicate(wall.data);
     w.isInterior = (wall.roof?.occluded === false);
