@@ -128,6 +128,14 @@ class CCWSweepPolygon extends PointSourcePolygon {
          if(!(wall.radiusIntersections?.length > 0)) {
            // if no intersections found, then (2) is fals
            return;
+         } else {
+           // add the intersection points to the set of endpoints to sweep
+           wall.radiusIntersections.forEach(i => {
+             const pt = new CCWSweepPoint(i.x, i.y, 
+                                         {origin: this.origin, radius: this.radius}) }
+             pt.walls.add(wall);
+             this.endpoints.set(pt.key, pt);
+           });  
          }
        }
        
@@ -218,7 +226,37 @@ class CCWSweepPolygon extends PointSourcePolygon {
   /*  CCW Radial Sweep                            */
   /* -------------------------------------------- */
   
+  /**
+   * Sweep clockwise around known all endpoints, constructing the polygon as we go.
+   * @private
+   */
+  _sweepEndpoints() {
   
+  
+  
+  
+  }
+  
+  
+  /**
+   * Loop over each endpoint and add collision points.
+   * Non-radius version: Assumes the FOV extends to the canvas edge 
+   *   and canvas edges/vertices are included in walls/endpoints.
+   */
+  _sweepEndpointsNoRadius() {
+  
+  
+  }
+  
+  /**
+   * Loop over each endpoint and add collision points.
+   * Radius version: Assumes the FOV extends to a defined circle 
+   *   and circle intersections are included in endpoints.
+   */
+  _sweepEndpointsRadius() {
+  
+  
+  }
   
   
   
