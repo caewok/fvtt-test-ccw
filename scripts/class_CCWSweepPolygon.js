@@ -98,6 +98,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.walls.clear();
      this.endpoints.clear();
      
+     const opts = {origin: this.origin, radius: this.config.radius};
+     
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      const candidate_walls = this._getCandidateWalls();
@@ -114,10 +116,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        let a = this.endpoints.get(ak);
        let b = this.endpoints.get(bk);
        
-       if(!a) { a = new CCWSweepPoint(wall.A.x, wall.A.y, 
-                                      {origin: this.origin, radius: this.radius}) }
-       if(!b) { b = new CCWSweepPoint(wall.B.x, wall.B.y,
-                                      {origin: this.origin, radius: this.radius}) }
+       if(!a) { a = new CCWSweepPoint(wall.A.x, wall.A.y, opts); }
+       if(!b) { b = new CCWSweepPoint(wall.B.x, wall.B.y, opts); }
      
        // test for inclusion in the FOV radius
        if(this.config.hasRadius && !(a.insideRadius || b.insideRadius)) {
@@ -127,27 +127,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
          // easier test is the endpoints (1), accomplished above
          // harder test is the circle intersection (2)
-         // this is the first time we have 
          
-         if(!(wall.radiusIntersections?.length > 0)) {
-           // if no intersections found, then (2) is fals
-           return;
-         } else {
-           // add the intersection points to the set of endpoints to sweep
-           wall.radiusIntersections.forEach(i => {
-             const pt = new CCWSweepPoint(i.x, i.y, 
-                                         {origin: this.origin, radius: this.radius});
+         // if no intersections found, then (2) is false
+         if(!(wall.radiusIntersections?.length > 0)) return;
+         
+         // add the intersection points to the set of endpoints to sweep
+         wall.radiusIntersections.forEach(i => {
+             const pt = new CCWSweepPoint(i.x, i.y, opts);
              pt.walls.add(wall);
              this.endpoints.set(pt.key, pt);
-           });  
-         }
+         });   
        }
        
+       // all tests concluded; add wall and endpoints to respective tracking lists.
        a.walls.add(wall);
        b.walls.add(wall);
-       this.walls.set(wall.id, wall) // probably don't need {wall, a, b} 
-       this.endpoints.set(ak, a); // could use a logical switch to add only if newly created
-       this.endpoints.set(bk, b); // could use a logical switch to add only if newly created         
+       this.walls.set(wall.id, wall);
+       if(!this.endpoints.has(ak)) { this.endpoints.set(ak, a); } 
+       if(!this.endpoints.has(bk)) { this.endpoints.set(bk, b); }
      });
      
      // add the canvas 4-corners endpoints and walls 
@@ -167,7 +164,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
                  { x: 0, y: canvas.dimensions.height },
                  { x: canvas.dimensions.width, y: 0 },
                  { x: canvas.dimensions.width, y: canvas.dimensions.height }];
-     canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
+     canvas_pts = canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
      
      const canvas_walls = [
          new CCWSweepWall(canvas_pts[0], canvas_pts[1], opts),
