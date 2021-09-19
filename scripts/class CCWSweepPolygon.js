@@ -1,6 +1,10 @@
 'use strict';
 
-import { CCWSweepWall } from "./class_CCWSweepWall.js";
+import { CCWSweepWall }       from "./class_CCWSweepWall.js";
+import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
+import { CCWSightRay }        from "./class_CCWSightRay.js";
+import { PotentialWallList }  from "./class_PotentialWallList.js";
+import { Bezier }             from "./class_Bezier.js";
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.
