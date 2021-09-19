@@ -237,6 +237,7 @@ class CCWSweepPolygon extends PointSourcePolygon {
     const { isLimited, aMin, aMax, hasRadius } = this.config;
     const potential_walls = new PotentialWallList(this.origin); // BST ordered by closeness
     let closest_wall = undefined;
+    this.points = []; // collision points that make up the polygon
     
     // ----- INITIAL RAY INTERSECTION ---- //
     // Begin with a ray at the lowest angle to establish initial conditions
@@ -294,12 +295,22 @@ class CCWSweepPolygon extends PointSourcePolygon {
       maxRay_endpoint = this._getRayIntersection(maxRay_closest_wall, maxRay);
       maxRay_endpoint.maxLimit = true;
       endpoints.push(maxRay_endpoint); // last endpoint encountered should be this one
+      
+      // open the limited shape
+      points.push(origin.x, origin.y);
     }
     
     // ----- SWEEP CLOCKWISE ----- //
+    // initialize the points
+    this.points = [];
+    
+    
     hasRadius ? this._sweepEndpointsRadius(potential_walls, closest_wall) :
                 this._sweepEndpointsNoRadius(potential_walls, closest_wall)
-  
+    
+    // close the limited shape            
+    if(isLimited) { this.points.push(origin.x, origin.y) }           
+    
   }
   
   
@@ -315,19 +326,62 @@ class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsNoRadius(potential_walls, closest_wall) {
     const endpoints = this.endpoints;
     const ln = endpoints.length;
+    const radius = this.config.maxR;
+    const collisions = this.points;
+    
     for(let i = 0; i < ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
       
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
-      if(pointsAlmostEqual(endpoint, closest_wall.A) || 
-       pointsAlmostEqual(endpoint, closest_wall.B)) {
+      // TO-DO: Would it be faster/better to compare the point keys?
+      if(endpoint.almostEqual(closest_wall.A) || 
+         endpoint.almostEqual(closest_wall.B)) {
+
+        collisions.push(endpoint.x, endpoint.y);
+        
+        // get the next-closest wall (the one behind the current endpoint)
+        // find its intersection point and add the collision
+        // sightline --> endpoint at closest wall --> next closest wall
+        
+        closest_wall = potential_walls.closest();
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        // add the intersection point unless we already did
+        // (occurs at join points of two walls)
+        if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+        
+        continue;
+      }
       
+      // is this endpoint within the closest_wall?
+      if(isLimited && 
+         (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)) && 
+         closest_wall.contains(endpoint)) {
+        
+        collisions.push(endpoint.x, endpoint.y);   
+        continue; 
+      }
       
-    
+      // is the endpoint in front of the closest wall? 
+      if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+        // Find and mark intersection of sightline --> endpoint --> current closest wall
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const intersection = this._getRayIntersection(closest_wall, ray);
+        collisions.push(intersection.x, intersection.y);
+        
+        // mark this closer endpoint and retrieve the closest wall.
+        collisions.push(endpoint.x, endpoint.y);
+        closest_wall = potential_walls.closest();
+        
+        // continue;
+      }
+      
     }
   
+    this.points = collisions;
   }
   
   /**
