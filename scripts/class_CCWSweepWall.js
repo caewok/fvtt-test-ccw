@@ -63,6 +63,11 @@ class CCWSweepWall extends CCWSightRay {
   /* -------------------------------------------- */
   
   /*
+   * @param {[number, number, number, number]}
+   */
+  get coords() { return [this.A.x, this.A.y, this.B.x, this.B.y]; }
+  
+  /*
    * @param {number}
    */
   get radius() { return this._radius; }
