@@ -435,7 +435,40 @@ class CCWSweepPolygon extends PointSourcePolygon {
       
     }
     
+    // close between last / first endpoint
+    // deal with unique case where there are no endpoints
+    // (no blocking walls for radius vision)
+    if(needs_padding || endpoints_ln === 0) {
+      const collisions_ln = collisions.length;
+      let p_last = collisions[collisions_ln - 1];
+      let p_current = collisions[0];
+      
+      // if 0 or 1 collisions, then just pick an appropriate point
+      // padding is best done by hemisphere in that case
+      if(collisions_ln === 0) {
+        p_last = { x: origin.x - radius, y: origin.y }; 
+        p_current = { x: origin.x + radius, y: origin.y }
     
+        collisions.push(p_last.x, p_last.y);
+    
+      } else if(collisions_ln === 1) {
+        // get antipodal point
+        p_last = { x: origin.x - (p_current.x - origin.x),
+                   y: origin.y - (p_current.y - origin.y) }
+      }
+      
+      // draw an arc from where the collisions ended to the ray for the new endpoint
+      const prior_ray = CCWSightRay.fromReference(origin, p_last, radius);
+      const ray = CCWSightRay.fromReference(origin, p_current, radius);
+        
+      this._padRays(prior_ray, ray, collisions);
+
+      if(collisions_ln < 2) {
+        // get the second half by swapping the two rays
+        collisions.push(p_current.x, p_current.y);
+        this._padRays(ray, prior_ray, collisions); 
+      }
+    }
     
     this.points = collisions;
   }
