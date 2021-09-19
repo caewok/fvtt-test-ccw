@@ -160,10 +160,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    _addCanvasEdges() {
      const opts = {origin: this.origin, radius: this.config.radius};
 
+     // organize clockwise from 0,0
      let canvas_pts = [{ x: 0, y: 0 }, 
-                 { x: 0, y: canvas.dimensions.height },
                  { x: canvas.dimensions.width, y: 0 },
-                 { x: canvas.dimensions.width, y: canvas.dimensions.height }];
+                 { x: canvas.dimensions.width, y: canvas.dimensions.height },
+                 { x: 0, y: canvas.dimensions.height }];
      canvas_pts = canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
      
      const canvas_walls = [
