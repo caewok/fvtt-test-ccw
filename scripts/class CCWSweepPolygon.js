@@ -231,7 +231,7 @@ class CCWSweepPolygon extends PointSourcePolygon {
    * @private
    */
   _sweepEndpoints() {
-  
+    
   
   
   
@@ -252,11 +252,98 @@ class CCWSweepPolygon extends PointSourcePolygon {
    * Loop over each endpoint and add collision points.
    * Radius version: Assumes the FOV extends to a defined circle 
    *   and circle intersections are included in endpoints.
+   * Same basic loop as _sweepEndpointsNoRadius but with additional checks and padding.
    */
   _sweepEndpointsRadius() {
-  
+    const padding = Math.PI / Math.max(this.config.density, 6);
+    
   
   }
+  
+  /*
+   * Sort an array of points from CW to CCW, in relation to line due west from origin.
+   * so array[0] would be the first point encountered if moving clockwise from the line.
+   *    array[last] would be the last point encountered.
+   * (to sort the other direction, reverse the signs of the constants)
+   * @param {{x: number, y: number}}    origin      Point to sort against
+   * @param {[{x: number, y: number}]}  endpoints   Array of points to sort
+   * @return {[{x: number, y: number}]} Sorted array of points from CW to CCW
+   */ 
+  static sortEndpointsCW() {
+    const TOP = -1;
+    const BOTTOM = 1;
+    const LEFT = -1;
+    const RIGHT = 1;
+          
+    return endpoints.sort((a, b) => {
+      // arbitrarily declare upper hemisphere to be first
+      // so x < vision_point (above) is before x > vision_point (below)
+      // walk quadrants, so Q1 is upper left, Q3 is lower right
+      // return > 0 to sort b before a
+    
+    
+      // most of this is just to speed up the sort, by checking quadrant location first 
+      const a_hemisphere = a.y < origin.y ? TOP : BOTTOM;
+      const b_hemisphere = b.y < origin.y ? TOP : BOTTOM;
+    
+      // if not in same hemisphere, sort accordingly
+      if(a_hemisphere !== b_hemisphere) return a_hemisphere; 
+      // TOP:  b before a (1)
+      // BOTTOM: a before b (-1)
+    
+      const a_quadrant = a.x < origin.x ? LEFT : RIGHT;
+      const b_quadrant = b.x < origin.x ? LEFT : RIGHT;
+    
+      if(a_quadrant !== b_quadrant) {
+        // already know that a and b share hemispheres
+        if(a_hemisphere === TOP) {
+          return a_quadrant;
+          // TOP, LEFT: b before a (1)
+          // TOP, RIGHT: a before b (-1)
+        } else {
+          return -a_quadrant;
+          // BOTTOM, LEFT: a before b (-1)
+          // BOTTOM, RIGHT: b before a (1)
+        }
+      }
+        
+      return -orient2dPoints(origin, a, b);
+   
+    });
+  }
+  
+  /*
+   * Same as sortEndpointsCW but sort from a baseline other than due west.
+   * Accomplish by adding in a reference point to the endpoints list, then sorting.
+   * Then shift the array based on reference point
+   * sortEndpointsCWFrom(origin, endpoints, {x: origin.x - 100, y: origin.y}) should equal
+   * sortEndpointsCW(origin, endpoints)
+   * @param {{x: number, y: number}}    origin      Point to sort against
+   * @param {[{x: number, y: number}]}  endpoints   Array of points to sort
+   * @param {x: number, y: number}  reference point to be the 0th point
+   * @return {[{x: number, y: number}]} Sorted array of points from CW to CCW
+   */
+  static sortEndpointsCWFrom(origin, endpoints, reference) {
+    reference.sort_baseline = true;
+    endpoints.push(reference);
+  
+    const sorted = CCWSweepPolygon.sortEndpointsCW(origin, endpoints);
+    const idx = sorted.findIndex(e => Boolean(e?.sort_baseline));
+    const ln = sorted.length
+  
+    // easy cases
+    if(idx === 0) {
+      sorted.shift();
+      return sorted;
+    } else if(idx === ln) {
+      sorted.pop();
+      return sorted;
+    } else {
+       //sorted.slice(idx+1, ln).push([...sorted.slice(0, idx)])
+       //return sorted;
+       return sorted.slice(idx+1, ln).concat(sorted.slice(0, idx));
+    }
+  }  
   
   
   
