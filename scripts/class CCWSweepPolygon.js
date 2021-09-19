@@ -391,11 +391,37 @@ class CCWSweepPolygon extends PointSourcePolygon {
    * Same basic loop as _sweepEndpointsNoRadius but with additional checks and padding.
    * Assumes endpoints have already been sorted.
    * Assumes starting walls have been placed in the BST
+   * @param {PotentialWallList} potential_walls BST of ordered walls for starting view
+   * @param {CCWSweepWall} closest_wall         Closest wall at starting position
    */
   _sweepEndpointsRadius(potential_walls, closest_wall) {
+    const endpoints = this.endpoints;
+    const ln = endpoints.length;
+    const radius = this.config.radius;
+    const collisions = this.points;
+    let needs_padding = false;
     
+    for(let i = 0; i < ln; i += 1) {
+      const endpoint = endpoints[i];   
+      potential_walls.addFromEndpoint(endpoint);
+      
+      // if we reach the edge of the limited FOV radius, need to pad by drawing an arc
+      if(needs_padding) {
+        needs_padding = false;
+        
+        // draw an arc from where the collisions ended to the ray for the new endpoint
+        const l = collisions.length;
+        const last_collision = { x: collisions[l - 2], y: collisions[l - 1] };
+        const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        
+        this._padRays(prior_ray, ray, padding);
+      }
+      
+      
+    }
     
-  
+    this.points = collisions;
   }
   
   /*
