@@ -50,6 +50,8 @@ class CCWSweepPolygon extends PointSourcePolygon {
     this.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2))) : -Math.PI;
     this.config.aMax = isLimited ? this.config.aMin + Math.toRadians(angle) : Math.PI;
     
+    this.config.padding = Math.PI / Math.max(this.config.density, 6);
+    
     // Construct endpoints for each wall
     this._initializeEndpoints(type);
     
@@ -255,7 +257,7 @@ class CCWSweepPolygon extends PointSourcePolygon {
    * Same basic loop as _sweepEndpointsNoRadius but with additional checks and padding.
    */
   _sweepEndpointsRadius() {
-    const padding = Math.PI / Math.max(this.config.density, 6);
+    
     
   
   }
@@ -345,6 +347,32 @@ class CCWSweepPolygon extends PointSourcePolygon {
     }
   }  
   
+  /*
+   * Draw a circular arc between two points.
+   * Add to collisions each point on the arc, given a defined padding radian distance.
+   * @param {CCWSightRay} r0       The prior CCWSightRay that was tested
+   * @param {CCWSightRay} r1       The next CCWSightRay that will be tested
+   */
+  _addPadding(r0, r1) {
+    const padding = this.config.padding;
+    
+    if(game.modules.get(MODULE_ID).api.use_bezier) return Bezier.bezierPadding(r0, r1, padding, this.points);
+    
+    // Determine padding delta
+  let d = r1.angle - r0.angle;
+  if ( d < 0 ) d += (2*Math.PI); // Handle cycling past pi
+  const nPad = Math.floor(d / padding);
+  if ( nPad === 0 ) return [];
+
+  // Construct padding rays
+  const delta = d / nPad;
+  let lr = r0;
+  for ( let i=1; i<nPad; i++ ) {
+    let r = r0.shiftAngle(i*delta);
+    rays.push(r.B);
+  }
+  return rays;
+  }  
   
   
 }
