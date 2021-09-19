@@ -104,7 +104,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      const candidate_walls = this._getCandidateWalls();
      candidate_walls.forEach(wall => {
-       wall = CCWSweepWall.createCCWSweepWall(wall);
+       wall = CCWSweepWall.createCCWSweepWall(wall, opts);
        
        // Test whether a wall should be included in the set considered for this polygon
        if(!this._includeWall(wall, type)) return;
@@ -129,7 +129,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          // harder test is the circle intersection (2)
          
          // if no intersections found, then (2) is false
-         if(!(wall.radiusIntersections?.length > 0)) return;
+         if(!(wall.radiusIntersections.length > 0)) return;
          
          // add the intersection points to the set of endpoints to sweep
          wall.radiusIntersections.forEach(i => {
