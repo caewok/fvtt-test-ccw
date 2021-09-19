@@ -62,6 +62,14 @@ export class CCWSweepWall extends CCWSightRay {
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
   
+  /**
+   * The id of the associated wall.
+   */
+  get id() {
+    if(!this._id ) { this._id = foundry.utils.randomID(); }
+    return this._id;  
+  }
+  
   /*
    * @param {[number, number, number, number]}
    */
@@ -82,7 +90,7 @@ export class CCWSweepWall extends CCWSightRay {
    * @return {boolean}
    */
   get hasRadius() {
-    return Boolean(this.radius);
+    return Boolean(this._radius);
   }
   
   /*
@@ -140,13 +148,7 @@ export class CCWSweepWall extends CCWSightRay {
   /*  Getters/Setters                             */
   /* -------------------------------------------- */
   
-  /**
-   * The id of the associated wall.
-   */
-  get id() {
-    if(!this._id ) { this._id = foundry.utils.randomID(); }
-    return this._id;  
-  }
+
   
   /* -------------------------------------------- */
   /*  Methods                                     */

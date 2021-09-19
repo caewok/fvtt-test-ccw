@@ -81,7 +81,7 @@ export class CCWSweepPoint extends PIXI.Point {
    * @return {boolean}
    */
   get hasRadius() {
-    return Boolean(this.radius);
+    return Boolean(this._radius);
   }
   
   /*
