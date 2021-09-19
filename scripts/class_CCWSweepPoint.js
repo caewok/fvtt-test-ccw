@@ -1,6 +1,5 @@
 'use strict';
 
-
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
  * Still keys x,y to a rounded integer point, and treats two such points as equal.
@@ -142,7 +141,7 @@ class CCWSweepPoint extends PIXI.Point {
   }
   
   /*
-   * Test if two CCWSweepPoint keys are equal, suggesting they are equal points
+   * Test if the key for this point equals another, suggesting they are equal points
    * (at least, equal as rounded to the nearest integer)
    * @param {CCWSweepPoint|WallEndpoint} p  Other point to test against
    */  
@@ -150,5 +149,17 @@ class CCWSweepPoint extends PIXI.Point {
     return this.key === p.key;
   } 
   
+  /*
+   * Test if this point is almost equal to some other {x, y} point
+   * @param {x: number, y: number} p    Point to compare
+   */
+  almostEqual(p) {
+    return pointsAlmostEqual(this, p)
+  }
+  
+  
+  /*
+   * Import the WallEndpoint get key method
+   */
   static getKey = WallEndpoint.getKey;
 }
