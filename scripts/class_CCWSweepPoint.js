@@ -88,8 +88,8 @@ export class CCWSweepPoint extends PIXI.Point {
    * Distance squared to origin. Used for comparisons.
    */
   get distanceSquaredToOrigin() {
-    if(this._distanceSquaredToOrigin = undefined) {
-      this._distanceSquaredToOrigin = distanceSquared(this.origin);
+    if(this._distanceSquaredToOrigin === undefined) {
+      this._distanceSquaredToOrigin = this.distanceSquared(this.origin);
     }
     return this._distanceSquaredToOrigin;
   }

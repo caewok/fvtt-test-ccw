@@ -100,7 +100,7 @@ export class CCWSweepWall extends CCWSightRay {
   get radiusIntersections() {
     if(!this.hasRadius || !this.origin) return undefined;
     if(this._radiusIntersections === undefined) {
-      this._radiusIntersections = intersectionsWithCircle(this.origin. this.radius);
+      this._radiusIntersections = this.intersectionsWithCircle(this.origin, this.radius);
     }
     return this._radiusIntersections;
   }

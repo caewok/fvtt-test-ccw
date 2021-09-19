@@ -175,11 +175,11 @@ export class CCWSightRay extends Ray {
    * This method builds on that by only returning intersections within the line
    * defined by this.A and this.B
    * @param {x: number, y: number} center   Center of the cirle
-   * @param {number} r      Radius of circle. Should be > 0.
+   * @param {number} radius      Radius of circle. Should be > 0.
    * @return {[{x,y}]|undefined} One or two intersection points or undefined.
    */
   intersectionsWithCircle(center, radius) {
-    const intersections = this.potentialIntersectionsCircle(center, radius);
+    const intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
     return intersections.filter(i => this.contains(i, {assume_collinear: true}));
