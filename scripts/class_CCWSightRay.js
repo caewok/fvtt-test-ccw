@@ -10,6 +10,22 @@ import { ccwPoints,
  * @extends {Ray}
  */
 class CCWSightRay extends Ray {
+
+  /* -------------------------------------------- */
+  /*  Factory Function                            */
+  /* -------------------------------------------- */
+  
+  /*
+   * Construct a sight ray of given distance that goes through the reference point.
+   * Comparable to Ray.fromAngle 
+   * @param {x: number, y: number}  origin    Ray starting point
+   * @param {x: number, y: number}  reference Ray must pass through this point
+   * @param {Number}                dist      Positive number for ray distance.
+   * @return {CCWSightRay} Constructed ray.
+   */
+  static fromReference(origin, reference, dist) {
+    return (new CCWSightRay(origin, endpoint)).projectDistance(radius);
+  }
   
   /* -------------------------------------------- */
   /*  Methods                                     */

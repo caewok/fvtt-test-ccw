@@ -234,7 +234,19 @@ class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpoints() {
     
-  
+    // ----- INITIAL RAY INTERSECTION ---- //
+    // Begin with a ray at the lowest angle to establish initial conditions
+    // Can avoid using FromAngle if aMin is -π, which means it goes due west
+    const minRay = (aMin === -Math.PI) ? 
+                 CCWSightRay.fromReference(origin, 
+                                           {x: origin.x - 100, y: origin.y}, 
+                                           radius) :
+                 CCWSightRay.fromAngle(origin, aMin, radius);  
+    const maxRay = isLimited ? 
+                 CCWSightRay.fromAngle(origin, aMax, radius) : 
+                 undefined;
+                 
+    
   
   
   }
