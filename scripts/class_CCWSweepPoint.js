@@ -141,14 +141,14 @@ class CCWSweepPoint extends PIXI.Point {
     return (dx*dx + dy*dy);
   }
   
-  /**
-   * Does this endpoint equal some other endpoint?
-   * This version treats points equivalent if rounded values are equal
-   * @param {x: number, y: number} other     Some other point with x and y coordinates
-   * @returns {boolean}       Are the points equal?
-   */
-  equals(other) {
-    return (Math.round(other.x) === Math.round(this.x)) && 
-           (Math.round(other.y) === Math.round(this.y));
-  }
+  /*
+   * Test if two CCWSweepPoint keys are equal, suggesting they are equal points
+   * (at least, equal as rounded to the nearest integer)
+   * @param {CCWSweepPoint|WallEndpoint} p  Other point to test against
+   */  
+  keyEquals(p) {
+    return this.key === p.key;
+  } 
+  
+  static getKey = WallEndpoint.getKey;
 }
