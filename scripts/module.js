@@ -5,6 +5,10 @@ import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { Bezier } from "./class_Bezier.js";
+import { CCWSweepWall }       from "./class_CCWSweepWall.js";
+import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
+import { CCWSightRay }        from "./class_CCWSightRay.js";
+import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
 
 export const MODULE_ID = 'testccw';
 
@@ -57,6 +61,10 @@ Hooks.once('init', async function() {
                                       use_bezier: false, 
                                       use_robust_ccw: true, 
                                       benchmark: testCCWBenchmarkSight,
+                                      CCWSweepPoint: CCWSweepPoint,
+                                      CCWSweepWall: CCWSweepWall,
+                                      CCWSightRay: CCWSightRay,
+                                      CCWSweepPolygon: CCWSweepPolygon,
                                       orient2d: orient2d,
                                       PotentialWallList: PotentialWallList,
                                       Bezier: Bezier }
