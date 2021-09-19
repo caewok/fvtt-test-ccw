@@ -35,7 +35,7 @@ export function log(...args) {
 // });
 
 Hooks.once('init', async function() {
-  registerCCW();
+//  registerCCW();
   
  /**
   * API switches 
@@ -64,13 +64,13 @@ Hooks.once('init', async function() {
 
 // modules ready
 // ready is called once everything is loaded up and ready to go.
-Hooks.once('ready', async function() {
-
-  if(game?.user?.isGM === undefined || game.user.isGM) {
-    if(!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
-
-  }
-});
+// Hooks.once('ready', async function() {
+// 
+//   if(game?.user?.isGM === undefined || game.user.isGM) {
+//     if(!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
+// 
+//   }
+// });
 
 // https://github.com/League-of-Foundry-Developers/foundryvtt-devMode
 // Hooks.once('devModeReady', ({ registerPackageDebugFlag }) => {
