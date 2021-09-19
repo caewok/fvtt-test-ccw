@@ -125,9 +125,9 @@ export class CCWSweepWall extends CCWSightRay {
    * @return {CCWSweepWall}
    */
   static createCCWSweepWall(wall) {
-    const c = wall.coords;
-    const w = new CCWSweepWall({ x: this.coords[0], y: this.coords[1] },
-                               { x: this.coords[2], y: this.coords[3] });
+    const [x0, y0, x1, y1] = wall.coords;
+    const w = new CCWSweepWall({ x: x0, y: y0 },
+                               { x: x1, y: y1 });
     w.isOpen = wall.isOpen;
     w.data = duplicate(wall.data);
     w.isInterior = (wall.roof?.occluded === false);
