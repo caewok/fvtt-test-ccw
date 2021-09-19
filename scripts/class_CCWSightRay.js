@@ -35,7 +35,7 @@ class CCWSightRay extends Ray {
    * Project the Ray from B by some proportion of its initial distance.
    * Return the coordinates of that point B along the path.
    * @param {number} t    The distance along the Ray
-   * @return {x, y} The coordinates of the projected point
+   * @return {x: number, y: number} The coordinates of the projected point
    */
   projectB(t) {
     return {
