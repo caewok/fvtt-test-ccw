@@ -5,6 +5,8 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
+import { orient2dPoints }     from "./util.js";
+
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.
@@ -537,8 +539,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @return {[{x: number, y: number}]} Sorted array of points from CW to CCW
    */ 
   static sortEndpointsCW(origin, endpoints) {
+    // to sort CCW to CW, change the signs of the four constants and the orient2dPOints return.
     const TOP = -1;
-    const BOTTOM = 1;
+    const BOTTOM = 1; 
     const LEFT = -1;
     const RIGHT = 1;
           
@@ -574,7 +577,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         }
       }
         
-      return -orient2dPoints(origin, a, b);
+      return orient2dPoints(origin, a, b);
    
     });
   }
