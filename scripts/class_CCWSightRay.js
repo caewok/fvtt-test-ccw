@@ -83,16 +83,22 @@ export class CCWSightRay extends Ray {
     if(!assume_collinear && ccwPoints(this.A, this.B, p) !== 0) return false;
 
     // test if is an endpoint
-    if(pointsAlmostEqual(this.A, p) || 
-       pointsAlmostEqual(this.B, p)) return true;  
+    // covered by revised test below
+    //if(pointsAlmostEqual(this.A, p) || 
+    //   pointsAlmostEqual(this.B, p)) return true;  
  
     // test if between the endpoints
     // recall that we already established the point is collinear above.
-    const within_x = (p.x < Math.max(this.A.x, this.B.x) &&
-                      p.x > Math.min(this.A.x, this.B.x));
+    const max_x = Math.max(this.A.x, this.B.x);
+    const min_x = Math.min(this.A.x, this.B.x);
+    const max_y = Math.max(this.A.y, this.B.y);
+    const min_y = Math.min(this.A.y, this.B.y);
 
-    const within_y = (p.y < Math.max(this.A.y, this.B.y) &&
-                      p.y > Math.min(this.A.y, this.B.y));
+    const within_x = ((p.x < max_x || almostEqual(p.x, max_x)) &&
+                (p.x > min_x || almostEqual(p.x, min_x)));
+
+    const within_y = ((p.y < max_y || almostEqual(p.y, max_y)) &&
+                (p.y > min_y || almostEqual(p.y, min_y)));
  
     return within_x && within_y;
   }
