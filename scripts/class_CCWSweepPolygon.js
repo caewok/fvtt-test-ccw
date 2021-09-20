@@ -219,7 +219,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @returns {boolean}         Should the wall be included?
    * @private
    */
-  _includeWall(wall, type) { 
+  _includeWall(wall, type, origin = this.origin) { 
     // Special case - coerce interior walls to block light and sight
     const isInterior = ( type === "sight" ) && wall.isInterior;
     if(isInterior) return true;
@@ -230,7 +230,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // Ignore one-directional walls which are facing away from the origin
     if(!wall.data.dir) return true; // wall not one-directional 
     
-    return wall.whichSide(this.origin) === wall.data.dir;
+    return wall.whichSide(origin) === wall.data.dir;
   }
   
   /* -------------------------------------------- */
@@ -670,5 +670,68 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     return collisions;
   }  
   
-  
+  /* -------------------------------------------- */
+  /*  Collision Testing                           */
+  /* -------------------------------------------- */
+
+  /**
+   * Comparable to RadialSweep version.
+   * 
+   * Check whether a given ray intersects with walls.
+   * @param {Ray} ray                   The Ray being tested
+   * @param {object} [options={}]       Options which customize how collision is tested
+   * @param {string} [options.type=movement]        Which collision type to check: movement, sight, sound
+   * @param {string} [options.mode=any]             Which type of collisions are returned: any, closest, all
+   * @return {object[]|object|boolean}  An array of collisions, if mode is "all"
+   *                                    The closest collision, if mode is "closest"
+   *                                    Whether any collision occurred if mode is "any"
+   */
+   
+  static getRayCollisions(ray, {type="move", mode="all", steps=8}={}) {
+     const candidate_walls = [...canvas.walls.quadtree.getObjects(ray.bounds)];
+     
+     const ln = candidate_walls.length;
+     
+     // return early if no walls found.
+     if(ln === 0) {
+       switch(mode) {
+         case "all": 
+           return [];
+         case "closest":
+           return null;
+         case "any":
+           return false;
+       }
+     }
+     
+     // for each wall, test if valid for the type and if it intersects with the ray
+     const intersecting_walls = [];
+     for(i = 0; i < ln; i += 1) {
+       const wall = CWSweepWall.createCCWSweepWall(candidate_walls[i]);
+       if(!this._includeWall(wall, type, ray.A)) continue;
+       if(wall.intersects(ray)) { // wall.intersects is a faster version that does not get the actual intersection
+         if(mode === "any") return true;
+         intersecting_walls.push(wall);
+       }
+     }
+     
+     if(mode === "any") return false; // we would have returned true by now otherwise
+     
+     if(mode === "all") {
+       // Find the actual intersection for each wall and return.
+       intersections = intersecting_walls.map(w => {
+         const i = ray.intersectSegment(w.coords);
+         return new WallEndpoint(i.x, i.y);
+       });
+       return intersections;
+     } else {
+      // mode "closest"
+      // Use the BST to find the closest wall, get the intersection, and return
+      const potential_walls = new PotentialWallList(ray.A);
+      potential_walls.add(interesting_walls);
+      const closest = potential_walls.closest(false); // do not remove the wall; wastes time
+      const i = ray.intersectSegment(closest.coords);
+      return new WallEndpoint(i.x, i.y);
+     }
+  }
 }
