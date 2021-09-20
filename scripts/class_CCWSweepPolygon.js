@@ -249,30 +249,30 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // Begin with a ray at the lowest angle to establish initial conditions
     // If the FOV has a limited angle, then get the max as well.
     // Can avoid using FromAngle if aMin is -π, which means it goes due west
-    const minRay = (aMin === -Math.PI) ? 
+    const start_ray = (aMin === -Math.PI) ? 
                  CCWSightRay.fromReference(origin, 
                                            {x: origin.x - 100, y: origin.y}, 
                                            radius) :
                  CCWSightRay.fromAngle(origin, aMin, radius);  
-    const maxRay = isLimited ? 
+    const end_ray = isLimited ? 
                  CCWSightRay.fromAngle(origin, aMax, radius) : 
                  undefined;
                  
     // ----- LIMITED ANGLE FILTER ----- //
-    if(isLimited) { this._trimEndpointsByLimitedAngle(minRay, maxRay); }
+    if(isLimited) { this._trimEndpointsByLimitedAngle(start_ray, end_ray); }
     
     // ----- SORT ENDPOINTS CW ----- //
     // Sort endpoints from CW (0) to CCW (last)
     // No radius: Sort in relation to a line due west from origin.
     // Radius: Sort from the minRay instead of from due west
     this.endpoints = isLimited ? 
-                     sortEndpointsCWFrom(origin, [...this.endpoints.values()], minRay.B) :
-                     sortEndpointsCW(origin, [...this.endpoints.values()]);
+                     CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], start_ray.B) :
+                     CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
                      
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
-      endpoints.unshift(new SweepPoint(minRay.B.x, minRay.B.y)); // first endpoint
-      endpoints.push(new SweepPoint(maxRay.B.x, maxRay.B.y)); // last endpoint
+      endpoints.unshift(new SweepPoint(start_ray.B.x, start_ray.B.y)); // first endpoint
+      endpoints.push(new SweepPoint(end_ray.B.x, end_ray.B.y)); // last endpoint
     }                 
     
     // ----- SWEEP CLOCKWISE ----- //
