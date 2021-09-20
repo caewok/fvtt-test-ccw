@@ -6,7 +6,8 @@ import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
 import { orient2dPoints, 
-         pointsAlmostEqual }  from "./util.js";
+         pointsAlmostEqual,
+         ccwPoints }          from "./util.js";
 import { MODULE_ID }	      from "./module.js";
 
 /**
@@ -257,9 +258,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
                  CCWSightRay.fromReference(origin, 
                                            {x: origin.x - 100, y: origin.y}, 
                                            radius) :
-                 CCWSightRay.fromAngle(origin, aMin, radius);  
+                 CCWSightRay.fromAngle(origin.x, origin.y, aMin, radius);  
     const end_ray = isLimited ? 
-                 CCWSightRay.fromAngle(origin, aMax, radius) : 
+                 CCWSightRay.fromAngle(origin.x, origin.y, aMax, radius) : 
                  undefined;
                  
     // ----- LIMITED ANGLE FILTER ----- //
@@ -275,8 +276,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
                      
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
-      endpoints.unshift(new SweepPoint(start_ray.B.x, start_ray.B.y)); // first endpoint
-      endpoints.push(new SweepPoint(end_ray.B.x, end_ray.B.y)); // last endpoint
+      this.endpoints.unshift(new CCWSweepPoint(start_ray.B.x, start_ray.B.y)); // first endpoint
+      this.endpoints.push(new CCWSweepPoint(end_ray.B.x, end_ray.B.y)); // last endpoint
     }                 
     
     // ----- SWEEP CLOCKWISE ----- //
