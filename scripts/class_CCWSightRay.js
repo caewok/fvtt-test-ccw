@@ -61,12 +61,12 @@ export class CCWSightRay extends Ray {
   }
 
   /**
-   * Quick function to determine if this ray intersects another
+   * Quick function to determine if this ray could intersect another
    *
    * @param {Ray} r Other ray to test for intersection
-   * @return {boolean} Do the segments intersect?
+   * @return {boolean} Could the segments intersect?
    */
-  intersects(r) {
+  intersects(r) {  
     return ccwPoints(this.A, this.B, r.A) != ccwPoints(this.A, this.B, r.B) &&
            ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
   }
