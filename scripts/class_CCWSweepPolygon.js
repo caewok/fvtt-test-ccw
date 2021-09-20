@@ -121,6 +121,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        if(!a) { a = new CCWSweepPoint(wall.A.x, wall.A.y, opts); }
        if(!b) { b = new CCWSweepPoint(wall.B.x, wall.B.y, opts); }
+
+       
      
        // test for inclusion in the FOV radius
        if(this.config.hasRadius && !(a.insideRadius || b.insideRadius)) {
@@ -222,16 +224,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   static includeWall(wall, type, origin) { 
     // Special case - coerce interior walls to block light and sight
-    const isInterior = ( type === "sight" ) && wall.isInterior;
-    if(isInterior) return true;
+    if(type === "sight" && wall.isInterior) return true;
 
     // Ignore non-blocking walls and open doors
     if(!wall.data[type] || wall.isOpen) return false;
 
-    // Ignore one-directional walls which are facing away from the origin
-    if(!wall.data.dir) return true; // wall not one-directional 
-    
-    return wall.whichSide(origin) === wall.data.dir;
+    // Ignore walls on line with origin unless this is movement
+    const origin_side = wall.whichSide(origin);
+    if(type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
+
+    if(!wall.data.dir) return true; // wall not one-directional
+
+    // Ignore one-directional walls which are facing away from the origin    
+    return origin_side === wall.data.dir;
   }
   
   /* -------------------------------------------- */
@@ -327,6 +332,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
+  
+      if(!closest_wall) {
+        console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
+      }
       
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
