@@ -110,7 +110,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        wall = CCWSweepWall.createCCWSweepWall(wall, opts);
        
        // Test whether a wall should be included in the set considered for this polygon
-       if(!this._includeWall(wall, type)) return;
+       if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
        
        // construct endpoints if not already
        const ak = WallEndpoint.getKey(wall.A.x, wall.A.y);
@@ -212,14 +212,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   /**
    * Comparable to RadialSweepPolygon version. Differences:
    * - Uses CCWSweepWall method whichSide for one-directional walls.
+   * - Static, so it can be used by the static getRayCollisions method.
    *
    * Test whether a Wall object should be included as a candidate for collision from the polygon origin
    * @param {Wall} wall         The Wall being considered
    * @param {string} type       The type of polygon being computed
    * @returns {boolean}         Should the wall be included?
-   * @private
+   * 
    */
-  _includeWall(wall, type, origin = this.origin) { 
+  static includeWall(wall, type, origin) { 
     // Special case - coerce interior walls to block light and sight
     const isInterior = ( type === "sight" ) && wall.isInterior;
     if(isInterior) return true;
@@ -300,6 +301,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const endpoints = this.endpoints;
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
+    const isLimited = this.config.isLimited;
     const collisions = this.points;
     const origin = this.origin;
     
@@ -706,9 +708,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // for each wall, test if valid for the type and if it intersects with the ray
      const intersecting_walls = [];
-     for(i = 0; i < ln; i += 1) {
-       const wall = CWSweepWall.createCCWSweepWall(candidate_walls[i]);
-       if(!this._includeWall(wall, type, ray.A)) continue;
+     for(let i = 0; i < ln; i += 1) {
+       const wall = CCWSweepWall.createCCWSweepWall(candidate_walls[i]);
+       if(!CCWSweepPolygon.includeWall(wall, type, ray.A)) continue;
        if(wall.intersects(ray)) { // wall.intersects is a faster version that does not get the actual intersection
          if(mode === "any") return true;
          intersecting_walls.push(wall);
