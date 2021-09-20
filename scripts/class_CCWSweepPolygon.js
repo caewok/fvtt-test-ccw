@@ -178,8 +178,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      
      for(let i = 0; i < 4; i += 1) {
-       this.walls.set(canvas_walls[i].id, canvas_walls[i]);
-       this.endpoints.set(canvas_pts[i].key, canvas_pts[i]);
+       const j = (i + 1) % 4;
+
+       // each corner point has two canvas walls
+       canvas_pts[j].walls.add(canvas_walls[i]);
+       canvas_pts[j].walls.add(canvas_walls[j]);
+
+       this.walls.set(canvas_walls[j].id, canvas_walls[j]);
+       this.endpoints.set(canvas_pts[j].key, canvas_pts[j]);
      }
    } 
    
