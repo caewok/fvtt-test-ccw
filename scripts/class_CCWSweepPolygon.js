@@ -286,6 +286,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // initialize the points
     this.points = [];
     
+    // open the limited shape            
+    if(isLimited) { this.points.push(origin.x, origin.y) }    
+    
     hasRadius ? this._sweepEndpointsRadius() :
                 this._sweepEndpointsNoRadius();
     
@@ -404,9 +407,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const endpoints_ln = endpoints.length;
     const { radius, isLimited } = this.config;
     const collisions = this.points;
+    const origin = this.origin;
     let needs_padding = false;
     
-    const potential_walls = new PotentialWallList(this.origin); // BST ordered by closeness
+    const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
     // Set starting state by getting all walls that intersect the start ray
     // if the endpoint is the start of a wall (CW), exclude from list
@@ -429,11 +433,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
-      
-      if(!closest_wall) {
-        console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
-      }
-      
+            
       // if we reach the edge of the limited FOV radius, need to pad by drawing an arc
       if(needs_padding) {
         needs_padding = false;
@@ -445,6 +445,28 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         
         this._padRays(prior_ray, ray, collisions);
+      }
+      
+      // No wall within radius
+      // mark end of vision ray as collision
+      // try to get new closer wall from this endpoint
+      if(!closest_wall) {
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        collisions.push({x: ray.B.x, y: ray.B.y}); 
+        
+        closest_wall = potential_walls.closest();
+        
+        if(!ray.contains(endpoint) || Boolean(endpoint?.minLimit)) {
+          // endpoint is outside the radius so don't add it to collisions. 
+          // need to pad b/c no wall in front of the endpoint, 
+          //   so empty space to next point
+          needs_padding = true
+        } else if(!pointsAlmostEqual(endpoint, ray.B)) {
+          // add unless we already did above.
+          collisions.push({x: endpoint.x, y: endpoint.y}); 
+        }
+        
+        continue;
       }
       
       // is this endpoint at the end of the closest_wall?
