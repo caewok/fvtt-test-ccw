@@ -300,6 +300,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    *   and canvas edges/vertices are included in walls/endpoints.
    * Assumes endpoints have already been sorted.
    * Assumes starting walls have been placed in the BST
+   * Assumes walls in line with the origin have been removed.
    * @private
    */
   _sweepEndpointsNoRadius() {
@@ -395,21 +396,43 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Same basic loop as _sweepEndpointsNoRadius but with additional checks and padding.
    * Assumes endpoints have already been sorted.
    * Assumes starting walls have been placed in the BST
+   * Assumes walls in line with the origin have been removed.
    * @private
    */
   _sweepEndpointsRadius() {
     const endpoints = this.endpoints;
     const endpoints_ln = endpoints.length;
-    const radius = this.config.radius;
+    const { radius, isLimited } = this.config;
     const collisions = this.points;
     let needs_padding = false;
     
     const potential_walls = new PotentialWallList(this.origin); // BST ordered by closeness
-    let closest_wall = undefined;
+    
+    // Set starting state by getting all walls that intersect the start ray
+    // if the endpoint is the start of a wall (CW), exclude from list
+    // origin --> endpoint[0] --> other collision? --> canvas edge
+    const start_endpoint = endpoints[0];
+    const start_ray = CCWSightRay.fromReference(origin, start_endpoint, radius);
+    const start_walls = [...this.walls.values()].filter(w => {
+      if(!start_ray.intersects(w)) return false;
+      if(pointsAlmostEqual(w.A, endpoints[0]) || pointsAlmostEqual(w.B, start_endpoint)) {
+        const ccw = PotentialWallList.endpointWallCCW(origin, start_endpoint, w) === 1; 
+        if(!ccw) return false;
+      }
+      return true;    
+    });
+
+    potential_walls.addWalls(start_walls);
+    let closest_wall = potential_walls.closest();
+    
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
+      
+      if(!closest_wall) {
+        console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
+      }
       
       // if we reach the edge of the limited FOV radius, need to pad by drawing an arc
       if(needs_padding) {
@@ -685,9 +708,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   /*  Collision Testing                           */
   /* -------------------------------------------- */
 
-  /**
-   * Comparable to RadialSweep version.
-   * 
+  /** 
    * Check whether a given ray intersects with walls.
    * @param {Ray} ray                   The Ray being tested
    * @param {object} [options={}]       Options which customize how collision is tested
