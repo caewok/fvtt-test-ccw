@@ -299,15 +299,26 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const endpoints = this.endpoints;
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
-    const collisions = this.points;   
+    const collisions = this.points;
+    const origin = this.origin;
     
     const potential_walls = new PotentialWallList(this.origin); // BST ordered by closeness
 
-    // All walls that intersect the first endpoint are potentially closest
-    // must be at least one, b/c wall contain the canvas boundaries
-    starting_ray = CCWSightRay.fromReference(origin, endpoints[0], radius);
-    starting_walls = [...this.walls.values()].filter(w => starting_ray.intersects(w));
-    potential_walls.addWalls(starting_walls);
+    // Set starting state by getting all walls that intersect the start ray
+    // if the endpoint is the start of a wall (CW), exclude from list
+    // origin --> endpoint[0] --> other collision? --> canvas edge
+    const start_endpoint = endpoints[0];
+    const start_ray = CCWSightRay.fromReference(origin, start_endpoint, radius);
+    const start_walls = [...this.walls.values()].filter(w => {
+      if(!start_ray.intersects(w)) return false;
+      if(pointsAlmostEqual(w.A, endpoints[0]) || pointsAlmostEqual(w.B, start_endpoint)) {
+        const ccw = PotentialWallList.endpointWallCCW(origin, start_endpoint, w) === 1; 
+        if(!ccw) return false;
+      }
+      return true;    
+    });
+
+    potential_walls.addWalls(start_walls);
     closest_wall = potential_walls.closest();
     
     for(let i = 0; i < endpoints_ln; i += 1) {
