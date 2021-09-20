@@ -101,7 +101,7 @@ export class PotentialWallList extends BinarySearchTree {
   * @param {boolean} remove     Default is to remove the closest (pop)
   * @return {Wall}
   */
-  closest(remove = true) {
+  closest({remove = false} = {}) {
     if(this.walls_encountered.size === 0) return undefined;
     
     if(remove) {
@@ -110,7 +110,7 @@ export class PotentialWallList extends BinarySearchTree {
       return w;
     }
   
-    return this.findMaxNode();
+    return this.findMaxNode().data;
   }
   
  /**

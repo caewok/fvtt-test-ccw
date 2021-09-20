@@ -136,7 +136,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          // add the intersection points to the set of endpoints to sweep
          wall.radiusIntersections.forEach(i => {
              const pt = new CCWSweepPoint(i.x, i.y, opts);
-             pt.walls.add(wall);
+             //pt.walls.add(wall); // don't add the wall b/c it will throw off the radius sweep. 
              this.endpoints.set(pt.key, pt);
          });   
        }
@@ -332,7 +332,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
-      potential_walls.addFromEndpoint(endpoint);
+      potential_walls.addFromEndpoint(endpoint); // this will also remove non-relevant walls, including the closest wall if at the end of a wall
   
       if(!closest_wall) {
         console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
@@ -346,11 +346,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
         collisions.push(endpoint.x, endpoint.y);
         
+        // drop the current closest wall, as we are done with it.
         // get the next-closest wall (the one behind the current endpoint)
         // find its intersection point and add the collision
         // sightline --> endpoint at closest wall --> next closest wall
         
         closest_wall = potential_walls.closest();
+                
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
@@ -480,7 +482,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // get the next-closest wall (the one behind the current endpoint)
         // find its intersection point and add the collision
         // sightline --> endpoint at closest wall --> next closest wall
-        
         closest_wall = potential_walls.closest();
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
