@@ -5,7 +5,8 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
-import { orient2dPoints }     from "./util.js";
+import { orient2dPoints, 
+         pointsAlmostEqual }  from "./util.js";
 
 
 /**
@@ -279,8 +280,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // initialize the points
     this.points = [];
     
-    hasRadius ? this._sweepEndpointsRadius(potential_walls) :
-                this._sweepEndpointsNoRadius(potential_walls);
+    hasRadius ? this._sweepEndpointsRadius() :
+                this._sweepEndpointsNoRadius();
     
     // close the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }           
@@ -319,7 +320,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     });
 
     potential_walls.addWalls(start_walls);
-    closest_wall = potential_walls.closest();
+    let closest_wall = potential_walls.closest();
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
