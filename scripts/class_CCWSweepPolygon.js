@@ -236,8 +236,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpoints() {
     const origin = this.origin;
-    const { isLimited, aMin, aMax, hasRadius } = this.config;
-    this.points = []; // collision points that make up the polygon
+    const { maxR, isLimited, aMin, aMax, hasRadius } = this.config;
+    const radius = this.config.radius ?? maxR;
     
     // ----- INITIAL RAY INTERSECTION ---- //
     // Begin with a ray at the lowest angle to establish initial conditions
@@ -296,7 +296,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const collisions = this.points;   
     
     const potential_walls = new PotentialWallList(this.origin); // BST ordered by closeness
-    let closest_wall = undefined;
+
+    // All walls that intersect the first endpoint are potentially closest
+    // must be at least one, b/c wall contain the canvas boundaries
+    starting_ray = CCWSightRay.fromReference(origin, endpoints[0], radius);
+    starting_walls = [...this.walls.values()].filter(w => starting_ray.intersects(w));
+    potential_walls.addWalls(starting_walls);
+    closest_wall = potential_walls.closest();
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -489,8 +495,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _getRayIntersection(wall, ray) {
     let intersection = undefined;
     if(wall) { intersection = ray.intersectSegment(wall.coords); }
-    return intersection ? new SweepPoint(intersection.x, intersection.y) : 
-                          new SweepPoint(ray.B.x, ray.B.y);
+    return intersection ? new CCWSweepPoint(intersection.x, intersection.y) : 
+                          new CCWSweepPoint(ray.B.x, ray.B.y);
   }
    
   

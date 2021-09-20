@@ -1,5 +1,7 @@
 'use strict';
 
+import { pointsAlmostEqual } from "./util.js";
+
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
  * Still keys x,y to a rounded integer point, and treats two such points as equal.

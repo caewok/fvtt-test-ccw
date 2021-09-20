@@ -24,7 +24,7 @@ export class CCWSightRay extends Ray {
    * @return {CCWSightRay} Constructed ray.
    */
   static fromReference(origin, reference, dist) {
-    return (new CCWSightRay(origin, endpoint)).projectDistance(radius);
+    return (new CCWSightRay(origin, reference)).projectDistance(dist);
   }
   
   /* -------------------------------------------- */

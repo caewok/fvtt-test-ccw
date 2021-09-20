@@ -35,7 +35,7 @@ export class PotentialWallList extends BinarySearchTree {
   */
   compare(a, b) {
     if(a.id === b.id) return 0;
-    const res = a.toRay().inFrontOfSegment(b.toRay(), this.origin);
+    const res = a.inFrontOfSegment(b, this.origin);
     if(res === undefined) {
      log(`BST compare returned undefined`, res, this);
     }
