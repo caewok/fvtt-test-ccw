@@ -271,7 +271,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     } else{
       endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = CCWSightRay.fromReference(origin, endpoints[0], radius);
+      start_ray = endpoints.length > 0 ? CCWSightRay.fromReference(origin, endpoints[0], radius) : undefined;
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -305,20 +305,22 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
 
     // ----- STARTING STATE ------ //
-    const start_endpoint = endpoints[0];
-    const start_walls = [...this.walls.values()].filter(w => {
-      if(!start_ray.intersects(w)) return false;
+    if(endpoints.length > 0) {
+      const start_endpoint = endpoints[0];
+      const start_walls = [...this.walls.values()].filter(w => {
+        if(!start_ray.intersects(w)) return false;
 
-      // if the starting endpoint is at the start of the wall, don't include it
-      if(pointsAlmostEqual(w.A, start_endpoint) || 
-         pointsAlmostEqual(w.B, start_endpoint)) {
-         const ccw = PotentialWallList.endpointWallCCW(origin, start_endpoint, w) === 1;  
-         if(!ccw) return false;
-      }
-      return true;    
-    });
+        // if the starting endpoint is at the start of the wall, don't include it
+        if(pointsAlmostEqual(w.A, start_endpoint) || 
+           pointsAlmostEqual(w.B, start_endpoint)) {
+          const ccw = PotentialWallList.endpointWallCCW(origin, start_endpoint, w) === 1;  
+          if(!ccw) return false;
+        }
+        return true;    
+      });
 
-    potential_walls.addWalls(start_walls);
+      potential_walls.addWalls(start_walls);
+    }
 
     // ----- SWEEP CLOCKWISE ----- //
     // initialize the points
@@ -616,6 +618,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @return {[{x: number, y: number}]} Sorted array of points from CW to CCW
    */ 
   static sortEndpointsCW(origin, endpoints) {
+    if(endpoints.length === 0) return endpoints;
     // to sort CCW to CW, change the signs of the four constants and the orient2dPOints return.
     const TOP = -1;
     const BOTTOM = 1; 
@@ -671,6 +674,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @return {[{x: number, y: number}]} Sorted array of points from CW to CCW
    */
   static sortEndpointsCWFrom(origin, endpoints, reference) {
+    if(endpoints.length === 0) return endpoints;
     reference.sort_baseline = true;
     endpoints.push(reference);
   
