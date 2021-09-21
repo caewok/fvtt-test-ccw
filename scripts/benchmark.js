@@ -1,6 +1,7 @@
 'use strict';
 
 import { MODULE_ID } from "./module.js";
+import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
 
 /* 
  * Test w/ and w/o CCW 
