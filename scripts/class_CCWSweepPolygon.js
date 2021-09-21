@@ -256,6 +256,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // If the FOV has a limited angle, then get the max as well.
     let start_ray = undefined;
     let end_ray = undefined;
+    let endpoints = undefined;
 
     // ----- LIMITED ANGLE FILTER AND SORT ENDPOINTS CW ----- //
     // Sort endpoints from CW (0) to CCW (last)
@@ -266,11 +267,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       start_ray = CCWSightRay.fromAngle(origin.x, origin.y, aMin, radius);
       end_ray =   CCWSightRay.fromAngle(origin.x, origin.y, aMax, radius);
       this._trimEndpointsByLimitedAngle(start_ray, end_ray);
-      this.endpoints = CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], start_ray.B);
+      endpoints = CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], start_ray.B);
 
     } else{
-      this.endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = CCWSightRay.fromReference(origin, this.endpoints.values().next().value, radius);
+      endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
+      start_ray = CCWSightRay.fromReference(origin, endpoints[0], radius);
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -298,12 +299,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       const start_point = this._getRayIntersection(start_wall, start_ray);
       const end_point = this._getRayIntersection(end_wall, end_ray);
 
-      this.endpoints.unshift(new CCWSweepPoint(start_point.x, start_point.y)); // first endpoint
-      this.endpoints.push(new CCWSweepPoint(end_point.x, end_point.y)); // last endpoint
-    }                 
+      const opts = {origin: origin, radius: radius};
+      endpoints.unshift(new CCWSweepPoint(start_point.x, start_point.y, opts)); // first endpoint
+      endpoints.push(new CCWSweepPoint(end_point.x, end_point.y, opts)); // last endpoint
+    }
 
     // ----- STARTING STATE ------ //
-    const start_endpoint = this.endpoints.values().next().value;
+    const start_endpoint = endpoints[0];
     const start_walls = [...this.walls.values()].filter(w => {
       if(!start_ray.intersects(w)) return false;
 
@@ -325,8 +327,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // open the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }    
     
-    hasRadius ? this._sweepEndpointsRadius(potential_walls) :
-                this._sweepEndpointsNoRadius(potential_walls);
+    hasRadius ? this._sweepEndpointsRadius(potential_walls, endpoints) :
+                this._sweepEndpointsNoRadius(potential_walls, endpoints);
     
     // close the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }           
@@ -342,8 +344,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Assumes walls in line with the origin have been removed.
    * @private
    */
-  _sweepEndpointsNoRadius(potential_walls) {
-    const endpoints = this.endpoints;
+  _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
     const isLimited = this.config.isLimited;
@@ -422,8 +423,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Assumes walls in line with the origin have been removed.
    * @private
    */
-  _sweepEndpointsRadius(potential_walls) {
-    const endpoints = this.endpoints;
+  _sweepEndpointsRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const { radius, isLimited } = this.config;
     const collisions = this.points;
@@ -457,12 +457,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         closest_wall = potential_walls.closest();
         
-        if(!ray.contains(endpoint) || Boolean(endpoint?.minLimit)) {
+        const at_radius_edge = pointsAlmostEqual(endpoint, ray.B);
+        if(at_radius_edge || !endpoint.insideRadius) {
           // endpoint is outside the radius so don't add it to collisions. 
           // need to pad b/c no wall in front of the endpoint, 
           //   so empty space to next point
           needs_padding = true
-        } else if(!pointsAlmostEqual(endpoint, ray.B)) {
+        } else if(!at_radius_edge) {
           // add unless we already did above.
           collisions.push(endpoint.x, endpoint.y); 
         }
