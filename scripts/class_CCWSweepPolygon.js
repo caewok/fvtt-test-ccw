@@ -482,29 +482,30 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // TO-DO: Would it be faster/better to compare the point keys?
       if(endpoint.almostEqual(closest_wall.A) || 
          endpoint.almostEqual(closest_wall.B)) {
-
-        if(endpoint.insideRadius) { collisions.push(endpoint.x, endpoint.y); }
-        
-        // get the next-closest wall (the one behind the current endpoint)
-        // find its intersection point and add the collision
-        // sightline --> endpoint at closest wall --> next closest wall
         closest_wall = potential_walls.closest();
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
-        const intersection = this._getRayIntersection(closest_wall, ray);
+        if(endpoint.insideRadius) { 
+          collisions.push(endpoint.x, endpoint.y); }
         
-        // add the intersection point unless we already did
-        // (occurs at join points of two walls)
-        if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+          // get the next-closest wall (the one behind the current endpoint)
+          // find its intersection point and add the collision
+          // sightline --> endpoint at closest wall --> next closest wall
         
-        // if the ray does not actually intersect the closest wall, we need to add padding
-        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
+          const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+          const intersection = this._getRayIntersection(closest_wall, ray);
         
+          // add the intersection point unless we already did
+          // (occurs at join points of two walls)
+          if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+        
+          // if the ray does not actually intersect the closest wall, we need to add padding
+          if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
+        }
         continue;
       }
       
       // is this endpoint within the closest_wall?
       if(closest_wall.contains(endpoint)) {
-        collisions.push(endpoint.x, endpoint.y);   
+        if(endpoint.insideRadius) { collisions.push(endpoint.x, endpoint.y); }  
         continue; 
       }
       
@@ -523,10 +524,27 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       
     }
     
+    // catch when the last endpoint needs padding to the previous collision
+    if(needs_padding) {
+      // copied from padding above
+      const l = collisions.length;
+      const last_collision = { x: collisions[l - 4], y: collisions[l - 3] };
+      const last_endpoint = { x: collisions[l - 2], y: collisions[l - 1] };
+      const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
+      const ray = CCWSightRay.fromReference(origin, last_endpoint, radius);
+      needs_padding = false;
+    }
+    
     // close between last / first endpoint
     // deal with unique case where there are no endpoints
     // (no blocking walls for radius vision)
-    if(!isLimited && (needs_padding || endpoints_ln === 0)) {
+    if(!isLimited) {
+      needs_padding = true;
+      if(collisions.length > 0 && closest_wall) {
+        needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
+          pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
+      }   
+    
       const collisions_ln = collisions.length;
       let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
       let p_current = {x: collisions[0], y: collisions[1]};
