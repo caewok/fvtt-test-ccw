@@ -1,6 +1,6 @@
 'use strict';
 
-import { round } from "./util.js";
+import { round, ccwPoints } from "./util.js";
 
 
 export var BezierCache = new Map();
@@ -110,9 +110,18 @@ export class Bezier {
     const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
   
     let quadrant = start_quadrant;
-    let done = false
+    let done = false;
+    
+    
+    // if the start quadrant equals the end, we need to know if we are:
+    // 1. making a short arc (end is "after" start)
+    // 2. making a big arc (end is "before" start, so we travel every quadrant)
+    let small_arc = true;
+    if(end_quadrant === start_quadrant && 
+       ccwPoints(origin, r0.B, r1.B)) { small_arc = false; }
+    
     while(!done) {      
-      if(quadrant === end_quadrant) done = true;
+      if(small_arc && quadrant === end_quadrant) done = true;
   
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
         const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
@@ -142,7 +151,7 @@ export class Bezier {
           }
         } 
       
-        if(add_pt && quadrant === end_quadrant) {
+        if(add_pt && small_arc && quadrant === end_quadrant) {
           switch(quadrant) {
             case Q1:
               // x goes from -1 to 0
@@ -170,6 +179,8 @@ export class Bezier {
       
           pts.push(pt.x, pt.y);
         }
+        
+        small_arc = true;
       
       } // end for loop
       quadrant = (quadrant % 4) + 1;
