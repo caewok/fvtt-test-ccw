@@ -520,7 +520,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // close between last / first endpoint
     // deal with unique case where there are no endpoints
     // (no blocking walls for radius vision)
-    if(needs_padding || endpoints_ln === 0) {
+    if(!isLimited && (needs_padding || endpoints_ln === 0)) {
       const collisions_ln = collisions.length;
       let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
       let p_current = {x: collisions[0], y: collisions[1]};
