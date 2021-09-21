@@ -91,9 +91,9 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
       // mark end of vision ray as collision
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
-        //ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        ray = CCWSightRay.fromReference(origin, endpoint, radius);
         // drawRay(ray, COLORS.blue)
-        //collisions.push(ray.B.x, ray.B.y); 
+        collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest();
         
@@ -193,7 +193,7 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
     
     if(!isLimited) {
       needs_padding = true;
-      if(collisions.length > 0 && closest) {
+      if(collisions.length > 0 && closest_wall) {
         needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
           pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
       }
@@ -231,8 +231,9 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
           Poly._addPadding(ray, prior_ray, collisions); 
         }
       }
-    }
-  }
+    } // end isLimited
+    
+  } // end sweep
     
 canvas.controls.debug.clear();    
 for(i = 0; i < collisions.length; i += 2) {
