@@ -103,7 +103,9 @@ export class CCWSweepPoint extends PIXI.Point {
   get insideRadius() {
     if(!this.hasRadius) return undefined;
     if(this._insideRadius === undefined) { 
-      this._insideRadius = this.distanceSquaredToOrigin <= (this.radius * this.radius);
+      const r2 = this.radius * this.radius;
+      this._insideRadius = this.distanceSquaredToOrigin < r2 ||
+                           almostEqual(this.distanceSquaredToOrigin, r2);
     }
     return this._insideRadius;
   }
