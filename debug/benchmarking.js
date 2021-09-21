@@ -13,6 +13,25 @@ Potential improvements:
 - Move starting walls identification to earlier wall loop
 - inFrontOf speed improvements. Compare to web descriptions
 - split out scene items and scene wall config items.
+- simplify SweepWall class to not copy all the wall stuff
+  - maybe just have endpoints? 
+
+
+wall methods used in sweep:
+- PotentialWallList takes walls
+- inFrontOfPoint (CCWSightRay)
+- id
+
+
+endpoint methods used in sweep:
+- almostEqual
+- walls set for PotentialWallList
+
+Wall could be SightRay with:
+- id
+- cache starting endpoint / ending endpoint
+- use key to link endpoints
+
 */
 
 function benchmarkLoopFoundry(iterations, name = "benchmark", fn, ...args) {
@@ -46,11 +65,11 @@ Poly.initialize(t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
 RadialPoly = new RadialSweepPolygon();
 RadialPoly.initialize(t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
 
-benchmarkLoop(1000, Poly, CCWSweepPolygon.prototype._addCanvasEdges) // 0.19 ms
+benchmarkLoop(10000, Poly, CCWSweepPolygon.prototype._addCanvasEdges) // 0.26 ms; .017 ms w/o duplicate!
 
-benchmarkLoop(1000, Poly, CCWSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .31 ms
+benchmarkLoop(10000, Poly, CCWSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .21 ms; 0.05 without duplicate!
 
-benchmarkLoop(1000, RadialPoly, RadialSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .31 ms
+benchmarkLoop(10000, RadialPoly, RadialSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .077 ms
 
 
 
