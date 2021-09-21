@@ -409,8 +409,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(endpoint.x, endpoint.y);
         closest_wall = potential_walls.closest();
         
-        // continue;
+        continue;
       }
+      
+      if(isLimited && (i === 0 || i === endpoints_ln)) {
+        // limited endpoint behind closest wall. 
+        // mark that spot on the closest wall: origin --> closest --> limited start/end point
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const intersection = this._getRayIntersection(closest_wall, ray);
+        if(intersection) { collisions.push(intersection.x, intersection.y); }
+        //continue
+      }      
       
     }
   
@@ -522,7 +531,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         continue;
       }
 
-      if(isLimited && i === 0 || i === endpoints_ln) {
+      if(isLimited && (i === 0 || i === endpoints_ln)) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
