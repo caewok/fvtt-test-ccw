@@ -76,7 +76,7 @@ export function rayContains(p) {
  * @param {Number} r      Radius of circle. Should be > 0.
  * @return {[{x,y}]|undefined} One or two intersection points or undefined.
  */
-export function rayPotentialIntersectionsCircle(center, radius) {
+export function rayPotentialIntersectionsWithCircle(center, radius) {
   // Line: y = mx + c
   //   m is slope; c is intercept
   // Circle: (x - p)^2 + (y - q)^2 = r^2
@@ -126,7 +126,7 @@ export function rayPotentialIntersectionsCircle(center, radius) {
   if(roots_x.length === 1) return [{x: roots_x[0], y: roots_y[0]}];
   if(roots_x.length > 1) return [{x: roots_x[0], y: roots_y[0]},
                                  {x: roots_x[1], y: roots_y[1]}];
-  return undefined;
+  return [];
 } 
 
 /**

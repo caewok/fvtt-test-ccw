@@ -35,7 +35,7 @@ export class PotentialWallList extends BinarySearchTree {
   */
   compare(a, b) {
     if(a.id === b.id) return 0;
-    const res = a.toRay().inFrontOfSegment(b.toRay(), this.origin);
+    const res = a.inFrontOfSegment(b, this.origin);
     if(res === undefined) {
      log(`BST compare returned undefined`, res, this);
     }
@@ -84,7 +84,7 @@ export class PotentialWallList extends BinarySearchTree {
       // if we have already seen it, it must be CCW
       // or (unlikely) it is otherwise CCW
       if(this.walls_encountered.has(w.id) || 
-           PotentialWallList.endpointWallCCW(this.origin, endpoint, w) > 0) {
+           PotentialWallList.endpointWallCCW(this.origin, endpoint, w) >= 0) {
          to_remove.push(w)
       } else {
         to_add.push(w);
@@ -101,7 +101,7 @@ export class PotentialWallList extends BinarySearchTree {
   * @param {boolean} remove     Default is to remove the closest (pop)
   * @return {Wall}
   */
-  closest(remove = true) {
+  closest({remove = false} = {}) {
     if(this.walls_encountered.size === 0) return undefined;
     
     if(remove) {
@@ -110,7 +110,7 @@ export class PotentialWallList extends BinarySearchTree {
       return w;
     }
   
-    return this.findMaxNode();
+    return this.findMaxNode().data;
   }
   
  /**

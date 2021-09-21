@@ -160,7 +160,7 @@ export class Bezier {
           pt.x = (pt.x * radius) + origin.x;
           pt.y = (pt.y * radius) + origin.y;
       
-          pts.push(pt);
+          pts.push(pt.x, pt.y);
         }
       
       } // end for loop
