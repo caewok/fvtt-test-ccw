@@ -43,7 +43,6 @@ Hooks.once('init', async function() {
   
  /**
   * API switches 
-  * {Boolean}   use_ccw         Use this module's functions in lieu of base Foundry
   * {Boolean}   debug           Toggles certain debug logging
   * {Boolean}   use_bezier      Use Bezier approximation of Circle (faster)
   * {Boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
@@ -51,13 +50,16 @@ Hooks.once('init', async function() {
   *                               without such checks.
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
+  * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
+  * {Class}     CCWSweepWall      Sweep wall class, extends CCWSightRay
+  * {Class}     CCWSightRay       Extension to the Ray class
+  * {Class}     CCWSweepPolygon   Class for the sweep method
   * {Function}  orient2d          Method to check for CCW or CW relationship of 3 points
   * {Class}     PotentialWallList BST for storing sorted wall list
   * {Class}     Bezier            Class for approximating circle arcs using bezier curves
   */
   
-  game.modules.get(MODULE_ID).api = { use_ccw: false, 
-                                      debug: false, 
+  game.modules.get(MODULE_ID).api = { debug: false, 
                                       use_bezier: false, 
                                       use_robust_ccw: true, 
                                       benchmark: testCCWBenchmarkSight,
