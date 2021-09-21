@@ -1,5 +1,6 @@
 // debug sweep
-
+game.modules.get('testccw').api.use_bezier = false;
+game.modules.get('testccw').api.use_bezier = true;
 Poly._sweepEndpoints();
 
 // Get to Poly._initializeEndpoints from debug initialize endpoints, then:

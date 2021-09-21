@@ -23,6 +23,7 @@ CCWSweepPolygon = game.modules.get('testccw').api.CCWSweepPolygon;
 CCWSweepWall = game.modules.get('testccw').api.CCWSweepWall;
 CCWSweepPoint = game.modules.get('testccw').api.CCWSweepPoint;
 Bezier = game.modules.get('testccw').api.Bezier;
+orient2d = game.modules.get('testccw').api.orient2d;
 
 // Token version
 /*
