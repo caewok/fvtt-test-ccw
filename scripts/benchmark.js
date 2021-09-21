@@ -4,9 +4,8 @@ import { MODULE_ID } from "./module.js";
 import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
 
 /* 
- * Test w/ and w/o CCW 
- *
  * Compare sight performance between different algorithms
+ * Tests w/ and w/o CCW switches: use_bezier, use_robust_ccw
  * @param {number} n      The number of iterations
  * @param {...any} args   Arguments passed to the polygon compute function
  */

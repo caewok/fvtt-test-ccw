@@ -344,6 +344,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Assumes endpoints have already been sorted.
    * Assumes starting walls have been placed in the BST
    * Assumes walls in line with the origin have been removed.
+   * @param {PotentialWallList} potential_walls   Binary search tree ordering walls by closeness
+   * @param {[CCWSweepPoint]} endpoints           Sorted (CW --> CCW) array of endpoints
    * @private
    */
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
@@ -423,6 +425,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Assumes endpoints have already been sorted.
    * Assumes starting walls have been placed in the BST
    * Assumes walls in line with the origin have been removed.
+   * @param {PotentialWallList} potential_walls   Binary search tree ordering walls by closeness
+   * @param {[CCWSweepPoint]} endpoints           Sorted (CW --> CCW) array of endpoints
    * @private
    */
   _sweepEndpointsRadius(potential_walls, endpoints) {
