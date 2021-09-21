@@ -2,6 +2,9 @@
 
 import { round } from "./util.js";
 
+
+var BezierCache = new Map();
+
 // Bezier approximation of Circle
 // Used for padding limited-radius polygons.
 // Main method: Bezier.bezierPadding
@@ -34,6 +37,8 @@ export class Bezier {
    * @return {PIXI.point} {x, y} Point corresponding to that t
    */
   static bezierCircle(t) {
+    if(BezierCache.has(t)) { return BezierCache.get(t); }
+  
     const paren = 1 - t;
     const paren2 = paren * paren;
     const paren3 = paren2 * paren;
@@ -43,6 +48,9 @@ export class Bezier {
   
     const x = c_times_3 * paren2 * t + 3 * paren * t2 + t3;
     const y = c_times_3 * t2 * paren + 3 * t * paren2 + paren3;  
+    
+    BezierCache.set(t, {x: x, y: y});
+    
     return { x: x, y: y };
   }
 
