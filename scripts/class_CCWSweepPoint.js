@@ -1,6 +1,6 @@
 'use strict';
 
-import { pointsAlmostEqual } from "./util.js";
+import { pointsAlmostEqual, almostEqual } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
