@@ -96,16 +96,16 @@ export class Bezier {
     const radius = r0.distance;
     const origin = r0.A;
     const PRECISION = 10; // number of digits to round
+    const start_quadrant = Bezier.getQuadrant(r0.B, origin);
+    const end_quadrant = Bezier.getQuadrant(r1.B, origin);
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
-    const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION),
-                           y: round((r0.B.y - origin.y) / radius, PRECISION) };
-    const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION),
-                         y: round((r1.B.y - origin.y) / radius, PRECISION) };
+    const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION) };
+                           //y: round((r0.B.y - origin.y) / radius, PRECISION) };
+    const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
+                         //y: round((r1.B.y - origin.y) / radius, PRECISION) };
     
-    const start_quadrant = Bezier.getQuadrant(start_scaled);
-    const end_quadrant = Bezier.getQuadrant(end_scaled);
   
     const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
   
@@ -116,13 +116,21 @@ export class Bezier {
     // if the start quadrant equals the end, we need to know if we are:
     // 1. making a short arc (end is "after" start)
     // 2. making a big arc (end is "before" start, so we travel every quadrant)
-    let small_arc = true;
+    let large_arc = false;
+    let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       ccwPoints(origin, r0.B, r1.B)) { small_arc = false; }
+       ccwPoints(origin, r0.B, r1.B) === 1) { large_arc = true; }
     
-    while(!done) {      
-      if(small_arc && quadrant === end_quadrant) done = true;
-  
+    while(!done) {
+      let check_start = quadrant === start_quadrant;
+      let check_end   = quadrant === end_quadrant;
+
+      if(large_arc && !first_iteration) check_start = false;
+      if(large_arc && first_iteration) check_end = false;
+
+      if((!large_arc || !first_iteration) && quadrant === end_quadrant) done = true;
+      first_iteration = false;
+
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
         const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
         pt.x = round(pt.x, PRECISION);
@@ -130,7 +138,7 @@ export class Bezier {
         let add_pt = true
       
         // compare to start and end. if within, then keep
-        if(quadrant === start_quadrant) {
+        if(check_start) {
           switch(quadrant) {
             case Q1:
               // x goes from -1 to 0
@@ -151,7 +159,7 @@ export class Bezier {
           }
         } 
       
-        if(add_pt && small_arc && quadrant === end_quadrant) {
+        if(add_pt && check_end) {
           switch(quadrant) {
             case Q1:
               // x goes from -1 to 0
@@ -179,11 +187,10 @@ export class Bezier {
       
           pts.push(pt.x, pt.y);
         }
-        
-        small_arc = true;
-      
+
       } // end for loop
       quadrant = (quadrant % 4) + 1;
+
     } // end while loop
   
     return pts;
