@@ -4,7 +4,7 @@
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
-import { Bezier } from "./class_Bezier.js";
+import { Bezier, BezierCache } from "./class_Bezier.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
@@ -69,7 +69,8 @@ Hooks.once('init', async function() {
                                       CCWSweepPolygon: CCWSweepPolygon,
                                       orient2d: orient2d,
                                       PotentialWallList: PotentialWallList,
-                                      Bezier: Bezier }
+                                      Bezier: Bezier,
+                                      BezierCache: BezierCache }
 });
 
 // modules ready
