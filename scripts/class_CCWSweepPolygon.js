@@ -484,7 +484,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          endpoint.almostEqual(closest_wall.B)) {
         closest_wall = potential_walls.closest();
         if(endpoint.insideRadius) { 
-          collisions.push(endpoint.x, endpoint.y); }
+          collisions.push(endpoint.x, endpoint.y);
         
           // get the next-closest wall (the one behind the current endpoint)
           // find its intersection point and add the collision
@@ -575,7 +575,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         this._addPadding(ray, prior_ray, collisions); 
       }
     }
-    
     this.points = collisions;
   }
   
