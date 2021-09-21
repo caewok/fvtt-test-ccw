@@ -102,7 +102,8 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
           // or it is at the edge of the radius
           // need to pad b/c no wall in front of the endpoint, 
           //   so empty space to next point
-          needs_padding = true
+          
+          needs_padding = true;
         } else if(!at_radius_edge) {
           // add unless we already did above.
           collisions.push(endpoint.x, endpoint.y); 
@@ -118,33 +119,36 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
       // TO-DO: Would it be faster/better to compare the point keys?
       if(endpoint.almostEqual(closest_wall.A) || 
          endpoint.almostEqual(closest_wall.B)) {
-
-        if(endpoint.insideRadius) { collisions.push(endpoint.x, endpoint.y); }
-        
+      
         // get the next-closest wall (the one behind the current endpoint)
-        // find its intersection point and add the collision
-        // sightline --> endpoint at closest wall --> next closest wall
-        //potential_walls.closest({ remove: true });
         closest_wall = potential_walls.closest();
-        ray = CCWSightRay.fromReference(origin, endpoint, radius); 
-        intersection = Poly._getRayIntersection(closest_wall, ray);
-        // drawRay(ray, COLORS.blue)
-        // drawEndpoint(intersection)
+     
+        if(endpoint.insideRadius) { 
+          collisions.push(endpoint.x, endpoint.y); 
         
-        // add the intersection point unless we already did
-        // (occurs at join points of two walls, or at endpoint[0])
-        if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+          // find its intersection point and add the collision
+          // sightline --> endpoint at closest wall --> next closest wall
+          //potential_walls.closest({ remove: true });
+          ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+          intersection = Poly._getRayIntersection(closest_wall, ray);
+          // drawRay(ray, COLORS.blue)
+          // drawEndpoint(intersection)
         
-         // if the ray does not actually intersect the closest wall, we need to add padding
-        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
+          // add the intersection point unless we already did
+          // (occurs at join points of two walls, or at endpoint[0])
+          if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+        
+           // if the ray does not actually intersect the closest wall, we need to add padding
+          if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
+        }
         
         continue;
       }
       
       // is this endpoint within the closest_wall?
       if(closest_wall.contains(endpoint)) {
-        
-        collisions.push(endpoint.x, endpoint.y);   
+        if(endpoint.insideRadius) { collisions.push(endpoint.x, endpoint.y); }
+       
         continue; 
       }
       
@@ -164,47 +168,77 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
         collisions.push(endpoint.x, endpoint.y);
         closest_wall = potential_walls.closest();
         
-        // continue;
+        continue;
+      }
+      
+      if(isLimited && i === 0 || i === endpoints_ln) {
+        // limited endpoint behind closest wall. 
+        // mark that spot on the closest wall: origin --> closest --> limited start/end point
+        ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        intersection = Poly._getRayIntersection(closest_wall, ray);
+        if(intersection) { collisions.push(intersection.x, intersection.y); }
       }
       
     } // end of for loop
     
-    // close between last / first endpoint
-    // deal with unique case where there are no endpoints
-    // (no blocking walls for radius vision)
-    if(!isLimited && (needs_padding || endpoints_ln === 0)) {
-      collisions_ln = collisions.length;
-      p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
-      p_current = {x: collisions[0], y: collisions[1]};
-      
-      // if 0 or 1 collisions, then just pick an appropriate point
-      // padding is best done by hemisphere in that case
-      if(collisions_ln === 0) {
-        p_last = { x: origin.x - radius, y: origin.y }; 
-        p_current = { x: origin.x + radius, y: origin.y }
-    
-        collisions.push(p_last.x, p_last.y);
-    
-      } else if(collisions_ln === 1) {
-        // get antipodal point
-        p_last = { x: origin.x - (p_current.x - origin.x),
-                   y: origin.y - (p_current.y - origin.y) }
-      }
-      
-      // draw an arc from where the collisions ended to the ray for the new endpoint
-      prior_ray = CCWSightRay.fromReference(origin, p_last, radius);
-      ray = CCWSightRay.fromReference(origin, p_current, radius);
-        
-      Poly._addPadding(prior_ray, ray, collisions);
-
-      if(collisions_ln < 2) {
-        // get the second half by swapping the two rays
-        collisions.push(p_current.x, p_current.y);
-        Poly._addPadding(ray, prior_ray, collisions); 
-      }
+    // catch when the last endpoint needs padding to the previous collision
+    if(needs_padding) {
+      // copied from padding above
+      l = collisions.length;
+      last_collision = { x: collisions[l - 4], y: collisions[l - 3] };
+      last_endpoint = { x: collisions[l - 2], y: collisions[l - 1] };
+      prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
+      ray = CCWSightRay.fromReference(origin, last_endpoint, radius);
+      needs_padding = false;
     }
     
-  }
+    // close between last / first endpoint if they are not connected by a wall
+    // deal with unique case where there are no endpoints or no collisions
+    // (no blocking walls for radius vision)
+    
+    if(!isLimited) {
+      needs_padding = true;
+      if(collisions.length > 0 && closest_wall) {
+        needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
+          pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
+      }
+    
+      if(needs_padding) {
+        collisions_ln = collisions.length;
+        p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
+        p_current = {x: collisions[0], y: collisions[1]};
+      
+        // if 0 or 1 collisions, then just pick an appropriate point
+        // padding is best done by hemisphere in that case
+        if(collisions_ln === 0) {
+          p_last = { x: origin.x - radius, y: origin.y }; 
+          p_current = { x: origin.x + radius, y: origin.y }
+    
+          collisions.push(p_last.x, p_last.y);
+    
+        } else if(collisions_ln === 1) {
+          // get antipodal point
+          p_last = { x: origin.x - (p_current.x - origin.x),
+                     y: origin.y - (p_current.y - origin.y) }
+        }
+      
+        // draw an arc from where the collisions ended to the ray for the new endpoint
+        prior_ray = CCWSightRay.fromReference(origin, p_last, radius);
+        ray = CCWSightRay.fromReference(origin, p_current, radius);
+        // drawRay(prior_ray, COLORS.blue)
+        // drawRay(ray, COLORS.orange)
+        
+        Poly._addPadding(prior_ray, ray, collisions);
+
+        if(collisions_ln < 2) {
+          // get the second half by swapping the two rays
+          collisions.push(p_current.x, p_current.y);
+          Poly._addPadding(ray, prior_ray, collisions); 
+        }
+      }
+    } // end isLimited
+    
+  } // end sweep
     
 canvas.controls.debug.clear();    
 for(i = 0; i < collisions.length; i += 2) {
