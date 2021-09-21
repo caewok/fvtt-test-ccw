@@ -711,12 +711,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     let d = r1.angle - r0.angle;
     if ( d < 0 ) d += (2 * Math.PI); // Handle cycling past pi
     const nPad = Math.floor(d / padding);
-    if ( nPad === 0 ) return [];
+    if ( nPad === 0 ) return collisions;
 
     // Construct padding rays
-    const delta = d / nPad;
-    let lr = r0;
-    for (let i = 1; i < nPad; i += 1) {
+    const delta = d / (nPad + 1);
+    for (let i = 1; i < (nPad + 1); i += 1) {
       let r = r0.shiftAngle(i * delta);
       collisions.push(r.B.x, r.B.y);
     }
