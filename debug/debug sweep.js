@@ -118,11 +118,10 @@ if(isLimited) { Poly.points.push(origin.x, origin.y) }
 
 _sweepEndpointsNoRadius(potential_walls, endpoints) {
     // Poly.points = [];
-    endpoints = Poly.endpoints;
     endpoints_ln = endpoints.length;
     radius = Poly.config.maxR;
     collisions = Poly.points;   
-    origin = Poly.origin
+    origin = Poly.origin;
     closest_wall = potential_walls.closest();
     
 //     potential_walls = new PotentialWallList(origin); // BST ordered by closeness
@@ -190,13 +189,13 @@ _sweepEndpointsNoRadius(potential_walls, endpoints) {
       }
       
       // is this endpoint within the closest_wall?
-      if(isLimited && 
-         (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)) && 
-         closest_wall.contains(endpoint)) {
-        
-        collisions.push(endpoint.x, endpoint.y);   
-        continue; 
-      }
+//       if(isLimited && 
+//          (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)) && 
+//          closest_wall.contains(endpoint)) {
+//         
+//         collisions.push(endpoint.x, endpoint.y);   
+//         continue; 
+//       }
       
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
@@ -214,7 +213,16 @@ _sweepEndpointsNoRadius(potential_walls, endpoints) {
         collisions.push(endpoint.x, endpoint.y);
         closest_wall = potential_walls.closest();
         
-        // continue;
+        continue;
+      }
+      
+      if(isLimited && (i === 0 || i === (endpoints_ln - 1))) {
+        // limited endpoint behind or on closest wall. 
+        // mark that spot on the closest wall: origin --> closest --> limited start/end point
+        ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        intersection = Poly._getRayIntersection(closest_wall, ray);
+        if(intersection) { collisions.push(intersection.x, intersection.y); }
+        //continue
       }
       
     } // end of for loop

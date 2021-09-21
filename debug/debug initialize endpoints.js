@@ -26,12 +26,12 @@ Bezier = game.modules.get('testccw').api.Bezier;
 orient2d = game.modules.get('testccw').api.orient2d;
 
 // Token version
-/*
+
 t = canvas.tokens.controlled[0]
 Poly = new CCWSweepPolygon();
 Poly.initialize(t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
 
-
+/*
 CCWSweepPolygon = game.modules.get('testccw').api.CCWSweepPolygon;
 await RadialSweepPolygon.benchmark(1000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation});
 await CCWSweepPolygon.benchmark(1000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
@@ -44,12 +44,12 @@ await CCWSweepPolygon.benchmark(1000, t.center, {angle: t.data.sightAngle, rotat
 // Poly.initialize({x: t.x, y: t.y});
 
 // Light version
-
+/*
 l = [...canvas.lighting.sources][0];
 Poly = new CCWSweepPolygon();
 Poly.initialize({x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.data.rotation, type: "light"})
 
-
+*/
 
 // from compute
 
