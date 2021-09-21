@@ -13,7 +13,6 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
     collisions = Poly.points;   
     origin = Poly.origin;
     needs_padding = false;
-    end_needs_padding = false;
     closest_wall = potential_walls.closest();
     
 //     potential_walls = new PotentialWallList(origin); // BST ordered by closeness
@@ -140,9 +139,7 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
           if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
         
            // if the ray does not actually intersect the closest wall, we need to add padding
-          if(!closest_wall || !ray.intersects(closest_wall)) { 
-            needs_padding = true;
-          }
+          if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
         }
         
         continue;
@@ -171,7 +168,15 @@ _sweepEndpointsRadius(potential_walls, endpoints) {
         collisions.push(endpoint.x, endpoint.y);
         closest_wall = potential_walls.closest();
         
-        // continue;
+        continue;
+      }
+      
+      if(isLimited && i === 0 || i === endpoints_ln) {
+        // limited endpoint behind closest wall. 
+        // mark that spot on the closest wall: origin --> closest --> limited start/end point
+        ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        intersection = Poly._getRayIntersection(closest_wall, ray);
+        if(intersection) { collisions.push(intersection.x, intersection.y); }
       }
       
     } // end of for loop
