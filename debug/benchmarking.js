@@ -43,9 +43,18 @@ t = canvas.tokens.controlled[0]
 Poly = new CCWSweepPolygon();
 Poly.initialize(t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
 
+RadialPoly = new RadialSweepPolygon();
+RadialPoly.initialize(t.center, {angle: t.data.sightAngle, rotation: t.data.rotation})
+
 benchmarkLoop(1000, Poly, CCWSweepPolygon.prototype._addCanvasEdges) // 0.19 ms
 
 benchmarkLoop(1000, Poly, CCWSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .31 ms
+
+benchmarkLoop(1000, RadialPoly, RadialSweepPolygon.prototype._initializeEndpoints, Poly.config.type) // .31 ms
+
+
+
+
 
 
 
