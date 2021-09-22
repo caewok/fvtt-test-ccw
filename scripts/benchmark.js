@@ -1,19 +1,17 @@
 'use strict';
 
 import { MODULE_ID } from "./module.js";
+import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
 
 /* 
- * Test w/ and w/o CCW 
- *
  * Compare sight performance between different algorithms
+ * Tests w/ and w/o CCW switches: use_bezier, use_robust_ccw
  * @param {number} n      The number of iterations
  * @param {...any} args   Arguments passed to the polygon compute function
  */
 export async function testCCWBenchmarkSight(n=1000, ...args) {
-  const stored_use_ccw = game.modules.get(MODULE_ID).api.use_ccw;
-  const stored_use_bezier = game.modules.get(MODULE_ID).api.use_bezier;
-  const use_robust_ccw = game.modules.get(MODULE_ID).api.use_robust_ccw;
-
+  const { use_bezier, use_robust_ccw, debug } = game.modules.get(MODULE_ID).api;
+  
   // count number of unique endpoints
   const num_endpoints = new Set();
   canvas.walls.placeables.forEach(w => {
@@ -23,30 +21,26 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   });
 
   console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
-
-  game.modules.get(MODULE_ID).api.use_ccw = false;
-  console.log("Testing non-CCW version");
-  await benchmarkSight(n, ...args);
-
-  game.modules.get(MODULE_ID).api.use_ccw = true;
+ 
+  await QuadtreeExpansionPolygon.benchmark(n, ...args);
+  await RadialSweepPolygon.benchmark(n, ...args);
+  
   game.modules.get(MODULE_ID).api.use_bezier = false;
   game.modules.get(MODULE_ID).api.use_robust_ccw = true;
   console.log("Testing CCW version");
-  await benchmarkSight(n, ...args);
+  await CCWSweepPolygon.benchmark(n, ...args);
   
-  game.modules.get(MODULE_ID).api.use_ccw = true;
   game.modules.get(MODULE_ID).api.use_bezier = true;
   game.modules.get(MODULE_ID).api.use_robust_ccw = true;
   console.log("Testing CCW using bezier");
-  await benchmarkSight(n, ...args);
+  await CCWSweepPolygon.benchmark(n, ...args);
   
-  game.modules.get(MODULE_ID).api.use_ccw = true;
   game.modules.get(MODULE_ID).api.use_bezier = true;
   game.modules.get(MODULE_ID).api.use_robust_ccw = false;
   console.log("Testing CCW using bezier and fast non-robust ccw");
-  await benchmarkSight(n, ...args);
+  await CCWSweepPolygon.benchmark(n, ...args);
 
-  game.modules.get(MODULE_ID).api.use_ccw = stored_use_ccw;
-  game.modules.get(MODULE_ID).api.use_bezier = stored_use_bezier;
+  game.modules.get(MODULE_ID).api.use_bezier = use_bezier;
   game.modules.get(MODULE_ID).api.use_robust_ccw = use_robust_ccw;
+  game.modules.get(MODULE_ID).api.debug = debug;
 }
