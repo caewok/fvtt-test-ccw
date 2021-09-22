@@ -389,15 +389,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         continue;
       }
       
-      // is this endpoint within the closest_wall?
-//       if(isLimited && 
-//          (Boolean(endpoint?.minLimit) || Boolean(endpoint?.maxLimit)) && 
-//          closest_wall.contains(endpoint)) {
-//         
-//         collisions.push(endpoint.x, endpoint.y);   
-//         continue; 
-//       }
-      
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
