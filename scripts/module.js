@@ -19,7 +19,7 @@ export const MODULE_ID = 'testccw';
 export function log(...args) {
   try {
    // const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
-   if (window[MODULE_ID].debug) {
+   if (game.modules.get(MODULE_ID).api.debug) {
       console.log(MODULE_ID, '|', ...args);
    }
   } catch (e) {}
