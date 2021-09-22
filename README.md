@@ -4,40 +4,44 @@ Module framework for testing a new vision/lighting algorithm for [Foundry VTT](h
 
 Add this [Manifest URL](https://github.com/caewok/fvtt-test-ccw/releases/latest/download/module.json) in Foundry to install.
 
-To test from console when you have a single token selected:
+To benchmark from console when you have a single token selected:
 ```js
 t = canvas.tokens.controlled[0]
-await game.modules.get('testccw').api.benchmark(1000, t.center)
+await game.modules.get('testccw').api.benchmark(10000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation, type: "sight", debug: false});
 ```
 
-To test the lighting (will pick the first light in the scene):
+To benchmark the lighting (will pick the first light in the scene):
 ```js
 l = [...canvas.lighting.sources][0];
-await game.modules.get('testccw').api.benchmark(1000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"})
-
+await game.modules.get('testccw').api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"});
 ```
 
 To enable:
 ```js
-game.modules.get('testccw').api.use_ccw = true
+old_backend = CONFIG.Canvas.losBackend;
+CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
 
 // Optionally, turn on the faster bezier approximation for drawing circular arcs:
-game.modules.get('testccw').api.use_bezier = true
+game.modules.get('testccw').api.use_bezier = true;
 
-// Optionally, turn off the robust calculation for CCW, using a faster version:
-game.modules.get('testccw').api.use_robust_ccw = false
+// Optionally, turn off the robust calculation for CCW and use a faster non-robust version:
+game.modules.get('testccw').api.use_robust_ccw = false;
+
+// To revert to Foundry version:
+CONFIG.Canvas.losBackend = old_backend;
 ```
 
 ## What does this do?
 
-Wraps 5 `RadialSweepPolygon` methods using [libWrapper](https://github.com/ruipin/fvtt-lib-wrapper):
-- `RadialSweepPolygon.prototype._initializeEndpoints`
-- `RadialSweepPolygon.prototype._sweepEndpoints`
-- `RadialSweepPolygon.prototype._includeWall`
-- `RadialSweepPolygon.prototype._constructPoints`
-- `RadialSweepPolygon.prototype._padRays`
+Extends the Foundry `PointSourcePolygon` class with `CCWSweepPolygon`. This class is responsible for locating endpoints, sweeping around the field-of-vision to locate walls, and run collision tests. It in turn relies on several classes:
+- `CCWSightRay` extends `Ray` to include a variety of geometric measurement methods, such as a test for whether a ray intersects a circle, and whether a ray is in front of a point in relation to a vision point.
+- `CCWSweepPoint` extends `PIXI.Point`. It represents wall endpoints for the sweep algorithm. 
+- `CCWSweepWall` extends `CCWSightRay`. It represents walls for the sweep algorithm.
+- `BinarySearchTree` sets up a basic binary search tree class.
+- `PotentialWallList` extends `BinarySearchTree` to order walls by closeness to a vision point. 
+- `Bezier` creates a close approximation of circular arcs.
 
-This module replaces these methods with a version that is faster in many cases, and may also be more numerically stable.  
+The `CCWSweepPolygon` class is the main work-horse, and is comparable to the Foundry `RadialSweepPolygon` class. Testing suggests `CCWSweepPolygon` is 30% to 70% faster than `RadialSweepPolygon`, depending on setup. 
 
 ## How?
 
