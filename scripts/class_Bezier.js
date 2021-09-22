@@ -1,7 +1,6 @@
 'use strict';
 
 import { round, ccwPoints } from "./util.js";
-import { MODULE_ID } from "./util.js";
 
 // Bezier approximation of Circle
 // Used for padding limited-radius polygons.
