@@ -1,3 +1,12 @@
+# 0.1.0
+Refactor to not rely on libWrapper. Instead, use classes:
+- `CCWSweepPolygon` extends `PointSourcePolygon`
+- `CCWSightRay` extends `Ray`
+- `CCWSweepPoint` extends `PIXI.Point`
+- `CCWSweepWall` extends `CCWSightRay`
+
+Benchmark function calls each `PointSourcePolygon` type's benchmark directly. Various improvements to speed and simplification of code.
+
 # 0.0.1
 Initial release. Working with no obvious errors in Foundry v9 Prototype 1 (v. 9.220).
 
