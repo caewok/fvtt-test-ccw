@@ -114,13 +114,13 @@ export class PotentialWallList extends BinarySearchTree {
     } else {
       w = this.findMaxNode().data;
     }
-  
-    if(skip_terrain && w.data[type] === 2) {
+
+/*    if(skip_terrain && w.data?.[type] === 2) {
       // w.data[type] === 2 if the wall is limited for the type of vision 
       //  (sight, sound, light)
       w = this.secondClosest();
     }
-    
+*/
     return w;
   }
   
