@@ -351,10 +351,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
-    const isLimited = this.config.isLimited;
+    const { isLimited, type } = this.config;
     const collisions = this.points;
     const origin = this.origin;
-    let closest_wall = potential_walls.closest();
+    let closest_wall = potential_walls.closest({type});
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -377,7 +377,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // find its intersection point and add the collision
         // sightline --> endpoint at closest wall --> next closest wall
         
-        closest_wall = potential_walls.closest();
+        closest_wall = potential_walls.closest({type});
                 
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
@@ -396,9 +396,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
         
-        // mark this closer endpoint and retrieve the closest wall.
-        collisions.push(endpoint.x, endpoint.y);
-        closest_wall = potential_walls.closest();
+        // mark this closer endpoint unless it belongs to a single terrain wall
+        if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); } 
+
+        // Retrieve the closer wall
+        closest_wall = potential_walls.closest({type});
         
         continue;
       }
@@ -431,11 +433,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpointsRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
-    const { radius, isLimited } = this.config;
+    const { radius, isLimited, type } = this.config;
     const collisions = this.points;
     const origin = this.origin;
     let needs_padding = false;
-    let closest_wall = potential_walls.closest();
+    let closest_wall = potential_walls.closest({type});
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -461,7 +463,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         collisions.push(ray.B.x, ray.B.y); 
         
-        closest_wall = potential_walls.closest();
+        closest_wall = potential_walls.closest({type});
         
         const at_radius_edge = pointsAlmostEqual(endpoint, ray.B);
         if(at_radius_edge || !endpoint.insideRadius) {
@@ -471,7 +473,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           needs_padding = true
         } else if(!at_radius_edge) {
           // add unless we already did above.
-          collisions.push(endpoint.x, endpoint.y); 
+          // mark this closer endpoint unless it belongs to a single terrain wall
+          if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); }           
         }
         
         continue;
@@ -482,7 +485,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // TO-DO: Would it be faster/better to compare the point keys?
       if(endpoint.almostEqual(closest_wall.A) || 
          endpoint.almostEqual(closest_wall.B)) {
-        closest_wall = potential_walls.closest();
+        closest_wall = potential_walls.closest({type});
         if(endpoint.insideRadius) { 
           collisions.push(endpoint.x, endpoint.y);
         
@@ -516,9 +519,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
 
-        // mark this closer endpoint and retrieve the closest wall.
-        collisions.push(endpoint.x, endpoint.y);
-        closest_wall = potential_walls.closest();
+        // mark this closer endpoint it belongs to a single terrain wall
+        if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); }
+        closest_wall = potential_walls.closest({type});
         continue;
       }
 
@@ -813,7 +816,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // Use the BST to find the closest wall, get the intersection, and return
       const potential_walls = new PotentialWallList(ray.A);
       potential_walls.add(interesting_walls);
-      const closest = potential_walls.closest(false); // do not remove the wall; wastes time
+      const closest = potential_walls.closest();
       const i = ray.intersectSegment(closest.coords);
       return new WallEndpoint(i.x, i.y);
      }

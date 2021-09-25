@@ -1,6 +1,6 @@
 'use strict';
 
-import { pointsAlmostEqual, almostEqual } from "./util.js";
+import { pointsAlmostEqual, almostEqual, COLORS } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
@@ -68,17 +68,17 @@ export class CCWSweepPoint extends PIXI.Point {
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
   
-  /*
+  /**
    * @param {number}
    */
   get radius() { return this._radius; }
   
-  /*
+  /**
    * @param {x: number, y: number}
    */
   get origin() { return this._origin; }
   
-  /* 
+  /** 
    * Is this point associated with a radius? Radius 0 does not count.
    * @return {boolean}
    */
@@ -86,7 +86,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return Boolean(this._radius);
   }
   
-  /*
+  /**
    * Distance squared to origin. Used for comparisons.
    */
   get distanceSquaredToOrigin() {
@@ -96,7 +96,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return this._distanceSquaredToOrigin;
   }
     
-  /*
+  /**
    * Is this point inside the FOV radius?
    * @return {undefined|boolean}
    */
@@ -110,7 +110,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return this._insideRadius;
   }
   
-  /*
+  /**
    * When setting origin, un-cache measurements that depend on it.
    * @param {x: number, y: number} value
    */
@@ -120,7 +120,7 @@ export class CCWSweepPoint extends PIXI.Point {
     this._insideRadius = undefined;
   }
   
-  /*
+  /**
    * When setting radius, un-cache measurements that depend on it.
    * @param {number} value
    */
@@ -134,7 +134,7 @@ export class CCWSweepPoint extends PIXI.Point {
   /*  Methods                                     */
   /* -------------------------------------------- */
   
-  /*
+  /**
    * Distance squared used for comparisons.
    * @param {x: number, y: number}  p   Point to measure to
    */
@@ -144,7 +144,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return (dx*dx + dy*dy);
   }
   
-  /*
+  /**
    * Test if the key for this point equals another, suggesting they are equal points
    * (at least, equal as rounded to the nearest integer)
    * @param {CCWSweepPoint|WallEndpoint} p  Other point to test against
@@ -153,17 +153,56 @@ export class CCWSweepPoint extends PIXI.Point {
     return this.key === p.key;
   } 
   
-  /*
+  /**
    * Test if this point is almost equal to some other {x, y} point
    * @param {x: number, y: number} p    Point to compare
    */
   almostEqual(p) {
     return pointsAlmostEqual(this, p)
-  }
+  }  
   
-  
-  /*
+  /**
    * Import the WallEndpoint get key method
    */
   static getKey = WallEndpoint.getKey;
+  
+ /**
+  * Draw the point ray (for debugging)
+  * @param {number} color
+  * @param {number} alpha
+  * @param {number} radius
+  */
+  draw(color = COLORS.red, alpha = 1, radius = 5) {
+    canvas.controls.debug.beginFill(color, alpha).drawCircle(this.x, this.y, radius).endFill();
+  }
+  
+  /**
+   * Check if this endpoint counts as terrain and so might be excluded. 
+   * Hypothesis: 
+   * - If any wall is not not terrain, endpoint must count as collision
+   * - If more than two terrain walls, endpoint must count as collision
+   * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
+   *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
+   * @param {string}    type   Type of vision: light, sight, sound
+   * @param {x: number, y:number} origin  Vision point
+   * @return {boolean} True if a single terrain wall is present in the set
+   */
+  isTerrain(type, origin) {
+    const ln = this.walls.size
+    if(ln !== 1 && ln !== 2) return false;
+    const walls = [...this.walls.values()];
+    if(walls.some(w => w.data?.[type] !== 2)) return false;
+    if(ln === 1) return true;
+
+    // if the both block equally, it is a terrain point
+    // if neither block, it is a terrain point
+    // TO-DO: should inFrontOfSegment return true when both block equally?
+
+    const wall0_in_front = walls[0].inFrontOfSegment(walls[1], origin);
+    const wall1_in_front = walls[1].inFrontOfSegment(walls[0], origin);
+    if(wall0_in_front && wall1_in_front) return true;
+    if(!wall0_in_front && !wall1_in_front) return true;
+    return false;
+  }
 }
+

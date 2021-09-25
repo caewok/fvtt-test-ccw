@@ -56,6 +56,7 @@ class Node {
 export class BinarySearchTree {
   constructor() {
     this.root = null;
+    this.count = 0; // for getting the Nth node
   }
   
   /* -------------------------------------------- */
@@ -200,6 +201,44 @@ export class BinarySearchTree {
     }
     return [];
   }
+    
+  /**
+   * Get the nth node of inorder
+   * @param {number} n    Number of node, inorder, to retrieve
+   * @param {Node} node   Node from which to traverse. Default root.
+   * @return {Object}     Data from the nth node
+   */
+  nthInOrder(n = 1, node = this.root) {
+    this.count = n; // reset the count for this search
+    return this._nthInOrder(node)?.data;
+  }
+  
+  /**
+   * Recursion for nthInOrder
+   * @param {Node} node   Node from which to traverse. Default root.
+   * @param {number} n    Number of node, inorder, to retrieve
+   * @return {Object}     Data from the nth node
+   * @private
+   */
+  _nthInOrder(node = this.root) {
+    if(node === null) return null;
+    
+    if(this.count >= 0) {
+      // get the left child
+      const left = this._nthInOrder(node.left);
+      if(left !== null) return left;
+
+      this.count -= 1;
+      
+      // when the countdown is complete, get the element
+      if(this.count === 0) { return node }
+      
+      // now get the right child
+      const right = this._nthInOrder(node.right);
+      if(right !== null) return right;
+    }
+    return null;
+  }   
     
   // preorder(node)
   // postorder(node)
