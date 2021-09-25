@@ -104,7 +104,7 @@ export class PotentialWallList extends BinarySearchTree {
   *                                 retrieve next-closest
   * @return {Wall}
   */
-  closest({remove = false, skip_terrain = true} = {}) {
+  closest({remove = false, skip_terrain = true, type = "sight"} = {}) {
     if(this.walls_encountered.size === 0) return undefined;
     
     let w = undefined;
@@ -115,7 +115,9 @@ export class PotentialWallList extends BinarySearchTree {
       w = this.findMaxNode().data;
     }
   
-    if(skip_terrain && w.isTerrain) {
+    if(skip_terrain && w.data[type] === 2) {
+      // w.data[type] === 2 if the wall is limited for the type of vision 
+      //  (sight, sound, light)
       w = this.secondClosest();
     }
     
