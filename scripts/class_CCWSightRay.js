@@ -297,8 +297,8 @@ export class CCWSightRay extends Ray {
   */
   draw(color = COLORS.blue, alpha = 1, width = 1) {
     canvas.controls.debug.lineStyle(width, color, alpha).
-      moveTo(ray.A.x, ray.A.y).
-      lineTo(ray.B.x, ray.B.y);
+      moveTo(this.A.x, this.A.y).
+      lineTo(this.B.x, this.B.y);
   }
   
 
