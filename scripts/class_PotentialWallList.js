@@ -112,9 +112,8 @@ export class PotentialWallList extends BinarySearchTree {
       w = this.pullMinNode();
       this.walls_encountered.delete(w.id);
     } else {
-      w = this.findMaxNode().data;
+      w = this.findMinNode().data;
     }
-
 /*    if(skip_terrain && w.data?.[type] === 2) {
       // w.data[type] === 2 if the wall is limited for the type of vision 
       //  (sight, sound, light)
