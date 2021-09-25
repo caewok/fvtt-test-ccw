@@ -813,7 +813,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // Use the BST to find the closest wall, get the intersection, and return
       const potential_walls = new PotentialWallList(ray.A);
       potential_walls.add(interesting_walls);
-      const closest = potential_walls.closest(false); // do not remove the wall; wastes time
+      const closest = potential_walls.closest();
       const i = ray.intersectSegment(closest.coords);
       return new WallEndpoint(i.x, i.y);
      }
