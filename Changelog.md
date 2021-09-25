@@ -1,3 +1,6 @@
+# 0.1.1
+Account for terrain walls. Address edge case where two terrain walls form a triangular point. Add drawing methods for debugging use. 
+
 # 0.1.0
 Refactor to not rely on libWrapper. Instead, use classes:
 - `CCWSweepPolygon` extends `PointSourcePolygon`
