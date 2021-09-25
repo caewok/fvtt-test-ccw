@@ -1,6 +1,6 @@
 'use strict';
 
-import { pointsAlmostEqual, almostEqual } from "./util.js";
+import { pointsAlmostEqual, almostEqual, COLORS } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
@@ -166,6 +166,15 @@ export class CCWSweepPoint extends PIXI.Point {
    */
   static getKey = WallEndpoint.getKey;
   
+ /**
+  * Draw the point ray (for debugging)
+  * @param {number} color
+  * @param {number} alpha
+  * @param {number} radius
+  */
+  draw(color = COLORS.red, alpha = 1, radius = 5) {
+    canvas.controls.debug.beginFill(color, alpha).drawCircle(pt.x, pt.y, radius).endFill();
+  
   /**
    * Check if this endpoint counts as terrain. 
    * @param {string}    type   Type of vision: light, sight, sound
@@ -174,5 +183,7 @@ export class CCWSweepPoint extends PIXI.Point {
   isTerrain(type) {
     if(this.walls.size !== 1) return false;
     return this.endpoint.walls.values().next().value.data?.[type] === 2;
+  }
+}
   }
 }

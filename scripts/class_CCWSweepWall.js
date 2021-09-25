@@ -1,7 +1,7 @@
 'use strict';
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
-import { almostEqual, orient2dPoints } from "./util.js";
+import { almostEqual, orient2dPoints, COLORS } from "./util.js";
 
 /*
  * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.
@@ -182,6 +182,16 @@ export class CCWSweepWall extends CCWSightRay {
            orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : 
                              CONST.WALL_DIRECTIONS.BOTH;
   }  
+  
+ /**
+  * Draw the wall (for debugging)
+  * @param {number} color
+  * @param {number} alpha
+  * @param {number} width
+  */
+  draw(color = COLORS.red, alpha = 1, width = 1) {
+    CCWSightRay.prototype.draw.call(this, color, width, alpha);
+  }
 
 } 
 

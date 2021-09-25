@@ -3,7 +3,8 @@
 import { ccwPoints, 
          almostEqual, 
          pointsAlmostEqual, 
-         rootsReal } from "./util.js";
+         rootsReal,
+         COLORS } from "./util.js";
 
 /*
  * Subclass of Ray used specifically for computing in the CCW Sweep algorithm.
@@ -287,5 +288,18 @@ export class CCWSightRay extends Ray {
 
     return false;
   }
+  
+ /**
+  * Draw the sight ray (for debugging)
+  * @param {number} color
+  * @param {number} alpha
+  * @param {number} width
+  */
+  draw(color = COLORS.blue, alpha = 1, width = 1) {
+    canvas.controls.debug.lineStyle(width, color, alpha).
+      moveTo(ray.A.x, ray.A.y).
+      lineTo(ray.B.x, ray.B.y);
+  }
+  
 
 }
