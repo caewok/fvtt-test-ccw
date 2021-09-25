@@ -173,6 +173,6 @@ export class CCWSweepPoint extends PIXI.Point {
    */
   isTerrain(type) {
     if(this.walls.size !== 1) return false;
-    return [...this.walls].every(w => w.data?.[type] === 2);
+    return this.endpoint.walls.values().next().value.data?.[type] === 2;
   }
 }
