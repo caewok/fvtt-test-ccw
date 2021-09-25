@@ -30,6 +30,7 @@ export class PotentialWallList extends BinarySearchTree {
   
  /**
   * Override the BST compare function to sort walls in relation to origin.
+  * Closest wall is minNode
   * @param {Wall} a  Wall object
   * @param {Wall} b  Wall object 
   */
@@ -97,21 +98,40 @@ export class PotentialWallList extends BinarySearchTree {
    
   
  /**
-  * Retrieve the closest wall to the origin.
-  * @param {boolean} remove     Default is to remove the closest (pop)
+  * Retrieve the closest wall to the origin
+  * @param {boolean} remove         Default is to remove the closest (pop)
+  * @param {boolean} skip_terrain   If the closest is a terrain wall, 
+  *                                 retrieve next-closest
   * @return {Wall}
   */
-  closest({remove = false} = {}) {
+  closest({remove = false, skip_terrain = true, type = "sight"} = {}) {
     if(this.walls_encountered.size === 0) return undefined;
     
+    let w = undefined;
     if(remove) {
-      const w = this.pullMinNode();
+      w = this.pullMinNode();
       this.walls_encountered.delete(w.id);
-      return w;
+    } else {
+      w = this.findMinNode().data;
     }
-  
-    return this.findMinNode().data;
+
+    if(skip_terrain && w.data?.[type] === 2) {
+      // w.data[type] === 2 if the wall is limited for the type of vision 
+      //  (sight, sound, light)
+      w = this.secondClosest();
+    }
+
+    return w;
   }
+  
+ /**
+  * Retrieve the second-closest wall to the origin
+  * @return {Wall}
+  */
+  secondClosest() {
+    if(this.walls_encountered.size < 2) return undefined;
+    return this.nthInOrder(2);
+  } 
   
  /**
   * Determine if a far wall, opposite the endpoint, is CCW or CW given a vision point.
