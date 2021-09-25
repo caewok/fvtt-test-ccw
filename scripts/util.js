@@ -11,6 +11,31 @@ import { MODULE_ID } from "./module.js"
 // See Number.EPSILON for smallest possible error number.
 const PRESET_EPSILON = 1e-8;
 
+
+// Simple set of colors for drawing and debugging 
+export const COLORS = {
+  orange: 0xFFA500,
+  yellow: 0xFFFF00,
+  greenyellow: 0xADFF2F,
+  blue: 0x0000FF,
+  lightblue: 0xADD8E6,
+  red: 0xFF0000,
+  gray: 0x808080,
+  black: 0x000000,
+  white: 0xFFFFFF
+}
+
+ /*
+  * Pause execution (for debugging)
+  */
+export function sleep(milliseconds) {
+  const date = Date.now();
+  let currentDate = null;
+  do {
+    currentDate = Date.now();
+  } while (currentDate - date < milliseconds);
+}
+
  /*
   * Test if two numbers are almost equal, given a small error window.
   * See https://www.toptal.com/python/computational-geometry-in-python-from-theory-to-implementation
