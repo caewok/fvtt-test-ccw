@@ -43,11 +43,13 @@ Hooks.once('init', async function() {
   
  /**
   * API switches 
-  * {Boolean}   debug           Toggles certain debug logging
-  * {Boolean}   use_bezier      Use Bezier approximation of Circle (faster)
-  * {Boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
+  * {boolean}   debug           Toggles certain debug logging
+  * {boolean}   use_bezier      Use Bezier approximation of Circle (faster)
+  * {boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
   *                               numerical overrides or if false, a faster version 
   *                               without such checks.
+  * {boolean}   visualize       Toggle canvas drawing, useful when debugging with 
+  *                               browser devtools breakpoints.
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
   * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
@@ -62,6 +64,7 @@ Hooks.once('init', async function() {
   game.modules.get(MODULE_ID).api = { debug: false, 
                                       use_bezier: false, 
                                       use_robust_ccw: true, 
+                                      visualize: false,
                                       benchmark: testCCWBenchmarkSight,
                                       CCWSweepPoint: CCWSweepPoint,
                                       CCWSweepWall: CCWSweepWall,
