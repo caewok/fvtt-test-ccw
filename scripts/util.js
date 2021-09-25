@@ -26,18 +26,6 @@ export const COLORS = {
 }
 
  /*
-  * Pause execution (for debugging)
-  */
-export function sleep(milliseconds) {
-  return;
-  const date = Date.now();
-  let currentDate = null;
-  do {
-    currentDate = Date.now();
-  } while (currentDate - date < milliseconds);
-}
-
- /*
   * Test if two numbers are almost equal, given a small error window.
   * See https://www.toptal.com/python/computational-geometry-in-python-from-theory-to-implementation
   * @param {Number} x         First number
