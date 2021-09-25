@@ -8,8 +8,7 @@ import { Bezier }             from "./class_Bezier.js";
 import { orient2dPoints, 
          pointsAlmostEqual,
          ccwPoints, 
-         COLORS,
-         sleep }              from "./util.js";
+         COLORS }              from "./util.js";
 import { MODULE_ID }	        from "./module.js";
 
 /**
@@ -114,7 +113,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
        if(game.modules.get(MODULE_ID).api.visualize) { 
          wall.draw(); 
-         sleep(1000);  
        }
 
        
@@ -153,7 +151,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // all tests concluded; add wall and endpoints to respective tracking lists.
        if(game.modules.get(MODULE_ID).api.visualize) { 
          wall.draw(COLORS.green);
-         sleep(1000); 
         }
 
        a.walls.add(wall);
@@ -267,7 +264,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     if(game.modules.get(MODULE_ID).api.visualize) { 
       this.endpoints.forEach(e => e.draw(COLORS.yellow)); 
-      sleep(1000);  
     }
 
     // ----- INITIAL RAY INTERSECTION ---- //
@@ -294,9 +290,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
     
     if(game.modules.get(MODULE_ID).api.visualize) { 
+      if(Boolean(end_ray)) end_ray.draw() 
       start_ray.draw();
-      if(Boolean(end_ray)) end_ray.draw()    
-      sleep(1000);  
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -396,7 +391,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       potential_walls.addFromEndpoint(endpoint); // this will also remove non-relevant walls, including the closest wall if at the end of a wall
       
       if(game.modules.get(MODULE_ID).api.visualize) {
-        sleep(3000);
         canvas.controls.debug.clear();
         endpoints.forEach(e => e.draw(COLORS.orange, .5));
         this.drawCollisions(collisions);
@@ -432,7 +426,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           if(Boolean(closest_wall)) closest_wall.draw(COLORS.red)
           ray.draw()
           intersection.draw()
-          sleep(1000);
         }
         
         // add the intersection point unless we already did
@@ -451,7 +444,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw()
           intersection.draw()
-          sleep(1000);
         }
         
         collisions.push(intersection.x, intersection.y);
@@ -472,7 +464,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           intersection.draw();
-          sleep(1000);
         }
         
         if(intersection) { collisions.push(intersection.x, intersection.y); }
@@ -509,7 +500,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       potential_walls.addFromEndpoint(endpoint);
       
       if(game.modules.get(MODULE_ID).api.visualize) {
-        sleep(3000);
         canvas.controls.debug.clear();
         endpoints.forEach(e => e.draw(COLORS.orange, .5));
         this.drawCollisions(collisions);
@@ -540,7 +530,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
-          sleep(1000);
         }
         
         collisions.push(ray.B.x, ray.B.y); 
@@ -581,7 +570,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             if(Boolean(closest_wall)) closest_wall.draw(COLORS.red);
             ray.draw();
             intersection.draw();
-            sleep(1000);
           }
         
           // add the intersection point unless we already did
@@ -609,7 +597,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           intersection.draw();
-          sleep(1000);
         }
         
         collisions.push(intersection.x, intersection.y);
@@ -629,7 +616,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           if(Boolean(intersection)) { intersection.draw(); }
-          sleep(1000);
         }
         
         if(intersection) { collisions.push(intersection.x, intersection.y); }
