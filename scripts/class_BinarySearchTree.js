@@ -209,8 +209,8 @@ export class BinarySearchTree {
    * @return {Object}     Data from the nth node
    */
   nthInOrder(n = 1, node = this.root) {
-    this.count = 0; // reset the count for this search
-    return this._nthInOrder(n, node)?.data;
+    this.count = n; // reset the count for this search
+    return this._nthInOrder(node)?.data;
   }
   
   /**
@@ -220,21 +220,21 @@ export class BinarySearchTree {
    * @return {Object}     Data from the nth node
    * @private
    */
-  _nthInOrder(n, node = this.root) {
+  _nthInOrder(node = this.root) {
     if(node === null) return null;
     
-    if(this.count <= n) {
+    if(this.count >= 0) {
       // get the left child
-      const left = this._nthInOrder(n, node.left);
+      const left = this._nthInOrder(node.left);
       if(left !== null) return left;
 
-      this.count += 1;
+      this.count -= 1;
       
       // when the countdown is complete, get the element
-      if(this.count === n) { return node }
+      if(this.count === 0) { return node }
       
       // now get the right child
-      const right = this._nthInOrder(n, node.right);
+      const right = this._nthInOrder(node.right);
       if(right !== null) return right;
     }
     return null;
