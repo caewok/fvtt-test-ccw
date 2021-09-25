@@ -39,7 +39,7 @@ export class PotentialWallList extends BinarySearchTree {
     if(res === undefined) {
      log(`BST compare returned undefined`, res, this);
     }
-    return !res ? -1 : 1;
+    return res ? -1 : 1;
   } 
   
  /**
@@ -105,12 +105,12 @@ export class PotentialWallList extends BinarySearchTree {
     if(this.walls_encountered.size === 0) return undefined;
     
     if(remove) {
-      const w = this.pullMaxNode();
+      const w = this.pullMinNode();
       this.walls_encountered.delete(w.id);
       return w;
     }
   
-    return this.findMaxNode().data;
+    return this.findMinNode().data;
   }
   
  /**
