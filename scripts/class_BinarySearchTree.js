@@ -204,13 +204,13 @@ export class BinarySearchTree {
     
   /**
    * Get the nth node of inorder
-   * @param {Node} node   Node from which to traverse. Default root.
    * @param {number} n    Number of node, inorder, to retrieve
+   * @param {Node} node   Node from which to traverse. Default root.
    * @return {Object}     Data from the nth node
    */
-  nthInOrder(node = this.root, n) {
-    this.count = n; // reset the count for this search
-    return this._nthInOrder(node).data;
+  nthInOrder(n = 1, node = this.root) {
+    this.count = 0; // reset the count for this search
+    return this._nthInOrder(n, node);
   }
   
   /**
@@ -220,20 +220,24 @@ export class BinarySearchTree {
    * @return {Object}     Data from the nth node
    * @private
    */
-  _nthInOrder(node = this.root) {
-    if(node === null) return;
+  _nthInOrder(n, node = this.root) {
+    if(node === null) return null;
     
     if(this.count <= n) {
       // get the left child
-      this._nthInOrder(node.left);
-      this.count -= 1;
+      const left = this._nthInOrder(n, node.left);
+      if(left !== null) return left;
+
+      this.count += 1;
       
       // when the countdown is complete, get the element
-      if(this.count === 0) { return node }
+      if(this.count === n) { return node }
       
       // now get the right child
-      this._nthInOrder(node.right)
+      const right = this._nthInOrder(n, node.right);
+      if(right !== null) return right;
     }
+    return null;
   }   
     
   // preorder(node)
