@@ -7,8 +7,10 @@ import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
 import { orient2dPoints, 
          pointsAlmostEqual,
-         ccwPoints }          from "./util.js";
-import { MODULE_ID }	      from "./module.js";
+         ccwPoints, 
+         COLORS,
+         sleep }              from "./util.js";
+import { MODULE_ID }	        from "./module.js";
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.
@@ -110,6 +112,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      candidate_walls.forEach(wall => {
        wall = CCWSweepWall.createCCWSweepWall(wall, opts);
        
+       if(game.modules.get(MODULE_ID).visualize) { 
+         wall.draw(); 
+         sleep(1000);  
+       }
+       
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
        
@@ -143,6 +150,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        }
        
        // all tests concluded; add wall and endpoints to respective tracking lists.
+       if(game.modules.get(MODULE_ID).visualize) { 
+         wall.draw(COLORS.green);
+         sleep(1000); 
+        }
+       
        a.walls.add(wall);
        b.walls.add(wall);
        this.walls.set(wall.id, wall);
@@ -250,6 +262,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const { maxR, isLimited, aMin, aMax, hasRadius } = this.config;
     const radius = this.config.radius ?? maxR;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
+    
+    if(game.modules.get(MODULE_ID).visualize) { 
+      endpoints.forEach(e => e.draw(COLORS.yellow); 
+      sleep(1000);  
+    }
 
     // ----- INITIAL RAY INTERSECTION ---- //
     // Begin with a ray at the lowest angle to establish initial conditions
@@ -272,6 +289,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     } else{
       endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
       start_ray = endpoints.length > 0 ? CCWSightRay.fromReference(origin, endpoints[0], radius) : undefined;
+    }
+    
+    if(game.modules.get(MODULE_ID).visualize) { 
+      start_ray.draw();
+      if(Boolean(end_ray)) end_ray.draw()    
+      sleep(1000);  
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -321,6 +344,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
       potential_walls.addWalls(start_walls);
     }
+    
+    if(game.modules.get(MODULE_ID).visualize) { endpoints.forEach(e => e.draw(COLORS.red); }
 
     // ----- SWEEP CLOCKWISE ----- //
     // initialize the points
@@ -329,11 +354,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // open the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }    
     
+    if(game.modules.get(MODULE_ID).visualize) { canvas.controls.debug.clear(); }
+    
     hasRadius ? this._sweepEndpointsRadius(potential_walls, endpoints) :
                 this._sweepEndpointsNoRadius(potential_walls, endpoints);
     
     // close the limited shape            
-    if(isLimited) { this.points.push(origin.x, origin.y) }           
+    if(isLimited) { this.points.push(origin.x, origin.y) }    
+    
+    if(game.modules.get(MODULE_ID).visualize) {
+      canvas.controls.debug.clear();
+      drawCollisions(collisions);
+      canvas.controls.debug.lineStyle(1, COLORS.red).drawShape(this);
+    }       
   }
   
   
@@ -359,7 +392,18 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint); // this will also remove non-relevant walls, including the closest wall if at the end of a wall
-  
+      
+      if(game.modules.get(MODULE_ID).visualize) {
+        sleep(3000);
+        canvas.controls.debug.clear();
+        endpoints.forEach(e => e.draw(COLORS.orange, .5));
+        drawCollisions(collisions);
+        endpoint.draw(COLORS.red);
+        const all_potential = potential_walls.inorder();
+        all_potential.forEach(w => w.draw(COLORS.orange, .5));
+        if(Boolean(closest_wall)) closest_wall.draw(COLORS.red)
+      }
+      
       if(!closest_wall) {
         console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
       }
@@ -382,6 +426,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
+        if(game.modules.get(MODULE_ID).visualize) {
+          if(Boolean(closest_wall)) closest_wall.draw(COLORS.red)
+          ray.draw()
+          intersection.draw()
+          sleep(1000);
+        }
+        
         // add the intersection point unless we already did
         // (occurs at join points of two walls)
         if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
@@ -394,6 +445,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        if(game.modules.get(MODULE_ID).visualize) {
+          ray.draw()
+          intersection.draw()
+          sleep(1000);
+        }
+        
         collisions.push(intersection.x, intersection.y);
         
         // mark this closer endpoint and retrieve the closest wall.
@@ -408,6 +466,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        if(game.modules.get(MODULE_ID).visualize) {
+          ray.draw();
+          intersection.draw();
+          sleep(1000);
+        }
+        
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
       }      
@@ -440,6 +505,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
+      
+      if(game.modules.get(MODULE_ID).visualize) {
+        sleep(3000);
+        canvas.controls.debug.clear();
+        endpoints.forEach(e => e.draw(COLORS.orange, .5));
+        drawCollisions(collisions);
+        endpoint.draw(COLORS.red);
+        const all_potential = potential_walls.inorder();
+        all_potential.forEach(w => w.draw(COLORS.orange, .5));
+        if(Boolean(closest_wall)) closest_wall.draw(COLORS.red)
+      }
             
       // if we reach the edge of the limited FOV radius, need to pad by drawing an arc
       if(needs_padding) {
@@ -459,6 +535,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        
+        if(game.modules.get(MODULE_ID).visualize) {
+          ray.draw();
+          sleep(1000);
+        }
+        
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest();
@@ -492,6 +574,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
           const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
           const intersection = this._getRayIntersection(closest_wall, ray);
+          
+          if(game.modules.get(MODULE_ID).visualize) {
+            if(Boolean(closest_wall)) closest_wall.draw(COLORS.red);
+            ray.draw();
+            intersection.draw();
+            sleep(1000);
+          }
         
           // add the intersection point unless we already did
           // (occurs at join points of two walls)
@@ -514,6 +603,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        if(game.modules.get(MODULE_ID).visualize) {
+          ray.draw();
+          intersection.draw();
+          sleep(1000);
+        }
+        
         collisions.push(intersection.x, intersection.y);
 
         // mark this closer endpoint and retrieve the closest wall.
@@ -527,6 +623,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        if(game.modules.get(MODULE_ID).visualize) {
+          ray.draw();
+          if(Boolean(intersection) intersection.draw();
+          sleep(1000);
+        }
+        
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
       }
@@ -584,10 +687,23 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         this._addPadding(ray, prior_ray, collisions); 
       }
     }
+    
     this.points = collisions;
   }
   
-  /*
+  /**
+   * Draw collision points (for debugging)
+   * @param {number[]} collisions   Array of coordinate points, x then y
+   */
+  drawCollisions(collisions) {
+    const ln = collisions.length;
+    for(i = 0; i < ln; i += 2) {
+      const e = new CCWSweepPoint(collisions[i], collisions[i + 1]);
+      e.draw(COLORS.green, .8);
+    }
+  }
+  
+  /**
    * Construct a CCWSweepPoint from a ray, testing if it hits a wall.
    * Assume wall may be undefined
    * @param {CCWSweepWall} wall   Wall to test for intersection.
@@ -603,7 +719,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
    
   
-  /*
+  /**
    * Trim endpoints to only those between starting and ending rays.
    * @param {CCWSightRay} r0    Starting ray
    * @param {CCWSightRay} r1    Ending ray
@@ -638,7 +754,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   }
   
-  /*
+  /**
    * Sort an array of points from CW to CCW, in relation to line due west from origin.
    * so array[0] would be the first point encountered if moving clockwise from the line.
    *    array[last] would be the last point encountered.
@@ -692,7 +808,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     });
   }
   
-  /*
+  /**
    * Same as sortEndpointsCW but sort from a baseline other than due west.
    * Accomplish by adding in a reference point to the endpoints list, then sorting.
    * Then shift the array based on reference point
@@ -726,7 +842,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
   }  
   
-  /*
+  /**
    * Draw a circular arc between two points.
    * Add to collisions each point on the arc, given a defined padding radian distance.
    * https://www.measurethat.net/Benchmarks/Show/4223/0/array-concat-vs-spread-operator-vs-push
