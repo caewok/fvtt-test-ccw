@@ -58,8 +58,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const isLimited = this.config.isLimited = angle < 360;
     this.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2))) : -Math.PI;
     this.config.aMax = isLimited ? this.config.aMin + Math.toRadians(angle) : Math.PI;
-        
+    
+    
+
     // Construct endpoints for each wall
+    if(game.modules.get(MODULE_ID).api.visualize) { canvas.controls.debug.clear(); }
     this._initializeEndpoints(type);
     
     // Iterate over endpoints and construct the Polygon geometry
@@ -263,6 +266,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
     if(game.modules.get(MODULE_ID).api.visualize) { 
+      canvas.controls.debug.clear();
       this.endpoints.forEach(e => e.draw(COLORS.yellow)); 
     }
 
