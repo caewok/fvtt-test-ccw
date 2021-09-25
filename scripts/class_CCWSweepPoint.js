@@ -169,11 +169,10 @@ export class CCWSweepPoint extends PIXI.Point {
   /**
    * Check if this endpoint counts as terrain. 
    * @param {string}    type   Type of vision: light, sight, sound
-   * @return {boolean} True if every wall for this endpoint is 
-   *                     terrain of the indicated type.
+   * @return {boolean} True if a single terrain wall is present in the set
    */
   isTerrain(type) {
-    if(this.walls.size === 0) return false;
+    if(this.walls.size !== 1) return false;
     return [...this.walls].every(w => w.data?.[type] === 2);
   }
 }
