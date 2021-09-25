@@ -174,6 +174,7 @@ export class CCWSweepPoint extends PIXI.Point {
   */
   draw(color = COLORS.red, alpha = 1, radius = 5) {
     canvas.controls.debug.beginFill(color, alpha).drawCircle(pt.x, pt.y, radius).endFill();
+  }
   
   /**
    * Check if this endpoint counts as terrain. 
@@ -185,5 +186,4 @@ export class CCWSweepPoint extends PIXI.Point {
     return this.endpoint.walls.values().next().value.data?.[type] === 2;
   }
 }
-  }
-}
+
