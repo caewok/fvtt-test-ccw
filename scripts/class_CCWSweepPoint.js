@@ -177,13 +177,32 @@ export class CCWSweepPoint extends PIXI.Point {
   }
   
   /**
-   * Check if this endpoint counts as terrain. 
+   * Check if this endpoint counts as terrain and so might be excluded. 
+   * Hypothesis: 
+   * - If any wall is not not terrain, endpoint must count as collision
+   * - If more than two terrain walls, endpoint must count as collision
+   * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
+   *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
    * @param {string}    type   Type of vision: light, sight, sound
+   * @param {x: number, y:number} origin  Vision point
    * @return {boolean} True if a single terrain wall is present in the set
    */
-  isTerrain(type) {
-    if(this.walls.size !== 1) return false;
-    return this.endpoint.walls.values().next().value.data?.[type] === 2;
+  isTerrain(type, origin) {
+    const ln = this.walls.size
+    if(ln !== 1 && ln !== 2) return false;
+    const walls = [...this.walls.values()];
+    if(walls.some(w => w.data?.[type] !== 2)) return false;
+    if(ln === 1) return true;
+
+    // if the both block equally, it is a terrain point
+    // if neither block, it is a terrain point
+    // TO-DO: should inFrontOfSegment return true when both block equally?
+
+    const wall0_in_front = walls[0].inFrontOfSegment(walls[1], origin);
+    const wall1_in_front = walls[1].inFrontOfSegment(walls[0], origin);
+    if(wall0_in_front && wall1_in_front) return true;
+    if(!wall0_in_front && !wall1_in_front) return true;
+    return false;
   }
 }
 
