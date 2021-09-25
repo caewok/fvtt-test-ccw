@@ -210,7 +210,7 @@ export class BinarySearchTree {
    */
   nthInOrder(n = 1, node = this.root) {
     this.count = 0; // reset the count for this search
-    return this._nthInOrder(n, node);
+    return this._nthInOrder(n, node)?.data;
   }
   
   /**
