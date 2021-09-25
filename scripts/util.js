@@ -29,6 +29,7 @@ export const COLORS = {
   * Pause execution (for debugging)
   */
 export function sleep(milliseconds) {
+  return;
   const date = Date.now();
   let currentDate = null;
   do {

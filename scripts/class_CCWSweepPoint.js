@@ -174,7 +174,6 @@ export class CCWSweepPoint extends PIXI.Point {
   * @param {number} radius
   */
   draw(color = COLORS.red, alpha = 1, radius = 5) {
-    canvas.controls.debug.beginFill(color, alpha).drawCircle(pt.x, pt.y, radius).endFill();
-}
+    canvas.controls.debug.beginFill(color, alpha).drawCircle(this.x, this.y, radius).endFill();
   }
 }

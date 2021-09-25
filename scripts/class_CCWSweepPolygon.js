@@ -111,11 +111,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      const candidate_walls = this._getCandidateWalls();
      candidate_walls.forEach(wall => {
        wall = CCWSweepWall.createCCWSweepWall(wall, opts);
-       
-       if(game.modules.get(MODULE_ID).visualize) { 
+
+       if(game.modules.get(MODULE_ID).api.visualize) { 
          wall.draw(); 
          sleep(1000);  
        }
+
        
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
@@ -150,11 +151,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        }
        
        // all tests concluded; add wall and endpoints to respective tracking lists.
-       if(game.modules.get(MODULE_ID).visualize) { 
+       if(game.modules.get(MODULE_ID).api.visualize) { 
          wall.draw(COLORS.green);
          sleep(1000); 
         }
-       
+
        a.walls.add(wall);
        b.walls.add(wall);
        this.walls.set(wall.id, wall);
@@ -172,11 +173,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Construct four walls and four endpoints representing the canvas edge.
    * Add to the walls and endpoints sets, respectively.
    */
+
    _addCanvasEdges() {
      const opts = {origin: this.origin, radius: this.config.radius};
 
      // organize clockwise from 0,0
-     let canvas_pts = [{ x: 0, y: 0 }, 
+     let canvas_pts = [{ x: 0, y: 0 },
                  { x: canvas.dimensions.width, y: 0 },
                  { x: canvas.dimensions.width, y: canvas.dimensions.height },
                  { x: 0, y: canvas.dimensions.height }];
@@ -201,7 +203,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        this.endpoints.set(canvas_pts[j].key, canvas_pts[j]);
      }
    } 
-   
+
   /* -------------------------------------------- */
     
   /**
@@ -263,8 +265,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const radius = this.config.radius ?? maxR;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
-    if(game.modules.get(MODULE_ID).visualize) { 
-      endpoints.forEach(e => e.draw(COLORS.yellow); 
+    if(game.modules.get(MODULE_ID).api.visualize) { 
+      this.endpoints.forEach(e => e.draw(COLORS.yellow)); 
       sleep(1000);  
     }
 
@@ -291,7 +293,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       start_ray = endpoints.length > 0 ? CCWSightRay.fromReference(origin, endpoints[0], radius) : undefined;
     }
     
-    if(game.modules.get(MODULE_ID).visualize) { 
+    if(game.modules.get(MODULE_ID).api.visualize) { 
       start_ray.draw();
       if(Boolean(end_ray)) end_ray.draw()    
       sleep(1000);  
@@ -345,7 +347,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       potential_walls.addWalls(start_walls);
     }
     
-    if(game.modules.get(MODULE_ID).visualize) { endpoints.forEach(e => e.draw(COLORS.red); }
+    if(game.modules.get(MODULE_ID).api.visualize) { endpoints.forEach(e => e.draw(COLORS.red)); }
 
     // ----- SWEEP CLOCKWISE ----- //
     // initialize the points
@@ -354,7 +356,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // open the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }    
     
-    if(game.modules.get(MODULE_ID).visualize) { canvas.controls.debug.clear(); }
+    if(game.modules.get(MODULE_ID).api.visualize) { canvas.controls.debug.clear(); }
     
     hasRadius ? this._sweepEndpointsRadius(potential_walls, endpoints) :
                 this._sweepEndpointsNoRadius(potential_walls, endpoints);
@@ -362,9 +364,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // close the limited shape            
     if(isLimited) { this.points.push(origin.x, origin.y) }    
     
-    if(game.modules.get(MODULE_ID).visualize) {
+    if(game.modules.get(MODULE_ID).api.visualize) {
       canvas.controls.debug.clear();
-      drawCollisions(collisions);
+      this.drawCollisions(this.points);
       canvas.controls.debug.lineStyle(1, COLORS.red).drawShape(this);
     }       
   }
@@ -393,11 +395,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint); // this will also remove non-relevant walls, including the closest wall if at the end of a wall
       
-      if(game.modules.get(MODULE_ID).visualize) {
+      if(game.modules.get(MODULE_ID).api.visualize) {
         sleep(3000);
         canvas.controls.debug.clear();
         endpoints.forEach(e => e.draw(COLORS.orange, .5));
-        drawCollisions(collisions);
+        this.drawCollisions(collisions);
         endpoint.draw(COLORS.red);
         const all_potential = potential_walls.inorder();
         all_potential.forEach(w => w.draw(COLORS.orange, .5));
@@ -426,7 +428,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           if(Boolean(closest_wall)) closest_wall.draw(COLORS.red)
           ray.draw()
           intersection.draw()
@@ -446,7 +448,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw()
           intersection.draw()
           sleep(1000);
@@ -467,7 +469,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           intersection.draw();
           sleep(1000);
@@ -506,11 +508,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint);
       
-      if(game.modules.get(MODULE_ID).visualize) {
+      if(game.modules.get(MODULE_ID).api.visualize) {
         sleep(3000);
         canvas.controls.debug.clear();
         endpoints.forEach(e => e.draw(COLORS.orange, .5));
-        drawCollisions(collisions);
+        this.drawCollisions(collisions);
         endpoint.draw(COLORS.red);
         const all_potential = potential_walls.inorder();
         all_potential.forEach(w => w.draw(COLORS.orange, .5));
@@ -536,7 +538,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(!closest_wall) {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           sleep(1000);
         }
@@ -575,7 +577,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
           const intersection = this._getRayIntersection(closest_wall, ray);
           
-          if(game.modules.get(MODULE_ID).visualize) {
+          if(game.modules.get(MODULE_ID).api.visualize) {
             if(Boolean(closest_wall)) closest_wall.draw(COLORS.red);
             ray.draw();
             intersection.draw();
@@ -604,7 +606,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
           intersection.draw();
           sleep(1000);
@@ -624,9 +626,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWSightRay.fromReference(origin, endpoint, radius);
         const intersection = this._getRayIntersection(closest_wall, ray);
         
-        if(game.modules.get(MODULE_ID).visualize) {
+        if(game.modules.get(MODULE_ID).api.visualize) {
           ray.draw();
-          if(Boolean(intersection) intersection.draw();
+          if(Boolean(intersection)) { intersection.draw(); }
           sleep(1000);
         }
         
@@ -697,7 +699,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   drawCollisions(collisions) {
     const ln = collisions.length;
-    for(i = 0; i < ln; i += 2) {
+    for(let i = 0; i < ln; i += 2) {
       const e = new CCWSweepPoint(collisions[i], collisions[i + 1]);
       e.draw(COLORS.green, .8);
     }
