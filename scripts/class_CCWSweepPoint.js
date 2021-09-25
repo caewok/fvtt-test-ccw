@@ -1,6 +1,6 @@
 'use strict';
 
-import { pointsAlmostEqual, almostEqual } from "./util.js";
+import { pointsAlmostEqual, almostEqual, COLORS } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
@@ -166,4 +166,15 @@ export class CCWSweepPoint extends PIXI.Point {
    * Import the WallEndpoint get key method
    */
   static getKey = WallEndpoint.getKey;
+  
+ /**
+  * Draw the point ray (for debugging)
+  * @param {number} color
+  * @param {number} alpha
+  * @param {number} radius
+  */
+  draw(color = COLORS.red, alpha = 1, radius = 5) {
+    canvas.controls.debug.beginFill(color, alpha).drawCircle(pt.x, pt.y, radius).endFill();
+}
+  }
 }
