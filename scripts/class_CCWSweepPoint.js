@@ -68,17 +68,17 @@ export class CCWSweepPoint extends PIXI.Point {
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
   
-  /*
+  /**
    * @param {number}
    */
   get radius() { return this._radius; }
   
-  /*
+  /**
    * @param {x: number, y: number}
    */
   get origin() { return this._origin; }
   
-  /* 
+  /** 
    * Is this point associated with a radius? Radius 0 does not count.
    * @return {boolean}
    */
@@ -86,7 +86,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return Boolean(this._radius);
   }
   
-  /*
+  /**
    * Distance squared to origin. Used for comparisons.
    */
   get distanceSquaredToOrigin() {
@@ -96,7 +96,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return this._distanceSquaredToOrigin;
   }
     
-  /*
+  /**
    * Is this point inside the FOV radius?
    * @return {undefined|boolean}
    */
@@ -110,7 +110,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return this._insideRadius;
   }
   
-  /*
+  /**
    * When setting origin, un-cache measurements that depend on it.
    * @param {x: number, y: number} value
    */
@@ -120,7 +120,7 @@ export class CCWSweepPoint extends PIXI.Point {
     this._insideRadius = undefined;
   }
   
-  /*
+  /**
    * When setting radius, un-cache measurements that depend on it.
    * @param {number} value
    */
@@ -134,7 +134,7 @@ export class CCWSweepPoint extends PIXI.Point {
   /*  Methods                                     */
   /* -------------------------------------------- */
   
-  /*
+  /**
    * Distance squared used for comparisons.
    * @param {x: number, y: number}  p   Point to measure to
    */
@@ -144,7 +144,7 @@ export class CCWSweepPoint extends PIXI.Point {
     return (dx*dx + dy*dy);
   }
   
-  /*
+  /**
    * Test if the key for this point equals another, suggesting they are equal points
    * (at least, equal as rounded to the nearest integer)
    * @param {CCWSweepPoint|WallEndpoint} p  Other point to test against
@@ -153,17 +153,27 @@ export class CCWSweepPoint extends PIXI.Point {
     return this.key === p.key;
   } 
   
-  /*
+  /**
    * Test if this point is almost equal to some other {x, y} point
    * @param {x: number, y: number} p    Point to compare
    */
   almostEqual(p) {
     return pointsAlmostEqual(this, p)
-  }
+  }  
   
-  
-  /*
+  /**
    * Import the WallEndpoint get key method
    */
   static getKey = WallEndpoint.getKey;
+  
+  /**
+   * Check if this endpoint counts as terrain. 
+   * @param {string}    type   Type of vision: light, sight, sound
+   * @return {boolean} True if every wall for this endpoint is 
+   *                     terrain of the indicated type.
+   */
+  isTerrain(type) {
+    if(this.walls.size === 0) return false;
+    return [...this.walls].every(w => w.data?.[type] === 2);
+  }
 }
