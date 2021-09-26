@@ -128,7 +128,7 @@ export class CCWSweepPoint extends PIXI.Point {
     this._radius = value;
     this._insideRadius = undefined;
   }
-   
+  
 
   /* -------------------------------------------- */
   /*  Methods                                     */
@@ -176,6 +176,10 @@ export class CCWSweepPoint extends PIXI.Point {
     canvas.controls.debug.beginFill(color, alpha).drawCircle(this.x, this.y, radius).endFill();
   }
   
+  
+  // TO-DO: Cache isTerrainExcluded and hasTerrainWalls
+  // Would need to set the "type" as a cached property, 
+  //   and monitor wall additions/deletions
   /**
    * Check if this endpoint counts as terrain and so might be excluded. 
    * Hypothesis: 
@@ -184,10 +188,9 @@ export class CCWSweepPoint extends PIXI.Point {
    * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
    *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
    * @param {string}    type   Type of vision: light, sight, sound
-   * @param {x: number, y:number} origin  Vision point
    * @return {boolean} True if a single terrain wall is present in the set
    */
-  isTerrain(type, origin) {
+  isTerrainExcluded(type) {
     const ln = this.walls.size
     if(ln !== 1 && ln !== 2) return false;
     const walls = [...this.walls.values()];
@@ -198,11 +201,20 @@ export class CCWSweepPoint extends PIXI.Point {
     // if neither block, it is a terrain point
     // TO-DO: should inFrontOfSegment return true when both block equally?
 
-    const wall0_in_front = walls[0].inFrontOfSegment(walls[1], origin);
-    const wall1_in_front = walls[1].inFrontOfSegment(walls[0], origin);
+    const wall0_in_front = walls[0].inFrontOfSegment(walls[1], this.origin);
+    const wall1_in_front = walls[1].inFrontOfSegment(walls[0], this.origin);
     if(wall0_in_front && wall1_in_front) return true;
     if(!wall0_in_front && !wall1_in_front) return true;
     return false;
   }
+  
+  /**
+   * Determine if this is an endpoint for one or more terrain walls
+   * @param {string} type   Type of vision: light, sight, sound
+   * @return {boolean} True if one or more terrain walls present.
+   */
+   hasTerrainWalls(type) {
+     return [...this.walls.values()].some(w => w.data?.[type] === 2);
+   }
 }
 
