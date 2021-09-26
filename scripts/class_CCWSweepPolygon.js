@@ -430,6 +430,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
+        // check to see if the intersection has changed
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
+        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        
         continue;
       }
       
@@ -585,7 +589,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
         // check to see if the intersection has changed
-        const new_intersection = Poly._getRayIntersection(closest_wall, ray);
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
         if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
