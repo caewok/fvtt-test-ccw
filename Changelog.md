@@ -1,3 +1,6 @@
+# 0.1.2
+Bug fixes for terrain walls with lighting.
+
 # 0.1.1
 Account for terrain walls. Address edge case where two terrain walls form a triangular point. Add drawing methods for debugging use. 
 
