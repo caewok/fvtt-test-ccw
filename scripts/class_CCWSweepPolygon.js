@@ -508,7 +508,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         } else if(!at_radius_edge) {
           // add unless we already did above.
           // mark this closer endpoint unless it belongs to a single terrain wall
-          if(!endpoint.isTerrainExcluded(type)) { collisions.push(endpoint.x, endpoint.y); }           
+          if(!endpoint.isTerrainExcluded(type)) { 
+            collisions.push(endpoint.x, endpoint.y); 
+          } else if(Boolean(closest_wall)) {         
+            // may need to include the endpoint if it is now not the closest
+            if(Boolean(closest_wall) && 
+               Boolean(actual_closest_wall) && 
+               closest_wall.id !== actual_closest_wall.id) {
+              const new_intersection = Poly._getRayIntersection(closest_wall, ray);
+              if(!new_intersection.keyEquals(new CCWSweepPoint(ray.B.x, ray.B.y))) { 
+                collisions.push(new_intersection.x, new_intersection.y) 
+              }
+            }
+          }           
         }
         
         continue;
