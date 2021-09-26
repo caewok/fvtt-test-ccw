@@ -515,7 +515,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             if(Boolean(closest_wall) && 
                Boolean(actual_closest_wall) && 
                closest_wall.id !== actual_closest_wall.id) {
-              const new_intersection = Poly._getRayIntersection(closest_wall, ray);
+              const new_intersection = this._getRayIntersection(closest_wall, ray);
               if(!new_intersection.keyEquals(new CCWSweepPoint(ray.B.x, ray.B.y))) { 
                 collisions.push(new_intersection.x, new_intersection.y) 
               }
