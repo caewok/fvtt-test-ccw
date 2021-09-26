@@ -214,6 +214,7 @@ export class CCWSweepPoint extends PIXI.Point {
    * @return {boolean} True if one or more terrain walls present.
    */
    hasTerrainWalls(type) {
+     if(this.walls.size === 0) return false;
      return [...this.walls.values()].some(w => w.data?.[type] === 2);
    }
 }
