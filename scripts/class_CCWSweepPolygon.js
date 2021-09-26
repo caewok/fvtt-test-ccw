@@ -355,11 +355,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const collisions = this.points;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
+    let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
       potential_walls.addFromEndpoint(endpoint); // this will also remove non-relevant walls, including the closest wall if at the end of a wall
-  
+      
       if(!closest_wall) {
         console.warn(`No closest wall on iteration ${i}, endpoint ${endpoint.key}`);
       }
@@ -378,6 +379,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // sightline --> endpoint at closest wall --> next closest wall
         
         closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
                 
         const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
         const intersection = this._getRayIntersection(closest_wall, ray);
@@ -389,6 +391,31 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         continue;
       }
       
+      // the following can only happen if the actual closest wall is a terrain wall
+      if(actual_closest_wall.id !== closest_wall.id &&
+         (endpoint.almostEqual(actual_closest_wall.A) || 
+          endpoint.almostEqual(actual_closest_wall.B))) {
+          
+        // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
+        
+        // mark the intersection at the current closest wall
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        collisions.push(intersection.x, intersection.y);
+        
+        // get the next-closest wall.
+        // if the closest wall was terrain, this will switch. If not, it will stay the same
+        closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
+        
+        // check to see if the intersection has changed
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
+        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+          
+        continue; 
+      }
+      
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
@@ -397,10 +424,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(intersection.x, intersection.y);
         
         // mark this closer endpoint unless it belongs to a single terrain wall
-        if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); } 
+        if(!endpoint.isTerrainExcluded(type)) { collisions.push(endpoint.x, endpoint.y); } 
 
         // Retrieve the closer wall
         closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
+        
+        // check to see if the intersection has changed
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
+        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
       }
@@ -438,6 +470,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const origin = this.origin;
     let needs_padding = false;
     let closest_wall = potential_walls.closest({type});
+    let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -464,6 +497,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
         const at_radius_edge = pointsAlmostEqual(endpoint, ray.B);
         if(at_radius_edge || !endpoint.insideRadius) {
@@ -474,7 +508,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         } else if(!at_radius_edge) {
           // add unless we already did above.
           // mark this closer endpoint unless it belongs to a single terrain wall
-          if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); }           
+          if(!endpoint.isTerrainExcluded(type)) { 
+            collisions.push(endpoint.x, endpoint.y); 
+          } else if(Boolean(closest_wall) && 
+                    Boolean(actual_closest_wall) && 
+                    closest_wall.id !== actual_closest_wall.id) {
+            // may need to include the endpoint if it is now not the closest
+            if(Boolean(closest_wall) && 
+               Boolean(actual_closest_wall) && 
+               closest_wall.id !== actual_closest_wall.id) {
+              const new_intersection = this._getRayIntersection(closest_wall, ray);
+              if(!new_intersection.keyEquals(new CCWSweepPoint(ray.B.x, ray.B.y))) { 
+                collisions.push(new_intersection.x, new_intersection.y) 
+              }
+            }
+          } else {
+            // we are ignoring this endpoint, so we are back at the radius edge
+            needs_padding = true
+          }           
         }
         
         continue;
@@ -486,6 +537,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(endpoint.almostEqual(closest_wall.A) || 
          endpoint.almostEqual(closest_wall.B)) {
         closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
+        
         if(endpoint.insideRadius) { 
           collisions.push(endpoint.x, endpoint.y);
         
@@ -506,6 +559,34 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         continue;
       }
       
+      // the following can only happen if the actual closest wall is a terrain wall
+      if(actual_closest_wall.id !== closest_wall.id &&
+         (endpoint.almostEqual(actual_closest_wall.A) || 
+          endpoint.almostEqual(actual_closest_wall.B))) {
+          
+        // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
+        
+        // mark the intersection at the current closest wall
+        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const intersection = this._getRayIntersection(closest_wall, ray);
+        
+        collisions.push(intersection.x, intersection.y);
+        
+        // get the next-closest wall.
+        // if the closest wall was terrain, this will switch. If not, it will stay the same
+        closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
+        
+        // check to see if the intersection has changed
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
+        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+          
+        // if the ray does not actually intersect the closest wall, we need to add padding
+        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }  
+          
+        continue; 
+      }
+      
       // is this endpoint within the closest_wall?
       if(closest_wall.contains(endpoint)) {
         if(endpoint.insideRadius) { collisions.push(endpoint.x, endpoint.y); }  
@@ -520,8 +601,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(intersection.x, intersection.y);
 
         // mark this closer endpoint it belongs to a single terrain wall
-        if(!endpoint.isTerrain(type, origin)) { collisions.push(endpoint.x, endpoint.y); }
+        if(!endpoint.isTerrainExcluded(type)) { collisions.push(endpoint.x, endpoint.y); }
         closest_wall = potential_walls.closest({type});
+        actual_closest_wall = potential_walls.closest({skip_terrain: false});
+        
+        // check to see if the intersection has changed
+        const new_intersection = this._getRayIntersection(closest_wall, ray);
+        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        
         continue;
       }
 
