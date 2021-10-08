@@ -275,28 +275,32 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           e.score = e.y;
           sweep_status.insert(e);
           curr_node = sweep_status.find(e);
-          s1 = sweep_status.previous(curr_node).data;
-          s2 = sweep_status.next(curr_node).data;  
+          s1 = sweep_status.previous(curr_node)?.data;
+          s2 = sweep_status.next(curr_node)?.data;  
           
-          s1.score = s1.x;
-          s2.score = s2.x;
-          
-          event_queue.remove(s1);
-          event_queue.remove(s2);
-          
-          const intersection1 = s1.wall.toRay().intersectSegment(e.wall.coords);
-          if(intersection1) {
-            intersection1.score = intersection1.x;
-            intersection1.wall = [e.wall, s1.wall];
-            event_queue.insert(intersection1);
+          if(s1) {  
+            s1.score = s1.x;
+            event_queue.remove(s1);
+            
+            const intersection1 = s1.wall.toRay().intersectSegment(e.wall.coords);
+            if(intersection1) {
+              intersection1.score = intersection1.x;
+              intersection1.wall = [e.wall, s1.wall];
+              event_queue.insert(intersection1);
+            }
           }
           
-          const intersection2 = s2.wall.toRay().intersectSegment(e.wall.coords);
-          if(intersection2) {
-            intersection2.score = intersection2.x;
-            intersection2.wall = [e.wall, s2.wall];
-            event_queue.insert(intersection2);
+          if(s2) {
+            s2.score = s2.x;
+            event_queue.remove(s2);
+            const intersection2 = s2.wall.toRay().intersectSegment(e.wall.coords);
+            if(intersection2) {
+              intersection2.score = intersection2.x;
+              intersection2.wall = [e.wall, s2.wall];
+              event_queue.insert(intersection2);
+            }
           }
+
           break;
           
          case "right":   
