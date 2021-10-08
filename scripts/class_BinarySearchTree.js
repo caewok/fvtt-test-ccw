@@ -47,7 +47,6 @@ class Node {
     this.parent = null;
     this.left = null;
     this.right = null;
-    this.size = 0;
   }
 }
 
@@ -60,6 +59,7 @@ export class BinarySearchTree {
   constructor() {
     this.root = null;
     this.count = 0; // for getting the Nth node
+    this.size = 0;  // how many nodes in the tree
   }
   
   /* -------------------------------------------- */
