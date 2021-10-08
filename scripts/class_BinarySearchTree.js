@@ -44,6 +44,7 @@ bst.inorder()
 class Node {
   constructor(data){
     this.data = data;
+    this.parent = null;
     this.left = null;
     this.right = null;
   }
@@ -108,6 +109,7 @@ export class BinarySearchTree {
       // data is less than current location: move left
       if(node.left === null) {
         // left node is empty so insert here
+        newNode.parent = node;
         node.left = newNode;
       } else {
         // left is not empty so keep moving left
@@ -117,7 +119,8 @@ export class BinarySearchTree {
     } else {
       // data is greater than current location: move right
       if(node.right === null) {
-        // right node is empty so inset here
+        // right node is empty so insert here
+        newNode.parent = node;
         node.right = newNode;
       } else {
         // right is not empty so keep moving right
@@ -186,29 +189,124 @@ export class BinarySearchTree {
   } 
   
   // ------ Helper functions -----
+  
+ /**
+  * Locate a node given a specific value
+  * @param {number} value
+  * @return {Node}
+  */
+  find(data) {
+    if(!this.root) return false;
     
-  /**
-   * Start at given subtree and traverse the tree
-   * @param {Node} node   Node from which to traverse. Default root.
-   * @return [{Object}]   Array of data in order
-   */
+    let current = this.root;
+    let found = false;
+    
+    while(current && !found) {
+      const c = this.compare(data, current);
+      if(c < 0) {
+        current = current.left;
+      } else if(c > 0) {
+        current = current.right;
+      } else {
+        found = current;
+      }
+    }
+    if(!found) return undefined;
+    return found;
+  } 
+  
+ /**
+  * Locate the next adjacent node, if any
+  * @param {Node} node
+  * @return {Node|undefined}
+  */ 
+  next(node) {
+    // if right node exists, go right then all the way left
+    if(node.right !== null) {
+      return this.findMinNode(node.right);
+    }
+    
+    // we are at an end leaf. If this is a left leaf, the parent is the answer
+    if(!node.parent) {
+      // we are at root
+      // right side doesn't exist so return undefined
+      return undefined;
+    }
+    
+    const c = this.compare(node, node.parent.left);
+    if(c === 0) {
+      // node is a left leaf. 
+      return node.parent;
+    }
+  
+    // if this is a right leaf, need to move up two parents
+    if(node.parent.parent === undefined) {
+      // node.parent is root
+      // go right from root
+      return this.findMinNode(node.parent.right);
+    }
+    
+    // can return the parent
+    return node.parent.parent;
+  }
+  
+ /**
+  * Locate the previous adjacent node, if any
+  * @param {Node} node
+  * @return {Node|undefined} 
+  */
+  previous(node) {
+    // if left node exists, go left then all the way right
+    if(node.left !== null) {
+      return this.findMaxNode(node.left);
+    }
+    
+    // we are at an end leaf. If this is a right leaf, the parent is the answer
+    if(!node.parent) {
+      // we are at root.
+      // left side doesn't exist so return undefined
+      return undefined;
+    }
+    
+    const c = this.compare(node, node.parent.right);
+    if(c === 0) {
+      // node is a right leaf
+      return node.parent;
+    }
+    
+    // if this is a left leaf, need to move up two parents
+    if(node.parent.parent === undefined) {
+      // node.parent is root
+      // go left from root
+      return this.findMaxNode(node.parent.left);
+    }
+    
+    // can return the parent
+    return node.parent.parent; d
+  }
+      
+ /**
+  * Start at given subtree and traverse the tree
+  * @param {Node} node   Node from which to traverse. Default root.
+  * @return [{Object}]   Array of data in order
+  */
   inorder(node = this.root) {
     if(node !== null) {
       const left = this.inorder(node.left);
       //console.log(node.data);
       const right = this.inorder(node.right);
-      
+
       return left.concat(node.data, right);
     }
     return [];
   }
     
-  /**
-   * Get the nth node of inorder
-   * @param {number} n    Number of node, inorder, to retrieve
-   * @param {Node} node   Node from which to traverse. Default root.
-   * @return {Object}     Data from the nth node
-   */
+ /**
+  * Get the nth node of inorder
+  * @param {number} n    Number of node, inorder, to retrieve
+  * @param {Node} node   Node from which to traverse. Default root.
+  * @return {Object}     Data from the nth node
+  */
   nthInOrder(n = 1, node = this.root) {
     this.count = n; // reset the count for this search
     return this._nthInOrder(node)?.data;
