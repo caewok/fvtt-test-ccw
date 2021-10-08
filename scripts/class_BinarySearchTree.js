@@ -202,7 +202,7 @@ export class BinarySearchTree {
     let found = false;
     
     while(current && !found) {
-      const c = this.compare(data, current);
+      const c = this.compare(data, current.data);
       if(c < 0) {
         current = current.left;
       } else if(c > 0) {
