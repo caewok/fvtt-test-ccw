@@ -145,6 +145,24 @@ export class CCWSweepWall extends CCWSightRay {
     return w;
   }
   
+ /**
+  * Somewhat specialized method to create a sweep wall with specific coordinates
+  * but attach wall data to it. Used to process intersections between walls.
+  * See CCWSweepPolygon.prototype._processWallIntersections 
+  * @param {PIXI.Point}   A   Passed to CCWSweepWall 
+  * @param {PIXI.Point}   B   Passed to CCWSweepWall
+  * @param {Wall}         wall
+  * @param {Object}  opts    Options passed to CCWSweepWall
+  * @return {CCWSweepWall}
+  */
+  static createFromPoints(A, B, wall, opts = {}) {
+    const w = new CCWSweepWall(A, B, opts);
+    w.isOpen = wall.isOpen;
+    w.data = wall.data;
+    w.isInterior = (wall.roof?.occluded === false)
+    return w;
+  }
+  
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
