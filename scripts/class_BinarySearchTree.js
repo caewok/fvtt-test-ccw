@@ -11,16 +11,17 @@ https://www.geeksforgeeks.org/implementation-binary-search-tree-javascript/
 // Simplistic example
 /*
 bst = new BinarySearchTree();
-bst.insert(15);
+bst.insert({score: 15});
 arr = [15, 25, 10, 7, 22, 17, 13, 5, 9, 27];
+arr = arr.map(a => {score: a});
 
 arr.forEach(a => bst.insert(a));
 bst.inorder();
-bst.remove(5);
+bst.remove({score: 5});
 bst.inorder();
-bst.remove(7);  // one child
+bst.remove({score: 7});  // one child
 bst.inorder();
-bst.remove(15); // two children
+bst.remove({score: 15}); // two children
 bst.inorder();
 
 bst.findMinNode()
@@ -75,8 +76,8 @@ export class BinarySearchTree {
    * @return {-1|0|1} 
    */
   compare(a, b) {
-    return (a === b) ? 0 : 
-           (a < b) ? -1 : 1; 
+    return (a.score === b.score) ? 0 : 
+           (a.score < b.score) ? -1 : 1; 
   }
   
   /*
