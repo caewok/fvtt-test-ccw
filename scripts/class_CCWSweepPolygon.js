@@ -106,9 +106,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
-     const candidate_walls = this._getCandidateWalls();
+     let candidate_walls = this._getCandidateWalls();
+     candidate_walls = this._processWallIntersections(candidate_walls); // TO-DO: Move this to only when walls change
      candidate_walls.forEach(wall => {
-       wall = CCWSweepWall.createCCWSweepWall(wall, opts);
+       wall = CCWSweepWall.create(wall, opts);
        
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
@@ -206,6 +207,173 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const rect = new NormalizedRectangle(o.x - r, o.y - r, 2*r, 2*r);
     return canvas.walls.quadtree.getObjects(rect);
   }
+  
+ /**
+  * Determine if walls intersect one another. 
+  * By intersect, here we mean that two walls overlap but do not share an endpoint at 
+  * the overlap location.
+  * Convert overlaps to distinct wall sections
+  *  •               •
+  *   \               \
+  *    \               \
+  * •---\----•   ==> •--•----•  
+  *      \               \
+  *       •               •
+  */
+  _processWallIntersections(walls) {
+    // sweep horizontally along increasing x-coordinates
+    // hold events in BST sorted by increasing x-coord
+    // Events: left, right, intersection
+    const event_queue = new BinarySearchTree();
+    walls.forEach(w => {
+      // construct object for needed wall data
+      // each endpoint is separate entry
+      const coords = w.coords;
+      
+      // TO-DO: Handle vertical lines correctly
+      const is_left = w.coords[0] < w.coords[2];
+      const obj0 = {
+        wall: w,
+        event: is_left ? "left" : "right",
+        x: w.coords[0],
+        y: w.coords[1],
+        x2: w.coords[2],
+        y2: w.coords[3],
+        score: w.coords[0]
+      };
+      
+      const obj1 = {
+        wall: w,
+        event: !is_left ? "left" : "right",
+        x: w.coords[2],
+        y: w.coords[3],
+        x2: w.coords[0],
+        y2: w.coords[1],
+        score: w.coords[2]
+      };
+      
+      event_queue.insert(obj0);
+      event_queue.insert(obj1);
+    });
+    
+    // store line segments in BST sorted by increasing y
+    // line segments that intersect the sweep from top to bottom (small to large y)
+    // to start, line segments are stored by beginning y coordinates (y on the left side)
+    const sweep_status = new BinarySearchTree();
+    const intersections = [];
+    
+    while(e = event_queue.pullMinNode()) {
+
+      switch(e.event) {
+        case "left":
+      // 1. Insert into sweep based on y-coordinate
+      // 2. Set s' and s'' to segments immediately above and below s on sweep line
+      //    Remove any event associated with s' or s'' from the event queue
+      // 3. Test for intersections between s and s' and between s and s''.
+      //    Add events to the queue     
+          e.score = e.y;
+          sweep_status.insert(e);
+          const curr_node = sweep_status.find(e);
+          const s1 = sweep_status.previous(curr_node).data;
+          const s2 = sweep_status.next(curr_node).data;  
+          
+          s1.score = s1.x;
+          s2.score = s2.x;
+          
+          event_queue.remove(s1);
+          event_queue.remove(s2);
+          
+          const intersection1 = s1.wall.toRay().intersectSegment(e.wall.coords);
+          if(intersection1) {
+            intersection1.score = intersection1.x;
+            intersection1.wall = [e.wall, s1.wall];
+            event_queue.insert(intersection1);
+          }
+          
+          const intersection2 = s2.wall.toRay().intersectSegment(e.wall.coords);
+          if(intersection2) {
+            intersection2.score = intersection2.x;
+            intersection2.wall = [e.wall, s2.wall];
+            event_queue.insert(intersection2);
+          }
+          
+          
+         case "right":   
+       // 1. Set s' and s'' to segments immediately above and below s on sweep line
+       // 2. Delete segment s from sweep line status
+       // 3. Test intersections between s' and s''. Add to event queue
+          e.score = e.y;
+          const curr_node = sweep_status.find(e); 
+          const s1 = sweep_status.previous(curr_node).data;
+          const s2 = sweep_status.next(curr_node).data;
+          
+          sweep_status.remove(e);
+          const intersection = s1.wall.toRay().intersectSegment(s2.wall.coords);
+          if(intersection) {
+            intersection.score = intersection.x;
+            intersection.wall = [s1.wall, s2.wall];
+            event_queue.insert(intersection);
+          }  
+        
+        case "intersection":
+        // 1. Report intersection
+        // 2. s' and s'' are the two intersecting segments. Swap in the sweep line
+        //    by changing to the end y values
+        // 3. ??
+          intersections.push(e);
+          e.score = e.y;
+          const curr_node = sweep_status.find(e); 
+          const s1 = sweep_status.previous(curr_node).data;
+          const s2 = sweep_status.next(curr_node).data;
+          
+          sweep_status.remove(s1);
+          sweep_status.remove(s2);
+          
+          s1.score = s1.y2;
+          s2.score = s2.y2;
+          
+          sweep_status.insert(s1);
+          sweep_status.insert(s2);
+      }
+    }  
+      
+    // for each intersection, build set of new walls
+    // use SweepWall
+    if(intersections.length === 0) return walls;
+    
+    const map_walls = new Map();
+    walls.forEach(w => map_walls.set(w.id, w));
+    intersections.forEach({
+      const i_wall0 = intersection.walls[0];
+      const i_wall1 = intersection.walls[1];
+    
+      // remove the old walls from our wall array
+      walls.delete(i_wall0.id);
+      walls.delete(intersection.walls[1].id);
+    
+      // add new walls based on the intersection point
+      // keep random id for these sweep walls to avoid dupes 
+      const w1 = CCWSweepWall.createFromPoints({ x: i_wall0.coords[0], y: i_wall0.coords[1] } 
+                                               { x: intersection.x,    y: intersection.y },
+                                               i_wall0); 
+      const w2 = CCWSweepWall.createFromPoints({ x: i_wall1.coords[0], y: i_wall1.coords[1] } 
+                                               { x: intersection.x,    y: intersection.y },
+                                               i_wall1); 
+      const w3 = CCWSweepWall.createFromPoints({ x: intersection.x,    y: intersection.y },
+                                               { x: i_wall0.coords[2], y: i_wall0.coords[3] },
+                                               i_wall0); 
+      const w4 = CCWSweepWall.createFromPoints({ x: intersection.x,    y: intersection.y
+                                                 x: i_wall1.coords[2], y: i_wall1.coords[3] },
+                                                i_wall1);      
+                                                
+      walls.set(w1.id, w1);
+      walls.set(w2.id, w2);
+      walls.set(w3.id, w3);
+      walls.set(w4.id, w4);                                                                      
+    });
+    return [...walls];
+  }
+  
   
   /* -------------------------------------------- */
   
@@ -881,7 +1049,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // for each wall, test if valid for the type and if it intersects with the ray
      const intersecting_walls = [];
      for(let i = 0; i < ln; i += 1) {
-       const wall = CCWSweepWall.createCCWSweepWall(candidate_walls[i]);
+       const wall = CCWSweepWall.create(candidate_walls[i]);
        if(!CCWSweepPolygon.includeWall(wall, type, ray.A)) continue;
        if(wall.intersects(ray)) { // wall.intersects is a faster version that does not get the actual intersection
          if(mode === "any") return true;
