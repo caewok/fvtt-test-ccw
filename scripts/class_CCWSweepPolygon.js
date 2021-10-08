@@ -297,7 +297,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             intersection2.wall = [e.wall, s2.wall];
             event_queue.insert(intersection2);
           }
-          
+          break;
           
          case "right":   
        // 1. Set s' and s'' to segments immediately above and below s on sweep line
@@ -315,7 +315,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             intersection.wall = [s1.wall, s2.wall];
             event_queue.insert(intersection);
           }  
-        
+          break;
         case "intersection":
         // 1. Report intersection
         // 2. s' and s'' are the two intersecting segments. Swap in the sweep line
@@ -335,8 +335,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           
           sweep_status.insert(s1);
           sweep_status.insert(s2);
-      }
+          break;
+       }  
     }  
+   
       
     // for each intersection, build set of new walls
     // use SweepWall
@@ -344,7 +346,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     const map_walls = new Map();
     walls.forEach(w => map_walls.set(w.id, w));
-    intersections.forEach({
+    intersections.forEach(intersection => {
       const i_wall0 = intersection.walls[0];
       const i_wall1 = intersection.walls[1];
     
@@ -354,18 +356,18 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
       // add new walls based on the intersection point
       // keep random id for these sweep walls to avoid dupes 
-      const w1 = CCWSweepWall.createFromPoints({ x: i_wall0.coords[0], y: i_wall0.coords[1] } 
+      const w1 = CCWSweepWall.createFromPoints({ x: i_wall0.coords[0], y: i_wall0.coords[1] }, 
                                                { x: intersection.x,    y: intersection.y },
                                                i_wall0); 
-      const w2 = CCWSweepWall.createFromPoints({ x: i_wall1.coords[0], y: i_wall1.coords[1] } 
+      const w2 = CCWSweepWall.createFromPoints({ x: i_wall1.coords[0], y: i_wall1.coords[1] }, 
                                                { x: intersection.x,    y: intersection.y },
                                                i_wall1); 
       const w3 = CCWSweepWall.createFromPoints({ x: intersection.x,    y: intersection.y },
                                                { x: i_wall0.coords[2], y: i_wall0.coords[3] },
                                                i_wall0); 
-      const w4 = CCWSweepWall.createFromPoints({ x: intersection.x,    y: intersection.y
-                                                 x: i_wall1.coords[2], y: i_wall1.coords[3] },
-                                                i_wall1);      
+      const w4 = CCWSweepWall.createFromPoints({ x: intersection.x,    y: intersection.y },
+                                               { x: i_wall1.coords[2], y: i_wall1.coords[3] },
+                                               i_wall1);      
                                                 
       walls.set(w1.id, w1);
       walls.set(w2.id, w2);
