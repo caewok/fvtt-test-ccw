@@ -47,6 +47,7 @@ class Node {
     this.parent = null;
     this.left = null;
     this.right = null;
+    this.size = 0;
   }
 }
 
@@ -94,6 +95,7 @@ export class BinarySearchTree {
     } else {
       this._insertNode(this.root, newNode);
     }
+    this.size += 1;
   }
   
   /*
@@ -134,8 +136,10 @@ export class BinarySearchTree {
    * @param {Object} data   Node data to remove
    */
   remove(data) {
+    if(this.size < 1) return;
     // create a new root with the modified tree
     this.root = this._removeNode(this.root, data);
+    this.size -= 1;
   }
   
   /*
@@ -373,8 +377,10 @@ export class BinarySearchTree {
    * @return {Object} Data from the removed node.
    */
   pullMinNode() {
+    if(this.size < 1) return undefined;
     const res = this._pullMinNode(this.root);
     this.root = res.node;
+    this.size -= 1;
     return res.data;
   }
   
@@ -405,8 +411,10 @@ export class BinarySearchTree {
    * @return {Object} Data from the removed node.
    */
   pullMaxNode() {
+    if(this.size < 1) return undefined;
     const res = this._pullMaxNode(this.root);
     this.root = res.node;
+    this.size -= 1;
     return res.data;
   }
   
