@@ -237,12 +237,14 @@ export class BinarySearchTree {
       return undefined;
     }
     
-    const c = this.compare(node, node.parent.left);
-    if(c === 0) {
-      // node is a left leaf. 
-      return node.parent;
+    if(node.parent.left) {
+      const c = this.compare(node, node.parent.left);
+      if(c === 0) {
+        // node is a left leaf. 
+        return node.parent;
+      }
     }
-  
+    
     // if this is a right leaf, need to move up two parents
     if(node.parent.parent === undefined) {
       // node.parent is root
@@ -272,11 +274,14 @@ export class BinarySearchTree {
       return undefined;
     }
     
-    const c = this.compare(node, node.parent.right);
-    if(c === 0) {
-      // node is a right leaf
-      return node.parent;
+    if(node.parent.right) {
+      const c = this.compare(node, node.parent.right);
+      if(c === 0) {
+        // node is a right leaf
+        return node.parent;
+      }
     }
+    
     
     // if this is a left leaf, need to move up two parents
     if(node.parent.parent === undefined) {
