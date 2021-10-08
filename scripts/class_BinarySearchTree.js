@@ -282,7 +282,7 @@ export class BinarySearchTree {
     }
     
     // can return the parent
-    return node.parent.parent; d
+    return node.parent.parent; 
   }
       
  /**
