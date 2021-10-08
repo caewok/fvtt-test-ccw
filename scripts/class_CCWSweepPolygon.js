@@ -262,8 +262,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const sweep_status = new BinarySearchTree();
     const intersections = [];
     
+    let s1, s2, curr_node;
     while(e = event_queue.pullMinNode()) {
-
+      
       switch(e.event) {
         case "left":
       // 1. Insert into sweep based on y-coordinate
@@ -273,9 +274,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       //    Add events to the queue     
           e.score = e.y;
           sweep_status.insert(e);
-          const curr_node = sweep_status.find(e);
-          const s1 = sweep_status.previous(curr_node).data;
-          const s2 = sweep_status.next(curr_node).data;  
+          curr_node = sweep_status.find(e);
+          s1 = sweep_status.previous(curr_node).data;
+          s2 = sweep_status.next(curr_node).data;  
           
           s1.score = s1.x;
           s2.score = s2.x;
@@ -303,9 +304,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // 2. Delete segment s from sweep line status
        // 3. Test intersections between s' and s''. Add to event queue
           e.score = e.y;
-          const curr_node = sweep_status.find(e); 
-          const s1 = sweep_status.previous(curr_node).data;
-          const s2 = sweep_status.next(curr_node).data;
+          curr_node = sweep_status.find(e); 
+          s1 = sweep_status.previous(curr_node).data;
+          s2 = sweep_status.next(curr_node).data;
           
           sweep_status.remove(e);
           const intersection = s1.wall.toRay().intersectSegment(s2.wall.coords);
@@ -322,9 +323,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // 3. ??
           intersections.push(e);
           e.score = e.y;
-          const curr_node = sweep_status.find(e); 
-          const s1 = sweep_status.previous(curr_node).data;
-          const s2 = sweep_status.next(curr_node).data;
+          curr_node = sweep_status.find(e); 
+          s1 = sweep_status.previous(curr_node).data;
+          s2 = sweep_status.next(curr_node).data;
           
           sweep_status.remove(s1);
           sweep_status.remove(s2);
