@@ -245,10 +245,14 @@ export class BinarySearchTree {
       }
     }
     
-    // if this is a right leaf, need to move up two parents
+    // if this is a right leaf, need to move up two parents    
     if(node.parent.parent === null) {
       // node.parent is root
       // go right from root
+      // confirm we are not already at the min
+      const out = this.findMinNode(node.parent.right)
+      const c = this.compare(node.data, out.data);
+      if(c === 0) return undefined;
       return this.findMinNode(node.parent.right);
     }
     
@@ -287,6 +291,10 @@ export class BinarySearchTree {
     if(node.parent.parent === null) {
       // node.parent is root
       // go left from root
+      // make sure we are not already at max
+      const out = this.findMaxNode(node.parent.left)
+      const c = this.compare(node.data, out.data);
+      if(c === 0) return undefined;
       return this.findMaxNode(node.parent.left);
     }
     
