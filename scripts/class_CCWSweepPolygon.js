@@ -224,9 +224,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const intersections = new IntersectionsXOrderBST();
     walls.forEach(w0 => {
       // need the intersect method from SightRay or SweepWall
-      r0 = CCWSweepWall.create(w0); 
+      const r0 = CCWSweepWall.create(w0); 
       walls.forEach(w1 => {
-        r1 = CCWSweepWall.create(w1)
+        const r1 = CCWSweepWall.create(w1)
         if(r0.intersects(r1)) {
           const i = r0.intersectSegment(r1.coords);
         

@@ -1,3 +1,6 @@
+import { BinarySearchTree } from "./class_BinarySearchTree.js";
+import { almostEqual } from "./util.js";
+
 export class IntersectionsXOrderBST extends BinarySearchTree {
  /**
   * Compare data in two nodes
