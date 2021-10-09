@@ -150,7 +150,7 @@ export class BinarySearchTree {
    */
   _removeNode(node, key) {
     // if root is empty, we can stop
-    if(node === null) { return; }
+    if(node === null) { return null; }
     
     const c = this.compare(key, node.data);
     
@@ -238,7 +238,7 @@ export class BinarySearchTree {
     }
     
     if(node.parent.left) {
-      const c = this.compare(node, node.parent.left);
+      const c = this.compare(node.data, node.parent.left.data);
       if(c === 0) {
         // node is a left leaf. 
         return node.parent;
@@ -246,7 +246,7 @@ export class BinarySearchTree {
     }
     
     // if this is a right leaf, need to move up two parents
-    if(node.parent.parent === undefined) {
+    if(node.parent.parent === null) {
       // node.parent is root
       // go right from root
       return this.findMinNode(node.parent.right);
@@ -275,7 +275,7 @@ export class BinarySearchTree {
     }
     
     if(node.parent.right) {
-      const c = this.compare(node, node.parent.right);
+      const c = this.compare(node.data, node.parent.right.data);
       if(c === 0) {
         // node is a right leaf
         return node.parent;
@@ -284,7 +284,7 @@ export class BinarySearchTree {
     
     
     // if this is a left leaf, need to move up two parents
-    if(node.parent.parent === undefined) {
+    if(node.parent.parent === null) {
       // node.parent is root
       // go left from root
       return this.findMaxNode(node.parent.left);
