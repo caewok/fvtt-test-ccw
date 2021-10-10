@@ -13,7 +13,9 @@ https://www.geeksforgeeks.org/implementation-binary-search-tree-javascript/
 bst = new BinarySearchTree();
 bst.insert({score: 15});
 arr = [15, 25, 10, 7, 22, 17, 13, 5, 9, 27];
-arr = arr.map(a => {score: a});
+arr = arr.map(a => {
+  return {score: a};
+});
 
 arr.forEach(a => bst.insert(a));
 bst.inorder();
@@ -31,6 +33,24 @@ bst.pullMinNode();
 bst.inorder();
 bst.pullMaxNode();
 bst.inorder()
+
+node = bst.find({score: 17})
+bst.previous(node)
+bst.next(node)
+
+node = bst.findMinNode()
+bst.previous(node)
+bst.next(node)
+
+node = bst.findMaxNode()
+bst.previous(node)
+bst.next(node)
+
+bst = new BinarySearchTree();
+bst.insert({score: 15});
+node = bst.find({score: 15})
+bst.previous(node)
+bst.next(node)
 
 
 */
@@ -176,11 +196,16 @@ export class BinarySearchTree {
     
     // node has one child
     if(node.left === null) {
-      node = node.right;
-      return node;
+      //node = node.right;
+      //return node;
+      node.right.parent = node.parent;
+      return node.right;
+      
     } else if(node.right === null) {
-      node = node.left;
-      return node;
+      //node = node.left;
+      //return node;
+      node.left.parent = node.parent;
+      return node.left;
     } 
     
     // two children
