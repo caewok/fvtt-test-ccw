@@ -12,8 +12,9 @@ https://www.geeksforgeeks.org/implementation-binary-search-tree-javascript/
 /*
 bst = new BinarySearchTree();
 bst.insert({score: 15});
-bst.previous(node) // undefined
-bst.next(node) // undefined
+node = bst.find({score: 15});
+bst.previous(node); // undefined
+bst.next(node); // undefined
 
 arr = [15, 25, 10, 7, 22, 17, 13, 5, 9, 27];
 arr = arr.map(a => {
@@ -269,14 +270,9 @@ export class BinarySearchTree {
       }
     }
     
-    // if this is a right leaf, need to move up two parents    
-    if(node.parent.parent === null) {
-      // node.parent is root and we are already right
-      return undefined;
-    }
-    
-    // can return the parent
-    return node.parent.parent;
+    // must be a right leaf
+    // need to find the first parent that branches to the left, if any
+    return this._firstLeftParent(node.parent);
   }
   
  /**
@@ -309,15 +305,41 @@ export class BinarySearchTree {
     }
     
     // must be a left leaf
-    // if this is a left leaf, need to move up two parents
-    if(node.parent.parent === null) {
-      // node.parent is root && we are left
-      return undefined;
-    }
-    
-    // can return the parent
-    return node.parent.parent; 
+    // need to find the first parent that branches to the right, if any
+    return this._firstRightParent(node.parent);
   }
+  
+ /**
+  * Helper function to find the first right parent
+  * @param {Node} node
+  * @return {Node|undefined}
+  * @private
+  */
+  _firstRightParent(node) {
+    if(!node.parent) return undefined;
+    if(!node.parent.right) return this._firstRightParent(node.parent);
+    
+    // are we to the right of parent? If yes, found it.
+    const c = this.compare(node.data, node.parent.right.data);
+    if(c === 0) { return node.parent; }
+    return this._firstRightParent(node.parent);  
+  } 
+  
+ /**
+  * Helper function to find the first left parent
+  * @param {Node} node
+  * @return {Node|undefined}
+  * @private
+  */
+  _firstLeftParent(node) {
+    if(!node.parent) return undefined;
+    if(!node.parent.left) return this._firstLeftParent(node.parent);
+    
+    // are we to the left of parent? If yes, found it.
+    const c = this.compare(node.data, node.parent.left.data);
+    if(c === 0) { return node.parent; }
+    return this._firstLeftParent(node.parent);  
+  } 
       
  /**
   * Start at given subtree and traverse the tree
