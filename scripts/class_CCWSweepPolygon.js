@@ -290,11 +290,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const intersections = new IntersectionsXOrderBST();
     
     const ln = sorted_walls.length;
-    for(i = 0; i < ln; i += 1) {
+    for(let i = 0; i < ln; i += 1) {
       const test = sorted_walls[i];
     
       // only test walls to the right of test_wall
-      for(j = (i + 1); j < ln; j += 1) {
+      for(let j = (i + 1); j < ln; j += 1) {
         const candidate = sorted_walls[j];
         
         // if we reached the end of the candidate wall, we can skip the rest
