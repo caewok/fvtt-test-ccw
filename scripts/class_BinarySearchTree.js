@@ -12,6 +12,9 @@ https://www.geeksforgeeks.org/implementation-binary-search-tree-javascript/
 /*
 bst = new BinarySearchTree();
 bst.insert({score: 15});
+bst.previous(node) // undefined
+bst.next(node) // undefined
+
 arr = [15, 25, 10, 7, 22, 17, 13, 5, 9, 27];
 arr = arr.map(a => {
   return {score: a};
@@ -46,11 +49,7 @@ node = bst.findMaxNode()
 bst.previous(node)
 bst.next(node)
 
-bst = new BinarySearchTree();
-bst.insert({score: 15});
-node = bst.find({score: 15})
-bst.previous(node)
-bst.next(node)
+
 
 
 */
@@ -272,13 +271,8 @@ export class BinarySearchTree {
     
     // if this is a right leaf, need to move up two parents    
     if(node.parent.parent === null) {
-      // node.parent is root
-      // go right from root
-      // confirm we are not already at the min
-      const out = this.findMinNode(node.parent.right)
-      const c = this.compare(node.data, out.data);
-      if(c === 0) return undefined;
-      return this.findMinNode(node.parent.right);
+      // node.parent is root and we are already right
+      return undefined;
     }
     
     // can return the parent
@@ -296,14 +290,17 @@ export class BinarySearchTree {
       return this.findMaxNode(node.left);
     }
     
-    // we are at an end leaf. If this is a right leaf, the parent is the answer
+    // we are at an end leaf
     if(!node.parent) {
       // we are at root.
       // left side doesn't exist so return undefined
       return undefined;
     }
     
+    // If this is a right leaf, the parent is the answer
     if(node.parent.right) {
+      // node parent exists to the right -- is this us?
+    
       const c = this.compare(node.data, node.parent.right.data);
       if(c === 0) {
         // node is a right leaf
@@ -311,16 +308,11 @@ export class BinarySearchTree {
       }
     }
     
-    
+    // must be a left leaf
     // if this is a left leaf, need to move up two parents
     if(node.parent.parent === null) {
-      // node.parent is root
-      // go left from root
-      // make sure we are not already at max
-      const out = this.findMaxNode(node.parent.left)
-      const c = this.compare(node.data, out.data);
-      if(c === 0) return undefined;
-      return this.findMaxNode(node.parent.left);
+      // node.parent is root && we are left
+      return undefined;
     }
     
     // can return the parent
