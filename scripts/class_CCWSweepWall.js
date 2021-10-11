@@ -70,6 +70,11 @@ export class CCWSweepWall extends CCWSightRay {
     return this._id;  
   }
   
+  /**
+   * @type {string}
+   */ 
+  set id(value ) { this._id = value; }
+   
   /*
    * @param {[number, number, number, number]}
    */
@@ -155,7 +160,7 @@ export class CCWSweepWall extends CCWSightRay {
   * See CCWSweepPolygon.prototype._processWallIntersections 
   * @param {PIXI.Point}   A   Passed to CCWSweepWall 
   * @param {PIXI.Point}   B   Passed to CCWSweepWall
-  * @param {Wall}         wall
+  * @param {Wall|CCWSweepWall}         wall
   * @param {Object}  opts    Options passed to CCWSweepWall
   * @return {CCWSweepWall}
   */
@@ -163,9 +168,11 @@ export class CCWSweepWall extends CCWSightRay {
     const w = new CCWSweepWall(A, B, opts);
     w.isOpen = wall.isOpen;
     w.data = wall.data;
-    w.isInterior = (wall.roof?.occluded === false)
+    w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
     return w;
   }
+  
+  
   
   /* -------------------------------------------- */
   /*  Methods                                     */
