@@ -38,20 +38,28 @@ bst.inorder();
 bst.pullMaxNode();
 bst.inorder()
 
+// from end right side
 node = bst.find({score: 17})
-bst.previous(node)
-bst.next(node)
+bst.previous(node)?.data
+bst.next(node)?.data
 
 node = bst.findMinNode()
-bst.previous(node)
-bst.next(node)
+bst.previous(node)?.data
+bst.next(node)?.data
 
 node = bst.findMaxNode()
-bst.previous(node)
-bst.next(node)
+bst.previous(node)?.data
+bst.next(node)?.data
 
+// from root
+node = bst.find({score: 15})
+bst.previous(node)?.data
+bst.next(node)?.data
 
-
+// from end left side
+node = bst.find({score: 13})
+bst.previous(node)?.data
+bst.next(node)?.data
 
 */
 
