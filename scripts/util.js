@@ -153,3 +153,51 @@ export function rootsReal(a, b, c) {
   return []; // imaginary roots; don't bother calculating
 }
 
+/**
+ * Swap two elements of an array
+ * @param {Array} arr
+ * @param {number} i    Array index
+ * @param {number} j    Second array index, to swap
+ * @return {Array} Note that the array is modified in place; return is for convenience
+ */
+export function arraySwap(arr, i, j) {
+  const old_i = arr[i];
+  const old_j = arr[j];
+  arr[i] = old_j;
+  arr[j] = old_i;
+  return arr;
+}
+
+/**
+ * Compare function to sort by x, then y coordinates
+ * @param {x: {number}, y: {number} } a
+ * @param {x: {number}, y: {number} } b
+ * @return {-1|0|1}
+ */
+export function compareXY(a, b) {
+   if(almostEqual(a.x, b.x)) {
+      if(almostEqual(a.y, b.y)) { return 0; }
+      return a.y < b.y ? -1 : 1;
+    } else {
+      return a.x < b.x ? -1 : 1; 
+    }
+ }
+ 
+export function compareXY_A(a, b) {
+   return compareXY(a.A, b.A);
+ }
+
+/**
+ * Compare function to sort by y, then x coordinates
+ * @param {x: {number}, y: {number} } a
+ * @param {x: {number}, y: {number} } b
+ * @return {-1|0|1}
+ */
+export function compareYX(a, b) {
+   if(almostEqual(a.y, b.y)) {
+      if(almostEqual(a.x, b.x)) { return 0; }
+      return a.x < b.x ? -1 : 1;
+    } else {
+      return a.y < b.y ? -1 : 1; 
+    }
+ }
