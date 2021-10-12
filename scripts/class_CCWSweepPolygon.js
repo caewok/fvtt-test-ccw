@@ -9,7 +9,7 @@ import { orient2dPoints,
          pointsAlmostEqual,
          ccwPoints }          from "./util.js";
 import { MODULE_ID }	      from "./module.js";
-import { IntersectionSweep } from "./class_IntersectionsSweep.js";         
+import { IntersectionSweep } from "./class_IntersectionSweep.js";         
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.

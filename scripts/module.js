@@ -10,7 +10,7 @@ import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
-import { IntersectionSweep, BentleyOttomanSweep } from "./class_IntersectionsSweep.js";     
+import { IntersectionSweep, BentleyOttomanSweep } from "./class_IntersectionSweep.js";     
 
 export const MODULE_ID = 'testccw';
 

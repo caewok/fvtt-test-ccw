@@ -16,7 +16,7 @@ import { BinarySearchTree } from "./class_BinarySearchTree.js";
   * @param {Wall} a  Wall object
   * @param {Wall} b  Wall object 
   */
-  sortWallsAroundOrigin(a, b) {
+function sortWallsAroundOrigin(a, b) {
     if(a.id === b.id) return 0;
     const res = a.inFrontOfSegment(b, this.origin);
     if(res === undefined) {

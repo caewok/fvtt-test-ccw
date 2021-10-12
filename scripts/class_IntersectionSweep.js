@@ -545,8 +545,8 @@ export class BentleyOttomanSweep {
     // by using Math.floor, we stop before getting to a median segment 
     // if we have an uneven number of walls.
     idxs.sort((a,b) => a < b ? -1 : 1) 
-    const midpoint = Math.floor(ln / 2);
     const ln = idxs.length;
+    const midpoint = Math.floor(ln / 2);
     for(let i = 0, j = (ln - 1); i < midpoint; i += 1, j -= 1) {
       const low = idxs[i];
       const high = idxs[j]
