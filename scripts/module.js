@@ -10,6 +10,7 @@ import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
+import { IntersectionSweep, BentleyOttomanSweep } from "./class_IntersectionsSweep.js";     
 
 export const MODULE_ID = 'testccw';
 
@@ -71,7 +72,9 @@ Hooks.once('init', async function() {
                                       orient2d: orient2d,
                                       BinarySearchTree: BinarySearchTree,
                                       PotentialWallList: PotentialWallList,
-                                      Bezier: Bezier}
+                                      Bezier: Bezier,
+                                      IntersectionSweep: IntersectionSweep,
+                                      BentleyOttomanSweep: BentleyOttomanSweep }
 });
 
 // modules ready
