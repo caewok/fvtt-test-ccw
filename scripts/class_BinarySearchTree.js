@@ -84,10 +84,11 @@ class Node {
  * @property {Node|null}  root  Base node of the tree. Null if tree is empty
  */
 export class BinarySearchTree {
-  constructor() {
+  constructor(comparefn = (a, b) => { return a === b ? 0 : a < b ? -1 : 1 } ) {
     this.root = null;
     this.count = 0; // for getting the Nth node
     this.size = 0;  // how many nodes in the tree
+    this.compare = comparefn;
   }
   
   /* -------------------------------------------- */
@@ -105,11 +106,11 @@ export class BinarySearchTree {
    * @param {Object} b  Node data object
    * @return {-1|0|1} 
    */
-  compare(a, b) {
-    return (a.score === b.score) ? 0 : 
-           (a.score < b.score) ? -1 : 1; 
-  }
-  
+//   compare(a, b) {
+//     return (a.score === b.score) ? 0 : 
+//            (a.score < b.score) ? -1 : 1; 
+//   }
+//   
   /*
    * User-facing helper method to add data to the tree.
    * @param {Object} data   Node data to insert
