@@ -10,6 +10,21 @@ import { pointsAlmostEqual, ccwPoints } from "./util.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 
+ /**
+  * Override the BST compare function to sort walls in relation to origin.
+  * Closest wall is minNode
+  * @param {Wall} a  Wall object
+  * @param {Wall} b  Wall object 
+  */
+  sortWallsAroundOrigin(a, b) {
+    if(a.id === b.id) return 0;
+    const res = a.inFrontOfSegment(b, this.origin);
+    if(res === undefined) {
+     log(`BST compare returned undefined`, res, this);
+    }
+    return res ? -1 : 1;
+  } 
+
 /**
  * Store ordered list of potential walls, ordered by closeness to the origin.
  * @extends {BinarySearchTree}
@@ -19,7 +34,7 @@ import { BinarySearchTree } from "./class_BinarySearchTree.js";
  */  
 export class PotentialWallList extends BinarySearchTree {
   constructor(origin) {
-    super();
+    super(sortWallsAroundOrigin);
     this.origin = origin;
     this.walls_encountered = new Set(); 
   }
@@ -28,20 +43,7 @@ export class PotentialWallList extends BinarySearchTree {
   /*  Methods                                     */
   /* -------------------------------------------- */
   
- /**
-  * Override the BST compare function to sort walls in relation to origin.
-  * Closest wall is minNode
-  * @param {Wall} a  Wall object
-  * @param {Wall} b  Wall object 
-  */
-  compare(a, b) {
-    if(a.id === b.id) return 0;
-    const res = a.inFrontOfSegment(b, this.origin);
-    if(res === undefined) {
-     log(`BST compare returned undefined`, res, this);
-    }
-    return res ? -1 : 1;
-  } 
+
   
  /**
   * Add walls to the list.
