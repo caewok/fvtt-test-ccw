@@ -81,7 +81,7 @@ export class IntersectionSweep {
   }
 
   getY(x) {
-    if(this.event === "intersection") return this.left.x;
+    if(this.event === "intersection") return this.left.y;
     if(this.event === "right") return this.right.y;
     
     // vertical
