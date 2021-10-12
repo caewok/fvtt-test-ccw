@@ -15,12 +15,12 @@ export class IntersectionSweep {
     if(!wall && !intersection) { console.error(`testccw|IntersectionSweepEvent: Either wall or intersection must be provided.`); }
    
     this.event = event;
-    this.id = undefined;
+    this._id = undefined;
     this.walls = new Map();
     this.coords = undefined;
    
     if(wall) {
-      this.id = wall.id;
+      this._id = wall.id;
       this.walls.set(wall.id, wall);
       
       this.coords = wall.coords;
@@ -52,6 +52,19 @@ export class IntersectionSweep {
     this._sweep_x = undefined; // temp x value to hold current sweep location
     this._sweep_y = undefined; // temp y value to hold current sweep location
   }
+  
+ /**
+  * The id of the associated wall.
+  */
+  get id() {
+    if(!this._id ) { this._id = foundry.utils.randomID(); }
+    return this._id;  
+  }
+  
+ /**
+  * @type {string}
+  */ 
+  set id(value ) { this._id = value; }
   
   get x() {
     return this._sweep_x ?? (this.event === "right" ? this.right.x : this.left.x);      
@@ -544,7 +557,7 @@ export class BentleyOttomanSweep {
     const walls_arr = [...e.walls.values()];   
     const idxs = walls_arr.map(w => 
                    this.sweep_status.findIndex(elem => elem.id === w.id));
-     
+    const ln = idxs.length;
     const top_idx = Math.min(...idxs);
     const bottom_idx = Math.max(...idxs);
     const above_idx = top_idx - 1;
@@ -563,7 +576,6 @@ export class BentleyOttomanSweep {
     // by using Math.floor, we stop before getting to a median segment 
     // if we have an uneven number of walls.
     idxs.sort((a,b) => a < b ? -1 : 1) 
-    const ln = idxs.length;
     const midpoint = Math.floor(ln / 2);
     for(let i = 0, j = (ln - 1); i < midpoint; i += 1, j -= 1) {
       const low = idxs[i];
