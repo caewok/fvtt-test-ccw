@@ -16,12 +16,13 @@ export class IntersectionSweep {
    
     this.event = event;
     this._id = undefined;
-    this.walls = new Map();
+    this.walls = new Map(); // used for intersections
     this.coords = undefined;
+    this.base_wall = undefined;
    
     if(wall) {
       this._id = wall.id;
-      this.walls.set(wall.id, wall);
+      this.base_wall = wall;
       
       this.coords = wall.coords;
       const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
@@ -381,11 +382,60 @@ export class IntersectionSweep {
   * To test/troubleshoot, try running the stepped version:
   *   sweeper = new BentleyOttomanSweep(walls);
   *   while(sweeper.incomplete) { sweeper.step(); }
+  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+  * @return {Wall[]}
   */
   static processWallIntersectionsBentleyOttomanSweep(walls) {
     const sweeper = new BentleyOttomanSweep(walls);
     const intersection_tree = sweeper.run();
     return IntersectionSweep.buildWallsFromIntersections(intersection_tree.inorder(), walls);
+  }
+  
+ /**
+  * Like processWallIntersectionsBentleyOttomanSweep but does the 
+  * wall building within the sweep algorithm. So combined similar to  
+  * processWallIntersectionsSimpleSweepCombined.
+  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+  * @return {Wall[]}
+  */
+  static processWallIntersectionsBentleyOttomanSweepCombined(walls) {
+    const finished_walls = [];
+    const remainders = new Map(); // Track remaining wall pieces by wall id
+    const sweeper = new BentleyOttomanSweep(walls);
+    
+    // we are moving left-to-right, so we can chop up walls as we go
+    while(sweeper.incomplete) {
+      const e = sweeper.step();
+      
+      switch(e.event) {
+        case "left":
+          // add to the store
+          remainders.set(e.id, CCWSweepWall.createFromPoints(e.left, 
+                                  e.right, e.base_wall));
+        break;
+        
+        case "right":
+          // done with this wall, so put the remainder in the finished set
+          finished_walls.push(remainders.get(e.id));
+        break;
+            
+        case "intersection":
+          // for each wall in the intersection, cut the remainder at the intersection
+          // here, e.left is the intersection point
+          // remainders are created above as A: left, B: right
+          e.walls.forEach(w => {
+            const curr_remainder = remainders.get(w.id);
+            const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
+                                                        e.left, w); 
+            const new_remainder = CCWSweepWall.createFromPoints(e.left, 
+                                                                curr_remainder.B, w); 
+            finished_walls.push(new_w);
+            remainders.set(w.id, new_remainder);
+          });  
+        break;
+      }
+    }
+    return finished_walls;
   }
 }
 
@@ -462,17 +512,11 @@ export class BentleyOttomanSweep {
   }
  
  // --------------- GETTERS / SETTERS --------------------- //
- /**
-  * Sweep is done when the event queue is exhausted
-  * @type {boolean}
-  */
-  // slightly safer to check using inequality, in case somehow the queue size gets
-  // screwed up. Don't really want negative values leading to infinite while loops!
-  get complete() { return this.event_queue.size < 1; }
+
  
  /**
   * Sweep not yet done.
-  * A bit simpler than while(!finished) loops
+  * See run() for an example loop.
   * @type {boolean}
   */
   get incomplete() { return this.event_queue.size > 0; }
