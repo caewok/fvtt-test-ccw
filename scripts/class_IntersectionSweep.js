@@ -365,6 +365,9 @@ export class IntersectionSweep {
  /**
   * Determine wall intersections using a Bentley Ottoman sweep algorithm.
   * See BentleyOttomanSweep class for details.
+  * To test/troubleshoot, try running the stepped version:
+  *   sweeper = new BentleyOttomanSweep(walls);
+  *   while(sweeper.incomplete) { sweeper.step(); }
   */
   static processWallIntersectionsBentleyOttomanSweep(walls) {
     const sweeper = new BentleyOttomanSweep(walls);
