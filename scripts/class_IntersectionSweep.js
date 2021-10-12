@@ -444,18 +444,35 @@ export class BentleyOttomanSweep {
       this.event_queue.insert(new IntersectionSweep("right", { wall: w }));
     });
   }
+ 
+ // --------------- GETTERS / SETTERS --------------------- //
+ /**
+  * Sweep is done when the event queue is exhausted
+  * @type {boolean}
+  */
+  // slightly safer to check using inequality, in case somehow the queue size gets
+  // screwed up. Don't really want negative values leading to infinite while loops!
+  get complete() { return this.event_queue.size < 1; }
+ 
+ /**
+  * Sweep not yet done.
+  * A bit simpler than while(!finished) loops
+  * @type {boolean}
+  */
+  get incomplete() { return this.event_queue.size > 0; }
     
  /**
   * Run the entire sweep and return intersections tree
   * @return {BinarySearchTree}
   */
   run() {
-    while(this.event_queue.size > 0) { this.step(); }
+    while(this.incomplete) { this.step(); }
     return this.intersections;
   }
   
  /**
   * Run a single step of the sweep.
+  * @return {IntersectionSweepEvent} The event just processed
   */
   step() {
     const e = this.event_queue.pullMinNode();
@@ -464,7 +481,8 @@ export class BentleyOttomanSweep {
       case "right": this._processRightEvent(e); break;
       case "intersection": this._processIntersectionEvent(e); break;
     }
-  }
+    return e; 
+  } 
   
  /**
   * Process when the sweep encounters a left segment 
