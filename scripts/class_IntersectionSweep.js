@@ -75,6 +75,15 @@ export class IdentifyIntersections {
         finished_walls.push(...new_ws);
       }
     }
+    
+    // add any wall entries not in the intersection map
+    // those don't have intersections
+    const keys = [...brute.intersections_map.keys()];
+    const non_intersecting = brute.walls.filter(w => {
+      return keys.every(k => k !== w.id);
+    });
+    finished_walls.push(...non_intersecting);
+    
     return finished_walls;
   }
   
@@ -96,6 +105,15 @@ export class IdentifyIntersections {
         finished_walls.push(...new_ws);
       }
     }
+    
+    // add any wall entries not in the intersection map
+    // those don't have intersections
+    const keys = [...brute.intersections_map.keys()];
+    const non_intersecting = brute.walls.filter(w => {
+      return keys.every(k => k !== w.id);
+    });
+    finished_walls.push(...non_intersecting);
+    
     return finished_walls;    
   }
   
