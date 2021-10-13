@@ -148,8 +148,14 @@ export class IdentifyIntersections {
           // for each wall in the intersection, cut the remainder at the intersection
           // here, e.left is the intersection point
           // remainders are created above as A: left, B: right
+          // count the intersection unless it is an endpoint of that wall
           e.walls.forEach(w => {
             const curr_remainder = remainders.get(w.id);
+            
+            // check that we are not repeating endpoints
+            if(pointsAlmostEqual(curr_remainder.A, i_point) || 
+               pointsAlmostEqual(i_point, curr_remainder.B)) { return; }
+            
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
                                                         e.left, w); 
             const new_remainder = CCWSweepWall.createFromPoints(e.left, 
