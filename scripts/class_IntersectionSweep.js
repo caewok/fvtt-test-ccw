@@ -108,8 +108,8 @@ export class IdentifyIntersections {
     
     // add any wall entries not in the intersection map
     // those don't have intersections
-    const keys = [...brute.intersections_map.keys()];
-    const non_intersecting = brute.walls.filter(w => {
+    const keys = [...sweep.intersections_map.keys()];
+    const non_intersecting = sweep.walls.filter(w => {
       return keys.every(k => k !== w.id);
     });
     finished_walls.push(...non_intersecting);
