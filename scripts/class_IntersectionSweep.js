@@ -71,9 +71,11 @@ export class IdentifyIntersections {
     const brute = new BruteForceIntersections(walls);
     while(brute.incomplete) {
       const w = brute.step();
-      const intersections = brute.intersections_map.get(w.id);
-      const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
-      finished_walls.push(...new_ws);
+      if(brute.intersections_map.has(w.id)) {
+        const intersections = brute.intersections_map.get(w.id);
+        const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
+        finished_walls.push(...new_ws);
+      }
     }
     return finished_walls;
   }
@@ -90,9 +92,11 @@ export class IdentifyIntersections {
     const sweep = new SimpleSweepIntersections(walls);
     while(sweep.incomplete) {
       const w = sweep.step();
-      const intersections = sweep.intersections_map.get(w.id);
-      const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
-      finished_walls.push(...new_ws);
+      if(sweep.intersections_map.has(w.id)) {
+        const intersections = sweep.intersections_map.get(w.id);
+        const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
+        finished_walls.push(...new_ws);
+      }
     }
     return finished_walls;    
   }
