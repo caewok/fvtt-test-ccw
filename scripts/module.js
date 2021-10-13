@@ -73,8 +73,11 @@ Hooks.once('init', async function() {
                                       BinarySearchTree: BinarySearchTree,
                                       PotentialWallList: PotentialWallList,
                                       Bezier: Bezier,
-                                      IntersectionSweep: IntersectionSweep,
-                                      BentleyOttomanSweep: BentleyOttomanSweep }
+                                      IdentifyIntersections: IdentifyIntersections,
+                                      BruteForceIntersections: BruteForceIntersections,
+                                      SimpleSweepIntersections: SimpleSweepIntersections,
+                                      BentleyOttomanSweep: BentleyOttomanSweep,
+                                      IntersectionSweepEvent: IntersectionSweepEvent }
 });
 
 // modules ready
