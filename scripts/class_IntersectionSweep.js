@@ -605,8 +605,8 @@ export class BentleyOttomanSweep {
     if(!s1) return;
     if(!s2) return;
     
-    const s1_wall = s1.walls.values().next().value;
-    const s2_wall = s2.walls.values().next().value;
+    const s1_wall = s1.base_wall;
+    const s2_wall = s2.base_wall;
     const intersection = s1_wall.toRay().intersectSegment(s2_wall.coords);
     
     if(!intersection) return;
@@ -635,8 +635,8 @@ export class BentleyOttomanSweep {
     if(!s1) return;
     if(!s2) return;
     
-    const s1_wall = s1.walls.values().next().value;
-    const s2_wall = s2.walls.values().next().value;
+    const s1_wall = s1.base_wall;
+    const s2_wall = s2.base_wall;
     const intersection = s1_wall.toRay().intersectSegment(s2_wall.coords)
     
     if(!intersection) return;
