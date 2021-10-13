@@ -47,12 +47,10 @@ export class IdentifyIntersections {
     let remainder = wall;
     intersections.forEach(i_point => {
       // check that we are not repeating points
-      if(pointsAlmostEqual(remainder.A, i_point)) return;
+      if(pointsAlmostEqual(remainder.A, i_point) || 
+         pointsAlmostEqual(i_point, wall.B)) { return; }
       const new_w = CCWSweepWall.createFromPoints(remainder.A, i_point, wall); 
       finished_walls.push(new_w);
-      
-      // check that we are not repeating points
-      if(pointsAlmostEqual(i_point, wall.B)) return;
       remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
     });
     finished_walls.push(wall)
