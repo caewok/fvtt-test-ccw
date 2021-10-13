@@ -531,14 +531,14 @@ export class BentleyOttomanSweepIntersections {
     // is it before the first element?
     // if a is less, will be -1
     this.sweep_status[0].x = sweep_x;
-    if(compareYX(this.sweep_status[0], segment) > -1) {
+    if(compareSweepYX(this.sweep_status[0], segment) > -1) {
       this.sweep_status.unshift(segment);
       return 0;
     }
     
     // is it after the last element?
     this.sweep_status[ln - 1].x = sweep_x;
-    if(compareYX(this.sweep_status[ln - 1], segment) < 1) {
+    if(compareSweepYX(this.sweep_status[ln - 1], segment) < 1) {
       this.sweep_status.push(segment);
       return ln;
     }
@@ -554,7 +554,7 @@ export class BentleyOttomanSweepIntersections {
       
       // are we less than or greater than mid?
       this.sweep_status[mid].x = sweep_x;
-      const mid_score = compareYX(this.sweep_status[mid], segment);
+      const mid_score = compareSweepYX(this.sweep_status[mid], segment);
       // -1: sweep is before segment
       //  1: sweep is after segment
       //  0: equal
@@ -569,7 +569,7 @@ export class BentleyOttomanSweepIntersections {
       if(mid_score === 1) {
         // segment is before mid
         this.sweep_status[mid - 1].x = sweep_x;
-        if(compareYX(this.sweep_status[mid - 1], segment) < 1) {
+        if(compareSweepYX(this.sweep_status[mid - 1], segment) < 1) {
           // segment is after the mid - 1 and before mid (or equal)
           this.sweep_status.splice(mid, 0, segment); // insert just before mid
           return mid;
@@ -581,7 +581,7 @@ export class BentleyOttomanSweepIntersections {
       } else {
         // segment is after mid
         this.sweep_status[mid + 1].x = sweep_x;
-        if(compareYX(this.sweep_status[mid + 1], segment) > -1) {
+        if(compareSweepYX(this.sweep_status[mid + 1], segment) > -1) {
           // segment is before the mid + 1 and after mid (or equal)
           this.sweep_status.splice(mid + 1, 0, segment); // insert just after mid
           return mid + 1;
@@ -593,6 +593,23 @@ export class BentleyOttomanSweepIntersections {
       }      
     }
   } 
+  
+ /**
+  * Helper function to compare along the YX axis
+  * Additional tie breaker: the segment that has the leftmost starting endpoint
+  * wins in case of tie.
+  * Used for arranging sweep status. Tiebreaker occurs when the endpoint of one 
+  * line intersects in the middle of the other line.
+  * @param {IntersectionSweepEvent} a
+  * @param {IntersectionSweepEvent} b
+  * @return {boolean}
+  */
+  compareSweepYX(a, b) {
+    const res = compareYX(a, b);
+    if(res === 0) { return compareYX(a.left, b.left); } 
+    return res;
+  }   
+ 
   
  /**
   * Helper function to update event queue with intersection 
