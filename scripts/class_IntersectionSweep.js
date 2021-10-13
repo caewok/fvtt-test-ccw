@@ -4,105 +4,19 @@ import { almostEqual,
          COLORS,
          compareXY,
          compareXY_A,
-         compareYX } from "./util.js";
+         compareYX,
+         MapArray } from "./util.js";
 import { CCWSightRay } from "./class_CCWSightRay.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
-export class IntersectionSweep {
-  constructor(event, { wall = undefined, intersection = undefined} = {}) {
-    if(!wall && !intersection) { console.error(`testccw|IntersectionSweepEvent: Either wall or intersection must be provided.`); }
-   
-    this.event = event;
-    this._id = undefined;
-    this.walls = new Map(); // used for intersections
-    this.coords = undefined;
-    this.base_wall = undefined;
-   
-    if(wall) {
-      this._id = wall.id;
-      this.base_wall = wall;
-      
-      this.coords = wall.coords;
-      const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
-                     this.coords[1] < this.coords[3] : // use top (smaller) y
-                     this.coords[0] < this.coords[2]; // use left (smaller) x
-      
-      this.left = is_left ? { x: this.coords[0], y: this.coords[1] } :
-                            { x: this.coords[2], y: this.coords[3] };
-      this.right = is_left ? { x: this.coords[2], y: this.coords[3] } :
-                             { x: this.coords[0], y: this.coords[1] };                            
-           
-      this.dx = this.right.x - this.left.x;
-      this.dy = this.right.y - this.left.y;
-  
-      // y = slope*x + b
-      // b = y - slope * x
-      // if dx === 0, line is vertical
-      this.slope = this.dy / this.dx;
-      this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
-                         this.left.y - this.slope * this.left.x;
-      
-    } else if(intersection) {
-      this.coords = [intersection.x, intersection.y];  
-      this.left = { x: intersection.x, y: intersection.y }
-      this.right = this.left;
-    }
-    
-    this._sweep_x = undefined; // temp x value to hold current sweep location
-    this._sweep_y = undefined; // temp y value to hold current sweep location
-  }
-  
- /**
-  * The id of the associated wall.
-  */
-  get id() {
-    if(!this._id ) { this._id = foundry.utils.randomID(); }
-    return this._id;  
-  }
-  
- /**
-  * @type {string}
-  */ 
-  set id(value ) { this._id = value; }
-  
-  get x() {
-    return this._sweep_x ?? (this.event === "right" ? this.right.x : this.left.x);      
-  }
-  
-  set x(value) {
-    this._sweep_x = value;
-    this._sweep_y = undefined;
-  }
-  
-  get y() {
-    if(this._sweep_y === undefined) { this._sweep_y = this.getY(this.x); }
-    return this._sweep_y;
-  }
 
-  getY(x) {
-    if(this.event === "intersection") return this.left.y;
-    if(this.event === "right") return this.right.y;
-    
-    // vertical
-    if(almostEqual(this.dx, 0)) return this.event === "left" ? this.left.y : this.right.y; 
-    
-    return this.slope * x + this.y_intercept;
-  }
-  
-  draw(color = COLORS.red, alpha = 1, width = 1) {
-    if(this.event === "intersection") {
-      const pt = new CCWSweepPoint(this.x, this.y);
-      pt.draw(color, alpha)
-    } else {
-      const r = new CCWSightRay({ x: this.left.x, y: this.left.y },
-                                { x: this.right.x, y: this.right.y });
-     r.draw(color, alpha, width);                           
-    
-    }
-  }
-  
+/**
+ * Class to hold static methods implementing different algorithms 
+ * to identify intersections for a set of walls.
+ */
+export class IdentifyIntersections() {
   // -------------- STATIC SWEEP ALGORITHM METHODS AND HELPERS ----------------
   
  /**
@@ -117,286 +31,73 @@ export class IntersectionSweep {
   *      \               \
   *       •               •
   * 
-  * @param {Object[]}                   intersections {walls (Map), x, y}   
-  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}
+  * @param {{x, y}[]}           intersections    Array of intersections for that wall   
+  * @return {CCWSweepWall[]}
   */
-  static buildWallsFromIntersections(intersections, walls) {
-    if(intersections.length === 0) return walls;
+  static buildWallsFromIntersections(intersections, wall) {
+    if(intersections.length === 0) return [wall];
+    intersections.sort(compareXY);
     
-    // for each intersection, build set of new walls
-    // issues:
-    // 1. Each wall could have multiple intersections
-    // 2. Once we split a wall, it is difficult to find its subsets in the intersections
-    // solution: run through each wall instead of each intersection
-    const map_walls = new Map();
-    walls.forEach(w => map_walls.set(w.id, w));
+    const finished_walls = [];
+    intersections.forEach(i_point => {
+      // check that we are not repeating points
+      if(pointsAlmostEqual(wall.A, i_point)) return;
+      
+      const new_w = CCWSweepWall.createFromPoints(test.A, i_point, wall); 
+      finished_walls.push(new_w);
+      
+      // check that we are not repeating points
+      if(pointsAlmostEqual(i_point, wall.B)) return;
+      test = CCWSweepWall.createFromPoints(i_point, test.B, wall);
     
-    walls.forEach(w => {
-      const intersection_objs = intersections.filter(i => {
-        return [...i.walls.values()].some(i_w => i_w.id === w.id);
-      });
-      
-      if(intersection_objs.length === 0) return;
-      
-      intersection_objs.sort(compareXY);
-      
-      // for each intersection, create a wall segment
-      // need the left and right coords for the remaining_w
-      const A = { x: w.coords[0], y: w.coords[1] };
-      const B = { x: w.coords[2], y: w.coords[3] };
-      const is_left = compareXY(A,B) === -1;
-      const left = is_left ? A : B; 
-      const right = is_left ? B : A; 
-      let remaining_w = CCWSweepWall.createFromPoints(left, right, w);
-      
-      intersection_objs.forEach(obj => {
-        // new_w is the wall to the "left" of the intersection
-        // if the intersection is at an endpoint, don't do anything
-        if(pointsAlmostEqual(remaining_w.A, obj) || 
-           pointsAlmostEqual(remaining_w.B, obj)) { return; }
-        
-        const new_w = CCWSweepWall.createFromPoints(remaining_w.A, obj, w); 
-        remaining_w = CCWSweepWall.createFromPoints(obj, remaining_w.B, w); 
-        
-        map_walls.set(new_w.id, new_w);                                             
-      });
-      
-      map_walls.set(remaining_w.id, remaining_w);
-      map_walls.delete(w.id);
     });
+    finished_walls.push(wall)
     
-    return [...map_walls.values()];
-  }  
+    return finished_walls;
+  }
   
  /**
   * Determine if walls intersect one another.
-  * Brute force version that should run in O(n^2)
-  * For each pair of walls, check for an intersection. If intersection, add to BST.
-  * Using BST for the search feature, so we can find existing intersections.
-  * Search is using x, then y if x is equal for two intersections.
-  * The result is a set of intersections, each storing 2+ walls.
-  * buildWallsFromIntersections then does the wall splitting.
+  * Brute force version. See BruteForceIntersections class.
   * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}
+  * @return {CCWSweepWall[]}
   */
   static processWallIntersectionsBruteForce(walls) { 
-    // BST avoids repeating intersections
-    const intersections = new BinarySearchTree(compareXY);
-    walls.forEach(w0 => {
-      // need the intersect method from SightRay or SweepWall
-      const r0 = CCWSweepWall.create(w0); 
-      walls.forEach(w1 => {
-        const r1 = CCWSweepWall.create(w1)
-        if(r0.intersects(r1)) {
-          const i = r0.intersectSegment(r1.coords);
-        
-          let existing_intersection = intersections.find(i);
-          if(existing_intersection) {
-            // update with the additional wall
-            existing_intersection.data.walls.set(w0.id, w0);
-            existing_intersection.data.walls.set(w1.id, w1);
-            
-          } else {
-            existing_intersection = {
-              walls: new Map(),
-              x: i.x,
-              y: i.y
-            };
-            existing_intersection.walls.set(w0.id, w0);
-            existing_intersection.walls.set(w1.id, w1);
-            intersections.insert(existing_intersection);
-          }
-        }
-      });
-    });     
-    return IntersectionSweep.buildWallsFromIntersections(intersections.inorder(), walls);
+    const finished_walls = [];
+    const brute = BruteForceIntersections(walls);
+    while(brute.incomplete) {
+      const w = brute.step();
+      const intersections = brute.intersections_map.get(w.id);
+      const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
+      finished_walls.push(...new_ws);
+    }
+    return finished_walls;
   }
   
  /**
   * Determine if walls intersect one another.
   * Comparable to and better than brute force version, but still relatively simple.
-  * Sweep from left to right for a given wall.
-  * At each left endpoint for the wall, test all walls to the right until
-  * the right wall's left endpoint is to the left of this wall's right endpoint.
-  * (i.e, there is no way the two walls share x coords)
-  * Unlike brute force, must sort the walls.
-  * Worst case still O(n^2) but in practice will skip many irrelevant walls
+  * See SimpleSweepIntersections class.
   * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}  
+  * @return {CCWSweepWall[]}
   */
   static processWallIntersectionsSimpleSweep(walls) {
-    const sorted_walls = [];
-    walls.forEach(w => {
-      // figure out which is left, for sort. 
-      const A = { x: w.coords[0], y: w.coords[1] };
-      const B = { x: w.coords[2], y: w.coords[3] };
-      const is_left = compareXY(A,B) === -1;
-      const left = is_left ? A : B; 
-      const right = is_left ? B : A; 
-      
-      // use SweepWall for intersect, intersection methods
-      // but keep the id from the wall for use by buildWallsFromIntersections
-      const out = CCWSweepWall.createFromPoints(left, right, w);
-      out.id = w.id;
-      sorted_walls.push(out);
-    });
-
-    sorted_walls.sort(compareXY_A);
-    
-    // BST avoids repeating intersections
-    // The rest here is the same basic structure as Brute Force but with fewer tests
-    // (See how the j loop skips walls and has an early breakout)
-    const intersections = new BinarySearchTree(compareXY);
-
-    const ln = sorted_walls.length;
-    for(let i = 0; i < ln; i += 1) {
-      const test = sorted_walls[i];
-    
-      // only test walls to the right of test_wall
-      for(let j = (i + 1); j < ln; j += 1) {
-        const candidate = sorted_walls[j];
-        
-        // if we reached the end of the candidate wall, we can skip the rest
-        if(candidate.A.x > test.B.x) { break; }
-        
-        if(test.intersects(candidate)) {
-          const i_point = test.intersectSegment(candidate.coords);
-        
-          let existing_intersection = intersections.find(i_point);
-          if(existing_intersection) {
-            // update with the additional wall
-            existing_intersection.data.walls.set(test.id, test);
-            existing_intersection.data.walls.set(candidate.id, candidate);
-            
-          } else {
-            existing_intersection = {
-              walls: new Map(),
-              x: i_point.x,
-              y: i_point.y
-            };
-            existing_intersection.walls.set(test.id, test);
-            existing_intersection.walls.set(candidate.id, candidate);
-            intersections.insert(existing_intersection);
-          }
-        }
-      }
-    }      
-    return IntersectionSweep.buildWallsFromIntersections(intersections.inorder(), walls);
-  }
-  
- /**
-  * Combines the Simple Sweep with buildWallsFromIntersections in a single loop.
-  * Requires a sort of the intersections for a given wall.
-  * But we piggy-back off the existing i-loop to split the wall once we are done 
-  * looking for intersections, which appears to be a decent speed-up over Simple Sweep.
-  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}  
-  */
-  static processWallIntersectionsSimpleSweepCombined(walls) {
-    // Array to track walls or wall pieces once we know them.
     const finished_walls = [];
-    
-    // sort the walls 
-    const sorted_walls = [];
-    walls.forEach(w => {
-      // figure out which is left, for sort. 
-      const A = { x: w.coords[0], y: w.coords[1] };
-      const B = { x: w.coords[2], y: w.coords[3] };
-      const is_left = compareXY(A,B) === -1;
-      const left = is_left ? A : B; 
-      const right = is_left ? B : A; 
-      
-      // use SweepWall for intersect, intersection methods
-      // but keep the id from the wall for use by buildWallsFromIntersections
-      const out = CCWSweepWall.createFromPoints(left, right, w);
-      out.id = w.id;
-      sorted_walls.push(out);
-    });
-    
-    sorted_walls.sort(compareXY_A);
-    
-    // The Map will store intersections keyed by each wall id.
-    // Each entry is an array of intersections for that wall.
-    const intersections_map = new Map();
-    
-    const ln = sorted_walls.length;
-    for(let i = 0; i < ln; i += 1) {
-      let test = sorted_walls[i];
-      
-      // only test walls to the right of test_wall
-      for(let j = (i + 1); j < ln; j += 1) {
-        const candidate = sorted_walls[j];
-      
-        // if we reached the end of the candidate wall, we can skip the rest
-        if(candidate.A.x > test.B.x) { break; }
-        
-        if(test.intersects(candidate)) {
-          const i_point = test.intersectSegment(candidate.coords);
-          
-          // count the intersection unless it is an endpoint of that wall
-          if(!(pointsAlmostEqual(test.A, i_point) || 
-               pointsAlmostEqual(test.B, i_point))) {
-            const intersections_arr = intersections_map.get(test.id) ?? [];
-            intersections_arr.push({ x: i_point.x, y: i_point.y });
-            intersections_map.set(test.id, intersections_arr);   
-          }
-           
-          // same for candidate wall.
-          if(!(pointsAlmostEqual(candidate.A, i_point) || 
-               pointsAlmostEqual(candidate.B, i_point))) {
-            const intersections_arr = intersections_map.get(candidate.id) ?? [];
-            intersections_arr.push({ x: i_point.x, y: i_point.y });
-            intersections_map.set(candidate.id, intersections_arr);
-          }
-        }
-      }
-      // fetch and apply saved intersections for this test wall
-      const test_intersections = intersections_map.get(test.id);
-      
-      if(test_intersections?.length > 0) {         
-        test_intersections.sort(compareXY);         
-        test_intersections.forEach(i_point => {
-          // check that we are not repeating points
-          if(pointsAlmostEqual(test.A, i_point)) return;
-          
-          const new_w = CCWSweepWall.createFromPoints(test.A, i_point, test); 
-          finished_walls.push(new_w);
-          
-          // check that we are not repeating points
-          if(pointsAlmostEqual(i_point, test.B)) return;
-          test = CCWSweepWall.createFromPoints(i_point, test.B, test);
-        });
-      }
-      
-      // done with the ith wall. Add remainder to the wall array
-      finished_walls.push(test);
+    const sweep = SimpleSweepIntersections(walls);
+    while(sweep.incomplete) {
+      const w = sweep.step();
+      const intersections = sweep.intersections_map.get(w.id);
+      const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
+      finished_walls.push(...new_ws);
     }
-      
-    return finished_walls;
+    return finished_walls;    
   }
   
  /**
   * Determine wall intersections using a Bentley Ottoman sweep algorithm.
   * See BentleyOttomanSweep class for details.
-  * To test/troubleshoot, try running the stepped version:
-  *   sweeper = new BentleyOttomanSweep(walls);
-  *   while(sweeper.incomplete) { sweeper.step(); }
   * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}
-  */
-  static processWallIntersectionsBentleyOttomanSweep(walls) {
-    const sweeper = new BentleyOttomanSweep(walls);
-    const intersection_tree = sweeper.run();
-    return IntersectionSweep.buildWallsFromIntersections(intersection_tree.inorder(), walls);
-  }
-  
- /**
-  * Like processWallIntersectionsBentleyOttomanSweep but does the 
-  * wall building within the sweep algorithm. So combined similar to  
-  * processWallIntersectionsSimpleSweepCombined.
-  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
-  * @return {Wall[]}
+  * @return {CCWSweepWall[]}
   */
   static processWallIntersectionsBentleyOttomanSweepCombined(walls) {
     const finished_walls = [];
@@ -440,6 +141,186 @@ export class IntersectionSweep {
 }
 
 
+/**
+ * Helper function to construct a set of walls where the A endpoint is to the left
+ * (or above) the B endpoint
+ * Used by BruteForce and SimpleSweep classes
+ * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+ * @return {CCWSweepWall[]}
+ */
+function createLeftRightSweepWalls(walls) {
+  const ccw_walls = [];
+  walls.forEach(w => {
+    // figure out which is left, for sort. 
+    const A = { x: w.coords[0], y: w.coords[1] };
+    const B = { x: w.coords[2], y: w.coords[3] };
+    const is_left = compareXY(A,B) === -1;
+    const left = is_left ? A : B; 
+    const right = is_left ? B : A; 
+    
+    // use SweepWall for intersect, intersection methods
+    // but keep the id from the wall
+    const out = CCWSweepWall.createFromPoints(left, right, w);
+    out.id = w.id;
+    ccw_walls.push(out);
+  });
+  return ccw_walls;
+}
+
+ /**
+  * Brute-force algorithm to identify intersections.
+  * Brute force version that should run in O(n^2)
+  * For each pair of walls, check for an intersection. If intersection, add to BST.
+  * Using BST for the search feature, so we can find existing intersections.
+  * Search is using x, then y if x is equal for two intersections.
+  * The result is a set of intersections, each storing 2+ walls.
+  */
+export class BruteForceIntersections {
+
+ /**
+  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+  */
+  constructor(walls) {
+    this.walls = BruteForceIntersections.createLeftRightSweepWalls(walls);
+    
+    // Store intersections keyed by each wall id.
+    // Each entry is an array of intersections for that wall.
+    this.intersections_map = new MapArray();
+    
+    this.i = 0; // what wall are we on? Used for step().
+  }
+  
+  // --------------- GETTERS / SETTERS --------------------- //
+ /**
+  * Sweep not yet done.
+  * See run() for an example loop.
+  * @type {boolean}
+  */
+  get incomplete() { return this.i < this.walls.length; }
+
+  /**
+   * Run the entire algorithm and return the intersections
+   * @return {Map<id, {x, y}[]>}
+   */
+   run() {
+     while(this.incomplete) { this.step(); }
+     return this.intersections;
+   } 
+  
+  /**
+   * Run a single step of the algorithm. Here, processing a single wall.
+   * @return {CCWSweepWall} For convenience, return the wall just processed.
+   */
+   step() {
+     const w0 = this.walls[this.i];
+     
+     this.walls.forEach(w1 => {
+       if(w0.intersects(w1)) {
+         const i_point = w0.intersectSegment(w1.coords);
+         
+         // count the intersection unless it is an endpoint of that wall
+         if(!(pointsAlmostEqual(w0.A, i_point) || 
+              pointsAlmostEqual(w0.B, i_point))) {
+            this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
+         }
+          
+         // same for the second wall
+         if(!(pointsAlmostEqual(w1.A, i_point) || 
+              pointsAlmostEqual(w1.B, i_point))) {
+            this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
+         } 
+       }
+     });
+     this.i += 1;
+     return w0;
+   }
+   
+   static createLeftRightSweepWalls = createLeftRightSweepWalls
+
+} 
+
+ /**
+  * Determine if walls intersect one another.
+  * Comparable to and better than brute force version, but still relatively simple.
+  * Sweep from left to right for a given wall.
+  * At each left endpoint for the wall, test all walls to the right until
+  * the right wall's left endpoint is to the left of this wall's right endpoint.
+  * (i.e, there is no way the two walls share x coords)
+  * Unlike brute force, must sort the walls.
+  * Worst case still O(n^2) but in practice will skip many irrelevant walls
+  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+  * @return {Wall[]}  
+  */
+export class SimpleSweepIntersections {
+ /**
+  * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+  */
+  constructor(walls) {
+    this.walls = SimpleSweepIntersections.createLeftRightSweepWalls(walls);
+    this.walls.sort(compareXY_A);
+    
+    // Store intersections keyed by each wall id.
+    // Each entry is an array of intersections for that wall.
+    this.intersections_map = new MapArray();
+    
+    this.i = 0; // what wall are we on? Used for step().
+  }
+  
+  // --------------- GETTERS / SETTERS --------------------- //
+ /**
+  * Sweep not yet done.
+  * See run() for an example loop.
+  * @type {boolean}
+  */
+  get incomplete() { return this.i < this.walls.length; }
+
+  /**
+   * Run the entire algorithm and return the intersections
+   * @return {Map<id, {x, y}[]>}
+   */
+   run() {
+     while(this.incomplete) { this.step(); }
+     return this.intersections;
+   } 
+  
+  /**
+   * Run a single step of the algorithm. Here, processing a single wall.
+   * @return {CCWSweepWall} For convenience, return the wall just processed.
+   */
+   step() {
+     const w0 = this.walls[this.i];
+     const ln = this.walls.length;
+     
+     // only test walls to the right of test_wall
+     for(let j = (this.i + 1); j < ln; j += 1) {
+       const w1 = this.walls[j];
+        
+        // if we reached the end of the candidate wall w1, we can skip the rest
+        if(w1.A.x > w0.B.x) { break; }
+     
+       if(w0.intersects(w1)) {
+         const i_point = w0.intersectSegment(w1.coords);
+         
+         // count the intersection unless it is an endpoint of that wall
+         if(!(pointsAlmostEqual(w0.A, i_point) || 
+              pointsAlmostEqual(w0.B, i_point))) {
+            this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
+         }
+          
+         // same for the second wall
+         if(!(pointsAlmostEqual(w1.A, i_point) || 
+              pointsAlmostEqual(w1.B, i_point))) {
+            this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
+         } 
+       }
+     });
+     this.i += 1;
+     return w0;
+   }
+   
+   static createLeftRightSweepWalls = createLeftRightSweepWalls
+
+}
 
  /**
   * Modified Bentley-Ottoman sweep algorithm.
@@ -506,8 +387,8 @@ export class BentleyOttomanSweep {
     
     walls.forEach(w => {
       // construct object for needed wall data
-      this.event_queue.insert(new IntersectionSweep("left", { wall: w }));
-      this.event_queue.insert(new IntersectionSweep("right", { wall: w }));
+      this.event_queue.insert(new IntersectionSweepEvent("left", { wall: w }));
+      this.event_queue.insert(new IntersectionSweepEvent("right", { wall: w }));
     });
   }
  
@@ -737,7 +618,7 @@ export class BentleyOttomanSweep {
       existing_intersection.data.walls.set(s2_wall.id, s2_wall);
       existing_intersection.event = "intersection"; // probably unnecessary
     } else {
-      const new_intersection = new IntersectionSweep("intersection", { intersection: intersection });
+      const new_intersection = new IntersectionSweepEvent("intersection", { intersection: intersection });
       new_intersection.walls.set(s1_wall.id, s1_wall);
       new_intersection.walls.set(s2_wall.id, s2_wall);
       this.event_queue.insert(new_intersection);  
@@ -764,6 +645,100 @@ export class BentleyOttomanSweep {
   }
 
 
+}
+
+export class IntersectionSweepEvent {
+  constructor(event, { wall = undefined, intersection = undefined} = {}) {
+    if(!wall && !intersection) { console.error(`testccw|IntersectionSweepEvent: Either wall or intersection must be provided.`); }
+   
+    this.event = event;
+    this._id = undefined;
+    this.walls = new Map(); // used for intersections
+    this.coords = undefined;
+    this.base_wall = undefined;
+   
+    if(wall) {
+      this._id = wall.id;
+      this.base_wall = wall;
+      
+      this.coords = wall.coords;
+      const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
+                     this.coords[1] < this.coords[3] : // use top (smaller) y
+                     this.coords[0] < this.coords[2]; // use left (smaller) x
+      
+      this.left = is_left ? { x: this.coords[0], y: this.coords[1] } :
+                            { x: this.coords[2], y: this.coords[3] };
+      this.right = is_left ? { x: this.coords[2], y: this.coords[3] } :
+                             { x: this.coords[0], y: this.coords[1] };                            
+           
+      this.dx = this.right.x - this.left.x;
+      this.dy = this.right.y - this.left.y;
+  
+      // y = slope*x + b
+      // b = y - slope * x
+      // if dx === 0, line is vertical
+      this.slope = this.dy / this.dx;
+      this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
+                         this.left.y - this.slope * this.left.x;
+      
+    } else if(intersection) {
+      this.coords = [intersection.x, intersection.y];  
+      this.left = { x: intersection.x, y: intersection.y }
+      this.right = this.left;
+    }
+    
+    this._sweep_x = undefined; // temp x value to hold current sweep location
+    this._sweep_y = undefined; // temp y value to hold current sweep location
+  }
+  
+ /**
+  * The id of the associated wall.
+  */
+  get id() {
+    if(!this._id ) { this._id = foundry.utils.randomID(); }
+    return this._id;  
+  }
+  
+ /**
+  * @type {string}
+  */ 
+  set id(value ) { this._id = value; }
+  
+  get x() {
+    return this._sweep_x ?? (this.event === "right" ? this.right.x : this.left.x);      
+  }
+  
+  set x(value) {
+    this._sweep_x = value;
+    this._sweep_y = undefined;
+  }
+  
+  get y() {
+    if(this._sweep_y === undefined) { this._sweep_y = this.getY(this.x); }
+    return this._sweep_y;
+  }
+
+  getY(x) {
+    if(this.event === "intersection") return this.left.y;
+    if(this.event === "right") return this.right.y;
+    
+    // vertical
+    if(almostEqual(this.dx, 0)) return this.event === "left" ? this.left.y : this.right.y; 
+    
+    return this.slope * x + this.y_intercept;
+  }
+  
+  draw(color = COLORS.red, alpha = 1, width = 1) {
+    if(this.event === "intersection") {
+      const pt = new CCWSweepPoint(this.x, this.y);
+      pt.draw(color, alpha)
+    } else {
+      const r = new CCWSightRay({ x: this.left.x, y: this.left.y },
+                                { x: this.right.x, y: this.right.y });
+     r.draw(color, alpha, width);                           
+    
+    }
+  }
 }
 
 
