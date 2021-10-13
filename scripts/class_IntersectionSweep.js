@@ -35,16 +35,16 @@ export class IdentifyIntersections {
   *      \               \
   *       •               •
   * 
-  * @param {{x, y}[]}           intersections    Array of intersections for that wall   
+  * @param {{x, y}[]}           intersections    Array of intersections for that wall
+  * @param {CCWSweepWall}	wall		Must be left-right sweep wall (see createLeftRightSweepWalls)
   * @return {CCWSweepWall[]}
   */
   static buildWallsFromIntersections(intersections, wall) {
-    if(intersections.length === 0) return [wall];
+    if(intersections.length === 0) return [remainder];
     intersections.sort(compareXY);
-    
+
     const finished_walls = [];
-    let remainder = wall instanceof CCWSweepWall ? wall :
-                        CCWSweepWall.createFromPoints(wall.A, wall.B, wall); 
+    let remainder = wall;
     intersections.forEach(i_point => {
       // check that we are not repeating points
       if(pointsAlmostEqual(remainder.A, i_point)) return;
@@ -68,7 +68,7 @@ export class IdentifyIntersections {
   */
   static processWallIntersectionsBruteForce(walls) { 
     const finished_walls = [];
-    const brute = BruteForceIntersections(walls);
+    const brute = new BruteForceIntersections(walls);
     while(brute.incomplete) {
       const w = brute.step();
       const intersections = brute.intersections_map.get(w.id);
@@ -87,7 +87,7 @@ export class IdentifyIntersections {
   */
   static processWallIntersectionsSimpleSweep(walls) {
     const finished_walls = [];
-    const sweep = SimpleSweepIntersections(walls);
+    const sweep = new SimpleSweepIntersections(walls);
     while(sweep.incomplete) {
       const w = sweep.step();
       const intersections = sweep.intersections_map.get(w.id);
@@ -103,7 +103,7 @@ export class IdentifyIntersections {
   * @param {Wall[]|Set<Wall>|Map<Wall>} walls
   * @return {CCWSweepWall[]}
   */
-  static processWallIntersectionsBentleyOttomanSweepCombined(walls) {
+  static processWallIntersectionsBentleyOttomanSweep(walls) {
     const finished_walls = [];
     const remainders = new Map(); // Track remaining wall pieces by wall id
     const sweeper = new BentleyOttomanSweepIntersections(walls);
@@ -184,7 +184,7 @@ export class BruteForceIntersections {
    */
    run() {
      while(this.incomplete) { this.step(); }
-     return this.intersections;
+     return this.intersections_map;
    } 
   
   /**
@@ -260,7 +260,7 @@ export class SimpleSweepIntersections {
    */
    run() {
      while(this.incomplete) { this.step(); }
-     return this.intersections;
+     return this.intersections_map;
    } 
   
   /**
@@ -360,7 +360,7 @@ export class BentleyOttomanSweepIntersections {
   constructor(walls) {
     this.event_queue = new BinarySearchTree(compareXY);
     this.sweep_status = [];
-    this.intersections = new BinarySearchTree(compareXY);
+    this.intersections_map = new MapArray();
     
     walls.forEach(w => {
       // construct object for needed wall data
@@ -385,7 +385,7 @@ export class BentleyOttomanSweepIntersections {
   */
   run() {
     while(this.incomplete) { this.step(); }
-    return this.intersections;
+    return this.intersections_map;
   }
   
  /**
@@ -450,7 +450,7 @@ export class BentleyOttomanSweepIntersections {
   * @private
   */
   _processIntersectionEvent(e) {
-    this.intersections.insert(e);
+    //this.intersections_map.push(e..insert(e);
     
     // find each wall implicated by the intersection
     // if 2, swap
@@ -460,8 +460,10 @@ export class BentleyOttomanSweepIntersections {
     // test intersection for bottom and next below
     // rest already intersected at this point, so don't need to test
     const walls_arr = [...e.walls.values()];   
-    const idxs = walls_arr.map(w => 
-                   this.sweep_status.findIndex(elem => elem.id === w.id));
+    const idxs = walls_arr.map(w => {
+      this.intersections_map.push(w.id, { x: e.x, y: e.y });
+      return this.sweep_status.findIndex(elem => elem.id === w.id);
+    });
     const ln = idxs.length;
     const top_idx = Math.min(...idxs);
     const bottom_idx = Math.max(...idxs);
