@@ -658,11 +658,11 @@ export class BentleyOttomanSweepIntersections {
     
     // if the intersection is at the endpoints of the two walls, skip
     // (if only endpoint of one, include)
-    const endpoint1 = pointsAlmostEqual(s1.A, intersection) || 
-                      pointsAlmostEqual(s1.B, intersection)
+    const endpoint1 = pointsAlmostEqual(s1.left, intersection) || 
+                      pointsAlmostEqual(s1.right, intersection)
     
-    const endpoint2 = pointsAlmostEqual(s2.A, intersection) || 
-                      pointsAlmostEqual(s2.B, intersection)
+    const endpoint2 = pointsAlmostEqual(s2.left, intersection) || 
+                      pointsAlmostEqual(s2.right, intersection)
     if(endpoint1 && endpoint2) return;
     
     // construct the intersection so we can find it in the queue if it exists
