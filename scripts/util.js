@@ -201,3 +201,54 @@ export function compareYX(a, b) {
       return a.y < b.y ? -1 : 1; 
     }
  }
+ 
+/**
+ * Helper class that stores a Map of Arrays.
+ * Used to store intersections for walls by wall id.
+ */
+export class MapArray extends Map {
+  constructor(...args) {
+    super(...args);
+  }
+  
+ /**
+  * Push an object onto the underlying array for this id.
+  * @param {Object}   id
+  * @param ...args    Arguments passed to Array.prototype.push
+  * @return {number}  Length per Array.prototype.push
+  */ 
+  push(id, ...args) {
+    if(!this.has(id)) { this.set(id) = []; }
+  
+    const arr = this.get(id);
+    return arr.push(...args);
+  }
+  
+ /**
+  * Pop an object from the underlying array for this id.
+  * @param {Object}   id
+  * @param ...args    Arguments passed to Array.prototype.pop
+  * @return {Object}  Object at end of array per Array.prototype.pop
+  */ 
+  pop(id, ...args) {
+    if(!this.has(id)) { this.set(id) = []; }
+  
+    const arr = this.get(id);
+    return arr.pop(...args);
+  } 
+  
+ /**
+  * Sort underlying array for this id.
+  * @param {Object} id
+  * @param ...args  Arguments passed to Array.prototype.sort
+  * @return {Array} sorted array per Array.prototype.sort
+  */
+  sort(id, ...args) {
+    if(!this.has(id)) { this.set(id) = []; }
+  
+    const arr = this.get(id);
+    return arr.sort(...args);
+  } 
+  
+
+} 
