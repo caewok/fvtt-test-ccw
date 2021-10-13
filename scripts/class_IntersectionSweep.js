@@ -378,7 +378,7 @@ export class SimpleSweepIntersections {
   */
 export class BentleyOttomanSweepIntersections {
   constructor(walls) {
-    this.event_queue = new BinarySearchTree(compareXY);
+    this.event_queue = new BinarySearchTree(this.compareXY);
     this.sweep_status = [];
     this.intersections_map = new MapArray();
     
@@ -531,14 +531,14 @@ export class BentleyOttomanSweepIntersections {
     // is it before the first element?
     // if a is less, will be -1
     this.sweep_status[0].x = sweep_x;
-    if(compareSweepYX(this.sweep_status[0], segment) > -1) {
+    if(this.compareYX(this.sweep_status[0], segment) > -1) {
       this.sweep_status.unshift(segment);
       return 0;
     }
     
     // is it after the last element?
     this.sweep_status[ln - 1].x = sweep_x;
-    if(compareSweepYX(this.sweep_status[ln - 1], segment) < 1) {
+    if(this.compareYX(this.sweep_status[ln - 1], segment) < 1) {
       this.sweep_status.push(segment);
       return ln;
     }
@@ -554,7 +554,7 @@ export class BentleyOttomanSweepIntersections {
       
       // are we less than or greater than mid?
       this.sweep_status[mid].x = sweep_x;
-      const mid_score = compareSweepYX(this.sweep_status[mid], segment);
+      const mid_score = this.compareYX(this.sweep_status[mid], segment);
       // -1: sweep is before segment
       //  1: sweep is after segment
       //  0: equal
@@ -569,7 +569,7 @@ export class BentleyOttomanSweepIntersections {
       if(mid_score === 1) {
         // segment is before mid
         this.sweep_status[mid - 1].x = sweep_x;
-        if(compareSweepYX(this.sweep_status[mid - 1], segment) < 1) {
+        if(this.compareYX(this.sweep_status[mid - 1], segment) < 1) {
           // segment is after the mid - 1 and before mid (or equal)
           this.sweep_status.splice(mid, 0, segment); // insert just before mid
           return mid;
@@ -581,7 +581,7 @@ export class BentleyOttomanSweepIntersections {
       } else {
         // segment is after mid
         this.sweep_status[mid + 1].x = sweep_x;
-        if(compareSweepYX(this.sweep_status[mid + 1], segment) > -1) {
+        if(this.compareYX(this.sweep_status[mid + 1], segment) > -1) {
           // segment is before the mid + 1 and after mid (or equal)
           this.sweep_status.splice(mid + 1, 0, segment); // insert just after mid
           return mid + 1;
@@ -603,12 +603,34 @@ export class BentleyOttomanSweepIntersections {
   * @param {IntersectionSweepEvent} a
   * @param {IntersectionSweepEvent} b
   * @return {boolean}
+  * @private
   */
-  compareSweepYX(a, b) {
+  compareYX(a, b) {
     const res = compareYX(a, b);
-    if(res === 0) { return compareYX(a.left, b.left); } 
+    //if(res === 0) { return compareYX(a.left, b.left); }
+    if(res === 0) {
+      if(a.event === "left" && b.event !== "left") return -1;
+      if(a.event === "right" && b.event !== "right") return 1;
+      if(a.event === "intersection" && b.event === "right") return -1;
+      if(a.event === "intersection" && b.event === "left") return 1;
+      return compareYX(a.left, b.left);
+    } 
     return res;
-  }   
+  }
+  
+  compareXY(a, b) {
+    const res = compareXY(a, b);
+    if(res === 0) {
+     if(a.event === "left" && b.event !== "left") return -1;
+     if(a.event === "right" && b.event !== "right") return 1;
+     if(a.event === "intersection" && b.event === "right") return -1;
+     if(a.event === "intersection" && b.event === "left") return 1;
+     return compareXY(a.left, b.left);
+
+    }
+    return res;
+  }
+
  
   
  /**
@@ -627,7 +649,9 @@ export class BentleyOttomanSweepIntersections {
     
     if(!intersection) return;
     
-    let existing_intersection = this.event_queue.find(intersection);
+    let existing_intersection = this.event_queue.find({ x: intersection.x, 
+                                                        y: intersection.y, 
+                                                        event: "intersection" });
     if(existing_intersection) {
       // update with additional wall(s)
       existing_intersection.data.walls.set(s1_wall.id, s1_wall);
