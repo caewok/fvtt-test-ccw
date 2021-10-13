@@ -649,16 +649,15 @@ export class BentleyOttomanSweepIntersections {
     
     if(!intersection) return;
     
-    let existing_intersection = this.event_queue.find({ x: intersection.x, 
-                                                        y: intersection.y, 
-                                                        event: "intersection" });
+    // construct the intersection so we can find it in the queue if it exists
+    const new_intersection = new IntersectionSweepEvent("intersection", { intersection: intersection });
+    let existing_intersection = this.event_queue.find(new_intersection);
     if(existing_intersection) {
       // update with additional wall(s)
       existing_intersection.data.walls.set(s1_wall.id, s1_wall);
       existing_intersection.data.walls.set(s2_wall.id, s2_wall);
       existing_intersection.event = "intersection"; // probably unnecessary
     } else {
-      const new_intersection = new IntersectionSweepEvent("intersection", { intersection: intersection });
       new_intersection.walls.set(s1_wall.id, s1_wall);
       new_intersection.walls.set(s2_wall.id, s2_wall);
       this.event_queue.insert(new_intersection);  
