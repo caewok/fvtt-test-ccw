@@ -1,3 +1,6 @@
+/* globals foundry */
+'use strict';
+
 import { arraySwap } from "./util.js";
 import { almostEqual, 
          pointsAlmostEqual, 
@@ -16,7 +19,8 @@ import { BinarySearchTree } from "./class_BinarySearchTree.js";
  * Class to hold static methods implementing different algorithms 
  * to identify intersections for a set of walls.
  */
-export class IdentifyIntersections() {
+export class IdentifyIntersections {
+
   // -------------- STATIC SWEEP ALGORITHM METHODS AND HELPERS ----------------
   
  /**
@@ -39,17 +43,17 @@ export class IdentifyIntersections() {
     intersections.sort(compareXY);
     
     const finished_walls = [];
+    let remainder = wall instanceof CCWSweepWall ? wall :
+                        CCWSweepWall.createFromPoints(wall.A, wall.B, wall); 
     intersections.forEach(i_point => {
       // check that we are not repeating points
-      if(pointsAlmostEqual(wall.A, i_point)) return;
-      
-      const new_w = CCWSweepWall.createFromPoints(test.A, i_point, wall); 
+      if(pointsAlmostEqual(remainder.A, i_point)) return;
+      const new_w = CCWSweepWall.createFromPoints(remainder.A, i_point, wall); 
       finished_walls.push(new_w);
       
       // check that we are not repeating points
       if(pointsAlmostEqual(i_point, wall.B)) return;
-      test = CCWSweepWall.createFromPoints(i_point, test.B, wall);
-    
+      remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
     });
     finished_walls.push(wall)
     
@@ -102,7 +106,7 @@ export class IdentifyIntersections() {
   static processWallIntersectionsBentleyOttomanSweepCombined(walls) {
     const finished_walls = [];
     const remainders = new Map(); // Track remaining wall pieces by wall id
-    const sweeper = new BentleyOttomanSweep(walls);
+    const sweeper = new BentleyOttomanSweepIntersections(walls);
     
     // we are moving left-to-right, so we can chop up walls as we go
     while(sweeper.incomplete) {
@@ -141,31 +145,7 @@ export class IdentifyIntersections() {
 }
 
 
-/**
- * Helper function to construct a set of walls where the A endpoint is to the left
- * (or above) the B endpoint
- * Used by BruteForce and SimpleSweep classes
- * @param {Wall[]|Set<Wall>|Map<Wall>} walls
- * @return {CCWSweepWall[]}
- */
-function createLeftRightSweepWalls(walls) {
-  const ccw_walls = [];
-  walls.forEach(w => {
-    // figure out which is left, for sort. 
-    const A = { x: w.coords[0], y: w.coords[1] };
-    const B = { x: w.coords[2], y: w.coords[3] };
-    const is_left = compareXY(A,B) === -1;
-    const left = is_left ? A : B; 
-    const right = is_left ? B : A; 
-    
-    // use SweepWall for intersect, intersection methods
-    // but keep the id from the wall
-    const out = CCWSweepWall.createFromPoints(left, right, w);
-    out.id = w.id;
-    ccw_walls.push(out);
-  });
-  return ccw_walls;
-}
+
 
  /**
   * Brute-force algorithm to identify intersections.
@@ -234,10 +214,10 @@ export class BruteForceIntersections {
      this.i += 1;
      return w0;
    }
-   
-   static createLeftRightSweepWalls = createLeftRightSweepWalls
+}
 
-} 
+
+
 
  /**
   * Determine if walls intersect one another.
@@ -313,13 +293,10 @@ export class SimpleSweepIntersections {
             this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
          } 
        }
-     });
+     }
      this.i += 1;
      return w0;
    }
-   
-   static createLeftRightSweepWalls = createLeftRightSweepWalls
-
 }
 
  /**
@@ -379,7 +356,7 @@ export class SimpleSweepIntersections {
   *       where n = number segments; I = number intersections
   *       But depends on how well the search tree and array work for this
   */
-export class BentleyOttomanSweep {
+export class BentleyOttomanSweepIntersections {
   constructor(walls) {
     this.event_queue = new BinarySearchTree(compareXY);
     this.sweep_status = [];
@@ -740,6 +717,46 @@ export class IntersectionSweepEvent {
     }
   }
 }
+
+/**
+ * Helper function to construct a set of walls where the A endpoint is to the left
+ * (or above) the B endpoint
+ * Used by BruteForce and SimpleSweep classes
+ * @param {Wall[]|Set<Wall>|Map<Wall>} walls
+ * @return {CCWSweepWall[]}
+ */
+function createLeftRightSweepWalls(walls) {
+  const ccw_walls = [];
+  walls.forEach(w => {
+    // figure out which is left, for sort. 
+    const A = { x: w.coords[0], y: w.coords[1] };
+    const B = { x: w.coords[2], y: w.coords[3] };
+    const is_left = compareXY(A,B) === -1;
+    const left = is_left ? A : B; 
+    const right = is_left ? B : A; 
+    
+    // use SweepWall for intersect, intersection methods
+    // but keep the id from the wall
+    const out = CCWSweepWall.createFromPoints(left, right, w);
+    out.id = w.id;
+    ccw_walls.push(out);
+  });
+  return ccw_walls;
+}
+
+Object.defineProperty(BruteForceIntersections, "createLeftRightSweepWalls", {
+  value: createLeftRightSweepWalls,
+  writable: true,
+  configurable: false
+});
+
+
+Object.defineProperty(SimpleSweepIntersections, "createLeftRightSweepWalls", {
+  value: createLeftRightSweepWalls,
+  writable: true,
+  configurable: false
+});
+
 
 
 

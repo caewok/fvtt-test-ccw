@@ -1,7 +1,8 @@
+/* globals foundry, CONST */
 'use strict';
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
-import { almostEqual, orient2dPoints, COLORS } from "./util.js";
+import { orient2dPoints, COLORS } from "./util.js";
 
 /*
  * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.

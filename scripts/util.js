@@ -1,3 +1,4 @@
+/* globals game */
 'use strict';
 
 // Utility functions
@@ -218,7 +219,7 @@ export class MapArray extends Map {
   * @return {number}  Length per Array.prototype.push
   */ 
   push(id, ...args) {
-    if(!this.has(id)) { this.set(id) = []; }
+    if(!this.has(id)) { this.set(id, []); }
   
     const arr = this.get(id);
     return arr.push(...args);
@@ -231,7 +232,7 @@ export class MapArray extends Map {
   * @return {Object}  Object at end of array per Array.prototype.pop
   */ 
   pop(id, ...args) {
-    if(!this.has(id)) { this.set(id) = []; }
+    if(!this.has(id)) { this.set(id, []); }
   
     const arr = this.get(id);
     return arr.pop(...args);
@@ -244,7 +245,7 @@ export class MapArray extends Map {
   * @return {Array} sorted array per Array.prototype.sort
   */
   sort(id, ...args) {
-    if(!this.has(id)) { this.set(id) = []; }
+    if(!this.has(id)) { this.set(id, []); }
   
     const arr = this.get(id);
     return arr.sort(...args);

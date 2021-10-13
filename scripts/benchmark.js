@@ -1,3 +1,4 @@
+/* globals game, canvas, WallEndpoint, QuadtreeExpansionPolygon, RadialSweepPolygon */
 'use strict';
 
 import { MODULE_ID } from "./module.js";

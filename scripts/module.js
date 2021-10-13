@@ -1,3 +1,4 @@
+/* globals game, Hooks */
 'use strict';
 
 // import { registerCCW } from "./patching.js";
@@ -10,7 +11,11 @@ import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
-import { IntersectionSweep, BentleyOttomanSweep } from "./class_IntersectionSweep.js";     
+import { IdentifyIntersections, 
+         BruteForceIntersections,
+         SimpleSweepIntersections,
+         BentleyOttomanSweepIntersections,
+         IntersectionSweepEvent } from "./class_IntersectionSweep.js";     
 
 export const MODULE_ID = 'testccw';
 
@@ -24,7 +29,7 @@ export function log(...args) {
    if (game.modules.get(MODULE_ID).api.debug) {
       console.log(MODULE_ID, '|', ...args);
    }
-  } catch (e) {}
+  } catch (e) { return; }
 }
 
 
@@ -61,23 +66,24 @@ Hooks.once('init', async function() {
   * {Class}     Bezier            Class for approximating circle arcs using bezier curves
   */
   
-  game.modules.get(MODULE_ID).api = { debug: false, 
-                                      use_bezier: false, 
-                                      use_robust_ccw: true, 
-                                      benchmark: testCCWBenchmarkSight,
-                                      CCWSweepPoint: CCWSweepPoint,
-                                      CCWSweepWall: CCWSweepWall,
-                                      CCWSightRay: CCWSightRay,
-                                      CCWSweepPolygon: CCWSweepPolygon,
-                                      orient2d: orient2d,
-                                      BinarySearchTree: BinarySearchTree,
-                                      PotentialWallList: PotentialWallList,
-                                      Bezier: Bezier,
-                                      IdentifyIntersections: IdentifyIntersections,
-                                      BruteForceIntersections: BruteForceIntersections,
-                                      SimpleSweepIntersections: SimpleSweepIntersections,
-                                      BentleyOttomanSweep: BentleyOttomanSweep,
-                                      IntersectionSweepEvent: IntersectionSweepEvent }
+  game.modules.get(MODULE_ID).api = { 
+    debug: false, 
+    use_bezier: false, 
+    use_robust_ccw: true, 
+    benchmark: testCCWBenchmarkSight,
+    CCWSweepPoint: CCWSweepPoint,
+    CCWSweepWall: CCWSweepWall,
+    CCWSightRay: CCWSightRay,
+    CCWSweepPolygon: CCWSweepPolygon,
+    orient2d: orient2d,
+    BinarySearchTree: BinarySearchTree,
+    PotentialWallList: PotentialWallList,
+    Bezier: Bezier,
+    IdentifyIntersections: IdentifyIntersections,
+    BruteForceIntersections: BruteForceIntersections,
+    SimpleSweepIntersections: SimpleSweepIntersections,
+    BentleyOttomanSweepIntersections: BentleyOttomanSweepIntersections,
+    IntersectionSweepEvent: IntersectionSweepEvent }
 });
 
 // modules ready

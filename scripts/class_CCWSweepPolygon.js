@@ -1,4 +1,7 @@
+/* globals PointSourcePolygon, WallEndpoint, canvas, NormalizedRectangle, CONST, game */
 'use strict';
+
+
 
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
@@ -21,28 +24,31 @@ import { IntersectionSweep } from "./class_IntersectionSweep.js";
  * @extends {PointSourcePolygon}
  */
 export class CCWSweepPolygon extends PointSourcePolygon {
-
-  /**
-   * The limiting radius of the polygon, if applicable
-   * @type {object}
-   * @property {string} type          The type of polygon being computed
-   * @property {number} [angle=360]   The angle of emission, if limited
-   * @property {number} [density=6]   The desired density of padding rays, a number per PI
-   * @property {number} [radius]      A limited radius of the resulting polygon
-   * @property {number} [rotation]    The direction of facing, required if the angle is limited
-   * @property {boolean} [debug]      Display debugging visualization and logging for the polygon
-   */
-  config = {};
+  constructor(...args) {
+    super(...args);
   
-  /**
-   * Mapping of CCWSweepPoints objects used to compute this polygon
-   */
-  endpoints = new Map();  
+    /**
+     * The limiting radius of the polygon, if applicable
+     * @type {object}
+     * @property {string} type          The type of polygon being computed
+     * @property {number} [angle=360]   The angle of emission, if limited
+     * @property {number} [density=6]   The desired density of padding rays, a number per PI
+     * @property {number} [radius]      A limited radius of the resulting polygon
+     * @property {number} [rotation]    The direction of facing, required if the angle is limited
+     * @property {boolean} [debug]      Display debugging visualization and logging for the polygon
+     */
+    this.config = {};
   
-  /**
-   * Mapping of CCWSweepWall objects that can affect this polygon.
-   */
-  walls = new Map(); 
+    /**
+     * Mapping of CCWSweepPoints objects used to compute this polygon
+     */
+    this.endpoints = new Map();  
+  
+    /**
+     * Mapping of CCWSweepWall objects that can affect this polygon.
+     */
+    this.walls = new Map(); 
+  }
   
   /** @inheritdoc */
   compute() {
@@ -634,6 +640,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       const last_endpoint = { x: collisions[l - 2], y: collisions[l - 1] };
       const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
       const ray = CCWSightRay.fromReference(origin, last_endpoint, radius);
+      this._addPadding(prior_ray, ray, collisions);
       needs_padding = false;
     }
     
@@ -864,7 +871,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    *                                    Whether any collision occurred if mode is "any"
    */
    
-  static getRayCollisions(ray, {type="move", mode="all", steps=8}={}) {
+  static getRayCollisions(ray, {type="move", mode="all"}={}) {
      const candidate_walls = [...canvas.walls.quadtree.getObjects(ray.bounds)];
      
      const ln = candidate_walls.length;
@@ -896,7 +903,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      if(mode === "all") {
        // Find the actual intersection for each wall and return.
-       intersections = intersecting_walls.map(w => {
+       const intersections = intersecting_walls.map(w => {
          const i = ray.intersectSegment(w.coords);
          return new WallEndpoint(i.x, i.y);
        });
@@ -905,7 +912,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // mode "closest"
       // Use the BST to find the closest wall, get the intersection, and return
       const potential_walls = new PotentialWallList(ray.A);
-      potential_walls.add(interesting_walls);
+      potential_walls.add(intersecting_walls);
       const closest = potential_walls.closest();
       const i = ray.intersectSegment(closest.coords);
       return new WallEndpoint(i.x, i.y);
