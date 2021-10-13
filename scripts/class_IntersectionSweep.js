@@ -149,6 +149,7 @@ export class IdentifyIntersections {
           // here, e.left is the intersection point
           // remainders are created above as A: left, B: right
           // count the intersection unless it is an endpoint of that wall
+          const i_point = e.left;
           e.walls.forEach(w => {
             const curr_remainder = remainders.get(w.id);
             
@@ -157,8 +158,8 @@ export class IdentifyIntersections {
                pointsAlmostEqual(i_point, curr_remainder.B)) { return; }
             
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
-                                                        e.left, w); 
-            const new_remainder = CCWSweepWall.createFromPoints(e.left, 
+                                                        i_point, w); 
+            const new_remainder = CCWSweepWall.createFromPoints(i_point, 
                                                                 curr_remainder.B, w); 
             finished_walls.push(new_w);
             remainders.set(w.id, new_remainder);
