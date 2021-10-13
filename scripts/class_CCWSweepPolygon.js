@@ -12,7 +12,7 @@ import { orient2dPoints,
          pointsAlmostEqual,
          ccwPoints }          from "./util.js";
 import { MODULE_ID }	      from "./module.js";
-import { IntersectionSweep } from "./class_IntersectionSweep.js";         
+import { IdentifyIntersections } from "./class_IntersectionSweep.js";         
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.
@@ -114,9 +114,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      let candidate_walls = this._getCandidateWalls();
-     candidate_walls = IntersectionSweep.processWallIntersectionsSimpleSweepCombined(candidate_walls); // TO-DO: Move this to only when walls change
+     candidate_walls = IdentifyIntersections.processWallIntersectionsSimple(candidate_walls); // TO-DO: Move this to only when walls change
      candidate_walls.forEach(wall => {
-       wall = CCWSweepWall.create(wall, opts);
+       //wall = CCWSweepWall.create(wall, opts); // handled by IdentifyIntersections.processWallIntersectionsSimple
        
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
