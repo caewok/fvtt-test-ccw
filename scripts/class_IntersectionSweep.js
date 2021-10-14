@@ -132,6 +132,7 @@ export class IdentifyIntersections {
     // we are moving left-to-right, so we can chop up walls as we go
     while(sweeper.incomplete) {
       const e = sweeper.step();
+      const i_point = e.left; // could just use e but this saves a few calcs.
       
       switch(e.event) {
         case "left":
@@ -150,7 +151,7 @@ export class IdentifyIntersections {
           // here, e.left is the intersection point
           // remainders are created above as A: left, B: right
           // count the intersection unless it is an endpoint of that wall
-          const i_point = e.left; // could just use e but this saves a few calcs.
+          
           e.walls.forEach(w => {
             const curr_remainder = remainders.get(w.id);
             
