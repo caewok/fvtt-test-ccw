@@ -157,7 +157,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          const r1 = CCWSightRay.fromAngle(origin.x, origin.y, a1, radius);
          const r2 = CCWSightRay.fromAngle(origin.x, origin.y, a2, radius);
          const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
-         const r4 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
+         const r4 = CCWSightRay.fromAngle(origin.x, origin.y, a4, radius);
         
          // construct walls
          const w1 = new CCWSweepWall(r1.B, r2.B, opts);
