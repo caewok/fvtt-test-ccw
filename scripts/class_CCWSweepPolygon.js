@@ -114,6 +114,72 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      let candidate_walls = this._getCandidateWalls();
+     
+     
+     if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
+       if(!(candidate_walls instanceof Set)) console.error(`$MODULE_ID|initializeEndpoints expected Set for candidate walls.`);
+       // construct a specialized light shape
+       // radius informs the shape but otherwise is turned off; rely on border walls
+       // add these border walls and identify intersections
+       // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
+       
+       const rot = this.config.rotation ?? 0;
+       if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
+          // equilateral triangle with 1 point facing due north
+          // potentially rotated by rotation angle
+          // center/origin to point === radius
+          // if a1 === 0, line would point due east
+          // basic angles are 0, 120, 240 before translation
+          const a1 = Math.normalizeRadians(Math.toRadians(rotation - 90));
+          const a2 = Math.normalizeRadians(Math.toRadians(rotation + 30));
+          const a3 = Math.normalizeRadians(Math.toRadians(rotation + 150));
+          const r1 = CCWSightRay.fromAngle(origin.x, origin.y, a1, radius);
+          const r2 = CCWSightRay.fromAngle(origin.x, origin.y, a2, radius);
+          const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
+          
+          // construct walls
+          opts.radius = undefined;
+          this.config.radius = undefined;
+          
+          const w1 = new CCWSweepWall(r1.B, r2.B, opts);
+          const w2 = new CCWSweepWall(r2.B, r3.B, opts);
+          const w3 = new CCWSweepWall(r3.B, r1.B, opts);
+          
+          candidate_walls.add(w1);
+          candidate_walls.add(w2);
+          candidate_walls.add(w3); 
+       } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
+         // square where center/origin to corners === radius
+         // square is aligned horizontally/vertically if rotation === 0
+         // potentially rotated by rotation angle 
+         // basic angles are 45, 135, 225, 315 before translation
+         const a1 = Math.normalizeRadians(Math.toRadians(rotation - 135));
+         const a2 = Math.normalizeRadians(Math.toRadians(rotation - 45));
+         const a3 = Math.normalizeRadians(Math.toRadians(rotation + 45));
+         const a4 = Math.normalizeRadians(Math.toRadians(rotation + 135));
+         const r1 = CCWSightRay.fromAngle(origin.x, origin.y, a1, radius);
+         const r2 = CCWSightRay.fromAngle(origin.x, origin.y, a2, radius);
+         const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
+         const r4 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
+        
+         // construct walls
+         opts.radius = undefined;
+         this.config.radius = undefined;
+        
+         const w1 = new CCWSweepWall(r1.B, r2.B, opts);
+         const w2 = new CCWSweepWall(r2.B, r3.B, opts);
+         const w3 = new CCWSweepWall(r3.B, r4.B, opts);
+         const w4 = new CCWSweepWall(r4.B, r1.B, opts);
+        
+         candidate_walls.add(w1);
+         candidate_walls.add(w2);
+         candidate_walls.add(w3); 
+         candidate_walls.add(w4); 
+       }
+     
+      
+     }
+     
      if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
      candidate_walls.forEach(wall => {
        wall = CCWSweepWall.create(wall, opts); // Even if IdentifyIntersections used, stil need to update origin and radius
