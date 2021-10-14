@@ -630,7 +630,10 @@ export class BentleyOttomanSweepIntersections {
         // CW: a after b 
         // (just to start, will be swapped at the intersection event)
         // 1 is CCW
-        return orient2dPoints(b.right, a, a.right);
+        //const ccw = orient2dPoints(a.right, a, b.right)
+        //if(ccw > 0) return 1;
+        //if(ccw < 0) return -1;
+        return orient2dPoints(a.right, a, b.right);
       }
             
       return compareYX(a.left, b.left);
