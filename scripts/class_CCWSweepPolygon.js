@@ -114,7 +114,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      let candidate_walls = this._getCandidateWalls();
-     candidate_walls = IdentifyIntersections.processWallIntersectionsSimple(candidate_walls); // TO-DO: Move this to only when walls change
+     candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); // TO-DO: Move this to only when walls change
      candidate_walls.forEach(wall => {
        //wall = CCWSweepWall.create(wall, opts); // handled by IdentifyIntersections.processWallIntersectionsSimple
        
