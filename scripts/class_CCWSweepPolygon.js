@@ -113,16 +113,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
-     let candidate_walls = [...this._getCandidateWalls()];
-     
-     
+     let candidate_walls = this._getCandidateWalls();
+     if(!(candidate_walls instanceof Array)) candidate_walls = [...candidate_walls.values()]; 
+
      if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
-       if(!(candidate_walls instanceof Set)) console.error(`$MODULE_ID|initializeEndpoints expected Set for candidate walls.`);
        // construct a specialized light shape
        // radius informs the shape but otherwise is turned off; rely on border walls
        // add these border walls and identify intersections
        // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
-       
+       const origin = this.origin; 
        const rotation = this.config.rotation ?? 0;
        const radius = this.config.radius;
        if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
@@ -139,10 +138,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
           
           // construct walls
-          opts.radius = undefined;
-          this.config.radius = undefined;
-          this.config.hasRadius = false;
-          
           const w1 = new CCWSweepWall(r1.B, r2.B, opts);
           const w2 = new CCWSweepWall(r2.B, r3.B, opts);
           const w3 = new CCWSweepWall(r3.B, r1.B, opts);
@@ -165,10 +160,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          const r4 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
         
          // construct walls
-         opts.radius = undefined;
-         this.config.radius = undefined;
-         this.config.hasRadius = false;
-        
          const w1 = new CCWSweepWall(r1.B, r2.B, opts);
          const w2 = new CCWSweepWall(r2.B, r3.B, opts);
          const w3 = new CCWSweepWall(r3.B, r4.B, opts);
@@ -737,7 +728,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
           pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
       }   
-    
       const collisions_ln = collisions.length;
       let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
       let p_current = {x: collisions[0], y: collisions[1]};
@@ -767,6 +757,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(p_current.x, p_current.y);
         this._addPadding(ray, prior_ray, collisions); 
       }
+      
     }
     this.points = collisions;
   }
