@@ -12,7 +12,7 @@ import { orient2dPoints, COLORS } from "./util.js";
 export class CCWSweepWall extends CCWSightRay {
   constructor(A, B, {origin, radius} = {}) {
     super(A, B);
-
+    
     /* -------------------------------------------- */
     /*  Properties                                  */
     /* -------------------------------------------- */
@@ -56,6 +56,11 @@ export class CCWSweepWall extends CCWSightRay {
      * Distinguish undefined (not yet stored) from [], meaning none found.
      */
     this._radiusIntersections = undefined; 
+    
+    // Re-set A and B given we now have origin and radius set
+    // See setter below
+    this.A = A;
+    this.B = B;
     
   }
   
@@ -129,6 +134,23 @@ export class CCWSweepWall extends CCWSightRay {
     this._radiusIntersections = undefined;
   }
   
+  /**
+   * Make A and B SweepPoints
+   * Useful for consistency in treating endpoints and walls
+   * @type {CCWSweepPoint}
+   */
+   set A(value) {
+     this.A = new CCWSweepPoint(value, { this.origin, this.radius });
+     this._radiusIntersections = undefined;
+   }
+   
+  /**
+   * @type {CCWSweepPoint}
+   */
+   set B(value) {
+     this.B = new CCWSweepPoint(value, { this.origin, this.radius });
+     this._radiusIntersections = undefined;
+   }
   /* -------------------------------------------- */
   /*  Factory Function                            */
   /* -------------------------------------------- */
