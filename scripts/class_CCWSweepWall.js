@@ -1,7 +1,8 @@
+/* globals foundry, CONST */
 'use strict';
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
-import { almostEqual, orient2dPoints, COLORS } from "./util.js";
+import { orient2dPoints, COLORS } from "./util.js";
 
 /*
  * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.
@@ -70,6 +71,11 @@ export class CCWSweepWall extends CCWSightRay {
     return this._id;  
   }
   
+  /**
+   * @type {string}
+   */ 
+  set id(value ) { this._id = value; }
+   
   /*
    * @param {[number, number, number, number]}
    */
@@ -129,10 +135,20 @@ export class CCWSweepWall extends CCWSightRay {
   
   /*
    * Take a wall and convert it to a CCWSweepWall
-   * @param {Wall}  wall
+   * @param {Wall}    wall
+   * @param {Object}  opts    Options passed to CCWSweepWall
    * @return {CCWSweepWall}
    */
-  static createCCWSweepWall(wall, opts = {}) {
+  static create(wall, opts = {}) {
+    
+    if(wall instanceof CCWSweepWall) {
+      // so we can pass a mix of wall & SweepWall
+      // need to update options, if any
+      if(opts?.origin) wall.origin = opts.origin;
+      if(opts?.radius) wall.radius = opts.radius;
+      return wall; 
+    }
+   
     const [x0, y0, x1, y1] = wall.coords;
     const w = new CCWSweepWall({ x: x0, y: y0 },
                                { x: x1, y: y1 }, opts);
@@ -144,6 +160,26 @@ export class CCWSweepWall extends CCWSightRay {
     
     return w;
   }
+  
+ /**
+  * Somewhat specialized method to create a sweep wall with specific coordinates
+  * but attach wall data to it. Used to process intersections between walls.
+  * See CCWSweepPolygon.prototype._processWallIntersections 
+  * @param {PIXI.Point}   A   Passed to CCWSweepWall 
+  * @param {PIXI.Point}   B   Passed to CCWSweepWall
+  * @param {Wall|CCWSweepWall}         wall
+  * @param {Object}  opts    Options passed to CCWSweepWall
+  * @return {CCWSweepWall}
+  */
+  static createFromPoints(A, B, wall, opts = {}) {
+    const w = new CCWSweepWall(A, B, opts);
+    w.isOpen = wall.isOpen;
+    w.data = wall.data;
+    w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
+    return w;
+  }
+  
+  
   
   /* -------------------------------------------- */
   /*  Methods                                     */

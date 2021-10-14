@@ -1,5 +1,7 @@
 'use strict';
 
+/* globals Ray, canvas */
+
 import { ccwPoints, 
          almostEqual, 
          pointsAlmostEqual, 

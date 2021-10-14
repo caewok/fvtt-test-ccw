@@ -1,3 +1,4 @@
+/* globals PIXI, WallEndpoint, canvas */
 'use strict';
 
 import { pointsAlmostEqual, almostEqual, COLORS } from "./util.js";
@@ -160,12 +161,7 @@ export class CCWSweepPoint extends PIXI.Point {
   almostEqual(p) {
     return pointsAlmostEqual(this, p)
   }  
-  
-  /**
-   * Import the WallEndpoint get key method
-   */
-  static getKey = WallEndpoint.getKey;
-  
+    
  /**
   * Draw the point ray (for debugging)
   * @param {number} color
@@ -218,4 +214,13 @@ export class CCWSweepPoint extends PIXI.Point {
      return [...this.walls.values()].some(w => w.data?.[type] === 2);
    }
 }
+
+/**
+ * Import WallEndpoint.getKey as static method.
+ */
+Object.defineProperty(CCWSweepPoint, "getKey", {
+  value: WallEndpoint.getKey,
+  writable: true,
+  configurable: false
+});
 
