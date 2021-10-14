@@ -1,9 +1,10 @@
 /* globals foundry */
 'use strict';
 
-import { arraySwap } from "./util.js";
-import { almostEqual, 
+import { arraySwap, 
+         almostEqual, 
          pointsAlmostEqual, 
+         orient2dPoints,
          COLORS,
          compareXY,
          compareXY_A,
@@ -620,6 +621,18 @@ export class BentleyOttomanSweepIntersections {
       if(a.event === "right" && b.event !== "right") return 1;
       if(a.event === "intersection" && b.event === "right") return -1;
       if(a.event === "intersection" && b.event === "left") return 1;
+      
+      if(a.event === "left" && b.event === "left") {
+        // one segment endpoint on the other segment. 
+        // either sharing an endpoint or in the middle
+        // a.right --> a --> b.right 
+        // CCW: b after a
+        // CW: a after b 
+        // (just to start, will be swapped at the intersection event)
+        // 1 is CCW
+        return orient2dPoints(b.right, a, a.right);
+      }
+            
       return compareYX(a.left, b.left);
     } 
     return res;
