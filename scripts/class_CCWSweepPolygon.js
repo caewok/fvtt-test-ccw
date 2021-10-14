@@ -725,9 +725,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     if(!isLimited) {
       needs_padding = true;
       if(collisions.length > 0 && closest_wall) {
-        needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
-          pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
+        // if the closets wall contains the first collision point, can just use the wall
+        // instead of padding
+        needs_padding = !closest_wall.contains({x: collisions[0], y: collisions[1]})
       }   
+      if(needs_padding) {
       const collisions_ln = collisions.length;
       let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
       let p_current = {x: collisions[0], y: collisions[1]};
@@ -757,7 +759,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         collisions.push(p_current.x, p_current.y);
         this._addPadding(ray, prior_ray, collisions); 
       }
-      
+      }
     }
     this.points = collisions;
   }
