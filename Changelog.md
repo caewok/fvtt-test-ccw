@@ -1,3 +1,13 @@
+# 0.1.3
+Pre-process walls to detect intersections of overlapping walls.
+Add API hook to toggle intersection detection on/off.
+Create intersection processing classes with three algorithms:
+- Brute force
+- Simple sweep that runs brute force but only for walls within the x values for the left and right endpoints of each wall.
+- Bentley-Ottoman sweep
+
+Modify BinarySearchTree to accept a comparison function. 
+
 # 0.1.2
 Bug fixes for terrain walls with lighting.
 
