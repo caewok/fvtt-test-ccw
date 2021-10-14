@@ -54,7 +54,7 @@ export class IdentifyIntersections {
       finished_walls.push(new_w);
       remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
     });
-    finished_walls.push(wall)
+    finished_walls.push(remainder)
     
     return finished_walls;
   }
@@ -662,7 +662,7 @@ export class BentleyOttomanSweepIntersections {
   * @param {Object} s2
   * @private
   */
-  _testForSweepIntersection(s1, s2) {
+  _testForSweepIntersection(s1, s2, e) {
     if(!s1) return;
     if(!s2) return;
     
