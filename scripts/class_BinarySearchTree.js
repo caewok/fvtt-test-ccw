@@ -12,8 +12,14 @@ https://www.geeksforgeeks.org/implementation-binary-search-tree-javascript/
 /*
 bst = new BinarySearchTree();
 bst.insert({score: 15});
+node = bst.find({score: 15});
+bst.previous(node); // undefined
+bst.next(node); // undefined
+
 arr = [15, 25, 10, 7, 22, 17, 13, 5, 9, 27];
-arr = arr.map(a => {score: a});
+arr = arr.map(a => {
+  return {score: a};
+});
 
 arr.forEach(a => bst.insert(a));
 bst.inorder();
@@ -32,6 +38,28 @@ bst.inorder();
 bst.pullMaxNode();
 bst.inorder()
 
+// from end right side
+node = bst.find({score: 17})
+bst.previous(node)?.data
+bst.next(node)?.data
+
+node = bst.findMinNode()
+bst.previous(node)?.data
+bst.next(node)?.data
+
+node = bst.findMaxNode()
+bst.previous(node)?.data
+bst.next(node)?.data
+
+// from root
+node = bst.find({score: 15})
+bst.previous(node)?.data
+bst.next(node)?.data
+
+// from end left side
+node = bst.find({score: 13})
+bst.previous(node)?.data
+bst.next(node)?.data
 
 */
 
@@ -56,9 +84,11 @@ class Node {
  * @property {Node|null}  root  Base node of the tree. Null if tree is empty
  */
 export class BinarySearchTree {
-  constructor() {
+  constructor(comparefn = (a, b) => { return a === b ? 0 : a < b ? -1 : 1 } ) {
     this.root = null;
     this.count = 0; // for getting the Nth node
+    this.size = 0;  // how many nodes in the tree
+    this.compare = comparefn;
   }
   
   /* -------------------------------------------- */
@@ -76,11 +106,11 @@ export class BinarySearchTree {
    * @param {Object} b  Node data object
    * @return {-1|0|1} 
    */
-  compare(a, b) {
-    return (a.score === b.score) ? 0 : 
-           (a.score < b.score) ? -1 : 1; 
-  }
-  
+//   compare(a, b) {
+//     return (a.score === b.score) ? 0 : 
+//            (a.score < b.score) ? -1 : 1; 
+//   }
+//   
   /*
    * User-facing helper method to add data to the tree.
    * @param {Object} data   Node data to insert
@@ -94,6 +124,7 @@ export class BinarySearchTree {
     } else {
       this._insertNode(this.root, newNode);
     }
+    this.size += 1;
   }
   
   /*
@@ -134,8 +165,10 @@ export class BinarySearchTree {
    * @param {Object} data   Node data to remove
    */
   remove(data) {
+    if(this.size < 1) return;
     // create a new root with the modified tree
     this.root = this._removeNode(this.root, data);
+    this.size -= 1;
   }
   
   /*
@@ -146,7 +179,7 @@ export class BinarySearchTree {
    */
   _removeNode(node, key) {
     // if root is empty, we can stop
-    if(node === null) { return; }
+    if(node === null) { return null; }
     
     const c = this.compare(key, node.data);
     
@@ -172,11 +205,16 @@ export class BinarySearchTree {
     
     // node has one child
     if(node.left === null) {
-      node = node.right;
-      return node;
+      //node = node.right;
+      //return node;
+      node.right.parent = node.parent;
+      return node.right;
+      
     } else if(node.right === null) {
-      node = node.left;
-      return node;
+      //node = node.left;
+      //return node;
+      node.left.parent = node.parent;
+      return node.left;
     } 
     
     // two children
@@ -202,7 +240,7 @@ export class BinarySearchTree {
     let found = false;
     
     while(current && !found) {
-      const c = this.compare(data, current);
+      const c = this.compare(data, current.data);
       if(c < 0) {
         current = current.left;
       } else if(c > 0) {
@@ -233,21 +271,17 @@ export class BinarySearchTree {
       return undefined;
     }
     
-    const c = this.compare(node, node.parent.left);
-    if(c === 0) {
-      // node is a left leaf. 
-      return node.parent;
-    }
-  
-    // if this is a right leaf, need to move up two parents
-    if(node.parent.parent === undefined) {
-      // node.parent is root
-      // go right from root
-      return this.findMinNode(node.parent.right);
+    if(node.parent.left) {
+      const c = this.compare(node.data, node.parent.left.data);
+      if(c === 0) {
+        // node is a left leaf. 
+        return node.parent;
+      }
     }
     
-    // can return the parent
-    return node.parent.parent;
+    // must be a right leaf
+    // need to find the first parent that branches to the left, if any
+    return this._firstLeftParent(node.parent);
   }
   
  /**
@@ -261,29 +295,60 @@ export class BinarySearchTree {
       return this.findMaxNode(node.left);
     }
     
-    // we are at an end leaf. If this is a right leaf, the parent is the answer
+    // we are at an end leaf
     if(!node.parent) {
       // we are at root.
       // left side doesn't exist so return undefined
       return undefined;
     }
     
-    const c = this.compare(node, node.parent.right);
-    if(c === 0) {
-      // node is a right leaf
-      return node.parent;
+    // If this is a right leaf, the parent is the answer
+    if(node.parent.right) {
+      // node parent exists to the right -- is this us?
+    
+      const c = this.compare(node.data, node.parent.right.data);
+      if(c === 0) {
+        // node is a right leaf
+        return node.parent;
+      }
     }
     
-    // if this is a left leaf, need to move up two parents
-    if(node.parent.parent === undefined) {
-      // node.parent is root
-      // go left from root
-      return this.findMaxNode(node.parent.left);
-    }
-    
-    // can return the parent
-    return node.parent.parent; d
+    // must be a left leaf
+    // need to find the first parent that branches to the right, if any
+    return this._firstRightParent(node.parent);
   }
+  
+ /**
+  * Helper function to find the first right parent
+  * @param {Node} node
+  * @return {Node|undefined}
+  * @private
+  */
+  _firstRightParent(node) {
+    if(!node.parent) return undefined;
+    if(!node.parent.right) return this._firstRightParent(node.parent);
+    
+    // are we to the right of parent? If yes, found it.
+    const c = this.compare(node.data, node.parent.right.data);
+    if(c === 0) { return node.parent; }
+    return this._firstRightParent(node.parent);  
+  } 
+  
+ /**
+  * Helper function to find the first left parent
+  * @param {Node} node
+  * @return {Node|undefined}
+  * @private
+  */
+  _firstLeftParent(node) {
+    if(!node.parent) return undefined;
+    if(!node.parent.left) return this._firstLeftParent(node.parent);
+    
+    // are we to the left of parent? If yes, found it.
+    const c = this.compare(node.data, node.parent.left.data);
+    if(c === 0) { return node.parent; }
+    return this._firstLeftParent(node.parent);  
+  } 
       
  /**
   * Start at given subtree and traverse the tree
@@ -373,8 +438,10 @@ export class BinarySearchTree {
    * @return {Object} Data from the removed node.
    */
   pullMinNode() {
+    if(this.size < 1) return undefined;
     const res = this._pullMinNode(this.root);
     this.root = res.node;
+    this.size -= 1;
     return res.data;
   }
   
@@ -405,8 +472,10 @@ export class BinarySearchTree {
    * @return {Object} Data from the removed node.
    */
   pullMaxNode() {
+    if(this.size < 1) return undefined;
     const res = this._pullMaxNode(this.root);
     this.root = res.node;
+    this.size -= 1;
     return res.data;
   }
   
