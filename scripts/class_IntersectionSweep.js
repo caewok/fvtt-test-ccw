@@ -150,7 +150,7 @@ export class IdentifyIntersections {
           // here, e.left is the intersection point
           // remainders are created above as A: left, B: right
           // count the intersection unless it is an endpoint of that wall
-          const i_point = e.left;
+          const i_point = e.left; // could just use e but this saves a few calcs.
           e.walls.forEach(w => {
             const curr_remainder = remainders.get(w.id);
             
@@ -447,8 +447,8 @@ export class BentleyOttomanSweepIntersections {
     
     //this._removeFromSweepIntersection(s1, s2, event_queue);
     
-    this._testForSweepIntersection(s1, e);
-    this._testForSweepIntersection(e, s2);
+    this._testForSweepIntersection(s1, e, e);
+    this._testForSweepIntersection(e, s2, e);
   }
   
  /**
@@ -463,7 +463,7 @@ export class BentleyOttomanSweepIntersections {
     const i = this.sweep_status.findIndex(elem => elem.id === e.id);
     const s1 = this.sweep_status[i - 1]; // above
     const s2 = this.sweep_status[i + 1]; // below
-    this._testForSweepIntersection(s1, s2);
+    this._testForSweepIntersection(s1, s2, e);
     this.sweep_status.splice(i, 1); // drop the e segment from sweep queue
   }
   
@@ -502,9 +502,9 @@ export class BentleyOttomanSweepIntersections {
     // this._removeFromSweepIntersection(this.sweep_status[top_idx], this.sweep_status[above_idx], event_queue);
     // this._removeFromSweepIntersection(this.sweep_status[bottom_idx], this.sweep_status[below_idx], event_queue);
     this._testForSweepIntersection(this.sweep_status[bottom_idx], 
-                                   this.sweep_status[above_idx]);
+                                   this.sweep_status[above_idx], e);
     this._testForSweepIntersection(this.sweep_status[top_idx],
-                                   this.sweep_status[below_idx]);
+                                   this.sweep_status[below_idx], e);
     
     // need to swap lowest with highest, 
     // second-lowest with second-highest, etc.
@@ -681,8 +681,13 @@ export class BentleyOttomanSweepIntersections {
                       pointsAlmostEqual(s2.right, intersection)
     if(endpoint1 && endpoint2) return;
     
+    
     // construct the intersection so we can find it in the queue if it exists
     const new_intersection = new IntersectionSweepEvent("intersection", { intersection: intersection });
+    
+    // if the intersection is in the past, skip
+    if(this.compareXY(new_intersection, e) === -1) return;
+    
     let existing_intersection = this.event_queue.find(new_intersection);
     if(existing_intersection) {
       // update with additional wall(s)
