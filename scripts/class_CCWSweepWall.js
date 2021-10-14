@@ -2,6 +2,7 @@
 'use strict';
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
+import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
 import { orient2dPoints, COLORS } from "./util.js";
 
 /*
@@ -140,7 +141,7 @@ export class CCWSweepWall extends CCWSightRay {
    * @type {CCWSweepPoint}
    */
    set A(value) {
-     this.A = new CCWSweepPoint(value, { this.origin, this.radius });
+     this.A = new CCWSweepPoint(value, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
    }
    
@@ -148,7 +149,7 @@ export class CCWSweepWall extends CCWSightRay {
    * @type {CCWSweepPoint}
    */
    set B(value) {
-     this.B = new CCWSweepPoint(value, { this.origin, this.radius });
+     this.B = new CCWSweepPoint(value, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
    }
   /* -------------------------------------------- */
