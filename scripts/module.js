@@ -56,6 +56,7 @@ Hooks.once('init', async function() {
   *                               numerical overrides or if false, a faster version 
   *                               without such checks.
   * {Boolean}   detect_intersections Pre-process to detect and fix overlapping walls.
+  * {"circle"|"triangle"|"square"}    light_shape       Shape of light. 
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
   * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
@@ -72,6 +73,8 @@ Hooks.once('init', async function() {
     use_bezier: false, 
     use_robust_ccw: true, 
     detect_intersections: true,
+    light_shape: "circle",
+    
     benchmark: testCCWBenchmarkSight,
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
