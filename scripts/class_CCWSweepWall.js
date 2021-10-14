@@ -144,8 +144,8 @@ export class CCWSweepWall extends CCWSightRay {
     if(wall instanceof CCWSweepWall) {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
-      if(opts?.origin) wall.origin = origin;
-      if(opts?.radius) wall.radius = radius;
+      if(opts?.origin) wall.origin = opts.origin;
+      if(opts?.radius) wall.radius = opts.radius;
       return wall; 
     }
    
