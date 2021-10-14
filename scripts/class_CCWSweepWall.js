@@ -13,6 +13,11 @@ import { orient2dPoints, COLORS } from "./util.js";
 export class CCWSweepWall extends CCWSightRay {
   constructor(A, B, {origin, radius} = {}) {
     super(A, B);
+
+    // Re-set A and B with origin and radius
+    // See setter below
+    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });;
+    this._B = new CCWSweepPoint(B.x, B.y, { origin, radius });
     
     /* -------------------------------------------- */
     /*  Properties                                  */
@@ -58,10 +63,6 @@ export class CCWSweepWall extends CCWSightRay {
      */
     this._radiusIntersections = undefined; 
     
-    // Re-set A and B given we now have origin and radius set
-    // See setter below
-    this.A = A;
-    this.B = B;
     
   }
   
@@ -123,6 +124,8 @@ export class CCWSweepWall extends CCWSightRay {
    */
   set origin(value) {
     this._origin = value;
+    this.A.origin = value;
+    this.B.origin = value;
     this._radiusIntersections = undefined;
   }
   
@@ -132,6 +135,8 @@ export class CCWSweepWall extends CCWSightRay {
    */
   set radius(value) {
     this._radius = value;
+    this.A.radius = value;
+    this.B.radius = value;
     this._radiusIntersections = undefined;
   }
   
@@ -140,16 +145,18 @@ export class CCWSweepWall extends CCWSightRay {
    * Useful for consistency in treating endpoints and walls
    * @type {CCWSweepPoint}
    */
+   get A() { return this._A; }
    set A(value) {
-     this.A = new CCWSweepPoint(value, { origin: this.origin, radius: this.radius });
+     this._A = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
    }
    
   /**
    * @type {CCWSweepPoint}
    */
+   get B() { return this._B; }
    set B(value) {
-     this.B = new CCWSweepPoint(value, { origin: this.origin, radius: this.radius });
+     this._B = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
    }
   /* -------------------------------------------- */
