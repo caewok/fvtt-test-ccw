@@ -113,7 +113,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
-     let candidate_walls = this._getCandidateWalls();
+     let candidate_walls = [...this._getCandidateWalls()];
      
      
      if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
@@ -123,7 +123,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // add these border walls and identify intersections
        // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
        
-       const rot = this.config.rotation ?? 0;
+       const rotation = this.config.rotation ?? 0;
+       const radius = this.config.radius;
        if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
           // equilateral triangle with 1 point facing due north
           // potentially rotated by rotation angle
@@ -140,14 +141,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           // construct walls
           opts.radius = undefined;
           this.config.radius = undefined;
+          this.config.hasRadius = false;
           
           const w1 = new CCWSweepWall(r1.B, r2.B, opts);
           const w2 = new CCWSweepWall(r2.B, r3.B, opts);
           const w3 = new CCWSweepWall(r3.B, r1.B, opts);
-          
-          candidate_walls.add(w1);
-          candidate_walls.add(w2);
-          candidate_walls.add(w3); 
+
+          candidate_walls.push(w1);
+          candidate_walls.push(w2);
+          candidate_walls.push(w3); 
        } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
          // square where center/origin to corners === radius
          // square is aligned horizontally/vertically if rotation === 0
@@ -165,16 +167,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          // construct walls
          opts.radius = undefined;
          this.config.radius = undefined;
+         this.config.hasRadius = false;
         
          const w1 = new CCWSweepWall(r1.B, r2.B, opts);
          const w2 = new CCWSweepWall(r2.B, r3.B, opts);
          const w3 = new CCWSweepWall(r3.B, r4.B, opts);
          const w4 = new CCWSweepWall(r4.B, r1.B, opts);
         
-         candidate_walls.add(w1);
-         candidate_walls.add(w2);
-         candidate_walls.add(w3); 
-         candidate_walls.add(w4); 
+         candidate_walls.push(w1);
+         candidate_walls.push(w2);
+         candidate_walls.push(w3); 
+         candidate_walls.push(w4); 
        }
      
       

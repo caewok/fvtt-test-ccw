@@ -23,22 +23,24 @@ export class CCWSweepWall extends CCWSightRay {
     /*  Properties                                  */
     /* -------------------------------------------- */
 
+    // set reasonable defaults for some properties 
+
     /**
      * Is this wall door open? False if not a door or closed.
      * @type {boolean} 
      */
-    this.isOpen;
+    this.isOpen = false;
    
     /*
      * Wall data
      * @type {object}   
      */
-    this.data;
+    this.data = {light: 1, move: 1, sight: 1, sound: 1, dir: 0, door: 0};
     
     /*
      * Does the wall have a reference to a roof that is occluded?
      */
-    this.isInterior;
+    this.isInterior = false;
     
     /**
      * Origin for the sweep.
