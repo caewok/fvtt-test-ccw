@@ -55,6 +55,7 @@ Hooks.once('init', async function() {
   * {Boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
   *                               numerical overrides or if false, a faster version 
   *                               without such checks.
+  * {Boolean}   detect_intersections Pre-process to detect and fix overlapping walls.
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
   * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
@@ -70,6 +71,7 @@ Hooks.once('init', async function() {
     debug: false, 
     use_bezier: false, 
     use_robust_ccw: true, 
+    detect_intersections: true,
     benchmark: testCCWBenchmarkSight,
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
