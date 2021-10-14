@@ -799,13 +799,16 @@ export class IntersectionSweepEvent {
     return this.slope * x + this.y_intercept;
   }
   
-  draw(color = COLORS.red, alpha = 1, width = 1) {
+  draw(color, alpha = 1, width = 1) {
+    if(!color) color = this.event === "right" ? COLORS.black : COLORS.red;
+  
     if(this.event === "intersection") {
       const pt = new CCWSweepPoint(this.x, this.y);
       pt.draw(color, alpha)
     } else {
       const r = new CCWSightRay({ x: this.left.x, y: this.left.y },
                                 { x: this.right.x, y: this.right.y });
+     
      r.draw(color, alpha, width);                           
     
     }
