@@ -140,8 +140,14 @@ export class CCWSweepWall extends CCWSightRay {
    * @return {CCWSweepWall}
    */
   static create(wall, opts = {}) {
-    if(wall instanceof CCWSweepWall) return wall; 
-    // so we can pass a mix of wall & SweepWall
+    
+    if(wall instanceof CCWSweepWall) {
+      // so we can pass a mix of wall & SweepWall
+      // need to update options, if any
+      if(opts?.origin) wall.origin = origin;
+      if(opts?.radius) wall.radius = radius;
+      return wall; 
+    }
    
     const [x0, y0, x1, y1] = wall.coords;
     const w = new CCWSweepWall({ x: x0, y: y0 },

@@ -116,7 +116,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      let candidate_walls = this._getCandidateWalls();
      candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); // TO-DO: Move this to only when walls change
      candidate_walls.forEach(wall => {
-       //wall = CCWSweepWall.create(wall, opts); // handled by IdentifyIntersections.processWallIntersectionsSimple
+       wall = CCWSweepWall.create(wall, opts); // Even if IdentifyIntersections used, stil need to update origin and radius
        
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
