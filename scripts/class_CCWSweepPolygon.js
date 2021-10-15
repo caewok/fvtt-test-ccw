@@ -180,6 +180,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      candidate_walls.forEach(wall => {
        wall = CCWSweepWall.create(wall, opts); // Even if IdentifyIntersections used, stil need to update origin and radius
        
+       // All actual walls have integer endpoints
+       // TO-DO: Move outside loop; need only be run with IdentifyIntersections
+       wall.A = Math.round(wall.A); 
+       wall.B = Math.round(wall.B);
+       
+       
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
        
@@ -364,6 +370,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     if(isLimited) {
       let start_wall = undefined;
       let end_wall = undefined;
+      
       if(!hasRadius) {
          // if not radius-limited, we need the canvas wall that each ray intersects, if any
          const canvas_pts = [{ x: 0, y: 0 }, 
