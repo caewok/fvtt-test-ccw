@@ -11,7 +11,7 @@ import { MODULE_ID } from "./module.js"
 // works, so that once an intersection point is found, it is determined to be 
 // on the line for any future tests, like for contains.
 // See Number.EPSILON for smallest possible error number.
-const PRESET_EPSILON = 1e-8;
+export const PRESET_EPSILON = 1e-8;
 
 
 // Simple set of colors for drawing and debugging 

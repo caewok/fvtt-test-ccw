@@ -6,7 +6,8 @@ import { ccwPoints,
          almostEqual, 
          pointsAlmostEqual, 
          rootsReal,
-         COLORS } from "./util.js";
+         COLORS,
+         PRESET_EPSILON } from "./util.js";
 
 /*
  * Subclass of Ray used specifically for computing in the CCW Sweep algorithm.
@@ -79,9 +80,10 @@ export class CCWSightRay extends Ray {
    * @param {x: number, y: number} p   Point to test
    * @param {object} [options] 
    * @param {boolean} [options.assume_collinear] Option to skip the collinearity test.
+   * @param {number} [options.EPSILON]  How exact do we want to be? 
    * @return{boolean} Does segment include point?
    */
-  contains(p, {assume_collinear = false} = {}) {
+  contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
     // ensure the point is collinear with this ray
     if(!assume_collinear && ccwPoints(this.A, this.B, p) !== 0) return false;
 
@@ -97,11 +99,11 @@ export class CCWSightRay extends Ray {
     const max_y = Math.max(this.A.y, this.B.y);
     const min_y = Math.min(this.A.y, this.B.y);
 
-    const within_x = ((p.x < max_x || almostEqual(p.x, max_x)) &&
-                (p.x > min_x || almostEqual(p.x, min_x)));
+    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, EPSILON)) &&
+                (p.x > min_x || almostEqual(p.x, min_x, EPSILON)));
 
-    const within_y = ((p.y < max_y || almostEqual(p.y, max_y)) &&
-                (p.y > min_y || almostEqual(p.y, min_y)));
+    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, EPSILON)) &&
+                (p.y > min_y || almostEqual(p.y, min_y, EPSILON)));
  
     return within_x && within_y;
   }
@@ -191,7 +193,12 @@ export class CCWSightRay extends Ray {
     const intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
-    return intersections.filter(i => this.contains(i, {assume_collinear: true}));
+    // if we are within a pixel of the circle, it counts.
+    // the potentialIntersectionsWithCircle calculation is not robust, and 
+    // so it is possible to have a line endpoint nearly on the circle, with 
+    // unpredictable results as to whether the line endpoint meets the intersection. 
+    // Thus, we need to back off the precision.
+    return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
   }
   
   /**
