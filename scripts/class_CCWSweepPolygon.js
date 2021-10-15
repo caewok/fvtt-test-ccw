@@ -182,8 +182,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        // All actual walls have integer endpoints
        // TO-DO: Move outside loop; need only be run with IdentifyIntersections
-       wall.A = Math.round(wall.A); 
-       wall.B = Math.round(wall.B);
+       wall.A.round();
+       wall.B.round();
        
        
        // Test whether a wall should be included in the set considered for this polygon

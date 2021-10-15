@@ -145,6 +145,19 @@ export class CCWSweepPoint extends PIXI.Point {
   /* -------------------------------------------- */
 
  /**
+  * Round this endpoint to the nearest integer.
+  * Reset any cached values.
+  * (key remains same b/c that already used rounded values)
+  */
+  round() {
+    this.x = Math.round(this.x);
+    this.y = Math.round(this.y);
+    this._distanceSquaredToOrigin = undefined;
+    this._insideRadius = undefined;
+    this._updateCirclePoints();
+  }
+
+ /**
   * Three points of the circle defined by origin (center) and radius.
   * Used when testing incircle.
   * Arranged counterclockwise. E, N, W
