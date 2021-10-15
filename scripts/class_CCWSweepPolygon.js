@@ -739,7 +739,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           collisions.push(prior.x, prior.y);  
         }
       
-        if(coll_ln === 1) {
+        if(coll_ln < 2) {
           // add antipodal point to facilitate padding 360º
           // don't add to collisions yet (will do after padding first half)
           next = { x: origin.x - (collisions[0] - origin.x),
