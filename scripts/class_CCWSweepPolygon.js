@@ -122,11 +122,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // add these border walls and identify intersections
        // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
        if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
-         const triangle_walls = constructGeometricShapeWalls([0, 120, 240]);
+         const triangle_walls = this.constructGeometricShapeWalls([0, 120, 240]);
          candidate_walls.push(...triangle_walls);
        
        } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
-         const square_walls = constructGeometricShapeWalls([0, 90, 180, 270]);
+         const square_walls = this.constructGeometricShapeWalls([0, 90, 180, 270]);
          candidate_walls.push(...square_walls);
        }
 
@@ -952,6 +952,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    
   static getRayCollisions(ray, {type="move", mode="all"}={}) {
      const candidate_walls = [...canvas.walls.quadtree.getObjects(ray.bounds)];
+     
+     // add artificial borders for light, if any
+     if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
+       if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
+         const triangle_walls = this.constructGeometricShapeWalls([0, 120, 240]);
+         candidate_walls.push(...triangle_walls);
+       
+       } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
+         const square_walls = this.constructGeometricShapeWalls([0, 90, 180, 270]);
+         candidate_walls.push(...square_walls);
+       }
+     }
+     
      
      const ln = candidate_walls.length;
      
