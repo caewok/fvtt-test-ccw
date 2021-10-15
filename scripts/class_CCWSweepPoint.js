@@ -1,7 +1,7 @@
 /* globals PIXI, WallEndpoint, canvas */
 'use strict';
 
-import { pointsAlmostEqual, almostEqual, incircle, COLORS } from "./util.js";
+import { pointsAlmostEqual, almostEqual, inCirclePoints, COLORS } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
@@ -107,13 +107,10 @@ export class CCWSweepPoint extends PIXI.Point {
   get insideRadius() {
     if(!this.hasRadius || !this.origin) return undefined;
     if(this._insideRadius === undefined) { 
-      const res = incircle(this._circlePoints[0].x,
-                           this._circlePoints[0].y,
-                           this._circlePoints[1].x,
-                           this._circlePoints[1].y,
-                           this._circlePoints[2].x,
-                           this._circlePoints[2].y,
-                           this.x, this.y);
+      const res = inCirclePoints(this._circlePoints[0],
+                                 this._circlePoints[1],
+                                 this._circlePoints[2],
+                                 this);
                            
       this._insideRadius = almostEqual(res, 0) ? true :  // on the circle
                            res > 0 ? false : true;                     

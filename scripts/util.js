@@ -108,6 +108,29 @@ export function orient2dPoints(p1, p2, p3) {
 }
 
 /**
+ * Given three counter-clockwise points that define a circle, is this fourth point
+ * within the circle?
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @param {x, y} p4   Point in {x, y} format.
+ * @return {Number}   Positive if outside circle, Negative if inside, 0 if on circle
+ */
+export function inCirclePoints(p1, p2, p3, p4) {
+   if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
+    return incirclefast(p1.x, p1.y,
+                        p2.x, p2.y,
+                        p3.x, p3.y,
+                        p4.x, p4.y);
+  }
+
+  return incircle(p1.x, p1.y,
+                  p2.x, p2.y,
+                  p3.x, p3.y,
+                  p4.x, p4.y);
+}
+
+/**
  * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
  * @param {x, y} p1   Point in {x, y} format.
  * @param {x, y} p2   Point in {x, y} format.
