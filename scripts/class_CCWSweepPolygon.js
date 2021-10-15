@@ -171,7 +171,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          candidate_walls.push(w4); 
        }
      
-      
+//       this.config.radius = undefined;
+ //      opts.radius = undefined;
+//       this.config.hasRadius = false;    
      }
      
      if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
@@ -635,7 +637,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
           // add the intersection point unless we already did
           // (occurs at join points of two walls)
-          if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+          // Possible that the intersection is a floating point and thus
+          // must test almost equal, not endpoint keys
+          if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
         
           // if the ray does not actually intersect the closest wall, we need to add padding
           if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
