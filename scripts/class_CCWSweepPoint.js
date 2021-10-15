@@ -1,7 +1,7 @@
 /* globals PIXI, WallEndpoint, canvas */
 'use strict';
 
-import { pointsAlmostEqual, almostEqual, COLORS } from "./util.js";
+import { pointsAlmostEqual, almostEqual, incircle, COLORS } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.
@@ -50,6 +50,8 @@ export class CCWSweepPoint extends PIXI.Point {
      */
     this._radius = radius;
     
+    this._updateCirclePoints();
+    
     /**
      * Cache whether this point is inside the FOV radius.
      * @type {boolean}
@@ -69,16 +71,16 @@ export class CCWSweepPoint extends PIXI.Point {
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
   
-  /**
-   * @param {number}
-   */
+ /**
+  * @type {number}
+  */
   get radius() { return this._radius; }
   
-  /**
-   * @param {x: number, y: number}
-   */
+ /**
+  * @type {x: number, y: number}
+  */
   get origin() { return this._origin; }
-  
+    
   /** 
    * Is this point associated with a radius? Radius 0 does not count.
    * @return {boolean}
@@ -89,6 +91,7 @@ export class CCWSweepPoint extends PIXI.Point {
   
   /**
    * Distance squared to origin. Used for comparisons.
+   * @type {number}
    */
   get distanceSquaredToOrigin() {
     if(this._distanceSquaredToOrigin === undefined) {
@@ -99,14 +102,21 @@ export class CCWSweepPoint extends PIXI.Point {
     
   /**
    * Is this point inside the FOV radius?
-   * @return {undefined|boolean}
+   * @type {undefined|boolean}
    */
   get insideRadius() {
-    if(!this.hasRadius) return undefined;
+    if(!this.hasRadius || !this.origin) return undefined;
     if(this._insideRadius === undefined) { 
-      const r2 = this.radius * this.radius;
-      this._insideRadius = this.distanceSquaredToOrigin < r2 ||
-                           almostEqual(this.distanceSquaredToOrigin, r2);
+      const res = incircle(this._circlePoints[0].x,
+                           this._circlePoints[0].y,
+                           this._circlePoints[1].x,
+                           this._circlePoints[1].y,
+                           this._circlePoints[2].x,
+                           this._circlePoints[2].y,
+                           this.x, this.y);
+                           
+      this._insideRadius = almostEqual(res, 0) ? true :  // on the circle
+                           res > 0 ? false : true;                     
     }
     return this._insideRadius;
   }
@@ -119,6 +129,7 @@ export class CCWSweepPoint extends PIXI.Point {
     this._origin = value;
     this._distanceSquaredToOrigin = undefined;
     this._insideRadius = undefined;
+    this._updateCirclePoints();
   }
   
   /**
@@ -128,12 +139,29 @@ export class CCWSweepPoint extends PIXI.Point {
   set radius(value) {
     this._radius = value;
     this._insideRadius = undefined;
+    this._updateCirclePoints();
   }
   
 
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
+
+ /**
+  * Three points of the circle defined by origin (center) and radius.
+  * Used when testing incircle.
+  * Arranged counterclockwise. E, N, W
+  * @type {[PIXI.Point, PIXI.Point, PIXI.Point]}
+  * @private
+  */
+  _updateCirclePoints() {
+     this._circlePoints = (this.radius === undefined || !this.origin) ?
+                            undefined : 
+                            [{ x: this.origin.x + this.radius, y: this.origin.y },
+                            { x: this.origin.x, y: this.origin.y - this.radius },
+                            { x: this.origin.x - this.radius, y: this.origin.y }];
+  }
+  
   
   /**
    * Distance squared used for comparisons.
