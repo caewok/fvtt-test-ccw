@@ -117,6 +117,8 @@ export function orient2dPoints(p1, p2, p3) {
  * @return {Number}   Positive if outside circle, Negative if inside, 0 if on circle
  */
 export function inCirclePoints(p1, p2, p3, p4) {
+  if(!p1 || !p2 || !p3 || !p4) console.warn(`${MODULE_ID}|point undefined`, p1, p2, p3, p4);
+
    if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
     return incirclefast(p1.x, p1.y,
                         p2.x, p2.y,
