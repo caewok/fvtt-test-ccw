@@ -709,58 +709,54 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     }
     
-    // catch when the last endpoint needs padding to the previous collision
+    // catch when the last collision point needs padding to the first point
+    // the above algorithm will flag when that happens, but there are also special cases.
+    if(isLimited) needs_padding = false;
+    
+    const coll_ln = collisions.length;
+    if(coll_ln < 3) needs_padding = true; // no way to have 2 points encompass vision
+    
     if(needs_padding) {
-      // copied from padding above
-      const l = collisions.length;
-      const last_collision = { x: collisions[l - 4], y: collisions[l - 3] };
-      const last_endpoint = { x: collisions[l - 2], y: collisions[l - 1] };
-      const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
-      const ray = CCWSightRay.fromReference(origin, last_endpoint, radius);
-      this._addPadding(prior_ray, ray, collisions);
-      needs_padding = false;
-    }
+      // next two might have undefined, depending on number of collisions
+      // will be fixed below
+      let prior = { x: collisions[coll_ln - 2], y: collisions[coll_ln - 1] };
+      let next = { x: collisions[0], y: collisions[1] };
+      
+      // if the last collision and the first collision are on the same (closest) wall,
+      // don't need to pad---polygon will fill in along the wall
+      if(needs_padding && 
+         coll_ln >= 4 && 
+         closest_wall && 
+         closest_wall.contains(prior) && 
+         closest_wall.contains(next)) { 
+        needs_padding = false;
+      } 
     
-    // close between last / first endpoint
-    // deal with unique case where there are no endpoints
-    // (no blocking walls for radius vision)
-    if(!isLimited) {
-      needs_padding = true;
-      if(collisions.length > 0 && closest_wall) {
-        // if the closets wall contains the first collision point, can just use the wall
-        // instead of padding
-        needs_padding = !closest_wall.contains({x: collisions[0], y: collisions[1]})
-      }   
       if(needs_padding) {
-      const collisions_ln = collisions.length;
-      let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
-      let p_current = {x: collisions[0], y: collisions[1]};
+        if(coll_ln === 0) {
+          // pick an appropriate point
+          prior = { x: origin.x - radius, y: origin.y };
+          collisions.push(prior.x, prior.y);  
+        }
       
-      // if 0 or 1 collisions, then just pick an appropriate point
-      // padding is best done by hemisphere in that case
-      if(collisions_ln === 0) {
-        p_last = { x: origin.x - radius, y: origin.y }; 
-        p_current = { x: origin.x + radius, y: origin.y }
-    
-        collisions.push(p_last.x, p_last.y);
-    
-      } else if(collisions_ln === 1) {
-        // get antipodal point
-        p_last = { x: origin.x - (p_current.x - origin.x),
-                   y: origin.y - (p_current.y - origin.y) }
-      }
+        if(coll_ln === 1) {
+          // add antipodal point to facilitate padding 360º
+          // don't add to collisions yet (will do after padding first half)
+          next = { x: origin.x - (collisions[0] - origin.x),
+                   y: origin.y - (collisions[1] - origin.y) };
+        }
+          
+        // draw an arc from where the collisions ended to the ray for the first collision
+        // basically same as padding in the algorithm for loop above
+        const prior_ray = CCWSightRay.fromReference(origin, prior, radius);
+        const ray = CCWSightRay.fromReference(origin, next, radius);
+        this._addPadding(prior_ray, ray, collisions);
       
-      // draw an arc from where the collisions ended to the ray for the new endpoint
-      const prior_ray = CCWSightRay.fromReference(origin, p_last, radius);
-      const ray = CCWSightRay.fromReference(origin, p_current, radius);
-        
-      this._addPadding(prior_ray, ray, collisions);
-
-      if(collisions_ln < 2) {
-        // get the second half by swapping the two rays
-        collisions.push(p_current.x, p_current.y);
-        this._addPadding(ray, prior_ray, collisions); 
-      }
+        if(coll_ln < 2) {
+          // we added collision point #2, so we need to also connect #1 to #2
+          collisions.push(next.x, next.y);
+          this._addPadding(ray, prior_ray, collisions); 
+        }
       }
     }
     this.points = collisions;
