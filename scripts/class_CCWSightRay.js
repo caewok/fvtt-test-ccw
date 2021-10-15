@@ -3,7 +3,6 @@
 /* globals Ray, canvas */
 
 import { ccwPoints, 
-         inCirclePoints,
          outsideCircle,
          almostEqual, 
          pointsAlmostEqual, 
@@ -61,7 +60,7 @@ export class CCWSightRay extends Ray {
    * @param {number} dist Length of the desired ray
    * @return {Ray} New ray with the projected distance
    */
-  projectDistance(dist, , { fromEndpoint = "A" }) {
+  projectDistance(dist, { fromEndpoint = "A" } = {}) {
     const r = this.projectSquaredDistance(dist * dist, { fromEndpoint });
     
     // unclear whether we should force distance to equal the provided distance
@@ -77,7 +76,7 @@ export class CCWSightRay extends Ray {
   * @param {number} squared_distance Squared distance of the desired ray
   * @return {Ray} New ray with the projected distance
   */
-  projectDistanceSquared(dist_squared, { fromEndpoint = "A" }) {
+  projectDistanceSquared(dist_squared, { fromEndpoint = "A" } = {}) {
     const t = dist_squared / this.distanceSquared;
     const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t);
     const r = new CCWSightRay(this[fromEndpoint], B);
@@ -270,9 +269,9 @@ export class CCWSightRay extends Ray {
     
     // Second, move up and down the line until we are also on the circle
     // points of the circle, ccw:
-    const c1 = { x: center.x + radius, y: center.y }
-    const c2 = { x: center.x, y: center.y - radius },
-    const c3 = { x: center.x - radius, y: center.y }];
+    const c1 = { x: center.x + radius, y: center.y };
+    const c2 = { x: center.x, y: center.y - radius };
+    const c3 = { x: center.x - radius, y: center.y };
     
     const p_loc = outsideCircle(c1, c2, c3, p);
     if(p_loc === 0) return p;
@@ -290,8 +289,8 @@ export class CCWSightRay extends Ray {
     for(let i = 0; i < iterations; i += 1) {
       const d2 = this[V].x * p.x + this[V].y * p.y;
     
-      const high_p = projectDistanceSquared(d2 + increment, { fromEndpoint: V }) 
-      const low_p = projectDistanceSquared(d2 - increment, { fromEndpoint: V })
+      const high_p = this.projectDistanceSquared(d2 + increment, { fromEndpoint: V }) 
+      const low_p = this.projectDistanceSquared(d2 - increment, { fromEndpoint: V })
     
       const high_p_loc = outsideCircle(c1, c2, c3, high_p);
       const low_p_loc = outsideCircle(c1, c2, c3, low_p);
@@ -301,7 +300,7 @@ export class CCWSightRay extends Ray {
         break;
       }
       
-      if(low_p_lo === 0) {
+      if(low_p_loc === 0) {
         p = low_p;
         break;
       }
@@ -320,7 +319,7 @@ export class CCWSightRay extends Ray {
           // should not happen
           // suggests moving in opposite directions both pass the intersection
           // just return
-          console.warn(`MODULE_ID|robustIntersectionWithCircle could not locate intersection.`)
+          console.warn(`${MODULE_ID}|robustIntersectionWithCircle could not locate intersection.`)
           break;
         }
       }
