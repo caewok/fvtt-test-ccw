@@ -121,59 +121,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // radius informs the shape but otherwise is turned off; rely on border walls
        // add these border walls and identify intersections
        // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
-       const origin = this.origin; 
-       const rotation = this.config.rotation ?? 0;
-       const radius = this.config.radius;
        if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
-          // equilateral triangle with 1 point facing due north
-          // potentially rotated by rotation angle
-          // center/origin to point === radius
-          // if a1 === 0, line would point due east
-          // basic angles are 0, 120, 240 before translation
-          const a1 = Math.normalizeRadians(Math.toRadians(rotation - 90));
-          const a2 = Math.normalizeRadians(Math.toRadians(rotation + 30));
-          const a3 = Math.normalizeRadians(Math.toRadians(rotation + 150));
-          const r1 = CCWSightRay.fromAngle(origin.x, origin.y, a1, radius);
-          const r2 = CCWSightRay.fromAngle(origin.x, origin.y, a2, radius);
-          const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
-          
-          // construct walls
-          const w1 = new CCWSweepWall(r1.B, r2.B, opts);
-          const w2 = new CCWSweepWall(r2.B, r3.B, opts);
-          const w3 = new CCWSweepWall(r3.B, r1.B, opts);
-
-          candidate_walls.push(w1);
-          candidate_walls.push(w2);
-          candidate_walls.push(w3); 
+         const triangle_walls = constructGeometricShapeWalls([0, 120, 240]);
+         candidate_walls.push(...triangle_walls);
+       
        } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
-         // square where center/origin to corners === radius
-         // square is aligned horizontally/vertically if rotation === 0
-         // potentially rotated by rotation angle 
-         // basic angles are 45, 135, 225, 315 before translation
-         const a1 = Math.normalizeRadians(Math.toRadians(rotation - 135));
-         const a2 = Math.normalizeRadians(Math.toRadians(rotation - 45));
-         const a3 = Math.normalizeRadians(Math.toRadians(rotation + 45));
-         const a4 = Math.normalizeRadians(Math.toRadians(rotation + 135));
-         const r1 = CCWSightRay.fromAngle(origin.x, origin.y, a1, radius);
-         const r2 = CCWSightRay.fromAngle(origin.x, origin.y, a2, radius);
-         const r3 = CCWSightRay.fromAngle(origin.x, origin.y, a3, radius);
-         const r4 = CCWSightRay.fromAngle(origin.x, origin.y, a4, radius);
-        
-         // construct walls
-         const w1 = new CCWSweepWall(r1.B, r2.B, opts);
-         const w2 = new CCWSweepWall(r2.B, r3.B, opts);
-         const w3 = new CCWSweepWall(r3.B, r4.B, opts);
-         const w4 = new CCWSweepWall(r4.B, r1.B, opts);
-        
-         candidate_walls.push(w1);
-         candidate_walls.push(w2);
-         candidate_walls.push(w3); 
-         candidate_walls.push(w4); 
+         const square_walls = constructGeometricShapeWalls([0, 90, 180, 270]);
+         candidate_walls.push(...square_walls);
        }
-     
-//       this.config.radius = undefined;
- //      opts.radius = undefined;
-       this.config.hasRadius = false;    
+
+//       this.config.hasRadius = false;    
      }
      
      if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
@@ -245,6 +202,39 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // add the canvas 4-corners endpoints and walls 
      if(!this.config.hasRadius) { this._addCanvasEdges(); }
    }
+   
+  /* -------------------------------------------- */
+  // Geometries for artificially constraining lights
+  
+  /**
+   * Build geometric shape from set of angles
+   * Angles describe where the points should lie relative to origin.
+   * Potentially rotated by rotation angle
+   * Center/origin to point === radius
+   * If a1 === 0, point would lie due east
+   * Example:
+   * constructGeometricShapeWalls([0, 120, 240]); // equilateral triangle
+   * constructGeometricShapeWalls([45, 135, 225, 315]); // square
+   * @return [CCWSweepWall, CCWSweepWall, CCWSweepWall]
+   */
+   constructGeometricShapeWalls(angles) {
+     const origin = this.origin; 
+     const rotation = this.config.rotation ?? 0;
+     const radius = this.config.radius;
+     const opts = { origin, radius };
+     
+     // Use fromAngle to get the points relative to the origin
+     const a_translated = angles.map(a => Math.normalizeRadians(Math.toRadians(a + rotation)));
+     const r = a_translated.map(a => CCWSightRay.fromAngle(origin.x, origin.y, a, radius));
+               
+     // construct walls between the points
+     const ln = angles.length;
+     return r.map((p, idx)  => {
+       const dest = (idx + 1) % ln;
+       return new CCWSweepWall(p.B, r[dest].B, opts);
+     })
+   }
+   
    
   /* -------------------------------------------- */
   
