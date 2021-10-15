@@ -4,6 +4,7 @@
 // import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
+import { incircle } from "./lib/incircle.min.js";
 import { BinarySearchTree }  from "./class_BinarySearchTree.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { Bezier } from "./class_Bezier.js";
@@ -81,6 +82,7 @@ Hooks.once('init', async function() {
     CCWSightRay: CCWSightRay,
     CCWSweepPolygon: CCWSweepPolygon,
     orient2d: orient2d,
+    incircle: incircle,
     BinarySearchTree: BinarySearchTree,
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,
