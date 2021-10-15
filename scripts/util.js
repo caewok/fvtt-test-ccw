@@ -3,7 +3,7 @@
 
 // Utility functions
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
-import { incircle, incirclefast } from "./lib/incircle.js";
+import { incircle, incirclefast } from "./lib/incircle.min.js";
 import { MODULE_ID } from "./module.js"
 
 // Ray.prototype.potentialIntersectionsCircle is precise to ~ 1e-10
