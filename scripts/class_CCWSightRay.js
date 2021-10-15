@@ -3,17 +3,36 @@
 /* globals Ray, canvas */
 
 import { ccwPoints, 
+         inCirclePoints,
+         outsideCircle,
          almostEqual, 
          pointsAlmostEqual, 
          rootsReal,
          COLORS,
          PRESET_EPSILON } from "./util.js";
+         
+import { MODULE_ID } from "./module.js";         
 
 /*
  * Subclass of Ray used specifically for computing in the CCW Sweep algorithm.
  * @extends {Ray}
  */
 export class CCWSightRay extends Ray {
+
+  /* -------------------------------------------- */
+  /*  Getters/Setters                             */
+  /* -------------------------------------------- */
+ /**
+  * Store the squared distance for use with comparisons
+  * More numerically stable than sqrt
+  * @param {number}
+  */
+  get distanceSquared() {
+    if( this._distanceSquared === undefined) {
+      this._distanceSquared = this.dx * this.dx + this.dy * this.dy;
+    }
+    return this._distanceSquared;
+  } 
 
   /* -------------------------------------------- */
   /*  Factory Function                            */
@@ -42,11 +61,30 @@ export class CCWSightRay extends Ray {
    * @param {number} dist Length of the desired ray
    * @return {Ray} New ray with the projected distance
    */
-  projectDistance(dist) {
-    const t = dist / this.distance;
-    const B = this.project(t);
-    const r = new CCWSightRay(this.A, B);
+  projectDistance(dist, , { fromEndpoint = "A" }) {
+    const r = this.projectSquaredDistance(dist * dist, { fromEndpoint });
+    
+    // unclear whether we should force distance to equal the provided distance
     r._distance = dist;
+    
+    r._angle = this._angle;
+    return r;
+  }
+  
+ /**
+  * Same as projectDistance but uses squared distance.
+  * Likely more numerically stable. Possibly slightly faster.
+  * @param {number} squared_distance Squared distance of the desired ray
+  * @return {Ray} New ray with the projected distance
+  */
+  projectDistanceSquared(dist_squared, { fromEndpoint = "A" }) {
+    const t = dist_squared / this.distanceSquared;
+    const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t);
+    const r = new CCWSightRay(this[fromEndpoint], B);
+  
+    // unclear whether we should force distance to equal the provided distance
+    r._distanceSquared = dist_squared
+  
     r._angle = this._angle;
     return r;
   }
@@ -189,7 +227,7 @@ export class CCWSightRay extends Ray {
    * @param {number} radius      Radius of circle. Should be > 0.
    * @return {[{x,y}]|undefined} One or two intersection points or undefined.
    */
-  intersectionsWithCircle(center, radius) {
+  intersectionsWithCircle(center, radius, { robust = false, iterations = 10 } = {}) {
     const intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
@@ -198,7 +236,99 @@ export class CCWSightRay extends Ray {
     // so it is possible to have a line endpoint nearly on the circle, with 
     // unpredictable results as to whether the line endpoint meets the intersection. 
     // Thus, we need to back off the precision.
-    return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
+    if(robust) {
+      return intersections.map(p => this.robustIntersectionsWithCircle(p, center, radius, iterations))
+    } else {
+      return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
+    }
+  }
+  
+ /**
+  * Attempt to find a robust circle-line intersection. For our purposes, this means:
+  * 1. The intersection is colinear with the line. Measured by orient2d.
+  * 2. The intersection is on the circle. Measured by incircle. 
+  * Here, the line is assumed to extend indefinitely, so the returned point 
+  * may or may not be within this line segment.
+  * @param {PIXI.point} p approximate_intersection
+  * @param {number}     center  Circle center
+  * @param {number}     radius  Circle radius
+  * @param {number}     iterations  Number of loops to attempt to adjust the intersection
+  * @return {PIXI.point} Adjusted intersection
+  */
+  robustIntersectionWithCircle(p, center, radius, iterations = 10) {
+    // First, adjust the approximate intersection so it is on the line
+    for(let i = 0; i < iterations; i += 1) {
+      if(ccwPoints(this.A, this.B, p) === 0) break;
+    
+      // alternate A or B as origin
+      const origin = i % 2 === 0 ? this.A : this.B;
+      
+      const d2 = origin.x * p.x + origin.y * p.y;
+      const r = this.projectDistanceSquared(d2);
+      p = r.B;
+    }
+    
+    // Second, move up and down the line until we are also on the circle
+    // points of the circle, ccw:
+    const c1 = { x: center.x + radius, y: center.y }
+    const c2 = { x: center.x, y: center.y - radius },
+    const c3 = { x: center.x - radius, y: center.y }];
+    
+    const p_loc = outsideCircle(c1, c2, c3, p);
+    if(p_loc === 0) return p;
+    
+    // tricky part: how to know which way to move on the line?
+    // Want to extend the line in relation to a vertex 
+    // such that moving in one direction goes outside, moving the other goes inside
+    // Just use the furthest vertex b/c otherwise this gets very complicated
+    const A_distSquared = this.A.x * p.x + this.A.y * p.y;
+    const B_distSquared = this.B.x * p.x + this.B.y * p.y;
+    const V = A_distSquared > B_distSquared ? "A" : "B";
+    
+    let previous_loc;      
+    let increment = 1; 
+    for(let i = 0; i < iterations; i += 1) {
+      const d2 = this[V].x * p.x + this[V].y * p.y;
+    
+      const high_p = projectDistanceSquared(d2 + increment, { fromEndpoint: V }) 
+      const low_p = projectDistanceSquared(d2 - increment, { fromEndpoint: V })
+    
+      const high_p_loc = outsideCircle(c1, c2, c3, high_p);
+      const low_p_loc = outsideCircle(c1, c2, c3, low_p);
+      
+      if(high_p_loc === 0) {
+        p = high_p;
+        break;
+      }
+      
+      if(low_p_lo === 0) {
+        p = low_p;
+        break;
+      }
+      
+      if(high_p_loc !== low_p_loc) {
+        // Passed the intersection. Decrease increment
+        // Pick the point estimate that caused the switch
+        increment = increment / 2;
+        p = high_p_loc === previous_loc ? low_p : high_p;
+      } else {
+        if(high_p_loc === previous_loc) {
+          // have not passed the intersection. Increase increment
+          increment = increment * 2;
+          
+        } else {
+          // should not happen
+          // suggests moving in opposite directions both pass the intersection
+          // just return
+          console.warn(`MODULE_ID|robustIntersectionWithCircle could not locate intersection.`)
+          break;
+        }
+      }
+    
+      previous_loc = p_loc;
+    }
+    
+    return p;
   }
   
   /**
