@@ -107,6 +107,20 @@ export function orient2dPoints(p1, p2, p3) {
                   p3.x, p3.y);
 }
 
+
+/**
+ * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
+ */
+export function ccwPoints(p1, p2, p3) {
+  const res = orient2dPoints(p1, p2, p3);
+  if(almostEqual(res, 0)) return 0;
+  return res < 0 ? -1 : 1;                       
+}
+
 /**
  * Given three counter-clockwise points that define a circle, is this fourth point
  * within the circle?
@@ -133,17 +147,19 @@ export function inCirclePoints(p1, p2, p3, p4) {
 }
 
 /**
- * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
+ * Comparable to ccw for inCirclePoints.
  * @param {x, y} p1   Point in {x, y} format.
  * @param {x, y} p2   Point in {x, y} format.
  * @param {x, y} p3   Point in {x, y} format.
- * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
+ * @param {x, y} p4   Point in {x, y} format.
+ * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
  */
-export function ccwPoints(p1, p2, p3) {
-  const res = orient2dPoints(p1, p2, p3);
+export function outsideCircle(p1, p2, p3, p4) {
+  const res = inCirclePoints(p1, p2, p3, p4);
   if(almostEqual(res, 0)) return 0;
-  return res < 0 ? -1 : 1;                       
+  return res < 0 ? -1 : 1;
 }
+ 
 
 
 /*
