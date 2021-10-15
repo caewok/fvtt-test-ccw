@@ -173,7 +173,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
 //       this.config.radius = undefined;
  //      opts.radius = undefined;
-//       this.config.hasRadius = false;    
+       this.config.hasRadius = false;    
      }
      
      if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
@@ -221,7 +221,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
            // wall is a tangent. Can ignore.
            return;
          }
-                  
+         wall.A.round();
+         wall.B.round();
        }
        
        // all tests concluded; add wall and endpoints to respective tracking lists.
