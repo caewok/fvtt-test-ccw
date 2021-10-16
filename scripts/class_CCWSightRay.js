@@ -342,91 +342,94 @@ export class CCWSightRay extends Ray {
   * @param {PIXI.point} p approximate_intersection
   * @param {number}     center  Circle center
   * @param {number}     radius  Circle radius
-  * @param {number}     iterations  Number of loops to attempt to adjust the intersection
   * @return {PIXI.point} Adjusted intersection
   */
-  robustIntersectionWithCircle(p, center, radius, iterations = 1000) {
-    // First, adjust the approximate intersection so it is on the line
-    // need projectDistance to actually put points on the line
-    // or need to adjust so they are
-    
+  robustIntersectionWithCircle(p, center, radius) {
+  
+    // Just confirming. Could happen due to programmer error or 
+    // possibly if the intersection point algorithm is not robust enough to 
+    // find a point that is actually on the line    
     if(ccwPoints(this.A, this.B, p) !== 0) {
       console.warn(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
     }
     
-    // Second, move up and down the line until we are also on the circle
+    // Move up and down the line until we are also on the circle
     // points of the circle, ccw:
-     const c1 = { x: center.x + radius, y: center.y };
-     const c2 = { x: center.x, y: center.y - radius };
-     const c3 = { x: center.x - radius, y: center.y };
+    const c1 = { x: center.x + radius, y: center.y };
+    const c2 = { x: center.x, y: center.y - radius };
+    const c3 = { x: center.x - radius, y: center.y };
     
-//      const p_loc = outsideCircle(c1, c2, c3, p);
-//      inCirclePoints(c1, c2, c3, p)
-//     if(p_loc === 0) return p;
+    let curr_ccw = inCirclePoints(c1, c2, c3, p)    
+    if(almostEqual(curr_ccw, 0)) return;
     
-    // tricky part: how to know which way to move on the line?
-    // Want to extend the line in relation to a vertex 
-    // such that moving in one direction goes outside, moving the other goes inside
-    // Just use the furthest vertex b/c otherwise this gets very complicated
-   //  const A_dist = Math.hypot(p.x - wall.A.x, p.y - wall.A.y);
-//     const B_dist = Math.hypot(p.x - wall.B.x, p.y - wall.B.y);
-//     const V = A_dist > B_dist ? "A" : "B";
+    // if p is closer to endpoint A, reverse the line
+    // (Don't want A and p to be near equivalent for these measurements)
+    let wall = this; // will later test to reverse the wall
+    const A_dist = Math.hypot(p.x - wall.A.x, p.y - wall.A.y);
+    const B_dist = Math.hypot(p.x - wall.B.x, p.y - wall.B.y);
+
+    // reverse will return a SightRay but shouldn't matter for this
+    if(A_dist < B_dist) { wall = wall.reverse(); } 
+  
+    // find t from the equation of the line
+    let t = wall.dx ? 
+       (p.x - wall.A.x) / wall.dx :
+       (p.y - wall.A.y) / wall.dy; 
      
-    let divisor = 1
-    const step = Math.floor(iterations / 15) // what e level to reach for the divisor
-    for(let i = 0; i < iterations; i += 1) {
-      // tolerate something on or inside the circle
+    // Determine the smallest increment of t that still affects the point
+    // Need to increment tiny amounts to avoid moving the point all the way to the
+    // second intersection
+    let increment = 1e-06;
+    curr_p = p;
+    for(i = 0; i < 20; i += 1) {
+      new_p = wall.project(t + increment)
+      if(new_p.x !== curr_p.x || new_p.y !== new_p.y) {
+        increment *= .1;
+      } else {
+        //increment /= .1; // do we need to back off? Do it below when testing direction
+        break;
+      }
+    }   
+       
+    const high_p = wall.project(t + ( increment * 10) ); // *10 so the points differ
+    const low_p = wall.project(t - (increment * 10) );   // *10 so the points differ
+    const high_ccw = inCirclePoints(c1, c2, c3, high_p);
+    const low_ccw  = inCirclePoints(c1, c2, c3, low_p);
+
+    // determine which way lowers ccw
+    const move_inside = high_ccw < low_ccw ? 1 : -1; 
+
+    // subtract enough to get to negative ccw (inside circle)
+    // add enough to get w/in outsideCircle returning 0 or stop
+    // use for loop just in case this fails
+    const MAX_ITER = 100
+    let total_increment = 0;
+    for(i = 0; i < MAX_ITER; i += 1) {
+      if(almostEqual(curr_ccw, 0)) break;
     
-       const curr_ccw = inCirclePoints(c1, c2, c3, p)
-       if(curr_ccw === 0) break;
-       
-       // find t from the equation of the line
-       const t = this.dx ? 
-           (p.x - this.A.x) / this.dx :
-           (p.y - this.A.y) / this.dy 
-       
-       if(i % step === 0) { divisor = divisor * .1}        
-       const increment = Math.random() * curr_ccw * divisor;
-       
-       const high_p = this.project(t + increment);
-       const low_p = this.project(t - increment);
-       
-       const high_ccw = inCirclePoints(c1, c2, c3, high_p)
-       const low_ccw  = inCirclePoints(c1, c2, c3, low_p)
-       
-//        if(ccwPoints(this.A, this.B, high_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, high_p)}`); }
-//        if(ccwPoints(this.A, this.B, low_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, low_p)}`); }
-       
-       const curr_abs = Math.abs(curr_ccw);
-       const high_abs = Math.abs(high_ccw);
-       const low_abs  = Math.abs(low_ccw);
-      
-       // if current is greater than 0, take any less than
-       const eligible = [false, false]
-       if(curr_ccw > 0) {
-         if(high_ccw <= 0) { eligible[0] = true }
-         if(low_ccw <= 0)  { eligible[1] = true }  
-       } else {
-         if(high_ccw <= 0 && high_abs < curr_abs) { eligible[0] = true }
-         if(low_ccw  <= 0 && low_abs < curr_abs)  { eligible[1] = true }
-       }
-       
-       if(eligible[0] && eligible[1]) {
-//          console.log(`${i} high_ccw: ${high_ccw}`);
-//          console.log(`${i} low_ccw: ${low_ccw}`);
-         p = high_abs < low_abs ? high_p : low_p;
-         
-       } else if(eligible[0]) {
-//          console.log(`${i} high_ccw: ${high_ccw}`);
-         p = high_p;
-       
-       } else if(eligible[1]) {
-//          console.log(`${i} low_ccw: ${low_ccw}`);
-         p = low_p;
-       }
+      if(curr_ccw < 0) {
+        // we are inside the circle.
+        // test if we can move toward the outside without going past
+        const test_increment = total_increment - (increment * move_inside);
+        const new_p = wall.project(t + test_increment);
+        const new_ccw = inCirclePoints(c1, c2, c3, new_p);
+        if(almostEqual(new_ccw, 0) || new_ccw < 0) {
+          curr_ccw = new_ccw;
+          total_increment = test_increment;
+        } else {
+          break; // nothing left we can do without greater precision
+        }
+    
+      } else {
+        // we are outside the circle
+        // must make a move inside
+        total_increment += (increment * move_inside);
+        const new_p = wall.project(t + total_increment);
+        curr_ccw = inCirclePoints(c1, c2, c3, new_p)
+      }
     }
-    
-    return p;
+  
+    return wall.project(t + total_increment);
   }
   
   /**
