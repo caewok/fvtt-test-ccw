@@ -239,6 +239,18 @@ export class CCWSweepWall extends CCWSightRay {
   /*  Methods                                     */
   /* -------------------------------------------- */
   
+ /**
+  * Round endpoints to the nearest integer.
+  * Reset any cached values.
+  * (key remains same b/c that already used rounded values)
+  */
+  round() {
+    this.A.round();
+    this.B.round();
+    this._radiusIntersections = undefined;
+    this._intersectRadius = undefined;
+  }
+  
   /*
    * Check if point is counter-clockwise or clockwise to a wall
    * Wall left/right direction measured in Foundry from wall.B --> wall.A

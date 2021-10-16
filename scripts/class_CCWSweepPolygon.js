@@ -139,8 +139,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        // All actual walls have integer endpoints
        // TO-DO: Move outside loop; need only be run with IdentifyIntersections
-       wall.A.round();
-       wall.B.round();
+       wall.round();
        
        
        // Test whether a wall should be included in the set considered for this polygon
@@ -181,8 +180,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
              return;
            }
            
-           wall.A.round();
-           wall.B.round();
+           wall.round();
          }
        }
          
