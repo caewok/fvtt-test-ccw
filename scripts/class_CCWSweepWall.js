@@ -241,14 +241,16 @@ export class CCWSweepWall extends CCWSightRay {
   
  /**
   * Round endpoints to the nearest integer.
-  * Reset any cached values.
-  * (key remains same b/c that already used rounded values)
+  * Must create anew b/c Ray, SightRay, and CCWSweepWall 
+  * all calculate various values based on the endpoints. 
   */
   round() {
-    this.A.round();
-    this.B.round();
-    this._radiusIntersections = undefined;
-    this._intersectRadius = undefined;
+    // avoid accidentally rounding this A or this B
+    const A_new = { x: Math.round(this.A.x), y: Math.round(this.A.y) };
+    const B_new = { x: Math.round(this.B.x), y: Math.round(this.B.y) };
+    
+    return CCWSweepWall.createFromPoints(A_new, B_new, this, 
+                                         { origin: this.origin, radius: this.radius });
   }
   
   /*

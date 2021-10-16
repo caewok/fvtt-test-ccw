@@ -134,16 +134,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      }
      
      if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
-     candidate_walls.forEach(wall => {
-       wall = CCWSweepWall.create(wall, opts); // Even if IdentifyIntersections used, stil need to update origin and radius
-       
-       // All actual walls have integer endpoints
-       // TO-DO: Move outside loop; need only be run with IdentifyIntersections
-       wall.round();
-       
-       
+     candidate_walls.forEach(wall => {       
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
+       
+       // Even if IdentifyIntersections used, stil need to update origin and radius
+       // If we could guarantee the wall is already a CCWSweepWall, could just update
+       // origin and radius directly instead of creating new version.
+       wall = CCWSweepWall.create(wall, opts); 
        
        // test for inclusion in the FOV radius
        if(this.config.hasRadius) {
@@ -179,10 +177,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
              // wall is a tangent. Can ignore.
              return;
            }
-           
-           wall.round();
          }
        }
+       
+       wall.round(); // ensure we are using integer pixel locations for endpoints
+                     // could be done outside loop; then only need to round the radius intersections
          
        // all tests concluded; add wall and endpoints to respective tracking lists.
        const ak = wall.A.key;

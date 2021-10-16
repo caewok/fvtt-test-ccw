@@ -288,6 +288,7 @@ export class CCWSightRay extends Ray {
     const R2 = radius * radius;
     
     // tangent point to circle is E
+    let intersections = [];
     if(almostEqual(LEC2, R2)) {
       const Ex = t * Dx + this.A.x;
       const Ey = t * Dy + this.A.y;
@@ -296,25 +297,29 @@ export class CCWSightRay extends Ray {
       if(robust) {
         p = this.robustIntersectionWithCircle(p, center, radius)
       }
-      return [p];
-    }
-    if(LEC2 > R2) return undefined; // no intersections
+      intersections.push(p);
+    } else if(LEC2 > R2) {
+      return intersections; // no intersections
     
-    // two intersections; compute points using equation of a line
-    const dt = Math.sqrt(R2 - LEC2);
-    const Fx = (t - dt) * Dx + this.A.x;
-    const Fy = (t - dt) * Dy + this.A.y;
+    } else {
+      // two intersections; compute points using equation of a line
+      const dt = Math.sqrt(R2 - LEC2);
+      const Fx = (t - dt) * Dx + this.A.x;
+      const Fy = (t - dt) * Dy + this.A.y;
     
-    const Gx = (t + dt) * Dx + this.A.x;
-    const Gy = (t + dt) * Dy + this.A.y
+      const Gx = (t + dt) * Dx + this.A.x;
+      const Gy = (t + dt) * Dy + this.A.y
     
-    if(robust) {
-      return [
-        this.robustIntersectionWithCircle({ x: Fx, y: Fy }, center, radius),
-        this.robustIntersectionWithCircle({ x: Gx, y: Gy }, center, radius)
-      ];    
-    } 
-    return [{ x: Fx, y: Fy }, { x: Gx, y: Gy }];
+      intersections.push({ x: Fx, y: Fy }, { x: Gx, y: Gy });
+      if(robust) {
+        intersections = intersections.map(i => {
+          return robustIntersectionWithCircle(i, center, radius);
+        });
+      }     
+    }  
+    
+    // filter to only those intersections within the line
+    return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
   }
   
   /*
@@ -330,15 +335,11 @@ export class CCWSightRay extends Ray {
     let intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
-    // if we are within a pixel of the circle, it counts.
-    // the potentialIntersectionsWithCircle calculation is not robust, and 
-    // so it is possible to have a line endpoint nearly on the circle, with 
-    // unpredictable results as to whether the line endpoint meets the intersection. 
-    // Thus, we need to back off the precision.
     if(robust) {
       intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius))
     }
     
+    // filter to only those intersections within the line
     return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
   }
   
