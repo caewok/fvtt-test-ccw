@@ -70,7 +70,7 @@ export class CCWSightRay extends Ray {
    * @returns {CCWSightRay}
    */
    reverse() {
-     const r = new CCWSightRay(this.B, this.A);
+     const r = new this(this.B, this.A);
      r._distance = this._distance;
      r._angle = Math.PI - this._angle;
      r._distanceSquared = this._distanceSquared;
