@@ -231,6 +231,71 @@ export class CCWSightRay extends Ray {
     return [];
   } 
   
+  /**
+   * Test if line intersects circle
+   * @param {x: number, y: number} center   Center of the cirle
+   * @param {number} r      Radius of circle. Should be > 0.
+   * @return {boolean}
+   */
+   intersectsCircle(center, radius) {
+     // https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+     const LAB = this.distance;
+     const Dx = this.dx / LAB;
+     const Dy = this.dy / LAB;
+     const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
+     const Ex = t * Dx + this.A.x;
+     const Ey = t * Dy + this.A.y;
+     const Edx = Ex - Cx;
+     const Edy = Ey - C;
+     const LEC2 = Edx * Edx + Edy * Edy;
+     const R2 = radius * radius;
+     return LEC2 <= R2; // if equal, it is a tangent
+   }
+  
+ /**
+  * Another method to calculate intersections with circle
+  * @param {x: number, y: number} center   Center of the cirle
+  * @param {number} r      Radius of circle. Should be > 0.
+  * @return {[{x,y}]|undefined} One or two intersection points or undefined.
+  */
+  intersectionsWithCircle2(center, radius, { robust = false, iterations = 1000 } = {}) {
+    const LAB = this.distance;
+    const Dx = this.dx / LAB;
+    const Dy = this.dy / LAB;
+    const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
+    const Ex = t * Dx + this.A.x;
+    const Ey = t * Dy + this.A.y;
+    const Edx = Ex - Cx;
+    const Edy = Ey - C;
+    const LEC2 = Edx * Edx + Edy * Edy;
+    const R2 = radius * radius;
+    
+    // tangent point to circle is E
+    if(almostEqual(LEC2, R2)) {
+      let p = { x: Ex, y: Ey };
+      if(robust) {
+        p = this.robustIntersectionsWithCircle(p, center, radius, { iterations })
+      }
+      return [p];
+    }
+    if(LEC2 > R2) return undefined; // no intersections
+    
+    // two intersections; compute points using equation of a line
+    const dt = Math.sqrt(R2 - LEC2);
+    const Fx = (t - dt) * Dx + this.A.x;
+    const Fy = (t - dt) * Dy + this.A.y;
+    
+    const Gx = (t + dt) * Dx + this.A.x;
+    const Gy = (t + dt) * Dy + this.A.y
+    
+    let points = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
+    if(robust) {
+      points = points.map(p => this.robustIntersectionsWithCircle(p, center, radius, { iterations }))
+    }
+    
+    return points;
+  }
+  
   /*
    * See potentialIntersectionsCircle, above.
    * This method builds on that by only returning intersections within the line
