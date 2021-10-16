@@ -275,7 +275,7 @@ export class CCWSightRay extends Ray {
     if(almostEqual(LEC2, R2)) {
       let p = { x: Ex, y: Ey };
       if(robust) {
-        p = this.robustIntersectionsWithCircle(p, center, radius, { iterations })
+        p = this.robustIntersectionWithCircle(p, center, radius, iterations)
       }
       return [p];
     }
@@ -289,12 +289,12 @@ export class CCWSightRay extends Ray {
     const Gx = (t + dt) * Dx + this.A.x;
     const Gy = (t + dt) * Dy + this.A.y
     
-    let points = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
+    let intersections = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
     if(robust) {
-      points = points.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
+      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
     }
     
-    return points;
+    return intersections;    
   }
   
   /*
