@@ -74,8 +74,6 @@ export class CCWSightRay extends Ray {
   projectDistance(dist, { fromEndpoint = "A" } = {}) {
     const t = dist / this.distance;
     const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t); 
-  
-    const r = this.projectDistanceSquared(dist * dist, { fromEndpoint });
     const r = new CCWSightRay(this[fromEndpoint], B);
     
     // unclear whether we should force distance to equal the provided distance
