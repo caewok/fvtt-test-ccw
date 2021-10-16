@@ -302,12 +302,13 @@ export class CCWSightRay extends Ray {
     const Gx = (t + dt) * Dx + this.A.x;
     const Gy = (t + dt) * Dy + this.A.y
     
-    let intersections = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
     if(robust) {
-      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius))
-    }
-    
-    return intersections;    
+      return [
+        this.robustIntersectionWithCircle({ x: Fx, y: Fy }, center, radius),
+        this.robustIntersectionWithCircle({ x: Gx, y: Gy }, center, radius)
+      ];    
+    } 
+    return [{ x: Fx, y: Fy }, { x: Gx, y: Gy }];
   }
   
   /*
