@@ -288,7 +288,7 @@ export class CCWSightRay extends Ray {
     if(almostEqual(LEC2, R2)) {
       let p = { x: Ex, y: Ey };
       if(robust) {
-        p = this.robustIntersectionWithCircle(p, center, radius, iterations)
+        p = this.robustIntersectionWithCircle(p, center, radius)
       }
       return [p];
     }
