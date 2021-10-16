@@ -64,6 +64,18 @@ export class CCWSightRay extends Ray {
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
+  
+  /**
+   * Reverse the ray
+   * @returns {CCWSightRay}
+   */
+   reverse() {
+     const r = new CCWSightRay(this.B, this.A);
+     r._distance = this._distance;
+     r._angle = Math.PI - this._angle;
+     r._distanceSquared = this._distanceSquared;
+     return r;
+   }
 
   /**
    * Project a ray by exact distance.
