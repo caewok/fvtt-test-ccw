@@ -262,16 +262,17 @@ export class CCWSightRay extends Ray {
      const Edy = Ey - center.y;
      const LEC2 = Edx * Edx + Edy * Edy;
      const R2 = radius * radius;
-     return LEC2 <= R2; // if equal, it is a tangent
+     return (LEC2 < R2 || almostEqual(LEC2, R2)); // if equal, it is a tangent
    }
   
  /**
   * Another method to calculate intersections with circle
   * @param {x: number, y: number} center   Center of the cirle
   * @param {number} r      Radius of circle. Should be > 0.
+  * @param {boolean} robust     Whether to adjust the points to be inside/on the circle.
   * @return {[{x,y}]|undefined} One or two intersection points or undefined.
   */
-  intersectionsWithCircle2(center, radius, { robust = false, iterations = 1000 } = {}) {
+  intersectionsWithCircleGeometry(center, radius, { robust = false} = {}) {
     const LAB = this.distance;
     const Dx = this.dx / LAB;
     const Dy = this.dy / LAB;
@@ -303,7 +304,7 @@ export class CCWSightRay extends Ray {
     
     let intersections = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
     if(robust) {
-      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
+      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius))
     }
     
     return intersections;    
@@ -315,9 +316,10 @@ export class CCWSightRay extends Ray {
    * defined by this.A and this.B
    * @param {x: number, y: number} center   Center of the cirle
    * @param {number} radius      Radius of circle. Should be > 0.
+   * @param {boolean} robust     Whether to adjust the points to be inside/on the circle.
    * @return {[{x,y}]|undefined} One or two intersection points or undefined.
    */
-  intersectionsWithCircle(center, radius, { robust = false, iterations = 1000 } = {}) {
+  intersectionsWithCircleQuadratic(center, radius, { robust = false } = {}) {
     let intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
@@ -331,6 +333,19 @@ export class CCWSightRay extends Ray {
     }
     
     return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
+  }
+  
+  
+ /**
+  * Simple switch if it turns out one algorithm is preferable to another.
+  * Geometry version appears faster, so going with that for now.
+  * @param {x: number, y: number} center   Center of the cirle
+  * @param {number} radius      Radius of circle. Should be > 0.
+  * @param {boolean} robust     Whether to adjust the points to be inside/on the circle.
+  * @return {[{x,y}]|undefined} One or two intersection points or undefined.
+  */ 
+  intersectionsWithCircle(center, radius, { robust = false } = {}) {
+    return this.intersectionsWithCircleGeometry(center, radius, { robust })
   }
   
  /**
