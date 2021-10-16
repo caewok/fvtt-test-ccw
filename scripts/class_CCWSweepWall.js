@@ -3,7 +3,7 @@
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
 import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
-import { orient2dPoints, COLORS } from "./util.js";
+import { orient2dPoints, almostEqual, COLORS } from "./util.js";
 
 /*
  * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.
@@ -16,7 +16,7 @@ export class CCWSweepWall extends CCWSightRay {
 
     // Re-set A and B with origin and radius
     // See setter below
-    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });;
+    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });
     this._B = new CCWSweepPoint(B.x, B.y, { origin, radius });
     
     /* -------------------------------------------- */
@@ -117,7 +117,7 @@ export class CCWSweepWall extends CCWSightRay {
     if(!intersects_radius) return [];
     
     if(this._radiusIntersections === undefined) {
-      this._radiusIntersections = this.intersectionsWithCircleGeometry(this.origin, this.radius, { robust = true, LEC2 = intersects_radius });
+      this._radiusIntersections = this.intersectionsWithCircleGeometry(this.origin, this.radius, { robust: true, LEC2: intersects_radius });
     }
     return this._radiusIntersections;
   }
@@ -171,7 +171,7 @@ export class CCWSweepWall extends CCWSightRay {
    set A(value) {
      this._A = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
-     this._intersectRadius = undefind;
+     this._intersectRadius = undefined;
    }
    
   /**
