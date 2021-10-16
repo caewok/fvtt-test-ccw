@@ -149,6 +149,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          // conservatively skip only if both endpoints are not inside
          if(!wall.intersectsRadius && !(wall.A.insideRadius || wall.B.insideRadius)) return;
          
+         // Can reject tangents by peeking at the intersect data
+         if(wall.isTangentToRadius) return;
+         
          // if the wall intersects the radius, split wall into portion within
          if(wall.intersectsRadius) {
            // Use pointsAlmostEqual to avoid situation where wall endpoint is
@@ -158,27 +161,35 @@ export class CCWSweepPolygon extends PointSourcePolygon {
            const i1 = wall.radiusIntersections[1];
                     
            if(wall.radiusIntersections.length === 2) {         
-             wall = CCWSweepWall.createFromPoints(i0,
-                                                  i1,
-                                                  wall, opts);                                     
-           } else if(wall.A.insideRadius || pointsAlmostEqual(wall.A, i0)) {
-             // radius intersections should be 1; B is outside
-             // wall enters the circle, ending at A
-             wall = CCWSweepWall.createFromPoints(wall.A, 
-                                                  i0,
-                                                  wall, opts); 
-           } else if(wall.B.insideRadius || pointsAlmostEqual(wall.B, i0)) {
-             // radius intersections should be 1; B is outside
-             // wall enters the circle, ending at B.
-             wall = CCWSweepWall.createFromPoints(i0,
-                                                  wall.B,
-                                                  wall, opts); 
+             wall = CCWSweepWall.createFromPoints(i0, i1, wall, opts);                                     
            } else {
-             // wall is a tangent. Can ignore.
-             return;
-           }
-         }
-       }
+             // If only one endpoint is inside the circle, can easily construct wall 
+             //   from that endpoint to the circle edge.
+             // Here is the annoying part---
+             // If one or both endpoints are near the circle edge, things take a turn:
+             // - assume both cannot be that close to the edge or there would be two intersections
+             // - could be a wall that barely pierces the circle: can ignore; both outside
+             // - if one is on the edge, the other should be inside
+             if(wall.A.insideRadius && 
+                (!wall.B.insideRadius || pointsAlmostEqual(wall.B, i0))) {
+               wall = CCWSweepWall.createFromPoints(wall.A, i0, wall, opts); 
+             } else if(wall.B.insideRadius && 
+                (!wall.A.insideRadius || pointsAlmostEqual(wall.A, i0))) {
+               wall = CCWSweepWall.createFromPoints(i0, wall.B, wall, opts);
+             } else if(wall.A.insideRadius && wall.B.insideRadius){
+               // if both inside, should not have any intersections to begin with
+               // but just in case...
+               // do nothing so we include this wall
+             
+             } else {
+               // reject the wall
+               // should be a wall that barely pierces the circle
+               // wall.A not inside; wall.B not inside
+               return;
+             }           
+           } 
+         } // if wall.intersectsRadius
+       } // if this.config.hasRadius 
        
        wall.round(); // ensure we are using integer pixel locations for endpoints
                      // could be done outside loop; then only need to round the radius intersections
