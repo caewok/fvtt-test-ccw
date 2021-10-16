@@ -291,7 +291,7 @@ export class CCWSightRay extends Ray {
     
     let points = [{ x: Fx, y: Fy}, { x: Gx, y: Gy }];
     if(robust) {
-      points = points.map(p => this.robustIntersectionsWithCircle(p, center, radius, { iterations }))
+      points = points.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
     }
     
     return points;
@@ -315,7 +315,7 @@ export class CCWSightRay extends Ray {
     // unpredictable results as to whether the line endpoint meets the intersection. 
     // Thus, we need to back off the precision.
     if(robust) {
-      intersections = intersections.map(p => this.robustIntersectionsWithCircle(p, center, radius, { iterations }))
+      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
     }
     
     return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
@@ -339,7 +339,7 @@ export class CCWSightRay extends Ray {
     // or need to adjust so they are
     
     if(ccwPoints(this.A, this.B, p) !== 0) {
-      console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
+      console.warn(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
     }
     
     // Second, move up and down the line until we are also on the circle
@@ -382,8 +382,8 @@ export class CCWSightRay extends Ray {
        const high_ccw = inCirclePoints(c1, c2, c3, high_p)
        const low_ccw  = inCirclePoints(c1, c2, c3, low_p)
        
-       if(ccwPoints(this.A, this.B, high_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, high_p)}`); }
-       if(ccwPoints(this.A, this.B, low_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, low_p)}`); }
+//        if(ccwPoints(this.A, this.B, high_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, high_p)}`); }
+//        if(ccwPoints(this.A, this.B, low_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, low_p)}`); }
        
        const curr_abs = Math.abs(curr_ccw);
        const high_abs = Math.abs(high_ccw);
