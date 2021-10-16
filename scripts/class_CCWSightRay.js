@@ -3,7 +3,8 @@
 /* globals Ray, canvas */
 
 import { ccwPoints, 
-         outsideCircle,
+         orient2dPoints,
+         inCirclePoints,
          almostEqual, 
          pointsAlmostEqual, 
          rootsReal,
@@ -245,8 +246,8 @@ export class CCWSightRay extends Ray {
      const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
      const Ex = t * Dx + this.A.x;
      const Ey = t * Dy + this.A.y;
-     const Edx = Ex - Cx;
-     const Edy = Ey - C;
+     const Edx = Ex - center.x;
+     const Edy = Ey - center.y;
      const LEC2 = Edx * Edx + Edy * Edy;
      const R2 = radius * radius;
      return LEC2 <= R2; // if equal, it is a tangent
@@ -265,8 +266,8 @@ export class CCWSightRay extends Ray {
     const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
     const Ex = t * Dx + this.A.x;
     const Ey = t * Dy + this.A.y;
-    const Edx = Ex - Cx;
-    const Edy = Ey - C;
+    const Edx = Ex - center.x;
+    const Edy = Ey - center.y;
     const LEC2 = Edx * Edx + Edy * Edy;
     const R2 = radius * radius;
     
@@ -337,8 +338,8 @@ export class CCWSightRay extends Ray {
     // need projectDistance to actually put points on the line
     // or need to adjust so they are
     
-    if(ccwPoints(wall.A, wall.B, p) !== 0) {
-      console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, p)}`);
+    if(ccwPoints(this.A, this.B, p) !== 0) {
+      console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
     }
     
     // Second, move up and down the line until we are also on the circle
@@ -368,30 +369,28 @@ export class CCWSightRay extends Ray {
        if(curr_ccw === 0) break;
        
        // find t from the equation of the line
-       const t = wall.dx ? 
-           (p.x - wall.A.x) / wall.dx :
-           (p.y - wall.A.y) / wall.dy 
+       const t = this.dx ? 
+           (p.x - this.A.x) / this.dx :
+           (p.y - this.A.y) / this.dy 
        
        if(i % step === 0) { divisor = divisor * .1}        
        const increment = Math.random() * curr_ccw * divisor;
        
-       const high_p = wall.project(t + increment);
-       const low_p = wall.project(t - increment);
+       const high_p = this.project(t + increment);
+       const low_p = this.project(t - increment);
        
        const high_ccw = inCirclePoints(c1, c2, c3, high_p)
        const low_ccw  = inCirclePoints(c1, c2, c3, low_p)
        
-       if(ccwPoints(wall.A, wall.B, high_r.A) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, high_r.A)}`); }
-       if(ccwPoints(wall.A, wall.B, high_r.B) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, high_r.B)}`); }
-       if(ccwPoints(wall.A, wall.B, low_r.A) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, low_r.A)}`); }
-       if(ccwPoints(wall.A, wall.B, low_r.B) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, low_r.B)}`); }
+       if(ccwPoints(this.A, this.B, high_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, high_p)}`); }
+       if(ccwPoints(this.A, this.B, low_p) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, low_p)}`); }
        
        const curr_abs = Math.abs(curr_ccw);
        const high_abs = Math.abs(high_ccw);
        const low_abs  = Math.abs(low_ccw);
       
        // if current is greater than 0, take any less than
-       eligible = [false, false]
+       const eligible = [false, false]
        if(curr_ccw > 0) {
          if(high_ccw <= 0) { eligible[0] = true }
          if(low_ccw <= 0)  { eligible[1] = true }  
