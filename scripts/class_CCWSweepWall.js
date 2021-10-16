@@ -65,6 +65,12 @@ export class CCWSweepWall extends CCWSightRay {
      */
     this._radiusIntersections = undefined; 
     
+    /*
+     * Store whether the wall intersects the radius
+     * Store as LEC2 value from intersectsCircle
+     */
+    this._intersectsRadius = undefined;
+    
     
   }
   
@@ -99,26 +105,38 @@ export class CCWSweepWall extends CCWSightRay {
    * @param {x: number, y: number}
    */
   get origin() { return this._origin; }
-  
-  /* 
-   * Is this point associated with a radius? Radius 0 does not count.
-   * @return {boolean}
-   */
-  get hasRadius() {
-    return Boolean(this._radius);
-  }
-  
+    
   /*
-   * Is this point inside the FOV radius?
+   * Get the intersection points of this wall with the circle radius
+   * Cache the result.
    * @return {undefined|boolean}
    */
   get radiusIntersections() {
-    if(!this.hasRadius || !this.origin) return undefined;
+    const intersects_radius = this.intersectsRadius
+    if(intersects_radius === undefined) return undefined;
+    if(!intersects_radius) return [];
+    
     if(this._radiusIntersections === undefined) {
-      this._radiusIntersections = this.intersectionsWithCircle(this.origin, this.radius);
+      this._radiusIntersections = this.intersectionsWithCircleGeometry(this.origin, this.radius, { robust = true, LEC2 = intersects_radius });
     }
     return this._radiusIntersections;
   }
+  
+ /**
+  * Does the wall intersect the radius circle?
+  * Cache the result.
+  * @type {boolean|undefined}
+  */
+  get intersectsRadius() {
+    if(this._intersectRadius === undefined && this.origin && this.radius) {
+      this._intersectRadius = this.intersectsCircle(this.origin, this.radius, { returnLEC2: true }); 
+    }
+    if(this._intersectRadius === undefined) return undefined;
+    
+    const R2 = this.radius * this.radius;
+    const LEC2 = this._intersectRadius;
+    return LEC2 < R2 || almostEqual(LEC2, R2);
+  } 
   
   /*
    * When setting origin, un-cache measurements that depend on it.
@@ -129,6 +147,7 @@ export class CCWSweepWall extends CCWSightRay {
     this.A.origin = value;
     this.B.origin = value;
     this._radiusIntersections = undefined;
+    this._intersectRadius = undefined;
   }
   
   /*
@@ -140,6 +159,7 @@ export class CCWSweepWall extends CCWSightRay {
     this.A.radius = value;
     this.B.radius = value;
     this._radiusIntersections = undefined;
+    this._intersectRadius = undefined;
   }
   
   /**
@@ -151,6 +171,7 @@ export class CCWSweepWall extends CCWSightRay {
    set A(value) {
      this._A = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
+     this._intersectRadius = undefind;
    }
    
   /**
@@ -160,6 +181,7 @@ export class CCWSweepWall extends CCWSightRay {
    set B(value) {
      this._B = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
+     this._intersectRadius = undefined;
    }
   /* -------------------------------------------- */
   /*  Factory Function                            */

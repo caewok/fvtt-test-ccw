@@ -250,7 +250,7 @@ export class CCWSightRay extends Ray {
    * @param {number} r      Radius of circle. Should be > 0.
    * @return {boolean}
    */
-   intersectsCircle(center, radius) {
+   intersectsCircle(center, radius, { returnLEC2 = false} = {}) {
      // https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
      const LAB = this.distance;
      const Dx = this.dx / LAB;
@@ -262,6 +262,9 @@ export class CCWSightRay extends Ray {
      const Edy = Ey - center.y;
      const LEC2 = Edx * Edx + Edy * Edy;
      const R2 = radius * radius;
+     
+     if(returnLEC2) return LEC2; // allow this calculation to be stored
+     
      return (LEC2 < R2 || almostEqual(LEC2, R2)); // if equal, it is a tangent
    }
   
@@ -272,20 +275,23 @@ export class CCWSightRay extends Ray {
   * @param {boolean} robust     Whether to adjust the points to be inside/on the circle.
   * @return {[{x,y}]|undefined} One or two intersection points or undefined.
   */
-  intersectionsWithCircleGeometry(center, radius, { robust = false} = {}) {
+  intersectionsWithCircleGeometry(center, radius, { robust = false, LEC2 = undefined } = {}) {
     const LAB = this.distance;
     const Dx = this.dx / LAB;
     const Dy = this.dy / LAB;
     const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
-    const Ex = t * Dx + this.A.x;
-    const Ey = t * Dy + this.A.y;
-    const Edx = Ex - center.x;
-    const Edy = Ey - center.y;
-    const LEC2 = Edx * Edx + Edy * Edy;
+  
+    if(LEC2 === undefined) {
+      LEC2 = this.intersectsCircle(center, radius, { returnLEC2: true });
+    } 
+  
     const R2 = radius * radius;
     
     // tangent point to circle is E
     if(almostEqual(LEC2, R2)) {
+      const Ex = t * Dx + this.A.x;
+      const Ey = t * Dy + this.A.y;
+     
       let p = { x: Ex, y: Ey };
       if(robust) {
         p = this.robustIntersectionWithCircle(p, center, radius)
