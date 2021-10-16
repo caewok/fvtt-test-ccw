@@ -239,8 +239,8 @@ export class CCWSightRay extends Ray {
    * @param {number} radius      Radius of circle. Should be > 0.
    * @return {[{x,y}]|undefined} One or two intersection points or undefined.
    */
-  intersectionsWithCircle(center, radius, { robust = false, iterations = 10 } = {}) {
-    const intersections = this.potentialIntersectionsWithCircle(center, radius);
+  intersectionsWithCircle(center, radius, { robust = false, iterations = 1000 } = {}) {
+    let intersections = this.potentialIntersectionsWithCircle(center, radius);
     if(intersections.length === 0) return intersections;
     
     // if we are within a pixel of the circle, it counts.
@@ -249,10 +249,10 @@ export class CCWSightRay extends Ray {
     // unpredictable results as to whether the line endpoint meets the intersection. 
     // Thus, we need to back off the precision.
     if(robust) {
-      return intersections.map(p => this.robustIntersectionsWithCircle(p, center, radius, iterations))
-    } else {
-      return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
+      intersections = intersections.map(p => this.robustIntersectionsWithCircle(p, center, radius, { iterations }))
     }
+    
+    return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
   }
   
  /**
@@ -267,77 +267,87 @@ export class CCWSightRay extends Ray {
   * @param {number}     iterations  Number of loops to attempt to adjust the intersection
   * @return {PIXI.point} Adjusted intersection
   */
-  robustIntersectionWithCircle(p, center, radius, iterations = 10) {
+  robustIntersectionWithCircle(p, center, radius, iterations = 1000) {
     // First, adjust the approximate intersection so it is on the line
-    for(let i = 0; i < iterations; i += 1) {
-      if(ccwPoints(this.A, this.B, p) === 0) break;
+    // need projectDistance to actually put points on the line
+    // or need to adjust so they are
     
-      // alternate A or B as origin
-      const origin = i % 2 === 0 ? this.A : this.B;
-      
-      const d2 = origin.x * p.x + origin.y * p.y;
-      const r = this.projectDistanceSquared(d2);
-      p = r.B;
+    if(ccwPoints(wall.A, wall.B, p) !== 0) {
+      console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, p)}`);
     }
     
     // Second, move up and down the line until we are also on the circle
     // points of the circle, ccw:
-    const c1 = { x: center.x + radius, y: center.y };
-    const c2 = { x: center.x, y: center.y - radius };
-    const c3 = { x: center.x - radius, y: center.y };
+     const c1 = { x: center.x + radius, y: center.y };
+     const c2 = { x: center.x, y: center.y - radius };
+     const c3 = { x: center.x - radius, y: center.y };
     
-    const p_loc = outsideCircle(c1, c2, c3, p);
-    if(p_loc === 0) return p;
+//      const p_loc = outsideCircle(c1, c2, c3, p);
+//      inCirclePoints(c1, c2, c3, p)
+//     if(p_loc === 0) return p;
     
     // tricky part: how to know which way to move on the line?
     // Want to extend the line in relation to a vertex 
     // such that moving in one direction goes outside, moving the other goes inside
     // Just use the furthest vertex b/c otherwise this gets very complicated
-    const A_distSquared = this.A.x * p.x + this.A.y * p.y;
-    const B_distSquared = this.B.x * p.x + this.B.y * p.y;
-    const V = A_distSquared > B_distSquared ? "A" : "B";
-    
-    let previous_loc;      
-    let increment = 1; 
+   //  const A_dist = Math.hypot(p.x - wall.A.x, p.y - wall.A.y);
+//     const B_dist = Math.hypot(p.x - wall.B.x, p.y - wall.B.y);
+//     const V = A_dist > B_dist ? "A" : "B";
+     
+    let divisor = 1
+    const step = Math.floor(iterations / 15) // what e level to reach for the divisor
     for(let i = 0; i < iterations; i += 1) {
-      const d2 = this[V].x * p.x + this[V].y * p.y;
+      // tolerate something on or inside the circle
     
-      const high_p = this.projectDistanceSquared(d2 + increment, { fromEndpoint: V }) 
-      const low_p = this.projectDistanceSquared(d2 - increment, { fromEndpoint: V })
-    
-      const high_p_loc = outsideCircle(c1, c2, c3, high_p);
-      const low_p_loc = outsideCircle(c1, c2, c3, low_p);
+       const curr_ccw = inCirclePoints(c1, c2, c3, p)
+       if(curr_ccw === 0) break;
+       
+       // find t from the equation of the line
+       const t = wall.dx ? 
+           (p.x - wall.A.x) / wall.dx :
+           (p.y - wall.A.y) / wall.dy 
+       
+       if(i % step === 0) { divisor = divisor * .1}        
+       const increment = Math.random() * curr_ccw * divisor;
+       
+       const high_p = wall.project(t + increment);
+       const low_p = wall.project(t - increment);
+       
+       const high_ccw = inCirclePoints(c1, c2, c3, high_p)
+       const low_ccw  = inCirclePoints(c1, c2, c3, low_p)
+       
+       if(ccwPoints(wall.A, wall.B, high_r.A) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, high_r.A)}`); }
+       if(ccwPoints(wall.A, wall.B, high_r.B) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, high_r.B)}`); }
+       if(ccwPoints(wall.A, wall.B, low_r.A) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, low_r.A)}`); }
+       if(ccwPoints(wall.A, wall.B, low_r.B) !== 0) { console.error(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(wall.A, wall.B, low_r.B)}`); }
+       
+       const curr_abs = Math.abs(curr_ccw);
+       const high_abs = Math.abs(high_ccw);
+       const low_abs  = Math.abs(low_ccw);
       
-      if(high_p_loc === 0) {
-        p = high_p;
-        break;
-      }
-      
-      if(low_p_loc === 0) {
-        p = low_p;
-        break;
-      }
-      
-      if(high_p_loc !== low_p_loc) {
-        // Passed the intersection. Decrease increment
-        // Pick the point estimate that caused the switch
-        increment = increment / 2;
-        p = high_p_loc === previous_loc ? low_p : high_p;
-      } else {
-        if(high_p_loc === previous_loc) {
-          // have not passed the intersection. Increase increment
-          increment = increment * 2;
-          
-        } else {
-          // should not happen
-          // suggests moving in opposite directions both pass the intersection
-          // just return
-          console.warn(`${MODULE_ID}|robustIntersectionWithCircle could not locate intersection.`)
-          break;
-        }
-      }
-    
-      previous_loc = p_loc;
+       // if current is greater than 0, take any less than
+       eligible = [false, false]
+       if(curr_ccw > 0) {
+         if(high_ccw <= 0) { eligible[0] = true }
+         if(low_ccw <= 0)  { eligible[1] = true }  
+       } else {
+         if(high_ccw <= 0 && high_abs < curr_abs) { eligible[0] = true }
+         if(low_ccw  <= 0 && low_abs < curr_abs)  { eligible[1] = true }
+       }
+       
+       if(eligible[0] && eligible[1]) {
+//          console.log(`${i} high_ccw: ${high_ccw}`);
+//          console.log(`${i} low_ccw: ${low_ccw}`);
+         p = high_abs < low_abs ? high_p : low_p;
+         
+       } else if(eligible[0]) {
+//          console.log(`${i} high_ccw: ${high_ccw}`);
+         p = high_p;
+       
+       } else if(eligible[1]) {
+//          console.log(`${i} low_ccw: ${low_ccw}`);
+         p = low_p;
+       }
     }
     
     return p;
