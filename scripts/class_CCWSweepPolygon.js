@@ -586,14 +586,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
-        const at_radius_edge = pointsAlmostEqual(endpoint, ray.B);
-        if(at_radius_edge || !endpoint.insideRadius) {
-          // endpoint is outside the radius so don't add it to collisions. 
+        // if we still don't have a closest wall, we are at the edge
+        // remember, endpoints previously filtered, so this is either on the
+        // radius edge or within the radius
+        if(!closest_wall) {
           // need to pad b/c no wall in front of the endpoint, 
           //   so empty space to next point
-          needs_padding = true
-        } else if(!at_radius_edge) {
-          // add unless we already did above.
+          needs_padding = true;
+        
+        } else {
+          // add unless we already did
           // mark this closer endpoint unless it belongs to a single terrain wall
           if(!endpoint.isTerrainExcluded(type)) { 
             collisions.push(endpoint.x, endpoint.y); 
@@ -604,16 +606,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             if(Boolean(closest_wall) && 
                Boolean(actual_closest_wall) && 
                closest_wall.id !== actual_closest_wall.id) {
-              const new_intersection = this._getRayIntersection(closest_wall, ray);
+               const new_intersection = this._getRayIntersection(closest_wall, ray);
               if(!pointsAlmostEqual(new_intersection, ray.B)) { 
                 collisions.push(new_intersection.x, new_intersection.y) 
               }
             }
-          } else {
-            // we are ignoring this endpoint, so we are back at the radius edge
-            needs_padding = true
-          }           
-        }
+          }
+        }  
         
         continue;
       }
@@ -626,25 +625,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
-        if(endpoint.insideRadius) { 
-          collisions.push(endpoint.x, endpoint.y);
+        collisions.push(endpoint.x, endpoint.y);
+      
+        // get the next-closest wall (the one behind the current endpoint)
+        // find its intersection point and add the collision
+        // sightline --> endpoint at closest wall --> next closest wall
+      
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const intersection = this._getRayIntersection(closest_wall, ray);
+      
+        // add the intersection point unless we already did
+        // (occurs at join points of two walls)
+        // Possible that the intersection is a floating point and thus
+        // must test almost equal, not endpoint keys
+        if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
+      
+        // if the ray does not actually intersect the closest wall, we need to add padding
+        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
         
-          // get the next-closest wall (the one behind the current endpoint)
-          // find its intersection point and add the collision
-          // sightline --> endpoint at closest wall --> next closest wall
-        
-          const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
-          const intersection = this._getRayIntersection(closest_wall, ray);
-        
-          // add the intersection point unless we already did
-          // (occurs at join points of two walls)
-          // Possible that the intersection is a floating point and thus
-          // must test almost equal, not endpoint keys
-          if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
-        
-          // if the ray does not actually intersect the closest wall, we need to add padding
-          if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
-        }
         continue;
       }
       
