@@ -332,6 +332,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const origin = this.origin;
     const { maxR, isLimited, aMin, aMax, hasRadius } = this.config;
     const radius = this.config.radius ?? maxR;
+    const radius2 = radius * radius;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
 
     // ----- INITIAL RAY INTERSECTION ---- //
@@ -354,7 +355,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     } else{
       endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = endpoints.length > 0 ? CCWSightRay.fromReference(origin, endpoints[0], radius) : undefined;
+      start_ray = endpoints.length > 0 ? CCWSightRay.fromReferenceSquared(origin, endpoints[0], radius2) : undefined;
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -435,6 +436,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
+    const radius2 = radius * radius;
     const { isLimited, type } = this.config;
     const collisions = this.points;
     const origin = this.origin;
@@ -465,7 +467,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
                 
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         // add the intersection point unless we already did
@@ -483,7 +485,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -503,7 +505,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
         
@@ -524,7 +526,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === (endpoints_ln - 1))) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -550,6 +552,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const { radius, isLimited, type } = this.config;
+    const radius2 = radius * radius;
     const collisions = this.points;
     const origin = this.origin;
     let needs_padding = false;
@@ -567,8 +570,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // draw an arc from where the collisions ended to the ray for the new endpoint
         const l = collisions.length;
         const last_collision = { x: collisions[l - 2], y: collisions[l - 1] };
-        const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const prior_ray = CCWSightRay.fromReferenceSquared(origin, last_collision, radius2);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         
         this._addPadding(prior_ray, ray, collisions);
       }
@@ -577,7 +580,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // mark end of vision ray as collision
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest({type});
@@ -630,7 +633,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           // find its intersection point and add the collision
           // sightline --> endpoint at closest wall --> next closest wall
         
-          const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+          const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
           const intersection = this._getRayIntersection(closest_wall, ray);
         
           // add the intersection point unless we already did
@@ -653,7 +656,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -682,7 +685,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
 
@@ -701,7 +704,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === endpoints_ln)) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -748,8 +751,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           
         // draw an arc from where the collisions ended to the ray for the first collision
         // basically same as padding in the algorithm for loop above
-        const prior_ray = CCWSightRay.fromReference(origin, prior, radius);
-        const ray = CCWSightRay.fromReference(origin, next, radius);
+        const prior_ray = CCWSightRay.fromReferenceSquared(origin, prior, radius2);
+        const ray = CCWSightRay.fromReferenceSquared(origin, next, radius2);
         this._addPadding(prior_ray, ray, collisions);
       
         if(coll_ln < 2) {

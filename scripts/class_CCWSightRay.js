@@ -49,6 +49,17 @@ export class CCWSightRay extends Ray {
     return (new CCWSightRay(origin, reference)).projectDistance(dist);
   }
   
+ /**
+  * Same as fromReference but use distance squared
+  * @param {x: number, y: number}  origin    Ray starting point
+  * @param {x: number, y: number}  reference Ray must pass through this point
+  * @param {Number}                distSquared  Positive number for squared ray distance.
+  * @return {CCWSightRay} Constructed ray.
+  */
+  static fromReferenceSquared(origin, reference, distSquared) {
+    return (new CCWSightRay(origin, reference)).projectDistanceSquared(distSquared);
+  }
+  
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
