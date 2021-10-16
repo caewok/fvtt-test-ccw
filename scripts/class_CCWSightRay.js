@@ -70,7 +70,7 @@ export class CCWSightRay extends Ray {
    * @returns {CCWSightRay}
    */
    reverse() {
-     const r = new this(this.B, this.A);
+     const r = new CCWSightRay(this.B, this.A);
      r._distance = this._distance;
      r._angle = Math.PI - this._angle;
      r._distanceSquared = this._distanceSquared;
@@ -329,7 +329,7 @@ export class CCWSightRay extends Ray {
     // unpredictable results as to whether the line endpoint meets the intersection. 
     // Thus, we need to back off the precision.
     if(robust) {
-      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius, iterations))
+      intersections = intersections.map(p => this.robustIntersectionWithCircle(p, center, radius))
     }
     
     return intersections.filter(i => this.contains(i, {assume_collinear: true, EPSILON: 1e0}));
@@ -395,19 +395,25 @@ export class CCWSightRay extends Ray {
     // Need to increment tiny amounts to avoid moving the point all the way to the
     // second intersection
     let increment = 1e-06;
-    curr_p = p;
-    for(i = 0; i < 20; i += 1) {
-      new_p = wall.project(t + increment)
-      if(new_p.x !== curr_p.x || new_p.y !== new_p.y) {
-        increment *= .1;
-      } else {
-        //increment /= .1; // do we need to back off? Do it below when testing direction
-        break;
+    let curr_p = p;
+    for(let i = 0; i < 20; i += 1) {
+      const new_p = wall.project(t + increment)
+       
+      // need to stop if either fails to change, otherwise wall.project likely to fail later
+      if(new_p.x === curr_p.x || new_p.y === curr_p.y) { 
+        // back off to known change to avoid risk that high/low test will fail
+        increment *= 10;
+        break; 
       }
+
+      // need to set curr_p each time b/c otherwise random changes between original and now
+      // can make this fail. 
+      curr_p = new_p;
+      increment *= .1;
     }   
        
-    const high_p = wall.project(t + ( increment * 10) ); // *10 so the points differ
-    const low_p = wall.project(t - (increment * 10) );   // *10 so the points differ
+    const high_p = wall.project(t + ( increment * 10) ); // *10 to ensure the points differ
+    const low_p = wall.project(t - (increment * 10) );   // *10 to ensure the points differ
     const high_ccw = inCirclePoints(c1, c2, c3, high_p);
     const low_ccw  = inCirclePoints(c1, c2, c3, low_p);
 
@@ -419,7 +425,7 @@ export class CCWSightRay extends Ray {
     // use for loop just in case this fails
     const MAX_ITER = 100
     let total_increment = 0;
-    for(i = 0; i < MAX_ITER; i += 1) {
+    for(let i = 0; i < MAX_ITER; i += 1) {
       if(almostEqual(curr_ccw, 0)) break;
     
       if(curr_ccw < 0) {
