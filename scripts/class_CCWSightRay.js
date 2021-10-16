@@ -61,7 +61,11 @@ export class CCWSightRay extends Ray {
    * @return {Ray} New ray with the projected distance
    */
   projectDistance(dist, { fromEndpoint = "A" } = {}) {
+    const t = dist / this.distance;
+    const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t); 
+  
     const r = this.projectDistanceSquared(dist * dist, { fromEndpoint });
+    const r = new CCWSightRay(this[fromEndpoint], B);
     
     // unclear whether we should force distance to equal the provided distance
     r._distance = dist;
@@ -72,12 +76,12 @@ export class CCWSightRay extends Ray {
   
  /**
   * Same as projectDistance but uses squared distance.
-  * Likely more numerically stable. Possibly slightly faster.
+  * May be more numerically stable. 
   * @param {number} squared_distance Squared distance of the desired ray
   * @return {Ray} New ray with the projected distance
   */
   projectDistanceSquared(dist_squared, { fromEndpoint = "A" } = {}) {
-    const t = dist_squared / this.distanceSquared;
+    const t = Math.sqrt(dist_squared / this.distanceSquared);
     const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t);
     const r = new CCWSightRay(this[fromEndpoint], B);
   
