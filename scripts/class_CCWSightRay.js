@@ -233,7 +233,7 @@ export class CCWSightRay extends Ray {
       if(roots_y.length === 0) return [];    
     
       // x is constant
-      roots_x = roots_y.map(y => k);                     
+      roots_x = roots_y.map(y => k); 
     }
    
     // flip the y-values

@@ -1,7 +1,7 @@
 /* globals PIXI, WallEndpoint, canvas */
 'use strict';
 
-import { pointsAlmostEqual, almostEqual, inCirclePoints, COLORS } from "./util.js";
+import { pointsAlmostEqual, almostEqual, inCirclePoints, COLORS, PRESET_EPSILON } from "./util.js";
 
 /* 
  * Subclass that operates comparably to WallEndpoint but does not round x, y.

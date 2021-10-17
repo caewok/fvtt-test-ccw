@@ -621,7 +621,7 @@ export class BentleyOttomanSweepIntersections {
         // if they share a left endpoint, compare their right endpoints
         // (No intersection will be found, they should be oriented so the 
         //  the one moving up is above the one moving down)
-        return compareYX(a.right, b.right);
+        if(pointsAlmostEqual(a.left, a.right)) { return compareYX(a.right, b.right); }
       
         // One has endpoint in the middle of another
         // a.right --> a --> b.right 

@@ -674,7 +674,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // if the intersection point is basically at the endpoint, skip
         if(!closest_wall || 
           (!ray.intersects(closest_wall) && 
-           !pointsAlmostEqual(intersection, new_intersection, 1e-1)) { needs_padding = true; }  
+           !endpoint(intersection, 1e-1))) { needs_padding = true; }  
         
         continue;
       }
@@ -705,7 +705,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // if the intersection point is basically at the endpoint, skip
         if(!closest_wall || 
           (!ray.intersects(closest_wall) && 
-           !pointsAlmostEqual(intersection, new_intersection, 1e-1)) { needs_padding = true; }  
+           !pointsAlmostEqual(intersection, new_intersection, 1e-1))) { needs_padding = true; }  
           
         continue; 
       }
