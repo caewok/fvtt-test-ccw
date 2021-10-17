@@ -41,7 +41,7 @@ export class IdentifyIntersections {
   * @return {CCWSweepWall[]}
   */
   static buildWallsFromIntersections(intersections, wall) {
-    if(intersections.length === 0) return [remainder];
+    if(intersections.length === 0) return [wall];
     intersections.sort(compareXY);
 
     const finished_walls = [];
