@@ -142,8 +142,8 @@ export class IdentifyIntersections {
           // remainders are created above as A: left, B: right
           // count the intersection unless it is an endpoint of that wall
           
-          e.walls.forEach(w => {
-            const curr_remainder = remainders.get(w.id);
+          e.walls.forEach((w, id) => {
+            const curr_remainder = remainders.get(id);
             
             // check that we are not repeating endpoints
             if(pointsAlmostEqual(curr_remainder.A, i_point) || 
@@ -154,7 +154,7 @@ export class IdentifyIntersections {
             const new_remainder = CCWSweepWall.createFromPoints(i_point, 
                                                                 curr_remainder.B, w); 
             finished_walls.push(new_w);
-            remainders.set(w.id, new_remainder);
+            remainders.set(id, new_remainder);
           });  
         break;
       }
@@ -725,7 +725,7 @@ export class IntersectionSweepEvent {
     this.base_wall = undefined;
    
     if(wall) {
-      this._id = wall.id;
+      this._id = wall.data._id;
       this.base_wall = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
       
       this.coords = wall.coords;
@@ -831,7 +831,6 @@ function createLeftRightSweepWalls(walls) {
     // use SweepWall for intersect, intersection methods
     // but keep the id from the wall
     const out = CCWSweepWall.createFromPoints(left, right, w, {}, { keep_wall_id: true });
-    out.id = w.id;
     ccw_walls.push(out);
   });
   return ccw_walls;
