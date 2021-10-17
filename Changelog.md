@@ -1,3 +1,38 @@
+# 0.1.4
+Key changes:
+1. Toggle to treat lights as triangle or square shape.
+2. New line-circle geometric algorithm.
+3. Fixes for various edge cases seen when a wall very nearly touches the light radius.
+
+CCWSightRay class:
+- New line-circle intersection test using geometry rather than quadratic equation.
+- New algorithm to adjust line-circle intersection points to be consistently on or within the circle according to robust incircle test.
+- Distance squared property and related methods.
+
+CCWSweepPoint class:
+- Handle radius tests using new line-circle algorithm.
+- Add rounding method.
+
+CCWSweepPolygon class:
+- Toggle to treat lights as triangle or square shape. See API light_shape property.
+- Toggle to pre-process wall intersections, creating a set of walls that do not overlap
+- Improve testing for wall-circle intersections.
+- Round wall endpoints when initializing endpoints.
+- Skip walls that are basically points.
+- Minor fixes to catch edge cases in sweep algorithms.
+
+CCWSweepWall class:
+- Use CCWSweepPoints for endpoints.
+- Improve treatment of radius intersections; add intersectsRadius property.
+- Add test for whether the wall is tangent to a circle.
+- Minor fixes to treatment of wall ids.
+
+IntersectionSweep and related classes:
+- Consistently use CCWSweepWalls.
+- Fixes to treatment of underlying base wall ids.
+
+Add incircle robust function and related tests. Let more functions pass through EPSILON to almostEqual tests. 
+
 # 0.1.3
 Pre-process walls to detect intersections of overlapping walls.
 Add API hook to toggle intersection detection on/off.
