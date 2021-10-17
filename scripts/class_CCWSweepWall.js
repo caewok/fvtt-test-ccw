@@ -35,7 +35,7 @@ export class CCWSweepWall extends CCWSightRay {
      * Wall data
      * @type {object}   
      */
-    this.data = {light: 1, move: 1, sight: 1, sound: 1, dir: 0, door: 0};
+    this.data = { light: 1, move: 1, sight: 1, sound: 1, dir: 0, door: 0, _id = this.id };
     
     /*
      * Does the wall have a reference to a roof that is occluded?
