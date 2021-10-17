@@ -484,8 +484,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A) || 
-         endpoint.almostEqual(closest_wall.B)) {
+      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
+         endpoint.almostEqual(closest_wall.B, 1e-1)) {
 
         collisions.push(endpoint.x, endpoint.y);
         
@@ -509,8 +509,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       
       // the following can only happen if the actual closest wall is a terrain wall
       if(actual_closest_wall.id !== closest_wall.id &&
-         (endpoint.almostEqual(actual_closest_wall.A) || 
-          endpoint.almostEqual(actual_closest_wall.B))) {
+         (endpoint.almostEqual(actual_closest_wall.A, 1e-1) || 
+          endpoint.almostEqual(actual_closest_wall.B, 1e-1))) {
           
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
@@ -650,8 +650,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A) || 
-         endpoint.almostEqual(closest_wall.B)) {
+      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
+         endpoint.almostEqual(closest_wall.B, 1e-1)) {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
