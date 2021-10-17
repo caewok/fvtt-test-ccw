@@ -203,10 +203,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        wall.round(); // ensure we are using integer pixel locations for endpoints
                      // could be done outside loop; then only need to round the radius intersections
          
-       // all tests concluded; add wall and endpoints to respective tracking lists.
+      
+         
        const ak = wall.A.key;
        const bk = wall.B.key;
      
+       // if the two wall endpoints are nearly identical, skip
+       // causes problems b/c the endpoints list is by key, and so with 
+       // identical keys the two endpoints only show up once, when they should be distinct
+       // treat as a point, which is not a wall and does not block
+       if(ak === bk) return;  
+     
+       // all tests concluded; add wall and endpoints to respective tracking lists.
+
        let a = this.endpoints.get(ak);
        let b = this.endpoints.get(bk);
      
