@@ -120,9 +120,12 @@ export class IdentifyIntersections {
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
     // we are moving left-to-right, so we can chop up walls as we go
+    let e;
     while(sweeper.incomplete) {
-      const e = sweeper.step();
-      const i_point = e.left; // could just use e but this saves a few calcs.
+      e = sweeper.step();
+      //if(e.id === 'ju8vk7m8r9nu1f0u') break;
+      e.draw()
+      i_point = e.left; // could just use e but this saves a few calcs.
       
       switch(e.event) {
         case "left":
@@ -616,6 +619,13 @@ export class BentleyOttomanSweepIntersections {
       if(a.event === "left" && b.event === "left") {
         // one segment endpoint on the other segment. 
         // either sharing an endpoint or in the middle
+      
+        // if they share a left endpoint, compare their right endpoints
+        // (No intersection will be found, they should be oriented so the 
+        //  the one moving up is above the one moving down)
+        return compareYX(a.right, b.right);
+      
+        // One has endpoint in the middle of another
         // a.right --> a --> b.right 
         // CCW: b after a
         // CW: a after b 
