@@ -130,10 +130,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          candidate_walls.push(...square_walls);
        }
 
-//       this.config.hasRadius = false;    
+//       this.config.hasRadius = false;    // set to false to run non-radius sweep, 
+                                           // relying on the shape borders instead
      }
-     
-     if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
+     // TO-DO: Move this to only when walls change
+     if(game.modules.get(MODULE_ID).api.detect_intersections) { 
+       candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
+     } 
      candidate_walls.forEach(wall => {       
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;

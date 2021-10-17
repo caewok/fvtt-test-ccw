@@ -204,16 +204,22 @@ export class CCWSweepWall extends CCWSightRay {
   /*
    * Take a wall and convert it to a CCWSweepWall
    * @param {Wall}    wall
-   * @param {Object}  opts    Options passed to CCWSweepWall
+   * @param {Object}  opts          Options passed to CCWSweepWall
+   * @param {boolean}  keep_wall_id  Take id from wall provided
+   *   Generally don't want to keep the id as it will lead to repeated ids,
+   *   and the sweep algorithm required unique ids
    * @return {CCWSweepWall}
    */
-  static create(wall, opts = {}) {
+  static create(wall, opts = {}, { keep_wall_id = false } = {}) {
     
     if(wall instanceof CCWSweepWall) {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
       if(opts?.origin) wall.origin = opts.origin;
       if(opts?.radius) wall.radius = opts.radius;
+      
+      if(!keep_wall_id) wall._id = undefined;
+      
       return wall; 
     }
    
@@ -224,7 +230,7 @@ export class CCWSweepWall extends CCWSightRay {
     //w.data = duplicate(wall.data);
     w.data = wall.data;
     w.isInterior = (wall.roof?.occluded === false);
-    w._id = wall.data._id;
+    if(keep_wall_id) { w._id = wall.data._id; }
     
     return w;
   }
@@ -236,14 +242,24 @@ export class CCWSweepWall extends CCWSightRay {
   * @param {PIXI.Point}   A   Passed to CCWSweepWall 
   * @param {PIXI.Point}   B   Passed to CCWSweepWall
   * @param {Wall|CCWSweepWall}         wall
+  * @param {boolean}  keep_wall_id  Take id from wall provided
   * @param {Object}  opts    Options passed to CCWSweepWall
+  *   Generally don't want to keep the id as it will lead to repeated ids,
+   *   and the sweep algorithm required unique ids
   * @return {CCWSweepWall}
   */
-  static createFromPoints(A, B, wall, opts = {}) {
+  static createFromPoints(A, B, wall, opts = {}, { keep_wall_id = false } = {}) {
     const w = new CCWSweepWall(A, B, opts);
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
+    
+    if(keep_wall_id) { 
+      w._id = wall.data._id;   
+    } else {
+      wall._id = undefined;
+    }
+    
     return w;
   }
   
