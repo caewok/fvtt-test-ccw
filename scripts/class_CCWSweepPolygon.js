@@ -668,10 +668,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // (occurs at join points of two walls)
         // Possible that the intersection is a floating point and thus
         // must test almost equal, not endpoint keys
-        if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
-      
+        if(!endpoint.almostEqual(intersection, 1e-1)) { collisions.push(intersection.x, intersection.y) }
+          
         // if the ray does not actually intersect the closest wall, we need to add padding
-        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
+        // if the intersection point is basically at the endpoint, skip
+        if(!closest_wall || 
+          (!ray.intersects(closest_wall) && 
+           !pointsAlmostEqual(intersection, new_intersection, 1e-1)) { needs_padding = true; }  
         
         continue;
       }
@@ -699,7 +702,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         // if the ray does not actually intersect the closest wall, we need to add padding
-        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }  
+        // if the intersection point is basically at the endpoint, skip
+        if(!closest_wall || 
+          (!ray.intersects(closest_wall) && 
+           !pointsAlmostEqual(intersection, new_intersection, 1e-1)) { needs_padding = true; }  
           
         continue; 
       }
