@@ -27,6 +27,15 @@ game.modules.get('testccw').api.use_bezier = true;
 // Optionally, turn off the robust calculation for CCW and use a faster non-robust version:
 game.modules.get('testccw').api.use_robust_ccw = false;
 
+// Optionally, make all lights triangles or squares:
+game.modules.get('testccw').api.light_shape = "triangle";
+game.modules.get('testccw').api.light_shape = "square";
+game.modules.get('testccw').api.light_shape = "circle";
+
+// Optionally, turn off the pre-processing check for overlapping walls. 
+// This will improve speed but light_shape must be "circle"
+game.modules.get('testccw').api.detect_intersections = false;
+
 // To revert to Foundry version:
 CONFIG.Canvas.losBackend = old_backend;
 ```
