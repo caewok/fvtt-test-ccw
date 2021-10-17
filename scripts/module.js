@@ -4,6 +4,7 @@
 // import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight } from "./benchmark.js";
 import { orient2d } from "./lib/orient2d.min.js";
+import { incircle } from "./lib/incircle.min.js";
 import { BinarySearchTree }  from "./class_BinarySearchTree.js";
 import { PotentialWallList } from "./class_PotentialWallList.js";
 import { Bezier } from "./class_Bezier.js";
@@ -56,6 +57,7 @@ Hooks.once('init', async function() {
   *                               numerical overrides or if false, a faster version 
   *                               without such checks.
   * {Boolean}   detect_intersections Pre-process to detect and fix overlapping walls.
+  * {"circle"|"triangle"|"square"}    light_shape       Shape of light. 
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
   * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
@@ -72,12 +74,15 @@ Hooks.once('init', async function() {
     use_bezier: false, 
     use_robust_ccw: true, 
     detect_intersections: true,
+    light_shape: "circle",
+    
     benchmark: testCCWBenchmarkSight,
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
     CCWSightRay: CCWSightRay,
     CCWSweepPolygon: CCWSweepPolygon,
     orient2d: orient2d,
+    incircle: incircle,
     BinarySearchTree: BinarySearchTree,
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,

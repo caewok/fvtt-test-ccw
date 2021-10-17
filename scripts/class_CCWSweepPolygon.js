@@ -114,43 +114,114 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      let candidate_walls = this._getCandidateWalls();
-     if(game.modules.get(MODULE_ID).api.detect_intersections) { candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); } // TO-DO: Move this to only when walls change
-     candidate_walls.forEach(wall => {
-       wall = CCWSweepWall.create(wall, opts); // Even if IdentifyIntersections used, stil need to update origin and radius
+     if(!(candidate_walls instanceof Array)) candidate_walls = [...candidate_walls.values()]; 
+
+     if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
+       // construct a specialized light shape
+       // radius informs the shape but otherwise is turned off; rely on border walls
+       // add these border walls and identify intersections
+       // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
+       if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
+         const triangle_walls = this.constructGeometricShapeWalls([0, 120, 240]);
+         candidate_walls.push(...triangle_walls);
        
+       } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
+         const square_walls = this.constructGeometricShapeWalls([0, 90, 180, 270]);
+         candidate_walls.push(...square_walls);
+       }
+
+//       this.config.hasRadius = false;    // set to false to run non-radius sweep, 
+                                           // relying on the shape borders instead
+     }
+     // TO-DO: Move this to only when walls change
+     if(game.modules.get(MODULE_ID).api.detect_intersections) { 
+       candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
+     } 
+     candidate_walls.forEach(wall => {       
        // Test whether a wall should be included in the set considered for this polygon
        if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
        
-       // construct endpoints if not already
-       const ak = WallEndpoint.getKey(wall.A.x, wall.A.y);
-       const bk = WallEndpoint.getKey(wall.B.x, wall.B.y);
+       // Even if IdentifyIntersections used, stil need to update origin and radius
+       // If we could guarantee the wall is already a CCWSweepWall, could just update
+       // origin and radius directly instead of creating new version.
+       wall = CCWSweepWall.create(wall, opts); 
        
+       // test for inclusion in the FOV radius
+       if(this.config.hasRadius) {
+         // if wall doesn't intersect the radius, skip if it is not inside
+         // conservatively skip only if both endpoints are not inside (should be always both or neither
+         // b/c otherwise the line should go through the circle)
+         // note: wall.intersectsRadius treats the wall as an undending line
+         if(!wall.intersectsRadius && !(wall.A.insideRadius || wall.B.insideRadius)) return;
+         
+         // Can reject tangents by peeking at the intersect data
+         if(wall.isTangentToRadius) return;
+         
+         // if the wall intersects the radius, split wall into portion within
+         if(wall.intersectsRadius) {
+           // Use pointsAlmostEqual to avoid situation where wall endpoint is
+           // very close to the circle and thus it is unclear whether it is inside or not
+         
+           const i0 = wall.radiusIntersections[0];
+           const i1 = wall.radiusIntersections[1];
+ 
+           if(wall.radiusIntersections.length === 0) {
+             // may have had an intersection but it was not within the segment
+             // can skip if the points are outside
+             if(!(wall.A.insideRadius || wall.B.insideRadius)) return;
+           } else if(wall.radiusIntersections.length === 2) {         
+             wall = CCWSweepWall.createFromPoints(i0, i1, wall, opts);                                     
+           } else 
+             // If only one endpoint is inside the circle, can easily construct wall 
+             //   from that endpoint to the circle edge.
+             // Here is the annoying part---
+             // If one or both endpoints are near the circle edge, things take a turn:
+             // - assume both cannot be that close to the edge or there would be two intersections
+             // - could be a wall that barely pierces the circle: can ignore; both outside
+             // - if one is on the edge, the other should be inside
+             if(wall.A.insideRadius && 
+                (!wall.B.insideRadius || pointsAlmostEqual(wall.B, i0))) {
+               wall = CCWSweepWall.createFromPoints(wall.A, i0, wall, opts); 
+             } else if(wall.B.insideRadius && 
+                (!wall.A.insideRadius || pointsAlmostEqual(wall.A, i0))) {
+               wall = CCWSweepWall.createFromPoints(i0, wall.B, wall, opts);
+             } else if(wall.A.insideRadius && wall.B.insideRadius){
+               // if both inside, should not have any intersections to begin with
+               // but just in case...
+               // do nothing so we include this wall
+             
+             } else {
+               // reject the wall
+               // should be a wall that barely pierces the circle
+               // wall.A not inside; wall.B not inside
+               return;
+                       
+           } 
+         } // if wall.intersectsRadius
+       } // if this.config.hasRadius 
+       
+       wall.round(); // ensure we are using integer pixel locations for endpoints
+                     // could be done outside loop; then only need to round the radius intersections
+         
+      
+         
+       const ak = wall.A.key;
+       const bk = wall.B.key;
+     
+       // if the two wall endpoints are nearly identical, skip
+       // causes problems b/c the endpoints list is by key, and so with 
+       // identical keys the two endpoints only show up once, when they should be distinct
+       // treat as a point, which is not a wall and does not block
+       if(ak === bk) return;  
+     
+       // all tests concluded; add wall and endpoints to respective tracking lists.
+
        let a = this.endpoints.get(ak);
        let b = this.endpoints.get(bk);
-       
+     
        if(!a) { a = new CCWSweepPoint(wall.A.x, wall.A.y, opts); }
        if(!b) { b = new CCWSweepPoint(wall.B.x, wall.B.y, opts); }
-
-       
-     
-       // test for inclusion in the FOV radius
-       if(this.config.hasRadius && (!a.insideRadius || !b.insideRadius)) {
-         // The wall can be excluded if:
-         // 1. no endpoint is within the FOV radius circle
-         // 2. wall does not intersect the FOV radius circle
-         // If in this loop, then either one or both endpoints are outside
-         // So if no intersections with circle, we can exclude
-         if(!(wall.radiusIntersections.length > 0)) return;
-
-         // add the intersection points to the set of endpoints to sweep
-         wall.radiusIntersections.forEach(i => {
-             const pt = new CCWSweepPoint(i.x, i.y, opts);
-             //pt.walls.add(wall); // don't add the wall b/c it will throw off the radius sweep. 
-             this.endpoints.set(pt.key, pt);
-         });   
-       }
-       
-       // all tests concluded; add wall and endpoints to respective tracking lists.
+              
        a.walls.add(wall);
        b.walls.add(wall);
        this.walls.set(wall.id, wall);
@@ -161,6 +232,39 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // add the canvas 4-corners endpoints and walls 
      if(!this.config.hasRadius) { this._addCanvasEdges(); }
    }
+   
+  /* -------------------------------------------- */
+  // Geometries for artificially constraining lights
+  
+  /**
+   * Build geometric shape from set of angles
+   * Angles describe where the points should lie relative to origin.
+   * Potentially rotated by rotation angle
+   * Center/origin to point === radius
+   * If a1 === 0, point would lie due east
+   * Example:
+   * constructGeometricShapeWalls([0, 120, 240]); // equilateral triangle
+   * constructGeometricShapeWalls([45, 135, 225, 315]); // square
+   * @return [CCWSweepWall, CCWSweepWall, CCWSweepWall]
+   */
+   constructGeometricShapeWalls(angles) {
+     const origin = this.origin; 
+     const rotation = this.config.rotation ?? 0;
+     const radius = this.config.radius;
+     const opts = { origin, radius };
+     
+     // Use fromAngle to get the points relative to the origin
+     const a_translated = angles.map(a => Math.normalizeRadians(Math.toRadians(a + rotation)));
+     const r = a_translated.map(a => CCWSightRay.fromAngle(origin.x, origin.y, a, radius));
+               
+     // construct walls between the points
+     const ln = angles.length;
+     return r.map((p, idx)  => {
+       const dest = (idx + 1) % ln;
+       return new CCWSweepWall(p.B, r[dest].B, opts);
+     })
+   }
+   
    
   /* -------------------------------------------- */
   
@@ -258,6 +362,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const origin = this.origin;
     const { maxR, isLimited, aMin, aMax, hasRadius } = this.config;
     const radius = this.config.radius ?? maxR;
+    const radius2 = radius * radius;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
 
     // ----- INITIAL RAY INTERSECTION ---- //
@@ -280,13 +385,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     } else{
       endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = endpoints.length > 0 ? CCWSightRay.fromReference(origin, endpoints[0], radius) : undefined;
+      start_ray = endpoints.length > 0 ? CCWSightRay.fromReferenceSquared(origin, endpoints[0], radius2) : undefined;
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
       let start_wall = undefined;
       let end_wall = undefined;
+      
       if(!hasRadius) {
          // if not radius-limited, we need the canvas wall that each ray intersects, if any
          const canvas_pts = [{ x: 0, y: 0 }, 
@@ -360,6 +466,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const radius = this.config.maxR;
+    const radius2 = radius * radius;
     const { isLimited, type } = this.config;
     const collisions = this.points;
     const origin = this.origin;
@@ -377,8 +484,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A) || 
-         endpoint.almostEqual(closest_wall.B)) {
+      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
+         endpoint.almostEqual(closest_wall.B, 1e-1)) {
 
         collisions.push(endpoint.x, endpoint.y);
         
@@ -390,25 +497,25 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
                 
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         // add the intersection point unless we already did
         // (occurs at join points of two walls)
-        if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
+        if(!endpoint.almostEqual(intersection, 1e-1)) { collisions.push(intersection.x, intersection.y) }
         
         continue;
       }
       
       // the following can only happen if the actual closest wall is a terrain wall
       if(actual_closest_wall.id !== closest_wall.id &&
-         (endpoint.almostEqual(actual_closest_wall.A) || 
-          endpoint.almostEqual(actual_closest_wall.B))) {
+         (endpoint.almostEqual(actual_closest_wall.A, 1e-1) || 
+          endpoint.almostEqual(actual_closest_wall.B, 1e-1))) {
           
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -420,7 +527,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         continue; 
       }
@@ -428,7 +535,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
         
@@ -441,7 +548,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
       }
@@ -449,7 +556,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === (endpoints_ln - 1))) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -475,6 +582,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpointsRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
     const { radius, isLimited, type } = this.config;
+    const radius2 = radius * radius;
     const collisions = this.points;
     const origin = this.origin;
     let needs_padding = false;
@@ -492,8 +600,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // draw an arc from where the collisions ended to the ray for the new endpoint
         const l = collisions.length;
         const last_collision = { x: collisions[l - 2], y: collisions[l - 1] };
-        const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const prior_ray = CCWSightRay.fromReferenceSquared(origin, last_collision, radius2);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         
         this._addPadding(prior_ray, ray, collisions);
       }
@@ -502,20 +610,22 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // mark end of vision ray as collision
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
-        const at_radius_edge = pointsAlmostEqual(endpoint, ray.B);
-        if(at_radius_edge || !endpoint.insideRadius) {
-          // endpoint is outside the radius so don't add it to collisions. 
+        // if we still don't have a closest wall, we are at the edge
+        // remember, endpoints previously filtered, so this is either on the
+        // radius edge or within the radius
+        if(!closest_wall) {
           // need to pad b/c no wall in front of the endpoint, 
           //   so empty space to next point
-          needs_padding = true
-        } else if(!at_radius_edge) {
-          // add unless we already did above.
+          needs_padding = true;
+        
+        } else {
+          // add unless we already did
           // mark this closer endpoint unless it belongs to a single terrain wall
           if(!endpoint.isTerrainExcluded(type)) { 
             collisions.push(endpoint.x, endpoint.y); 
@@ -526,16 +636,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
             if(Boolean(closest_wall) && 
                Boolean(actual_closest_wall) && 
                closest_wall.id !== actual_closest_wall.id) {
-              const new_intersection = this._getRayIntersection(closest_wall, ray);
-              if(!new_intersection.keyEquals(new CCWSweepPoint(ray.B.x, ray.B.y))) { 
+               const new_intersection = this._getRayIntersection(closest_wall, ray);
+              if(!pointsAlmostEqual(new_intersection, ray.B, 1e-1)) { 
                 collisions.push(new_intersection.x, new_intersection.y) 
               }
             }
-          } else {
-            // we are ignoring this endpoint, so we are back at the radius edge
-            needs_padding = true
-          }           
-        }
+          }
+        }  
         
         continue;
       }
@@ -543,40 +650,44 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A) || 
-         endpoint.almostEqual(closest_wall.B)) {
+      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
+         endpoint.almostEqual(closest_wall.B, 1e-1)) {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
-        if(endpoint.insideRadius) { 
-          collisions.push(endpoint.x, endpoint.y);
+        collisions.push(endpoint.x, endpoint.y);
+      
+        // get the next-closest wall (the one behind the current endpoint)
+        // find its intersection point and add the collision
+        // sightline --> endpoint at closest wall --> next closest wall
+      
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const intersection = this._getRayIntersection(closest_wall, ray);
+      
+        // add the intersection point unless we already did
+        // (occurs at join points of two walls)
+        // Possible that the intersection is a floating point and thus
+        // must test almost equal, not endpoint keys
+        if(!endpoint.almostEqual(intersection, 1e-1)) { collisions.push(intersection.x, intersection.y) }
+          
+        // if the ray does not actually intersect the closest wall, we need to add padding
+        // if the intersection point is basically at the endpoint, skip
+        if(!closest_wall || 
+          (!ray.intersects(closest_wall) && 
+           !endpoint.almostEqual(intersection, 1e-1))) { needs_padding = true; }  
         
-          // get the next-closest wall (the one behind the current endpoint)
-          // find its intersection point and add the collision
-          // sightline --> endpoint at closest wall --> next closest wall
-        
-          const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
-          const intersection = this._getRayIntersection(closest_wall, ray);
-        
-          // add the intersection point unless we already did
-          // (occurs at join points of two walls)
-          if(!endpoint.keyEquals(intersection)) { collisions.push(intersection.x, intersection.y) }
-        
-          // if the ray does not actually intersect the closest wall, we need to add padding
-          if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }
-        }
         continue;
       }
       
       // the following can only happen if the actual closest wall is a terrain wall
       if(actual_closest_wall.id !== closest_wall.id &&
-         (endpoint.almostEqual(actual_closest_wall.A) || 
-          endpoint.almostEqual(actual_closest_wall.B))) {
+         (endpoint.almostEqual(actual_closest_wall.A, 1e-1) || 
+          endpoint.almostEqual(actual_closest_wall.B, 1e-1))) {
           
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius); 
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -588,10 +699,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         // if the ray does not actually intersect the closest wall, we need to add padding
-        if(!closest_wall || !ray.intersects(closest_wall)) { needs_padding = true; }  
+        // if the intersection point is basically at the endpoint, skip
+        if(!closest_wall || 
+          (!ray.intersects(closest_wall) && 
+           !pointsAlmostEqual(intersection, new_intersection, 1e-1))) { needs_padding = true; }  
           
         continue; 
       }
@@ -605,7 +719,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
 
@@ -616,7 +730,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.keyEquals(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
       }
@@ -624,7 +738,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === endpoints_ln)) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReference(origin, endpoint, radius);
+        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -632,56 +746,54 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     }
     
-    // catch when the last endpoint needs padding to the previous collision
+    // catch when the last collision point needs padding to the first point
+    // the above algorithm will flag when that happens, but there are also special cases.
+    if(isLimited) needs_padding = false;
+    
+    const coll_ln = collisions.length;
+    if(coll_ln < 3) needs_padding = true; // no way to have 2 points encompass vision
+    
     if(needs_padding) {
-      // copied from padding above
-      const l = collisions.length;
-      const last_collision = { x: collisions[l - 4], y: collisions[l - 3] };
-      const last_endpoint = { x: collisions[l - 2], y: collisions[l - 1] };
-      const prior_ray = CCWSightRay.fromReference(origin, last_collision, radius);
-      const ray = CCWSightRay.fromReference(origin, last_endpoint, radius);
-      this._addPadding(prior_ray, ray, collisions);
-      needs_padding = false;
-    }
-    
-    // close between last / first endpoint
-    // deal with unique case where there are no endpoints
-    // (no blocking walls for radius vision)
-    if(!isLimited) {
-      needs_padding = true;
-      if(collisions.length > 0 && closest_wall) {
-        needs_padding = !(pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.A) || 
-          pointsAlmostEqual({x: collisions[0], y: collisions[1]}, closest_wall.B))
-      }   
-    
-      const collisions_ln = collisions.length;
-      let p_last = {x: collisions[collisions_ln - 2], y: collisions[collisions_ln - 1]};
-      let p_current = {x: collisions[0], y: collisions[1]};
+      // next two might have undefined, depending on number of collisions
+      // will be fixed below
+      let prior = { x: collisions[coll_ln - 2], y: collisions[coll_ln - 1] };
+      let next = { x: collisions[0], y: collisions[1] };
       
-      // if 0 or 1 collisions, then just pick an appropriate point
-      // padding is best done by hemisphere in that case
-      if(collisions_ln === 0) {
-        p_last = { x: origin.x - radius, y: origin.y }; 
-        p_current = { x: origin.x + radius, y: origin.y }
+      // if the last collision and the first collision are on the same (closest) wall,
+      // don't need to pad---polygon will fill in along the wall
+      if(needs_padding && 
+         coll_ln >= 4 && 
+         closest_wall && 
+         closest_wall.contains(prior) && 
+         closest_wall.contains(next)) { 
+        needs_padding = false;
+      } 
     
-        collisions.push(p_last.x, p_last.y);
-    
-      } else if(collisions_ln === 1) {
-        // get antipodal point
-        p_last = { x: origin.x - (p_current.x - origin.x),
-                   y: origin.y - (p_current.y - origin.y) }
-      }
+      if(needs_padding) {
+        if(coll_ln === 0) {
+          // pick an appropriate point
+          prior = { x: origin.x - radius, y: origin.y };
+          collisions.push(prior.x, prior.y);  
+        }
       
-      // draw an arc from where the collisions ended to the ray for the new endpoint
-      const prior_ray = CCWSightRay.fromReference(origin, p_last, radius);
-      const ray = CCWSightRay.fromReference(origin, p_current, radius);
-        
-      this._addPadding(prior_ray, ray, collisions);
-
-      if(collisions_ln < 2) {
-        // get the second half by swapping the two rays
-        collisions.push(p_current.x, p_current.y);
-        this._addPadding(ray, prior_ray, collisions); 
+        if(coll_ln < 2) {
+          // add antipodal point to facilitate padding 360º
+          // don't add to collisions yet (will do after padding first half)
+          next = { x: origin.x - (collisions[0] - origin.x),
+                   y: origin.y - (collisions[1] - origin.y) };
+        }
+          
+        // draw an arc from where the collisions ended to the ray for the first collision
+        // basically same as padding in the algorithm for loop above
+        const prior_ray = CCWSightRay.fromReferenceSquared(origin, prior, radius2);
+        const ray = CCWSightRay.fromReferenceSquared(origin, next, radius2);
+        this._addPadding(prior_ray, ray, collisions);
+      
+        if(coll_ln < 2) {
+          // we added collision point #2, so we need to also connect #1 to #2
+          collisions.push(next.x, next.y);
+          this._addPadding(ray, prior_ray, collisions); 
+        }
       }
     }
     this.points = collisions;
@@ -873,6 +985,19 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    
   static getRayCollisions(ray, {type="move", mode="all"}={}) {
      const candidate_walls = [...canvas.walls.quadtree.getObjects(ray.bounds)];
+     
+     // add artificial borders for light, if any
+     if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
+       if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
+         const triangle_walls = this.constructGeometricShapeWalls([0, 120, 240]);
+         candidate_walls.push(...triangle_walls);
+       
+       } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
+         const square_walls = this.constructGeometricShapeWalls([0, 90, 180, 270]);
+         candidate_walls.push(...square_walls);
+       }
+     }
+     
      
      const ln = candidate_walls.length;
      
