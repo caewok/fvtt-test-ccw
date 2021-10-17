@@ -144,11 +144,11 @@ export class CCWSweepWall extends CCWSightRay {
   */
   get isTangentToRadius() {
     // trigger the underlying calculation
-    if(this.intersectRadius === undefined) return undefined;
+    if(this.intersectsRadius === undefined) return undefined;
     
     // now pull the LEC data; if equal to radius squared, this wall is a tangential line
     const R2 = this.radius * this.radius;
-    const LEC2 = this._intersectRadius;
+    const LEC2 = this._intersectsRadius;
     return almostEqual(LEC2, R2);
   } 
   

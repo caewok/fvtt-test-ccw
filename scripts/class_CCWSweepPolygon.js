@@ -146,7 +146,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // test for inclusion in the FOV radius
        if(this.config.hasRadius) {
          // if wall doesn't intersect the radius, skip if it is not inside
-         // conservatively skip only if both endpoints are not inside
+         // conservatively skip only if both endpoints are not inside (should be always both or neither
+         // b/c otherwise the line should go through the circle)
+         // note: wall.intersectsRadius treats the wall as an undending line
          if(!wall.intersectsRadius && !(wall.A.insideRadius || wall.B.insideRadius)) return;
          
          // Can reject tangents by peeking at the intersect data
@@ -159,10 +161,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          
            const i0 = wall.radiusIntersections[0];
            const i1 = wall.radiusIntersections[1];
-                    
-           if(wall.radiusIntersections.length === 2) {         
+ 
+           if(wall.radiusIntersections.length === 0) {
+             // may have had an intersection but it was not within the segment
+             // can skip if the points are outside
+             if(!(wall.A.insideRadius || wall.B.insideRadius)) return;
+           } else if(wall.radiusIntersections.length === 2) {         
              wall = CCWSweepWall.createFromPoints(i0, i1, wall, opts);                                     
-           } else {
+           } else 
              // If only one endpoint is inside the circle, can easily construct wall 
              //   from that endpoint to the circle edge.
              // Here is the annoying part---
@@ -186,7 +192,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
                // should be a wall that barely pierces the circle
                // wall.A not inside; wall.B not inside
                return;
-             }           
+                       
            } 
          } // if wall.intersectsRadius
        } // if this.config.hasRadius 
