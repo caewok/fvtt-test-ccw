@@ -74,16 +74,11 @@ export class IdentifyIntersections {
         const intersections = brute.intersections_map.get(w.id);
         const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
         finished_walls.push(...new_ws);
+      } else {
+        // wall has no intersections; need not be split; just add to array
+        finished_walls.push(w);
       }
     }
-    
-    // add any wall entries not in the intersection map
-    // those don't have intersections
-    const keys = [...brute.intersections_map.keys()];
-    const non_intersecting = brute.walls.filter(w => {
-      return keys.every(k => k !== w.id);
-    });
-    finished_walls.push(...non_intersecting);
     
     return finished_walls;
   }
@@ -104,17 +99,12 @@ export class IdentifyIntersections {
         const intersections = sweep.intersections_map.get(w.id);
         const new_ws = IdentifyIntersections.buildWallsFromIntersections(intersections, w);
         finished_walls.push(...new_ws);
+      } else {
+        // wall has no intersections; need not be split; just add to array
+        finished_walls.push(w);
       }
     }
-    
-    // add any wall entries not in the intersection map
-    // those don't have intersections
-    const keys = [...sweep.intersections_map.keys()];
-    const non_intersecting = sweep.walls.filter(w => {
-      return keys.every(k => k !== w.id);
-    });
-    finished_walls.push(...non_intersecting);
-    
+     
     return finished_walls;    
   }
   
@@ -669,7 +659,7 @@ export class BentleyOttomanSweepIntersections {
     
     const s1_wall = s1.base_wall;
     const s2_wall = s2.base_wall;
-    const intersection = s1_wall.toRay().intersectSegment(s2_wall.coords);
+    const intersection = s1_wall.intersectSegment(s2_wall.coords);
     
     if(!intersection) return;
     
@@ -714,7 +704,7 @@ export class BentleyOttomanSweepIntersections {
     
     const s1_wall = s1.base_wall;
     const s2_wall = s2.base_wall;
-    const intersection = s1_wall.toRay().intersectSegment(s2_wall.coords)
+    const intersection = s1_wall.intersectSegment(s2_wall.coords)
     
     if(!intersection) return;
      
@@ -736,7 +726,7 @@ export class IntersectionSweepEvent {
    
     if(wall) {
       this._id = wall.id;
-      this.base_wall = wall;
+      this.base_wall = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
       
       this.coords = wall.coords;
       const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
@@ -840,7 +830,7 @@ function createLeftRightSweepWalls(walls) {
     
     // use SweepWall for intersect, intersection methods
     // but keep the id from the wall
-    const out = CCWSweepWall.createFromPoints(left, right, w);
+    const out = CCWSweepWall.createFromPoints(left, right, w, {}, { keep_wall_id: true });
     out.id = w.id;
     ccw_walls.push(out);
   });
