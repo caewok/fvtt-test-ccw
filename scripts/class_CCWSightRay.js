@@ -147,7 +147,7 @@ export class CCWSightRay extends Ray {
    * @return{boolean} Does segment include point?
    */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
-    if(p?.x === undefined || p?.y === undefined) console.error(`MODULE_ID|SightRay.contains: p ill-formed`, p); 
+//     if(p?.x === undefined || p?.y === undefined) console.error(`MODULE_ID|SightRay.contains: p ill-formed`, p); 
     // ensure the point is collinear with this ray
     if(!assume_collinear && ccwPoints(this.A, this.B, p) !== 0) return false;
 
@@ -277,8 +277,8 @@ export class CCWSightRay extends Ray {
   * @return {[{x,y}]|undefined} One or two intersection points or undefined.
   */
   intersectionsWithCircleGeometry(center, radius, { robust = false, LEC2 = undefined } = {}) {
-    if(!center) console.error(`MODULE_ID|intersectionsWithCircleGeometry: center undefined`);
-    if(!radius) console.error(`MODULE_ID|intersectionsWithCircleGeometry: radius undefined`);
+//     if(!center) console.error(`MODULE_ID|intersectionsWithCircleGeometry: center undefined`);
+//     if(!radius) console.error(`MODULE_ID|intersectionsWithCircleGeometry: radius undefined`);
     
     const LAB = this.distance;
     const Dx = this.dx / LAB;
@@ -317,12 +317,12 @@ export class CCWSightRay extends Ray {
       intersections.push({ x: Fx, y: Fy }, { x: Gx, y: Gy });
       if(robust) {
         intersections = intersections.map(i => {
-          i = this.robustIntersectionWithCircle(i, center, radius);
-          if(!i) console.error(`MODULE_ID|intersectionsWithCircleGeometry: robust intersection undefined.`, i, { x: Fx, y: Fy }, { x: Gx, y: Gy }, center, radius, this.A, this.B);
-          return i;
+          return this.robustIntersectionWithCircle(i, center, radius);
+          // if(!i) console.error(`MODULE_ID|intersectionsWithCircleGeometry: robust intersection undefined.`, i, { x: Fx, y: Fy }, { x: Gx, y: Gy }, center, radius, this.A, this.B);
+//           return i;
         });
       }
-      if(intersections.length === 0) console.error(`MODULE_ID|intersectionsWithCircleGeometry: intersections length 0`); 
+//       if(intersections.length === 0) console.error(`MODULE_ID|intersectionsWithCircleGeometry: intersections length 0`); 
     }  
     
     // filter to only those intersections within the line
