@@ -120,12 +120,10 @@ export class IdentifyIntersections {
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
     // we are moving left-to-right, so we can chop up walls as we go
-    let e;
     while(sweeper.incomplete) {
-      e = sweeper.step();
-      //if(e.id === 'ju8vk7m8r9nu1f0u') break;
-      e.draw()
-      i_point = e.left; // could just use e but this saves a few calcs.
+      const e = sweeper.step();
+      //e.draw()
+      const i_point = e.left; // could just use e but this saves a few calcs.
       
       switch(e.event) {
         case "left":
