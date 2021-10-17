@@ -232,6 +232,8 @@ export class CCWSweepWall extends CCWSightRay {
     w.isInterior = (wall.roof?.occluded === false);
     if(keep_wall_id) { w._id = wall.data._id; }
     
+     if(!w.data._id) { w.data._id = w.id; }  
+    
     return w;
   }
   
@@ -257,8 +259,10 @@ export class CCWSweepWall extends CCWSightRay {
     if(keep_wall_id) { 
       w._id = wall.data._id;   
     } else {
-      wall._id = undefined;
+      w._id = undefined;
     }
+    
+    if(!w.data._id) { w.data._id = w.id; }  
     
     return w;
   }
