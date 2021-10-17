@@ -3,7 +3,7 @@
 
 import { CCWSightRay } from "./class_CCWSightRay.js";
 import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
-import { orient2dPoints, COLORS } from "./util.js";
+import { orient2dPoints, almostEqual, COLORS } from "./util.js";
 
 /*
  * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.
@@ -16,29 +16,31 @@ export class CCWSweepWall extends CCWSightRay {
 
     // Re-set A and B with origin and radius
     // See setter below
-    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });;
+    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });
     this._B = new CCWSweepPoint(B.x, B.y, { origin, radius });
     
     /* -------------------------------------------- */
     /*  Properties                                  */
     /* -------------------------------------------- */
 
+    // set reasonable defaults for some properties 
+
     /**
      * Is this wall door open? False if not a door or closed.
      * @type {boolean} 
      */
-    this.isOpen;
+    this.isOpen = false;
    
     /*
      * Wall data
      * @type {object}   
      */
-    this.data;
+    this.data = { light: 1, move: 1, sight: 1, sound: 1, dir: 0, door: 0, _id: this.id };
     
     /*
      * Does the wall have a reference to a roof that is occluded?
      */
-    this.isInterior;
+    this.isInterior = false;
     
     /**
      * Origin for the sweep.
@@ -62,6 +64,12 @@ export class CCWSweepWall extends CCWSightRay {
      * Distinguish undefined (not yet stored) from [], meaning none found.
      */
     this._radiusIntersections = undefined; 
+    
+    /*
+     * Store whether the wall intersects the radius
+     * Store as LEC2 value from intersectsCircle
+     */
+    this._intersectsRadius = undefined;
     
     
   }
@@ -97,26 +105,52 @@ export class CCWSweepWall extends CCWSightRay {
    * @param {x: number, y: number}
    */
   get origin() { return this._origin; }
-  
-  /* 
-   * Is this point associated with a radius? Radius 0 does not count.
-   * @return {boolean}
-   */
-  get hasRadius() {
-    return Boolean(this._radius);
-  }
-  
+    
   /*
-   * Is this point inside the FOV radius?
+   * Get the intersection points of this wall with the circle radius
+   * Cache the result.
    * @return {undefined|boolean}
    */
   get radiusIntersections() {
-    if(!this.hasRadius || !this.origin) return undefined;
+    const intersects_radius = this._intersectsRadius;
+    if(intersects_radius === undefined) return undefined;
+    if(!intersects_radius) return [];
+    
     if(this._radiusIntersections === undefined) {
-      this._radiusIntersections = this.intersectionsWithCircle(this.origin, this.radius);
+      this._radiusIntersections = this.intersectionsWithCircleGeometry(this.origin, this.radius, { robust: true, LEC2: intersects_radius });
     }
     return this._radiusIntersections;
   }
+  
+ /**
+  * Does the wall intersect the radius circle?
+  * Cache the result.
+  * @type {boolean|undefined}
+  */
+  get intersectsRadius() {
+    if(this._intersectsRadius === undefined && this.origin && this.radius) {
+      this._intersectsRadius = this.intersectsCircle(this.origin, this.radius, { returnLEC2: true }); 
+    }
+    if(this._intersectsRadius === undefined) return undefined;
+    
+    const R2 = this.radius * this.radius;
+    const LEC2 = this._intersectsRadius;
+    return LEC2 < R2 || almostEqual(LEC2, R2);
+  } 
+  
+ /**
+  * Is the wall tangent to the circle?
+  * @type {boolean|undefined}
+  */
+  get isTangentToRadius() {
+    // trigger the underlying calculation
+    if(this.intersectsRadius === undefined) return undefined;
+    
+    // now pull the LEC data; if equal to radius squared, this wall is a tangential line
+    const R2 = this.radius * this.radius;
+    const LEC2 = this._intersectsRadius;
+    return almostEqual(LEC2, R2);
+  } 
   
   /*
    * When setting origin, un-cache measurements that depend on it.
@@ -127,6 +161,7 @@ export class CCWSweepWall extends CCWSightRay {
     this.A.origin = value;
     this.B.origin = value;
     this._radiusIntersections = undefined;
+    this._intersectsRadius = undefined;
   }
   
   /*
@@ -138,6 +173,7 @@ export class CCWSweepWall extends CCWSightRay {
     this.A.radius = value;
     this.B.radius = value;
     this._radiusIntersections = undefined;
+    this._intersectsRadius = undefined;
   }
   
   /**
@@ -149,6 +185,7 @@ export class CCWSweepWall extends CCWSightRay {
    set A(value) {
      this._A = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
+     this._intersectsRadius = undefined;
    }
    
   /**
@@ -158,6 +195,7 @@ export class CCWSweepWall extends CCWSightRay {
    set B(value) {
      this._B = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
+     this._intersectsRadius = undefined;
    }
   /* -------------------------------------------- */
   /*  Factory Function                            */
@@ -166,16 +204,22 @@ export class CCWSweepWall extends CCWSightRay {
   /*
    * Take a wall and convert it to a CCWSweepWall
    * @param {Wall}    wall
-   * @param {Object}  opts    Options passed to CCWSweepWall
+   * @param {Object}  opts          Options passed to CCWSweepWall
+   * @param {boolean}  keep_wall_id  Take id from wall provided
+   *   Generally don't want to keep the id as it will lead to repeated ids,
+   *   and the sweep algorithm required unique ids
    * @return {CCWSweepWall}
    */
-  static create(wall, opts = {}) {
+  static create(wall, opts = {}, { keep_wall_id = false } = {}) {
     
     if(wall instanceof CCWSweepWall) {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
       if(opts?.origin) wall.origin = opts.origin;
       if(opts?.radius) wall.radius = opts.radius;
+      
+      if(!keep_wall_id) wall._id = undefined;
+      
       return wall; 
     }
    
@@ -186,7 +230,9 @@ export class CCWSweepWall extends CCWSightRay {
     //w.data = duplicate(wall.data);
     w.data = wall.data;
     w.isInterior = (wall.roof?.occluded === false);
-    w._id = wall.data._id;
+    if(keep_wall_id) { w._id = wall.data._id; }
+    
+     if(!w.data._id) { w.data._id = w.id; }  
     
     return w;
   }
@@ -198,14 +244,26 @@ export class CCWSweepWall extends CCWSightRay {
   * @param {PIXI.Point}   A   Passed to CCWSweepWall 
   * @param {PIXI.Point}   B   Passed to CCWSweepWall
   * @param {Wall|CCWSweepWall}         wall
+  * @param {boolean}  keep_wall_id  Take id from wall provided
   * @param {Object}  opts    Options passed to CCWSweepWall
+  *   Generally don't want to keep the id as it will lead to repeated ids,
+   *   and the sweep algorithm required unique ids
   * @return {CCWSweepWall}
   */
-  static createFromPoints(A, B, wall, opts = {}) {
+  static createFromPoints(A, B, wall, opts = {}, { keep_wall_id = false } = {}) {
     const w = new CCWSweepWall(A, B, opts);
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
+    
+    if(keep_wall_id) { 
+      w._id = wall.data._id;   
+    } else {
+      w._id = undefined;
+    }
+    
+    if(!w.data._id) { w.data._id = w.id; }  
+    
     return w;
   }
   
@@ -214,6 +272,20 @@ export class CCWSweepWall extends CCWSightRay {
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
+  
+ /**
+  * Round endpoints to the nearest integer.
+  * Must create anew b/c Ray, SightRay, and CCWSweepWall 
+  * all calculate various values based on the endpoints. 
+  */
+  round() {
+    // avoid accidentally rounding this A or this B
+    const A_new = { x: Math.round(this.A.x), y: Math.round(this.A.y) };
+    const B_new = { x: Math.round(this.B.x), y: Math.round(this.B.y) };
+    
+    return CCWSweepWall.createFromPoints(A_new, B_new, this, 
+                                         { origin: this.origin, radius: this.radius });
+  }
   
   /*
    * Check if point is counter-clockwise or clockwise to a wall

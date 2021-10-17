@@ -3,6 +3,7 @@
 
 // Utility functions
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
+import { incircle, incirclefast } from "./lib/incircle.min.js";
 import { MODULE_ID } from "./module.js"
 
 // Ray.prototype.potentialIntersectionsCircle is precise to ~ 1e-10
@@ -10,7 +11,7 @@ import { MODULE_ID } from "./module.js"
 // works, so that once an intersection point is found, it is determined to be 
 // on the line for any future tests, like for contains.
 // See Number.EPSILON for smallest possible error number.
-const PRESET_EPSILON = 1e-8;
+export const PRESET_EPSILON = 1e-8;
 
 
 // Simple set of colors for drawing and debugging 
@@ -106,6 +107,7 @@ export function orient2dPoints(p1, p2, p3) {
                   p3.x, p3.y);
 }
 
+
 /**
  * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
  * @param {x, y} p1   Point in {x, y} format.
@@ -113,11 +115,51 @@ export function orient2dPoints(p1, p2, p3) {
  * @param {x, y} p3   Point in {x, y} format.
  * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
  */
-export function ccwPoints(p1, p2, p3) {
+export function ccwPoints(p1, p2, p3, EPSILON = PRESET_EPSILON) {
   const res = orient2dPoints(p1, p2, p3);
-  if(almostEqual(res, 0)) return 0;
+  if(almostEqual(res, 0, EPSILON)) return 0;
   return res < 0 ? -1 : 1;                       
 }
+
+/**
+ * Given three counter-clockwise points that define a circle, is this fourth point
+ * within the circle?
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @param {x, y} p4   Point in {x, y} format.
+ * @return {Number}   Positive if outside circle, Negative if inside, 0 if on circle
+ */
+export function inCirclePoints(p1, p2, p3, p4) {
+  if(!p1 || !p2 || !p3 || !p4) console.warn(`${MODULE_ID}|point undefined`, p1, p2, p3, p4);
+
+   if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
+    return incirclefast(p1.x, p1.y,
+                        p2.x, p2.y,
+                        p3.x, p3.y,
+                        p4.x, p4.y);
+  }
+
+  return incircle(p1.x, p1.y,
+                  p2.x, p2.y,
+                  p3.x, p3.y,
+                  p4.x, p4.y);
+}
+
+/**
+ * Comparable to ccw for inCirclePoints.
+ * @param {x, y} p1   Point in {x, y} format.
+ * @param {x, y} p2   Point in {x, y} format.
+ * @param {x, y} p3   Point in {x, y} format.
+ * @param {x, y} p4   Point in {x, y} format.
+ * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
+ */
+export function outsideCircle(p1, p2, p3, p4, EPSILON = PRESET_EPSILON) {
+  const res = inCirclePoints(p1, p2, p3, p4);
+  if(almostEqual(res, 0, EPSILON)) return 0;
+  return res < 0 ? -1 : 1;
+}
+ 
 
 
 /*
