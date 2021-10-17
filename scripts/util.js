@@ -115,9 +115,9 @@ export function orient2dPoints(p1, p2, p3) {
  * @param {x, y} p3   Point in {x, y} format.
  * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
  */
-export function ccwPoints(p1, p2, p3) {
+export function ccwPoints(p1, p2, p3, EPSILON = PRESET_EPSILON) {
   const res = orient2dPoints(p1, p2, p3);
-  if(almostEqual(res, 0)) return 0;
+  if(almostEqual(res, 0, EPSILON)) return 0;
   return res < 0 ? -1 : 1;                       
 }
 
@@ -154,9 +154,9 @@ export function inCirclePoints(p1, p2, p3, p4) {
  * @param {x, y} p4   Point in {x, y} format.
  * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
  */
-export function outsideCircle(p1, p2, p3, p4) {
+export function outsideCircle(p1, p2, p3, p4, EPSILON = PRESET_EPSILON) {
   const res = inCirclePoints(p1, p2, p3, p4);
-  if(almostEqual(res, 0)) return 0;
+  if(almostEqual(res, 0, EPSILON)) return 0;
   return res < 0 ? -1 : 1;
 }
  

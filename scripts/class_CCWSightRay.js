@@ -133,9 +133,9 @@ export class CCWSightRay extends Ray {
    * @param {Ray} r Other ray to test for intersection
    * @return {boolean} Could the segments intersect?
    */
-  intersects(r) {  
-    return ccwPoints(this.A, this.B, r.A) != ccwPoints(this.A, this.B, r.B) &&
-           ccwPoints(r.A, r.B, this.A) != ccwPoints(r.A, r.B, this.B);
+  intersects(r, EPSILON = PRESET_EPSILON) {  
+    return ccwPoints(this.A, this.B, r.A, EPSILON) != ccwPoints(this.A, this.B, r.B, EPSILON) &&
+           ccwPoints(r.A, r.B, this.A, EPSILON) != ccwPoints(r.A, r.B, this.B, EPSILON);
   }
   
   /**
@@ -149,7 +149,7 @@ export class CCWSightRay extends Ray {
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     if(p?.x === undefined || p?.y === undefined) console.error(`MODULE_ID|SightRay.contains: p ill-formed`, p); 
     // ensure the point is collinear with this ray
-    if(!assume_collinear && ccwPoints(this.A, this.B, p) !== 0) return false;
+    if(!assume_collinear && ccwPoints(this.A, this.B, p, EPSILON) !== 0) return false;
 
     // test if is an endpoint
     // covered by revised test below

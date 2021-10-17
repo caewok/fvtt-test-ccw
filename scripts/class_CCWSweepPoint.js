@@ -196,8 +196,8 @@ export class CCWSweepPoint extends PIXI.Point {
    * Test if this point is almost equal to some other {x, y} point
    * @param {x: number, y: number} p    Point to compare
    */
-  almostEqual(p) {
-    return pointsAlmostEqual(this, p)
+  almostEqual(p, EPSILON = PRESET_EPSILON) {
+    return pointsAlmostEqual(this, p, EPSILON)
   }  
     
  /**
