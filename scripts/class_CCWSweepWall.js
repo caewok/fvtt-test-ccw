@@ -1,23 +1,24 @@
 /* globals foundry, CONST */
 'use strict';
 
-import { CCWSightRay } from "./class_CCWSightRay.js";
+import { CCWPixelRay } from "./class_CCWPixelRay.js";
 import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
-import { orient2dPoints, almostEqual, COLORS } from "./util.js";
+import { almostEqual } from "./util.js";
 
 /*
- * Subclass of CCWSightRay used for storing Wall segments used in the CCW Sweep algorithm.
- * CCWSightRay extends Ray, so these are basically Ray versions of Wall segments
+ * Subclass of CCWPixelRay used for storing Wall segments used in the CCW Sweep algorithm.
+ * CCWPixelRay extends Ray, so these are basically Ray versions of Wall segments.
+ * This subclass stores various wall information used by the sweep algorithm.
  * @extends{CCWSightRay}
  */
-export class CCWSweepWall extends CCWSightRay {
+export class CCWSweepWall extends CCWPixelRay {
   constructor(A, B, {origin, radius} = {}) {
     super(A, B);
 
     // Re-set A and B with origin and radius
     // See setter below
-    this._A = new CCWSweepPoint(A.x, A.y, { origin, radius });
-    this._B = new CCWSweepPoint(B.x, B.y, { origin, radius });
+    this._A = CCWSweepPoint.fromPoint(A, { origin, radius });
+    this._B = CCWSweepPoint.fromPoint(B, { origin, radius });
     
     /* -------------------------------------------- */
     /*  Properties                                  */
@@ -183,7 +184,7 @@ export class CCWSweepWall extends CCWSightRay {
    */
    get A() { return this._A; }
    set A(value) {
-     this._A = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
+     this._A = CCWSweepPoint.fromPoint(value, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
      this._intersectsRadius = undefined;
    }
@@ -193,7 +194,7 @@ export class CCWSweepWall extends CCWSightRay {
    */
    get B() { return this._B; }
    set B(value) {
-     this._B = new CCWSweepPoint(value.x, value.y, { origin: this.origin, radius: this.radius });
+     this._B = CCWSweepPoint.fromPoint(value, { origin: this.origin, radius: this.radius });
      this._radiusIntersections = undefined;
      this._intersectsRadius = undefined;
    }
@@ -272,36 +273,7 @@ export class CCWSweepWall extends CCWSightRay {
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
-  
- /**
-  * Round endpoints to the nearest integer.
-  * Must create anew b/c Ray, SightRay, and CCWSweepWall 
-  * all calculate various values based on the endpoints. 
-  */
-  round() {
-    // avoid accidentally rounding this A or this B
-    const A_new = { x: Math.round(this.A.x), y: Math.round(this.A.y) };
-    const B_new = { x: Math.round(this.B.x), y: Math.round(this.B.y) };
-    
-    return CCWSweepWall.createFromPoints(A_new, B_new, this, 
-                                         { origin: this.origin, radius: this.radius });
-  }
-  
-  /*
-   * Check if point is counter-clockwise or clockwise to a wall
-   * Wall left/right direction measured in Foundry from wall.B --> wall.A
-   * Thus CW/CCW here measured accordingly
-   * wall.B --> wall.A --> origin
-   * See whichSide method.
-   * 
-   * @param {x: number, y: number} p 
-   * @return {number} Positive if CCW, Negative if CW, 0 if in line
-   */ 
-  orient2d(p) { 
-    return orient2dPoints(this.B, this.A, p);
-  }
-
-
+   
   /*
    * Report the side of the origin in relation to the wall, using ccw algorithm.
    * Return in terms of CONST.WALL_DIRECTIONS
@@ -320,17 +292,6 @@ export class CCWSweepWall extends CCWSightRay {
            orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : 
                              CONST.WALL_DIRECTIONS.BOTH;
   }  
-  
- /**
-  * Draw the wall (for debugging)
-  * @param {number} color
-  * @param {number} alpha
-  * @param {number} width
-  */
-  draw(color = COLORS.red, alpha = 1, width = 1) {
-    CCWSightRay.prototype.draw.call(this, color, width, alpha);
-  }
-
 } 
 
 
