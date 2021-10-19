@@ -66,7 +66,7 @@ export function round(value, precision = 0) {
  * @return {Boolean} True if points are within the error of each other.
  */
 export function pointsAlmostEqual(p1, p2, { EPSILON = PRESET_EPSILON } = {}) {
-  return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
+  return almostEqual(p1.x, p2.x, { EPSILON }) && almostEqual(p1.y, p2.y, { EPSILON });
 }
 
 /**
@@ -117,7 +117,7 @@ export function orient2dPoints(p1, p2, p3) {
  */
 export function ccwPoints(p1, p2, p3, { EPSILON = PRESET_EPSILON } = {}) {
   const res = orient2dPoints(p1, p2, p3);
-  if(almostEqual(res, 0, EPSILON)) return 0;
+  if(almostEqual(res, 0, { EPSILON })) return 0;
   return res < 0 ? -1 : 1;                       
 }
 
@@ -154,9 +154,9 @@ export function inCirclePoints(p1, p2, p3, p4) {
  * @param {x, y} p4   Point in {x, y} format.
  * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
  */
-export function outsideCircle(p1, p2, p3, p4, EPSILON = PRESET_EPSILON) {
+export function outsideCircle(p1, p2, p3, p4 { EPSILON = PRESET_EPSILON }) {
   const res = inCirclePoints(p1, p2, p3, p4);
-  if(almostEqual(res, 0, EPSILON)) return 0;
+  if(almostEqual(res, 0, { EPSILON })) return 0;
   return res < 0 ? -1 : 1;
 }
  

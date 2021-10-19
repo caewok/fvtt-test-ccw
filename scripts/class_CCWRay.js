@@ -181,11 +181,11 @@ export class CCWRay extends Ray {
   * @param {number} EPSILON   How exact do we want to be? 
   * @return {boolean} Could the segments intersect?
   */
-  intersects(r, EPSILON = PRESET_EPSILON) {  
+  intersects(r, { EPSILON = PRESET_EPSILON }) {  
     if(!(r instanceof CCWRay)) { r = CCWRay.fromRay(r); }
   
-    return this.ccw(r.A, EPSILON) !== this.ccw(r.B, EPSILON) &&
-           r.ccw(this.A, EPSILON) !== r.ccw(this.B, EPSILON);
+    return this.ccw(r.A, { EPSILON }) !== this.ccw(r.B, { EPSILON }) &&
+           r.ccw(this.A, { EPSILON }) !== r.ccw(this.B, { EPSILON });
   }  
   
  /**
@@ -208,11 +208,11 @@ export class CCWRay extends Ray {
     const max_y = Math.max(this.A.y, this.B.y);
     const min_y = Math.min(this.A.y, this.B.y);
 
-    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, EPSILON)) &&
-                (p.x > min_x || almostEqual(p.x, min_x, EPSILON)));
+    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, { EPSILON })) &&
+                (p.x > min_x || almostEqual(p.x, min_x, { EPSILON })));
 
-    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, EPSILON)) &&
-                (p.y > min_y || almostEqual(p.y, min_y, EPSILON)));
+    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, { EPSILON })) &&
+                (p.y > min_y || almostEqual(p.y, min_y, { EPSILON })));
  
     return within_x && within_y;
   } 
@@ -234,13 +234,13 @@ export class CCWRay extends Ray {
   inFrontOfPoint(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
     if(!(p instanceof CCWPoint)) p = CCWPoint.fromPoint(p);
   
-    if(pointsAlmostEqual(p, this.A, EPSILON) || 
-       pointsAlmostEqual(this.B, EPSILON)) { return false; }
-    if(p.almostEqual(origin, EPSILON)) { return false; }
+    if(pointsAlmostEqual(p, this.A, { EPSILON }) || 
+       pointsAlmostEqual(this.B, { EPSILON })) { return false; }
+    if(p.almostEqual(origin, { EPSILON })) { return false; }
   
-    const ABP = this.ccw(p, EPSILON);
-    const ABO = this.ccw(origin, EPSILON);
-    const OAP = ccwPoints(origin, this.A, p, EPSILON);
+    const ABP = this.ccw(p, { EPSILON });
+    const ABO = this.ccw(origin, { EPSILON });
+    const OAP = ccwPoints(origin, this.A, p, { EPSILON });
   
     // don't need almostEqual here; covered by ccw above.
     if(ABP !== ABO && ABP !== OAP) return true;
@@ -266,10 +266,10 @@ export class CCWRay extends Ray {
     
     if(check_overlap) {    
       // if the rays share an endpoint, no intersection
-      if(this.A.almostEqual(segment.A, EPSILON) ||
-         this.A.almostEqual(segment.B, EPSILON) ||
-         this.B.almostEqual(segment.A, EPSILON) ||
-         this.B.almostEqual(segment.B, EPSILON)) {
+      if(this.A.almostEqual(segment.A, { EPSILON }) ||
+         this.A.almostEqual(segment.B, { EPSILON }) ||
+         this.B.almostEqual(segment.A, { EPSILON }) ||
+         this.B.almostEqual(segment.B, { EPSILON })) {
          
          // do nothing
          
@@ -278,13 +278,13 @@ export class CCWRay extends Ray {
         // the two rays form a T, with this ray at the top of the T
         // segment.A is the intersection point
         // This ray blocks if origin is above the T
-        return this.ccw(origin, EPSILON) !== this.ccw(segment.B);
+        return this.ccw(origin, { EPSILON }) !== this.ccw(segment.B);
        
       } else if(this.contains(segment.B)) {
         // the two rays form a T, with this ray at the top of the T
         // segment.B is the intersection point
         // This ray blocks if origin is above the T
-        return this.ccw(origin, EPSILON) !== this.ccw(segment.A);
+        return this.ccw(origin, { EPSILON }) !== this.ccw(segment.A);
         
       } else if(segment.contains(this.A)) {
         // two rays for a T, with the segment at the top of the T
@@ -294,12 +294,12 @@ export class CCWRay extends Ray {
         // If the origin is in line with the bottom of the T, this ray blocks an 
         // infinitesimally small portion of the top of the T
         
-        return segment.ccw(origin, EPSILON) === segment.ccw(this.B);
+        return segment.ccw(origin, { EPSILON }) === segment.ccw(this.B);
       
       } else if(segment.contains(this.B)) {
         // two rays for a T, with the segment at the top of the T
         // same as for this.A above
-        return segment.ccw(origin, EPSILON) === segment.ccw(this.A);
+        return segment.ccw(origin, { EPSILON }) === segment.ccw(this.A);
         
       } else if(this.ccw(segment.A) !== this.ccw(segment.B) &&
                 this.segment(this.A) !== this.segment(this.B)) {
@@ -312,22 +312,22 @@ export class CCWRay extends Ray {
     
     // if the origin is on opposite side of this versus other segment, cannot block
     // i.e., segments sandwich the origin
-    if(this.ccw(origin, EPSILON) !== segment.ccw(origin, EPSILON)) return false;
+    if(this.ccw(origin, { EPSILON }) !== segment.ccw(origin, { EPSILON })) return false;
     
     // if either endpoint is blocked, the line must block
-    if(this.inFrontOfPoint(segment.A, origin, EPSILON) || 
-       this.inFrontOfPoint(segment.B, origin, EPSILON)) return true;
+    if(this.inFrontOfPoint(segment.A, origin, { EPSILON }) || 
+       this.inFrontOfPoint(segment.B, origin, { EPSILON })) return true;
     
     // going from each endpoint of the segment to this ray, does this ray cast a shadow
     // on the origin? 
     // imagine drawing lines through the endpoints of the respective two segments.
     // this test identifies the quadrants "in shadow" of this ray
     // comparable to checking for whether this ray is in front of the segment endpoints
-    if(ccwPoints(segment.A, this.A, origin, EPSILON) !== 
-       ccwPoints(segment.A, this.B, origin, EPSILON)) return true;
+    if(ccwPoints(segment.A, this.A, origin, { EPSILON }) !== 
+       ccwPoints(segment.A, this.B, origin, { EPSILON })) return true;
        
-    if(ccwPoints(segment.B, this.A, origin, EPSILON) !== 
-       ccwPoints(segment.B, this.B, origin, EPSILON)) return true;
+    if(ccwPoints(segment.B, this.A, origin, { EPSILON }) !== 
+       ccwPoints(segment.B, this.B, origin, { EPSILON })) return true;
     
     return false;
   }
@@ -580,7 +580,7 @@ export class CCWRay extends Ray {
   
     const R2 = radius * radius;
     
-    if(almostEqual(LEC2, R2, EPSILON)) {
+    if(almostEqual(LEC2, R2 { EPSILON })) {
       // tangent point to circle is E
       const Ex = t * Dx + this.A.x;
       const Ey = t * Dy + this.A.y;
@@ -616,7 +616,7 @@ export class CCWRay extends Ray {
   */
   robustIntersectionWithCircle(p, center, radius, { EPSILON = PRESET_EPSILON } = {}) {
     
-    if(this.ccw(p, EPSILON) !== 0) {
+    if(this.ccw(p, { EPSILON }) !== 0) {
       // Just confirming. Could happen due to programmer error or 
       // possibly if the intersection point algorithm is not robust enough to 
       // find a point that is actually on the line   
@@ -632,7 +632,7 @@ export class CCWRay extends Ray {
     const c3 = new CCWPoint(center.x - radius, center.y);
     
     let curr_ccw = inCirclePoints(c1, c2, c3, p)    
-    if(almostEqual(curr_ccw, 0, EPSILON)) return p;
+    if(almostEqual(curr_ccw, 0, { EPSILON })) return p;
     
     // if p is closer to endpoint A, reverse the line
     // (Don't want A and p to be near equivalent for these measurements)
@@ -690,7 +690,7 @@ export class CCWRay extends Ray {
         const test_increment = total_increment - (increment * move_inside);
         const new_p = r.project(t + test_increment);
         const new_ccw = inCirclePoints(c1, c2, c3, new_p);
-        if(almostEqual(new_ccw, 0, EPSILON) || new_ccw < 0) {
+        if(almostEqual(new_ccw, 0, { EPSILON }) || new_ccw < 0) {
           curr_ccw = new_ccw;
           total_increment = test_increment;
         } else {

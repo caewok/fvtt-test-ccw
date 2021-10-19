@@ -133,9 +133,9 @@ export class CCWSightRay extends Ray {
    * @param {Ray} r Other ray to test for intersection
    * @return {boolean} Could the segments intersect?
    */
-  intersects(r, EPSILON = PRESET_EPSILON) {  
-    return ccwPoints(this.A, this.B, r.A, EPSILON) != ccwPoints(this.A, this.B, r.B, EPSILON) &&
-           ccwPoints(r.A, r.B, this.A, EPSILON) != ccwPoints(r.A, r.B, this.B, EPSILON);
+  intersects(r, { EPSILON = PRESET_EPSILON } = {}) {  
+    return ccwPoints(this.A, this.B, r.A, { EPSILON }) != ccwPoints(this.A, this.B, r.B, { EPSILON }) &&
+           ccwPoints(r.A, r.B, this.A, { EPSILON }) != ccwPoints(r.A, r.B, this.B, { EPSILON });
   }
   
   /**
@@ -149,7 +149,7 @@ export class CCWSightRay extends Ray {
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     if(p?.x === undefined || p?.y === undefined) console.error(`MODULE_ID|SightRay.contains: p ill-formed`, p); 
     // ensure the point is collinear with this ray
-    if(!assume_collinear && ccwPoints(this.A, this.B, p, EPSILON) !== 0) return false;
+    if(!assume_collinear && ccwPoints(this.A, this.B, p, { EPSILON }) !== 0) return false;
 
     // test if is an endpoint
     // covered by revised test below
@@ -163,11 +163,11 @@ export class CCWSightRay extends Ray {
     const max_y = Math.max(this.A.y, this.B.y);
     const min_y = Math.min(this.A.y, this.B.y);
 
-    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, EPSILON)) &&
-                (p.x > min_x || almostEqual(p.x, min_x, EPSILON)));
+    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, { EPSILON })) &&
+                (p.x > min_x || almostEqual(p.x, min_x, { EPSILON })));
 
-    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, EPSILON)) &&
-                (p.y > min_y || almostEqual(p.y, min_y, EPSILON)));
+    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, { EPSILON })) &&
+                (p.y > min_y || almostEqual(p.y, min_y, { EPSILON })));
  
     return within_x && within_y;
   }
