@@ -40,7 +40,7 @@ export const COLORS = {
   *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = PRESET_EPSILON) {
+export function almostEqual(x, y, { EPSILON = PRESET_EPSILON } = {}) {
   return Math.abs(x - y) < EPSILON;
 }
 
@@ -65,7 +65,7 @@ export function round(value, precision = 0) {
  *                              will be considered equal
  * @return {Boolean} True if points are within the error of each other.
  */
-export function pointsAlmostEqual(p1, p2, EPSILON = PRESET_EPSILON) {
+export function pointsAlmostEqual(p1, p2, { EPSILON = PRESET_EPSILON } = {}) {
   return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
 }
 
@@ -77,7 +77,7 @@ export function pointsAlmostEqual(p1, p2, EPSILON = PRESET_EPSILON) {
  *                              will be considered 0
  * @return The distance between the two points.
  */
-export function calculateDistance(A, B, EPSILON = PRESET_EPSILON) {
+export function calculateDistance(A, B, { EPSILON = PRESET_EPSILON } = {}) {
   // could use pointsAlmostEqual function but this avoids double-calculating
   const dx = Math.abs(B.x - A.x); 
   const dy = Math.abs(B.y - A.y);
@@ -115,7 +115,7 @@ export function orient2dPoints(p1, p2, p3) {
  * @param {x, y} p3   Point in {x, y} format.
  * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
  */
-export function ccwPoints(p1, p2, p3, EPSILON = PRESET_EPSILON) {
+export function ccwPoints(p1, p2, p3, { EPSILON = PRESET_EPSILON } = {}) {
   const res = orient2dPoints(p1, p2, p3);
   if(almostEqual(res, 0, EPSILON)) return 0;
   return res < 0 ? -1 : 1;                       
