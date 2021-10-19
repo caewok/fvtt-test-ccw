@@ -228,10 +228,11 @@ export class CCWRay extends Ray {
    *                   False if behind or on the segment line
    */
   inFrontOfPoint(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
-    if(!(p instanceof CCWPoint)) p = CCWPoint.fromPoint(p);
+    if(!(p instanceof CCWPoint)) p = this.A.constructor.fromPoint(p);
   
-    if(p.almostEqual(this.A, { EPSILON }) || 
-       p.almostEqual(this.B, { EPSILON })) { return false; }
+    // test using A and B in case they are PixelPoints.
+    if(this.A.almostEqual(p, { EPSILON }) || 
+       this.B.almostEqual(p, { EPSILON })) { return false; }
     if(p.almostEqual(origin, { EPSILON })) { return false; }
   
     const ABP = this.ccw(p, { EPSILON });
@@ -262,7 +263,7 @@ export class CCWRay extends Ray {
   */   
   inFrontOfSegment(segment, origin, { EPSILON = PRESET_EPSILON, 
                                       check_overlap = false } = {}) {
-    if(!(segment instanceof CCWRay)) segment = CCWRay.fromRay(segment);
+    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
     
     if(check_overlap) {    
       // if the rays share an endpoint, no intersection

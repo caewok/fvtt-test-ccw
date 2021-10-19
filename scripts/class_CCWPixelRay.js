@@ -37,7 +37,7 @@ export class CCWPixelRay extends CCWRay {
   * @param {number} [options.EPSILON]  How exact should the equality test be?
   * @override
   */
-  ccw(p, { EPSILON = PRESET_EPSILON } = {}) { 
+  ccw(p) { 
     // orient2d returns ~ double the area of the triangle formed by the three points.
     // in the base case, a line 1,1 --> 1,0 and a point 1 - √2 / 2, 0 returns
     // area of √2 / 2. 
@@ -51,4 +51,14 @@ export class CCWPixelRay extends CCWRay {
     if(orientation2 < cutoff) return 0; 
     return orientation < 0 ? -1 : 1;    
   }
+  
+ /**
+  * Test if point is on/very near the segment.
+  * Override by adjusting EPSILON to account for x and y within √2 / 2
+  */
+  contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
+    return CCWRay.prototype.contains.call(this, p, 
+      { assume_collinear, EPSILON: Math.SQRT1_2});
+  }
+
 }
