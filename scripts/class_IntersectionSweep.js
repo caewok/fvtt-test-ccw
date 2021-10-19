@@ -3,8 +3,6 @@
 
 import { arraySwap, 
          almostEqual, 
-         pointsAlmostEqual, 
-         orient2dPoints,
          COLORS,
          compareXY,
          compareXY_A,
