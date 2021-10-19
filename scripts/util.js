@@ -58,18 +58,6 @@ export function round(value, precision = 0) {
 }
 
 /**
- * Are two points basically at the same spot?
- * @param {x, y}    p1        First point
- * @param {x, y}    p2        Second point
- * @param {Number}  EPSILON   Small number representing error within which the points 
- *                              will be considered equal
- * @return {Boolean} True if points are within the error of each other.
- */
-export function pointsAlmostEqual(p1, p2, { EPSILON = PRESET_EPSILON } = {}) {
-  return almostEqual(p1.x, p2.x, { EPSILON }) && almostEqual(p1.y, p2.y, { EPSILON });
-}
-
-/**
  * Calculate the distance between two points in {x,y} dimensions.
  * @param {x, y} A   Point in {x, y} format.
  * @param {x, y} B   Point in {x, y} format.
@@ -86,25 +74,6 @@ export function calculateDistance(A, B, { EPSILON = PRESET_EPSILON } = {}) {
   if(dx < EPSILON) { return dy; }
 
   return Math.hypot(dy, dx);
-}
-
-/**
- * Is point 3 clockwise or counterclockwise (CCW) of the line from p1 -> p2 -> p3
- * @param {x, y} p1   Point in {x, y} format.
- * @param {x, y} p2   Point in {x, y} format.
- * @param {x, y} p3   Point in {x, y} format.
- * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
- */
-export function orient2dPoints(p1, p2, p3) {
-  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
-    return orient2dfast(p1.x, p1.y,
-                        p2.x, p2.y,
-                        p3.x, p3.y)
-  }
-
-  return orient2d(p1.x, p1.y,
-                  p2.x, p2.y,
-                  p3.x, p3.y);
 }
 
 

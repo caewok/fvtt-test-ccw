@@ -2,6 +2,8 @@
 /* globals PIXI, canvas */
 
 import { pointsAlmostEqual, PRESET_EPSILON, COLORS } from "./util.js";
+import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
+
 
 /** 
  * Point class with methods used to compare between points.
@@ -18,15 +20,33 @@ export class CCWPoint extends PIXI.Point {
    
  /**
   * Compare whether two points are nearly equal
-  * @param {number}    EPSILON   Error tolerance for almostEqual test.
   * @param {PIXI.Point} p0
   * @param {PIXI.Point} p1
+  * @param {number}    EPSILON   Error tolerance for almostEqual test.
+  * @return {Boolean} True if points are within the error of each other.
   */
-  static pointsAlmostEqual(p0, p1, { EPSILON = PRESET_EPSILON } = {}) {
-    if(p0 instanceof CCWPoint) return p0.almostEqual(p1, { EPSILON });
-    if(p1 instanceof CCWPoint) return p1.almostEqual(p0, { EPSILON });
-    return pointsAlmostEqual(p0, p1, { EPSILON });
+  static almostEqual(p0, p1, { EPSILON = PRESET_EPSILON } = {}) {
+    return almostEqual(p1.x, p2.x, { EPSILON }) && almostEqual(p1.y, p2.y, { EPSILON });
   }
+  
+ /**
+  * Is point 3 clockwise or counterclockwise (CCW) of the line from p1 -> p2 -> p3
+  * @param {x, y} p1   Point in {x, y} format.
+  * @param {x, y} p2   Point in {x, y} format.
+  * @param {x, y} p3   Point in {x, y} format.
+  * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
+  */
+  static orient2d(p1, p2, p3) {
+  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
+    return orient2dfast(p1.x, p1.y,
+                        p2.x, p2.y,
+                        p3.x, p3.y)
+  }
+
+  return orient2d(p1.x, p1.y,
+                  p2.x, p2.y,
+                  p3.x, p3.y);
+} 
   
   
   /* -------------------------------------------- */
