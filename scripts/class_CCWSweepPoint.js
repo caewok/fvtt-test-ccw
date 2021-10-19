@@ -1,32 +1,26 @@
-/* globals PIXI, WallEndpoint, canvas */
 'use strict';
 
-import { pointsAlmostEqual, almostEqual, inCirclePoints, COLORS, PRESET_EPSILON } from "./util.js";
+import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
+import { almostEqual, 
+         inCirclePoints } from "./util.js";
 
 /* 
- * Subclass that operates comparably to WallEndpoint but does not round x, y.
- * Still keys x,y to a rounded integer point, and treats two such points as equal.
- * Non-rounded version needed to mark points on a line where integer points would not
- * be sufficiently exact.
- * @extends {PIXI.Point}
- * @property {number} x     The integer x-coordinate
- * @property {number} y     The integer y-coordinate
+ * Represent a wall endpoint.
+ * Extends CCWPixelPoint, so the x and y are integer coordinates.
+ * Stores properties relevant to a wall sweep, 
+ * including the field of vision origin and radius if the vision is limited.
+ * @extends {CCWPixelPoint}
+ * @property {number} x     The x-coordinate
+ * @property {number} y     The y-coordinate
  */
-export class CCWSweepPoint extends PIXI.Point {
+export class CCWSweepPoint extends CCWPixelPoint {
   constructor(x, y, {origin, radius} = {}) {
     super(x, y)
 
     /* -------------------------------------------- */
     /*  Properties                                  */
     /* -------------------------------------------- */
-
-    /**
-     * Express the point as a 32-bit integer with 16 bits allocated to x 
-     * and 16 bits allocated to y. Same as WallPoint version.
-     * @type {number}
-     */
-    this.key = WallEndpoint.getKey(this.x, this.y);
-    
+ 
     /**
      * Record the set of walls which connect to this Endpoint
      * @type {Set<CCWSweepWall>}
@@ -49,9 +43,7 @@ export class CCWSweepPoint extends PIXI.Point {
      * @private
      */
     this._radius = radius;
-    
-    this._updateCirclePoints();
-    
+        
     /**
      * Cache whether this point is inside the FOV radius.
      * @type {boolean}
@@ -65,6 +57,19 @@ export class CCWSweepPoint extends PIXI.Point {
      * @private
      */
     this._distanceSquaredToOrigin = undefined;
+  }
+  
+  /* -------------------------------------------- */
+  /*  Factory Functions                           */
+  /* -------------------------------------------- */
+  
+ /**
+  * Construct a CCWPoint from any object that contains x and y.
+  * @param {x: number, y: number} p
+  * @return CCWPoint
+  */ 
+  static fromPoint(p, { origin, radius } = {}) {
+    return new this(p.x, p.y, origin, radius);
   }
   
   /* -------------------------------------------- */
@@ -143,73 +148,6 @@ export class CCWSweepPoint extends PIXI.Point {
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
-
- /**
-  * Round this endpoint to the nearest integer.
-  * Reset any cached values.
-  * (key remains same b/c that already used rounded values)
-  */
-  round() {
-    this.x = Math.round(this.x);
-    this.y = Math.round(this.y);
-    this._distanceSquaredToOrigin = undefined;
-    this._insideRadius = undefined;
-    this._updateCirclePoints();
-  }
-
- /**
-  * Three points of the circle defined by origin (center) and radius.
-  * Used when testing incircle.
-  * Arranged counterclockwise. E, N, W
-  * @type {[PIXI.Point, PIXI.Point, PIXI.Point]}
-  * @private
-  */
-  _updateCirclePoints() {
-     this._circlePoints = (this.radius === undefined || !this.origin) ?
-                            undefined : 
-                            [{ x: this.origin.x + this.radius, y: this.origin.y },
-                            { x: this.origin.x, y: this.origin.y - this.radius },
-                            { x: this.origin.x - this.radius, y: this.origin.y }];
-  }
-  
-  
-  /**
-   * Distance squared used for comparisons.
-   * @param {x: number, y: number}  p   Point to measure to
-   */
-  distanceSquared(p) {
-    const dx = this.x - p.x;
-    const dy = this.y - p.y;
-    return (dx*dx + dy*dy);
-  }
-  
-  /**
-   * Test if the key for this point equals another, suggesting they are equal points
-   * (at least, equal as rounded to the nearest integer)
-   * @param {CCWSweepPoint|WallEndpoint} p  Other point to test against
-   */  
-  keyEquals(p) {
-    return this.key === p.key;
-  } 
-  
-  /**
-   * Test if this point is almost equal to some other {x, y} point
-   * @param {x: number, y: number} p    Point to compare
-   */
-  almostEqual(p, EPSILON = PRESET_EPSILON) {
-    return pointsAlmostEqual(this, p, EPSILON)
-  }  
-    
- /**
-  * Draw the point ray (for debugging)
-  * @param {number} color
-  * @param {number} alpha
-  * @param {number} radius
-  */
-  draw(color = COLORS.red, alpha = 1, radius = 5) {
-    canvas.controls.debug.beginFill(color, alpha).drawCircle(this.x, this.y, radius).endFill();
-  }
-  
   
   // TO-DO: Cache isTerrainExcluded and hasTerrainWalls
   // Would need to set the "type" as a cached property, 
@@ -252,13 +190,4 @@ export class CCWSweepPoint extends PIXI.Point {
      return [...this.walls.values()].some(w => w.data?.[type] === 2);
    }
 }
-
-/**
- * Import WallEndpoint.getKey as static method.
- */
-Object.defineProperty(CCWSweepPoint, "getKey", {
-  value: WallEndpoint.getKey,
-  writable: true,
-  configurable: false
-});
 
