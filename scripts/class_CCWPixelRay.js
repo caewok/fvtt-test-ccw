@@ -45,10 +45,10 @@ export class CCWPixelRay extends CCWRay {
     // I.e., a given point would be nearly colinear if orient2d <= √2 /2 * line distance
     // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2
     const orientation = this.orient2d(p);
-    const orientation2 = orientation * orientation
+    const orientation2 = orientation * orientation;
     const cutoff = 0.5 * this.distanceSquared;
     
-    if(almostEqual(orientation2, cutoff, { EPSILON })) return 0; 
+    if(orientation2 < cutoff) return 0; 
     return orientation < 0 ? -1 : 1;    
   }
 }
