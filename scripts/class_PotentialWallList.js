@@ -6,7 +6,6 @@
 // - walls should be added if CW of current sweep sight ray. 
 // - in line walls? Add?
 import { log } from "./module.js";
-import { pointsAlmostEqual, ccwPoints } from "./util.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 

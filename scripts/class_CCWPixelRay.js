@@ -2,6 +2,7 @@
 
 import { CCWRay } from "./class_CCWRay.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
+import { almostEqual, PRESET_EPSILON } from "./util.js";
 
 /**
  * Represent a ray, or segment that starts and ends at 
@@ -49,45 +50,5 @@ export class CCWPixelRay extends CCWRay {
     
     if(almostEqual(orientation2, cutoff, { EPSILON })) return 0; 
     return orientation < 0 ? -1 : 1;    
-  }
-    
- /**
-  * Test if the point is in front of the ray.
-  * Override EPSILON to consider ± √2 / 2 as equal
-  * @override
-  */
-  inFrontOfPoint(p, origin) { 
-    return CCWRay.prototype.call(this, p, origin, { EPSILON: Math.SQRT1_2 }); 
-  }
-  
- /**
-  * Return true if this segment is in front of another segment.
-  * Override EPSILON to consider ± √2 / 2 as equal
-  * @override
-  */
-  inFrontOfSegment(segment, origin, { check_overlap = false} = {}) {
-    return CCWRay.prototype.inFrontOfSegment.call(this, segment, origin, 
-      { check_overlap, EPSILON: Math.SQRT1_2});
-  }   
-  
- /**
-  * Intersection points with a circle for this ray.
-  * Override EPSILON to consider ± √2 / 2 as equal
-  * Do not use robust check b/c will be coercing to nearest pixel point
-  * @override
-  * @return {CCWPixelPoint}
-  */
-  intersectionsWithCircle(center, radius, { method = "geometry" } = {}) {
-     const potential_pts = method === "geometry" ?
-       CCWRay.prototype.potentialIntersectionsWithCircleQuadratic.call(this, 
-         center, radius) : 
-       CCWRay.prototype.potentialIntersectionsWithCircleGeometry.call(this, 
-         center, radius); 
-                               
-     const intersections = potential_pts.filter(pt => 
-      this.contains(pt, { assume_colinearity: true }))  
-     
-     // convert to PixelPoints
-     return intersections.map(i => new CCWPixelPoint(i))                                               
   }
 }

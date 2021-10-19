@@ -2,7 +2,7 @@
 /* globals PIXI, WallEndpoint */
 
 import { CCWPoint } from "./class_CCWPoint.js";
-import { pointsAlmostEqual } from "./util.js";
+import { almostEqual, PRESET_EPSILON } from "./util.js";
 
 /**
  * Represent point as a single pixel, meaning it has integer x,y coordinates.
@@ -46,25 +46,7 @@ export class CCWPixelPoint extends CCWPoint {
     */
     this.key = this.getKey(this.x, this.y);
   }
-  
-  /* -------------------------------------------- */
-  /*  Static Methods                              */
-  /* -------------------------------------------- */
-   
- /**
-  * Compare whether two points are nearly equal
-  * If either is a Pixel Point, use the Pixel Point equality test.
-  * @param {number}    EPSILON   Error tolerance for almostEqual test.
-  * @param {PIXI.Point} p0
-  * @param {PIXI.Point} p1
-  */
-  static pointsAlmostEqual(p0, p1, { EPSILON = PRESET_EPSILON } = {}) {
-    if(p0 instanceof CCWPixelPoint) return p0.almostEqual(p1, { EPSILON });
-    if(p1 instanceof CCWPixelPoint) return p1.almostEqual(p0, { EPSILON });
-    
-    return pointsAlmostEqual(p0, p1, { EPSILON });
-  }
-  
+     
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
@@ -84,9 +66,10 @@ export class CCWPixelPoint extends CCWPoint {
   * Is this point almost equal to another?
   * The point must be within ± √2 / 2 of this point.
   * @param {PIXI.Point} p
+  * @param {number}     EPSILON Passed to almostEqual.
   * @return {boolean}
   */
-  almostEqual(p) {
+  almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
     if(p instanceof CCWPixelPoint) return this.key === p.key;
     
     // Ultimately need the distance between the two points but first check the easy case
@@ -95,12 +78,11 @@ export class CCWPixelPoint extends CCWPoint {
     
     // within the √2 / 2 bounding box
     // compare distance squared.
-    // probably don't need to test for almostEqual, given we are already testing near 
     // equality with the distance measurement
     const dist2 = this.distanceSquared(p);
-    return dist2 <= 0.5; // √2 / 2 * √2 / 2 = 0.5    
+    if(almostEqual(dist2, 0.5, { EPSILON })) return true;
+    return dist2 < 0.5; // √2 / 2 * √2 / 2 = 0.5    
   }
-   
 }
 
 /**

@@ -8,9 +8,6 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
-import { orient2dPoints, 
-         pointsAlmostEqual,
-         ccwPoints }          from "./util.js";
 import { MODULE_ID }	      from "./module.js";
 import { IdentifyIntersections } from "./class_IntersectionSweep.js";         
 

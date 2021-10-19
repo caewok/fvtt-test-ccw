@@ -1,8 +1,8 @@
 'use strict';
 
+import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
-import { almostEqual, 
-         inCirclePoints } from "./util.js";
+import { almostEqual } from "./util.js";
 
 /* 
  * Represent a wall endpoint.
@@ -112,10 +112,10 @@ export class CCWSweepPoint extends CCWPixelPoint {
   get insideRadius() {
     if(!this.hasRadius || !this.origin) return undefined;
     if(this._insideRadius === undefined) { 
-      const res = inCirclePoints(this._circlePoints[0],
-                                 this._circlePoints[1],
-                                 this._circlePoints[2],
-                                 this);
+      const res = CCWPoint.inCircle(this._circlePoints[0],
+                                    this._circlePoints[1],
+                                    this._circlePoints[2],
+                                    this);
                            
       this._insideRadius = almostEqual(res, 0) ? true :  // on the circle
                            res > 0 ? false : true;                     
