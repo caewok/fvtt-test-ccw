@@ -580,7 +580,7 @@ export class CCWRay extends Ray {
   
     const R2 = radius * radius;
     
-    if(almostEqual(LEC2, R2 { EPSILON })) {
+    if(almostEqual(LEC2, R2, { EPSILON })) {
       // tangent point to circle is E
       const Ex = t * Dx + this.A.x;
       const Ey = t * Dy + this.A.y;

@@ -154,7 +154,7 @@ export function inCirclePoints(p1, p2, p3, p4) {
  * @param {x, y} p4   Point in {x, y} format.
  * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
  */
-export function outsideCircle(p1, p2, p3, p4 { EPSILON = PRESET_EPSILON }) {
+export function outsideCircle(p1, p2, p3, p4, { EPSILON = PRESET_EPSILON }) {
   const res = inCirclePoints(p1, p2, p3, p4);
   if(almostEqual(res, 0, { EPSILON })) return 0;
   return res < 0 ? -1 : 1;
