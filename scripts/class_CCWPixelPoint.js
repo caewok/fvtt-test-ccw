@@ -2,7 +2,7 @@
 /* globals PIXI, WallEndpoint */
 
 import { CCWPoint } from "./class_CCWPoint.js";
-import { pointsAlmostEqual } from "./util.js";
+import { almostEqual, PRESET_EPSILON } from "./util.js";
 
 /**
  * Represent point as a single pixel, meaning it has integer x,y coordinates.
@@ -46,7 +46,7 @@ export class CCWPixelPoint extends CCWPoint {
     */
     this.key = this.getKey(this.x, this.y);
   }
-  
+     
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
@@ -66,13 +66,23 @@ export class CCWPixelPoint extends CCWPoint {
   * Is this point almost equal to another?
   * The point must be within ± √2 / 2 of this point.
   * @param {PIXI.Point} p
+  * @param {number}     EPSILON Passed to almostEqual.
   * @return {boolean}
   */
-  almostEquals(p) {
+  almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
     if(p instanceof CCWPixelPoint) return this.key === p.key;
-    return pointsAlmostEqual(this, p, { EPSILON: Math.SQRT1_2 });
+    
+    // Ultimately need the distance between the two points but first check the easy case
+    // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
+    if(!pointsAlmostEqual(this, p, { EPSILON: Math.SQRT1_2 })) { return false; }
+    
+    // within the √2 / 2 bounding box
+    // compare distance squared.
+    // equality with the distance measurement
+    const dist2 = this.distanceSquared(p);
+    if(almostEqual(dist2, 0.5, { EPSILON })) return true;
+    return dist2 < 0.5; // √2 / 2 * √2 / 2 = 0.5    
   }
-   
 }
 
 /**

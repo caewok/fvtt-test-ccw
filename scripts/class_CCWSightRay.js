@@ -2,11 +2,9 @@
 
 /* globals Ray, canvas */
 
-import { ccwPoints, 
-         orient2dPoints,
-         inCirclePoints,
-         almostEqual, 
-         pointsAlmostEqual, 
+import { CCWPoint } from "./class_CCWPoint.js";
+
+import { almostEqual, 
          rootsReal,
          COLORS,
          PRESET_EPSILON } from "./util.js";
@@ -134,8 +132,8 @@ export class CCWSightRay extends Ray {
    * @return {boolean} Could the segments intersect?
    */
   intersects(r, { EPSILON = PRESET_EPSILON } = {}) {  
-    return ccwPoints(this.A, this.B, r.A, { EPSILON }) != ccwPoints(this.A, this.B, r.B, { EPSILON }) &&
-           ccwPoints(r.A, r.B, this.A, { EPSILON }) != ccwPoints(r.A, r.B, this.B, { EPSILON });
+    return CCWPoint.ccw(this.A, this.B, r.A, { EPSILON }) != CCWPoint.ccw(this.A, this.B, r.B, { EPSILON }) &&
+           CCWPoint.ccw(r.A, r.B, this.A, { EPSILON }) != CCWPoint.ccw(r.A, r.B, this.B, { EPSILON });
   }
   
   /**
@@ -149,7 +147,7 @@ export class CCWSightRay extends Ray {
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     if(p?.x === undefined || p?.y === undefined) console.error(`MODULE_ID|SightRay.contains: p ill-formed`, p); 
     // ensure the point is collinear with this ray
-    if(!assume_collinear && ccwPoints(this.A, this.B, p, { EPSILON }) !== 0) return false;
+    if(!assume_collinear && CCWPoint.ccw(this.A, this.B, p, { EPSILON }) !== 0) return false;
 
     // test if is an endpoint
     // covered by revised test below
@@ -379,8 +377,8 @@ export class CCWSightRay extends Ray {
     // Just confirming. Could happen due to programmer error or 
     // possibly if the intersection point algorithm is not robust enough to 
     // find a point that is actually on the line    
-    if(ccwPoints(this.A, this.B, p) !== 0) {
-      console.warn(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
+    if(CCWPoint.ccw(this.A, this.B, p) !== 0) {
+      console.warn(`${MODULE_ID}|intersection is not on line: ${CCWPoint.orient2d(this.A, this.B, p)}`);
     }
     
     // Move up and down the line until we are also on the circle
@@ -389,7 +387,7 @@ export class CCWSightRay extends Ray {
     const c2 = { x: center.x, y: center.y - radius };
     const c3 = { x: center.x - radius, y: center.y };
     
-    let curr_ccw = inCirclePoints(c1, c2, c3, p)    
+    let curr_ccw = CCWPoint.inCircle(c1, c2, c3, p)    
     if(almostEqual(curr_ccw, 0)) return p;
     
     // if p is closer to endpoint A, reverse the line
@@ -429,8 +427,8 @@ export class CCWSightRay extends Ray {
        
     const high_p = wall.project(t + ( increment * 10) ); // *10 to ensure the points differ
     const low_p = wall.project(t - (increment * 10) );   // *10 to ensure the points differ
-    const high_ccw = inCirclePoints(c1, c2, c3, high_p);
-    const low_ccw  = inCirclePoints(c1, c2, c3, low_p);
+    const high_ccw = CCWPoint.inCircle(c1, c2, c3, high_p);
+    const low_ccw  = CCWPoint.inCircle(c1, c2, c3, low_p);
 
     // determine which way lowers ccw
     const move_inside = high_ccw < low_ccw ? 1 : -1; 
@@ -448,7 +446,7 @@ export class CCWSightRay extends Ray {
         // test if we can move toward the outside without going past
         const test_increment = total_increment - (increment * move_inside);
         const new_p = wall.project(t + test_increment);
-        const new_ccw = inCirclePoints(c1, c2, c3, new_p);
+        const new_ccw = CCWPoint.inCircle(c1, c2, c3, new_p);
         if(almostEqual(new_ccw, 0) || new_ccw < 0) {
           curr_ccw = new_ccw;
           total_increment = test_increment;
@@ -461,7 +459,7 @@ export class CCWSightRay extends Ray {
         // must make a move inside
         total_increment += (increment * move_inside);
         const new_p = wall.project(t + total_increment);
-        curr_ccw = inCirclePoints(c1, c2, c3, new_p)
+        curr_ccw = CCWPoint.inCircle(c1, c2, c3, new_p)
       }
     }
   
@@ -477,12 +475,12 @@ export class CCWSightRay extends Ray {
    *                   False if behind or on the segment line
    */
   inFrontOfPoint(point, origin) {
-    if(pointsAlmostEqual(this.A, point) || pointsAlmostEqual(this.B, point)) return false;
-    if(pointsAlmostEqual(point, origin)) return false;
+    if(CCWPoint.AlmostEqual(this.A, point) || CCWPoint.AlmostEqual(this.B, point)) return false;
+    if(CCWPoint.AlmostEqual(point, origin)) return false;
   
-    const ABP = ccwPoints(this.A, this.B, point);
-    const ABO = ccwPoints(this.A, this.B, origin);
-    const OAP = ccwPoints(origin, this.A, point);
+    const ABP = CCWPoint.ccw(this.A, this.B, point);
+    const ABO = CCWPoint.ccw(this.A, this.B, origin);
+    const OAP = CCWPoint.ccw(origin, this.A, point);
   
     if(ABP !== ABO && ABP !== OAP) return true;
     return false;
@@ -507,25 +505,25 @@ export class CCWSightRay extends Ray {
     let shared_endpoint = false;
   
     // if the segments share an endpoint, must interpolate away from that endpoint for each.
-    if(pointsAlmostEqual(thisA, segmentA)) {
+    if(CCWPoint.AlmostEqual(thisA, segmentA)) {
       shared_endpoint = true;
       thisA = this.project(0.01); 
       segmentA = segment.project(0.01);
     }
   
-    if(pointsAlmostEqual(thisA, segmentB)) {
+    if(CCWPoint.AlmostEqual(thisA, segmentB)) {
       shared_endpoint = true;
       thisA = this.project(0.01); 
       segmentB = segment.projectB(-0.01);
     }
   
-    if(pointsAlmostEqual(thisB, segmentB)) {
+    if(CCWPoint.AlmostEqual(thisB, segmentB)) {
       shared_endpoint = true;
       thisB = this.projectB(-0.01); 
       segmentB = segment.projectB(-0.01);
     }
   
-    if(pointsAlmostEqual(thisB, segmentA)) {
+    if(CCWPoint.AlmostEqual(thisB, segmentA)) {
       shared_endpoint = true;
       thisB = this.projectB(-0.01); 
       segmentA = segment.project(0.01);
@@ -533,13 +531,13 @@ export class CCWSightRay extends Ray {
   
     if(!shared_endpoint && this.intersects(segment)) return undefined;
   
-    const B1 = ccwPoints(thisA, thisB, segmentA);
-    const B2 = ccwPoints(thisA, thisB, segmentB);
-    const B3 = ccwPoints(thisA, thisB, origin);
+    const B1 = CCWPoint.ccw(thisA, thisB, segmentA);
+    const B2 = CCWPoint.ccw(thisA, thisB, segmentB);
+    const B3 = CCWPoint.ccw(thisA, thisB, origin);
   
-    const A1 = ccwPoints(segmentA, segmentB, thisA);
-    const A2 = ccwPoints(segmentA, segmentB, thisB);
-    const A3 = ccwPoints(segmentA, segmentB, origin);
+    const A1 = CCWPoint.ccw(segmentA, segmentB, thisA);
+    const A2 = CCWPoint.ccw(segmentA, segmentB, thisB);
+    const A3 = CCWPoint.ccw(segmentA, segmentB, origin);
   
     // Special case: shared endpoint and the relativePoint is in a zone near the point
     // Then neither segment blocks the other

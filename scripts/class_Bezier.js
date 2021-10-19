@@ -1,6 +1,7 @@
 'use strict';
 
-import { round, ccwPoints } from "./util.js";
+import { round } from "./util.js";
+import { CCWPoint } from "./class_CCWPoint.js";
 
 // Bezier approximation of Circle
 // Used for padding limited-radius polygons.
@@ -112,7 +113,7 @@ export class Bezier {
     let large_arc = false;
     let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       ccwPoints(origin, r0.B, r1.B) === 1) { large_arc = true; }
+       CCWPoint.ccw(origin, r0.B, r1.B) === 1) { large_arc = true; }
     
     while(!done) {
       let check_start = quadrant === start_quadrant;

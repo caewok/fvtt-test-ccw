@@ -2,11 +2,7 @@
 /* globals Ray */
 
 import { CCWPoint } from "./class_CCWPoint.js";
-import { orient2dPoints, 
-         pointsAlmostEqual, 
-         ccwPoints, 
-         inCirclePoints,
-         almostEqual,
+import { almostEqual,
          discriminant,
          rootsReal,
          PRESET_EPSILON } from "./util.js";
@@ -161,7 +157,7 @@ export class CCWRay extends Ray {
   * @return {number} Approximately equal to twice the signed area of the triangle 
   *                  formed by the 3 points.
   */
-  orient2d(p) { return orient2dPoints(this.A, this.B, p); }
+  orient2d(p) { return CCWPoint.orient2d(this.A, this.B, p); }
   
  /**
   * Is the point counterclockwise, clockwise, or colinear w/r/t this ray?
@@ -171,7 +167,7 @@ export class CCWRay extends Ray {
   * @return {1|0|-1}   1 if CCW, -1 if CW, 0 if colinear
   */
   ccw(p, { EPSILON = PRESET_EPSILON } = {}) { 
-    return ccwPoints(this.A, this.B, p, { EPSILON }); 
+    return CCWPoint.ccw(this.A, this.B, p, { EPSILON }); 
   }
   
  /**
@@ -234,14 +230,18 @@ export class CCWRay extends Ray {
   inFrontOfPoint(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
     if(!(p instanceof CCWPoint)) p = CCWPoint.fromPoint(p);
   
-    if(pointsAlmostEqual(p, this.A, { EPSILON }) || 
-       pointsAlmostEqual(this.B, { EPSILON })) { return false; }
+    if(p.almostEqual(this.A, { EPSILON }) || 
+       p.almostEqual(this.B, { EPSILON })) { return false; }
     if(p.almostEqual(origin, { EPSILON })) { return false; }
   
     const ABP = this.ccw(p, { EPSILON });
     const ABO = this.ccw(origin, { EPSILON });
-    const OAP = ccwPoints(origin, this.A, p, { EPSILON });
-  
+    
+    // construct a line of the same type as this line
+    // to ensure we use the correct ccw test for pixels versus points
+    const lineOA = new this(origin, this.A);
+    const OAP = lineOA.ccw(p, {EPSILON} );
+      
     // don't need almostEqual here; covered by ccw above.
     if(ABP !== ABO && ABP !== OAP) return true;
     return false;
@@ -323,11 +323,14 @@ export class CCWRay extends Ray {
     // imagine drawing lines through the endpoints of the respective two segments.
     // this test identifies the quadrants "in shadow" of this ray
     // comparable to checking for whether this ray is in front of the segment endpoints
-    if(ccwPoints(segment.A, this.A, origin, { EPSILON }) !== 
-       ccwPoints(segment.A, this.B, origin, { EPSILON })) return true;
-       
-    if(ccwPoints(segment.B, this.A, origin, { EPSILON }) !== 
-       ccwPoints(segment.B, this.B, origin, { EPSILON })) return true;
+    // construct new lines to ensure we use the correct ccw tests
+    const lineAA = new this(segment.A, this.A);
+    const lineAB = new this(segment.A, this.B);
+    if(lineAA.ccw(origin, { EPSILON }) !== lineAB(origin, { EPSILON })) { return true; }
+    
+    const lineBA = new this(segment.B, this.A);
+    const lineBB = new this(segment.B, this.B);
+    if(lineBA.ccw(origin, { EPSILON }) !== lineBB(origin, { EPSILON })) { return true; }
     
     return false;
   }
@@ -622,7 +625,7 @@ export class CCWRay extends Ray {
       // find a point that is actually on the line   
       // Appears not to happen in practice without some other error. 
     
-      console.warn(`${MODULE_ID}|intersection is not on line: ${orient2dPoints(this.A, this.B, p)}`);
+      console.warn(`${MODULE_ID}|intersection is not on line: ${CCWPoint.orient2d(this.A, this.B, p)}`);
     }
     
     // Move up and down the line until we are also on the circle
@@ -631,7 +634,7 @@ export class CCWRay extends Ray {
     const c2 = new CCWPoint(center.x, center.y - radius);
     const c3 = new CCWPoint(center.x - radius, center.y);
     
-    let curr_ccw = inCirclePoints(c1, c2, c3, p)    
+    let curr_ccw = CCWPoint.inCircle(c1, c2, c3, p)    
     if(almostEqual(curr_ccw, 0, { EPSILON })) return p;
     
     // if p is closer to endpoint A, reverse the line
@@ -670,8 +673,8 @@ export class CCWRay extends Ray {
        
     const high_p = r.project(t + (increment * 10)); // *10 to ensure the points differ
     const low_p =  r.project(t - (increment * 10)); // *10 to ensure the points differ
-    const high_ccw = inCirclePoints(c1, c2, c3, high_p);
-    const low_ccw  = inCirclePoints(c1, c2, c3, low_p);
+    const high_ccw = CCWPoint.inCircle(c1, c2, c3, high_p);
+    const low_ccw  = CCWPoint.inCircle(c1, c2, c3, low_p);
 
     // determine which way lowers ccw
     const move_inside = high_ccw < low_ccw ? 1 : -1; 
@@ -689,7 +692,7 @@ export class CCWRay extends Ray {
         // test if we can move toward the outside without going past
         const test_increment = total_increment - (increment * move_inside);
         const new_p = r.project(t + test_increment);
-        const new_ccw = inCirclePoints(c1, c2, c3, new_p);
+        const new_ccw = CCWPoint.inCircle(c1, c2, c3, new_p);
         if(almostEqual(new_ccw, 0, { EPSILON }) || new_ccw < 0) {
           curr_ccw = new_ccw;
           total_increment = test_increment;
@@ -702,7 +705,7 @@ export class CCWRay extends Ray {
         // must make a move inside
         total_increment += (increment * move_inside);
         const new_p = r.project(t + total_increment);
-        curr_ccw = inCirclePoints(c1, c2, c3, new_p)
+        curr_ccw = CCWPoint.inCircle(c1, c2, c3, new_p)
       }
     }
   
