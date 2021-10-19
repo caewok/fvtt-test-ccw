@@ -48,6 +48,24 @@ export class CCWPixelPoint extends CCWPoint {
   }
   
   /* -------------------------------------------- */
+  /*  Static Methods                              */
+  /* -------------------------------------------- */
+   
+ /**
+  * Compare whether two points are nearly equal
+  * If either is a Pixel Point, use the Pixel Point equality test.
+  * @param {number}    EPSILON   Error tolerance for almostEqual test.
+  * @param {PIXI.Point} p0
+  * @param {PIXI.Point} p1
+  */
+  static pointsAlmostEqual(p0, p1, { EPSILON = PRESET_EPSILON } = {}) {
+    if(p0 instanceof CCWPixelPoint) return p0.almostEqual(p1, { EPSILON });
+    if(p1 instanceof CCWPixelPoint) return p1.almostEqual(p0, { EPSILON });
+    
+    return pointsAlmostEqual(p0, p1, { EPSILON });
+  }
+  
+  /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
   
@@ -68,7 +86,7 @@ export class CCWPixelPoint extends CCWPoint {
   * @param {PIXI.Point} p
   * @return {boolean}
   */
-  almostEquals(p) {
+  almostEqual(p) {
     if(p instanceof CCWPixelPoint) return this.key === p.key;
     
     // Ultimately need the distance between the two points but first check the easy case
