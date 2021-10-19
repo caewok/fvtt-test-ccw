@@ -32,29 +32,25 @@ export class CCWPixelRay extends CCWRay {
   
  /**
   * Is the point counterclockwise, clockwise, or colinear w/r/t this ray?
-  * Override EPSILON to consider ± √2 / 2 coordinates as colinear
+  * Consider ± √2 / 2 coordinates from the line as colinear
+  * @param {number} [options.EPSILON]  How exact should the equality test be?
   * @override
   */
-  ccw(p) { return CCWRay.prototype.ccw.call(this, p, { EPSILON: Math.SQRT1_2 }); }
-
- /**
-  * Quick function to determine if this ray could intersect another
-  * Override EPSILON to consider ± √2 / 2 as equal
-  * @override
-  */
-  intersects(r) { 
-    return CCWRay.prototype.intersects.call(this, r, { EPSILON: Math.SQRT1_2 }); 
+  ccw(p, { EPSILON = PRESET_EPSILON } = {}) { 
+    // orient2d returns ~ double the area of the triangle formed by the three points.
+    // in the base case, a line 1,1 --> 1,0 and a point 1 - √2 / 2, 0 returns
+    // area of √2 / 2. 
+    // a line 1,2 --> 1,0 with point 1 - √2 / 2, 0 returns √2 / 2 * 2
+    // I.e., a given point would be nearly colinear if orient2d <= √2 /2 * line distance
+    // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2
+    const orientation = this.orient2d(p);
+    const orientation2 = orientation * orientation
+    const cutoff = 0.5 * this.distanceSquared(p);
+    
+    if(almostEqual(orientation2, cutoff, { EPSILON })) return 0; 
+    return orientation < 0 ? -1 : 1;    
   }
-  
- /**
-  * Test if point is on/very near the segment.
-  * Override EPSILON to consider ± √2 / 2 coordinates as on the line
-  */
-  contains(p, { assume_collinear = false } = {}) {
-    return CCWRay.prototype.contains.call(this, p, 
-             { assume_collinear, EPSILON: Math.SQRT1_2 })
-  } 
-  
+    
  /**
   * Test if the point is in front of the ray.
   * Override EPSILON to consider ± √2 / 2 as equal
