@@ -44,7 +44,7 @@ export class CCWPixelPoint extends CCWPoint {
     * and 16 bits allocated to y. Same as WallPoint version.
     * @type {number}
     */
-    this.key = this.getKey(this.x, this.y);
+    this.key = CCWPixelPoint.getKey(this.x, this.y);
   }
      
   /* -------------------------------------------- */

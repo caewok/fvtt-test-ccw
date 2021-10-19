@@ -46,7 +46,7 @@ export class CCWPixelRay extends CCWRay {
     // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2
     const orientation = this.orient2d(p);
     const orientation2 = orientation * orientation
-    const cutoff = 0.5 * this.distanceSquared(p);
+    const cutoff = 0.5 * this.distanceSquared;
     
     if(almostEqual(orientation2, cutoff, { EPSILON })) return 0; 
     return orientation < 0 ? -1 : 1;    
