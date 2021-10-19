@@ -9,8 +9,8 @@ import { orient2dPoints,
          almostEqual,
          discriminant,
          rootsReal,
-         MODULE_ID,
          PRESET_EPSILON } from "./util.js";
+import { MODULE_ID } from "./module.js";
 
 /**
  * Subclass of Ray with additional methods to calculate intersections and orientation.
