@@ -244,10 +244,10 @@ export class CCWRay extends Ray {
   * @return {boolean} Does segment include point?
   */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
-    console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
+//     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
     // ensure the point is collinear with this ray
     if(!assume_collinear && this.ccw(p, EPSILON) !== 0) return false;
-     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y} testing max/min`);
+//      console.log(`testccw|CCWRay.contains ${p.x}, ${p.y} testing max/min`);
     // test if is an endpoint or between the endpoints
     // recall that we already established the point is collinear above.
     const max_x = Math.max(this.A.x, this.B.x);
@@ -312,7 +312,7 @@ export class CCWRay extends Ray {
   *                                    not to happen.
   * @return {boolean} true if this segment is in front of the other.
   */   
-  inFrontOfSegment(segment, origin, { EPSILON = PRESET_EPSILON, 
+  blocksSegment(segment, origin, { EPSILON = PRESET_EPSILON, 
                                       check_overlap = false } = {}) {
     if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
     
@@ -362,29 +362,61 @@ export class CCWRay extends Ray {
       }
     }
     
-    // if the origin is on opposite side of this versus other segment, cannot block
-    // i.e., segments sandwich the origin
-    if(this.ccw(origin, { EPSILON }) !== segment.ccw(origin, { EPSILON })) return false;
+    // this segment is AB
+    // other segment is CD
+    // O is origin
+    const A = this.A;
+    const B = this.B;
+    const C = segment.A;
+    const D = segment.B;
     
-    // if either endpoint is blocked, the line must block
-    if(this.inFrontOfPoint(segment.A, origin, { EPSILON }) || 
-       this.inFrontOfPoint(segment.B, origin, { EPSILON })) return true;
+    const AB = this;
+    const CD = segment;
     
-    // going from each endpoint of the segment to this ray, does this ray cast a shadow
-    // on the origin? 
-    // imagine drawing lines through the endpoints of the respective two segments.
-    // this test identifies the quadrants "in shadow" of this ray
-    // comparable to checking for whether this ray is in front of the segment endpoints
-    // construct new lines to ensure we use the correct ccw tests
-    const lineAA = new this(segment.A, this.A);
-    const lineAB = new this(segment.A, this.B);
-    if(lineAA.ccw(origin, { EPSILON }) !== lineAB(origin, { EPSILON })) { return true; }
+    // Test what side BC and origin are in relation to AB
+    const ABO = AB.ccw(origin);
+    const ABC = AB.ccw(C);
+    const ABD = AB.ccw(D);
     
-    const lineBA = new this(segment.B, this.A);
-    const lineBB = new this(segment.B, this.B);
-    if(lineBA.ccw(origin, { EPSILON }) !== lineBB(origin, { EPSILON })) { return true; }
+    // If the origin is on the same side as CD, then CD blocks AB
+    if(ABO === ABC && ABO === ABD) return false;
+    
+    // If the origin is on the opposite side of CD, AB blocks CD
+    if(ABO !== ABC && ABO !== ABD) return trues;
+    
+    // CD crosses AB infinite line
+    // (in relation to AB, C is CCW and D is CW or vice-versa)
+    
+    // Need to determine which is closer to CD, A or B
+    // Test the area of triangles ∆CDA and ∆CDB
+    const area_CDA = CD.orient2d(A); 
+    const area_CDB = CD.orient2d(B); 
+    
+    if(area_CDA < area_CDB) {
+      // A is closer
+      const AC = new this.constructor(A, C);
+      const AD = new this.constructor(A, D);
+      const ACO = AC.ccw(origin, { EPSILON });
+      const ADO = AD.ccw(origin, { EPSILON });
+      
+      if(ACO === ABC && ADO !== ABC) return true;
+    
+    } else if(area_CDA > area_CDB) {
+      // B is closer
+      const BC = new this.constructor(B, C);
+      const BD = new this.constructor(B, D);
+      const BCO = BC.ccw(origin, { EPSILON });
+      const BDO = BD.ccw(origin, { EPSILON });
+      
+      if(BCO === ABC && BDO !== ABC) return true;
+    
+    } else {
+      console.warn(`testccw|Blocks segment found area of ∆CDA and ∆CDB to be equal`);
+    }
     
     return false;
+    
+    
   }
   
   
