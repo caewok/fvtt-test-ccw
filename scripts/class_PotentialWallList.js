@@ -9,20 +9,7 @@ import { log } from "./module.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 
- /**
-  * Override the BST compare function to sort walls in relation to origin.
-  * Closest wall is minNode
-  * @param {Wall} a  Wall object
-  * @param {Wall} b  Wall object 
-  */
-function sortWallsAroundOrigin(a, b) {
-    if(a.id === b.id) return 0;
-    const res = a.inFrontOfSegment(b, this.origin);
-    if(res === undefined) {
-     log(`BST compare returned undefined`, res, this);
-    }
-    return res ? -1 : 1;
-  } 
+
 
 /**
  * Store ordered list of potential walls, ordered by closeness to the origin.
@@ -33,7 +20,7 @@ function sortWallsAroundOrigin(a, b) {
  */  
 export class PotentialWallList extends BinarySearchTree {
   constructor(origin) {
-    super(sortWallsAroundOrigin);
+    super(PotentialWallList.inFrontOf);
     this.origin = origin;
     this.walls_encountered = new Set(); 
   }
@@ -149,4 +136,53 @@ export class PotentialWallList extends BinarySearchTree {
      const non_anchor = pointsAlmostEqual(wall.A, endpoint) ? wall.B : wall.A;
      return ccwPoints(origin, endpoint, non_anchor);
   }
+  
+ /**
+  * Is this wall in front of another, with respect to origin/vision point?
+  * Similar to testing whether a segment occludes another with relation to a 
+  * vision point, but has additional assumptions that make this test easier:
+  * 1. no overlapping segments.
+  * 2. segments are added because they are in line around a radial sweep, meaning
+  *    that for segments AB and BC, A/B and C/D are to the left, and vice-versa
+  *    for the respective other endpoints to the right. 
+  *    In other words, segments AB and BC will not be on opposite sides of origin, 
+  *    but rather, origin --> intersects AB --> intersects BC or 
+  *                origin --> intersects BC --> intersects AB
+  *
+  * @param {Wall} AB    
+  * @param {Wall} CD
+  * @param {PIXI.Point} origin
+  * @return {-1, 0, 1} -1 if AB is in front, 1 if CD is in front, 0 if equal
+  */
+  static inFrontOf(AB, CD, origin) {
+    if(AB.id === CD.id) return 0;
+  
+    const A = AB.A;
+    const B = AB.B;
+    const C = CD.A;
+    const D = CD.B;
+  
+    // Test what side BC and origin are in relation to AB
+    const ABO = AB.ccw(origin);
+    const ABC = AB.ccw(C);
+    const ABD = AB.ccw(D);
+    
+    // If the origin is on the same side as CD, then CD is in front of AB
+    if(ABO === ABC && ABO === ABD) return -1;
+    
+    // If the origin is on the opposite side of CD, AB is in front
+    if(ABO !== ABC && ABO !== ABD) return 1;
+    
+    // CD crosses the AB infinite line. 
+    // Test where A and O are in relation to C
+    const CDO = CD.ccw(origin);
+    const CDA = CD.ccw(A);
+    
+    // If A and O are on same side of CD, AB is in front
+    if(CDO === CDA) return 1;
+    
+    return -1;
+  } 
+  
+  
 }
