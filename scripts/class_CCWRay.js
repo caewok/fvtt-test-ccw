@@ -1,11 +1,12 @@
 'use strict';
-/* globals Ray */
+/* globals Ray, canvas */
 
 import { CCWPoint } from "./class_CCWPoint.js";
 import { almostEqual,
          discriminant,
          rootsReal,
-         PRESET_EPSILON } from "./util.js";
+         PRESET_EPSILON, 
+         COLORS } from "./util.js";
 import { MODULE_ID } from "./module.js";
 
 /**
@@ -218,7 +219,7 @@ export class CCWRay extends Ray {
     const t1 = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / d;
     
     return new this.A.constructor(x1 + t0 * (x2 - x1),
-                                  y1 + t0 * (y2 - y1));
+                                  y1 + t1 * (y2 - y1));
   }
   
  /**
@@ -489,7 +490,7 @@ export class CCWRay extends Ray {
     if(ABO === ABC && ABO === ABD) return false;
     
     // If the origin is on the opposite side of CD, AB blocks CD
-    if(ABO !== ABC && ABO !== ABD) return trues;
+    if(ABO !== ABC && ABO !== ABD) return true;
     
     // CD crosses AB infinite line
     // (in relation to AB, C is CCW and D is CW or vice-versa)
