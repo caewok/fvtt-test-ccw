@@ -269,16 +269,15 @@ export class CCWRay extends Ray {
   /* -------------------------------------------- */
   
  /**
-   * Return true if the point is in front of the ray, based on a relative origin point.
+   * Return true if this ray blocks the point, based on a relative origin point.
    * If the point is colinear with this ray or equals the origin, returns false.
    *
    * @param {PIXI.Point}  point     Point to test
    * @param {PIXI.Point}  origin    Vision/observer point
    * @param {number}      EPSILON   Tolerated error for almostEqual and ccw tests
-   * @return {boolean} true if this point is in front. 
-   *                   False if behind or on the segment line
+   * @return {boolean} true if this point is blocked by the segment; false otherwise
    */
-  inFrontOfPoint(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
+  blocksPointCCWTest(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
     if(!(p instanceof CCWPoint)) p = this.A.constructor.fromPoint(p);
   
     // test using A and B in case they are PixelPoints.
@@ -300,9 +299,116 @@ export class CCWRay extends Ray {
   }
   
  /**
+  * Alternative test for whether this segment blocks view of a segment, based
+  * on a relative origin point. 
+  *
+  * @param {PIXI.Point}  point     Point to test
+  * @param {PIXI.Point}  origin    Vision/observer point
+  * @param {number}      EPSILON   Tolerated error for intersection tests
+  * @return {boolean} true if this point is blocked by the segment; false otherwise
+  */
+ blocksPointRayTest(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
+   if(this.contains(p, { EPSILON })) return false;
+   if(p.almostEqual(origin, { EPSILON })) { return false; }
+   
+   const PO = new this.constructor(p, origin);
+   return PO.intersects(this, { EPSILON});
+ }
+  
+ /**
+  * Alternative test for whether this segment partially blocks vision of the other
+  * from an origin point.
+  * Shoots rays from the segment endpoints to the origin
+  * and tests for intersection.
+  * @param {Ray} segment        Segment to test
+  * @param {PIXI.Point} origin  Vision/observer point
+  * @param {number}     EPSILON   Tolerated error for intersection test
+  * @param {boolean}    check_overlap  If true, test if the segments overlap other
+  *                                    than at an endpoint. If false, this is assumed
+  *                                    not to happen.
+  * @return {boolean} True if this segment blocks another
+  */
+  blocksSegmentRayTest(segment, origin, { EPSILON = PRESET_EPSILON,
+                                          check_overlap = false } = {}) {
+    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
+    
+    // Call this AB and segment CD
+    const AB = this;
+    const CD = segment;
+    const A = this.A;
+    const B = this.B;
+    const C = segment.A;
+    const D = segment.B;
+    
+    if(check_overlap) {
+      // if the rays share an endpoint, no overlap
+      if(A.almostEqual(C, { EPSILON }) ||
+         A.almostEqual(D, { EPSILON }) ||
+         B.almostEqual(C, { EPSILON }) ||
+         B.almostEqual(D, { EPSILON })) { 
+         
+      // do nothing
+      
+      } else if(AB.intersects(CD, { EPSILON })) {
+        // intersection/overlap could be a T or an X
+
+        if(AB.contains(C, { EPSILON })) {
+          // T with AB at the head, overlap at C
+          // C --> origin cannot intersect AB (other than the trivial case)
+          // D --> origin could intersect AB and therefore AB could block
+          const DO = new this.constructor(D, origin);
+          return DO.intersects(AB, { EPSILON });
+        } else if(AB.contains(D, { EPSILON })) {
+          // T with AB at the head, overlap at D
+          // D --> origin cannot intersect AB (other than the trivial case)
+          // C --> origin could intersect AB and therefore AB could block
+          const CO = new this.constructor(C, origin);
+          return CO.intersects(AB, { EPSILON });
+        } else if(CD.contains(A, { EPSILON }) || CD.contains(B, { EPSILON })) {
+          // T with CD at the head, overlap at A or B
+          // C --> origin could intersect AB
+          // D --> origin could intersect AB
+          const CO = new this.constructor(C, origin);
+          const DO = new this.constructor(D, origin);
+          return CO.intersects(AB, { EPSILON }) || DO.intersects(AB, { EPSILON });
+        } else {
+          // segments overlap, forming an X
+          // no matter where origin is, this will block a portion of segment
+          // trivially blocks the intersection point if origin is colinear with this
+          // also, if this is very short in length on one side of the X, 
+          // the blocked portion could be trivially small.
+          return true;
+        }
+      }
+    }
+
+    // does C --> origin or D --> origin intersect AB? 
+    // if yes, AB blocks
+    const CO = new this.constructor(C, origin);
+    if(CO.intersects(AB, { EPSILON })) return true;
+    
+    const DO = new this.constructor(D, origin);
+    if(DO.intersects(AB, { EPSILON })) return true; 
+    
+    // does origin --> A --> canvas edge intersect CD? If yes, blocks
+    // does origin --> B --> canvas edge intersect CD? If yes, blocks    
+    const maxRSquared = canvas.dimensions.maxR * canvas.dimensions.maxR;
+    
+    const OA = new this.constructor(origin, A);
+    const OA_extended = OA.projectDistanceSquared(maxRSquared);
+    if(OA_extended.intersects(CD)) return true;
+    
+    const OB = new this.constructor(origin, B);
+    const OB_extended = OB.projectDistanceSquared(maxRSquared);
+    if(OB_extended.intersects(CD)) return true;
+    
+    return false;                                       
+  }
+  
+ /**
   * Return true if this segment is in front of another segment.
   *
-  * "In front of" defined as whether one segment partially blocks vision of the other
+  * "In front of" defined as whether this segment partially blocks vision of the other
   * from an origin point.
   * @param {Ray} segment        Segment to test
   * @param {PIXI.Point} origin  Vision/observer point
@@ -310,57 +416,11 @@ export class CCWRay extends Ray {
   * @param {boolean}    check_overlap  If true, test if the segments overlap other
   *                                    than at an endpoint. If false, this is assumed
   *                                    not to happen.
-  * @return {boolean} true if this segment is in front of the other.
+  * @return {boolean} true if this segment blocks another
   */   
-  blocksSegment(segment, origin, { EPSILON = PRESET_EPSILON, 
+  blocksSegmentCCWTest(segment, origin, { EPSILON = PRESET_EPSILON, 
                                       check_overlap = false } = {}) {
     if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
-    
-    if(check_overlap) {    
-      // if the rays share an endpoint, no intersection
-      if(this.A.almostEqual(segment.A, { EPSILON }) ||
-         this.A.almostEqual(segment.B, { EPSILON }) ||
-         this.B.almostEqual(segment.A, { EPSILON }) ||
-         this.B.almostEqual(segment.B, { EPSILON })) {
-         
-         // do nothing
-         
-      } else if(this.contains(segment.A)) {
-        // if an endpoint is otherwise contained by the other line, 
-        // the two rays form a T, with this ray at the top of the T
-        // segment.A is the intersection point
-        // This ray blocks if origin is above the T
-        return this.ccw(origin, { EPSILON }) !== this.ccw(segment.B);
-       
-      } else if(this.contains(segment.B)) {
-        // the two rays form a T, with this ray at the top of the T
-        // segment.B is the intersection point
-        // This ray blocks if origin is above the T
-        return this.ccw(origin, { EPSILON }) !== this.ccw(segment.A);
-        
-      } else if(segment.contains(this.A)) {
-        // two rays for a T, with the segment at the top of the T
-        // this.A is the intersection point
-        // this ray blocks if origin is in the bottom half of the T 
-        // (it blocks half of the top of the T)
-        // If the origin is in line with the bottom of the T, this ray blocks an 
-        // infinitesimally small portion of the top of the T
-        
-        return segment.ccw(origin, { EPSILON }) === segment.ccw(this.B);
-      
-      } else if(segment.contains(this.B)) {
-        // two rays for a T, with the segment at the top of the T
-        // same as for this.A above
-        return segment.ccw(origin, { EPSILON }) === segment.ccw(this.A);
-        
-      } else if(this.ccw(segment.A) !== this.ccw(segment.B) &&
-                this.segment(this.A) !== this.segment(this.B)) {
-        // segments form an X, crossing one another. 
-        // A --> B --> segment endpoints should not match, and vice-versa
-        // No matter where the origin, one segment obscures part of the other
-        return true;        
-      }
-    }
     
     // this segment is AB
     // other segment is CD
@@ -372,6 +432,53 @@ export class CCWRay extends Ray {
     
     const AB = this;
     const CD = segment;
+    
+    if(check_overlap) {    
+      // if the rays share an endpoint, no overlap
+      if(A.almostEqual(C, { EPSILON }) ||
+         A.almostEqual(D, { EPSILON }) ||
+         B.almostEqual(C, { EPSILON }) ||
+         B.almostEqual(D, { EPSILON })) {
+         
+         // do nothing
+         
+      } else if(AB.contains(C)) {
+        // if an endpoint is otherwise contained by the other line, 
+        // the two rays form a T, with this ray at the top of the T
+        // segment.A is the intersection point
+        // This ray blocks if origin is above the T
+        return AB.ccw(origin, { EPSILON }) !== AB.ccw(D);
+       
+      } else if(AB.contains(D)) {
+        // the two rays form a T, with this ray at the top of the T
+        // segment.B is the intersection point
+        // This ray blocks if origin is above the T
+        return AB.ccw(origin, { EPSILON }) !== AB.ccw(C);
+        
+      } else if(CD.contains(A)) {
+        // two rays for a T, with the segment at the top of the T
+        // this.A is the intersection point
+        // this ray blocks if origin is in the bottom half of the T 
+        // (it blocks half of the top of the T)
+        // If the origin is in line with the bottom of the T, this ray blocks an 
+        // infinitesimally small portion of the top of the T
+        
+        return CD.ccw(origin, { EPSILON }) === CD.ccw(B);
+      
+      } else if(CD.contains(this.B)) {
+        // two rays for a T, with the segment at the top of the T
+        // same as for this.A above
+        return CD.ccw(origin, { EPSILON }) === CD.ccw(A);
+        
+      } else if(AB.ccw(C) !== AB.ccw(D) &&
+                CD.ccw(A) !== CD.ccw(B)) {
+        // segments form an X, crossing one another. 
+        // A --> B --> segment endpoints should not match, and vice-versa
+        // No matter where the origin, one segment obscures part of the other
+        return true;        
+      }
+    }
+    
     
     // Test what side BC and origin are in relation to AB
     const ABO = AB.ccw(origin);
