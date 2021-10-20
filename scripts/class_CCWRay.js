@@ -286,22 +286,31 @@ export class CCWRay extends Ray {
   blocksPointCCWTest(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
     if(!(p instanceof CCWPoint)) p = this.A.constructor.fromPoint(p);
   
+    const AB = this;
+    const A = this.A;
+    const B = this.B;
+
     // test using A and B in case they are PixelPoints.
-    if(this.A.almostEqual(p, { EPSILON }) || 
-       this.B.almostEqual(p, { EPSILON })) { return false; }
+    if(A.almostEqual(p, { EPSILON }) || 
+       B.almostEqual(p, { EPSILON })) { return false; }
     if(p.almostEqual(origin, { EPSILON })) { return false; }
   
-    const ABP = this.ccw(p);
-    const ABO = this.ccw(origin);
+    const ABP = AB.ccw(p);
+    const ABO = AB.ccw(origin);
+
+    // If P and O are on the same side of AB, then AB does not block
+    if(ABP === ABO) return false;
     
     // construct a line of the same type as this line
     // to ensure we use the correct ccw test for pixels versus points
-    const lineOA = new this(origin, this.A);
-    const OAP = lineOA.ccw(p);
+    // if line OP splits A and B, then we know AB blocks
+    const OP = new this.constructor(origin, p);
+    const OPA = OP.ccw(A);
+    const OPB = OP.ccw(B);
       
     // don't need almostEqual here; covered by ccw above.
-    if(ABP !== ABO && ABP !== OAP) return true;
-    return false;
+    if(OPA === OPB) return false;
+    return true;
   }
   
  /**
