@@ -30,6 +30,12 @@ export class CCWRay extends Ray {
   /* -------------------------------------------- */
 
  /**
+  * Get coordinates as an array
+  * @type {number[4]}
+  */
+  get coords() { return [A.x, A.y, B.x, B.y]; }
+
+ /**
   * Store the squared distance for use with comparisons
   * More numerically stable than sqrt
   * @param {number}
