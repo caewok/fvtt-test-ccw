@@ -172,25 +172,21 @@ export class CCWRay extends Ray {
   * Is the point counterclockwise, clockwise, or colinear w/r/t this ray?
   * A --> B --> p
   * @param {PIXI.Point} p
-  * @param {number} [options.EPSILON]  How exact do we want to be? 
   * @return {1|0|-1}   1 if CCW, -1 if CW, 0 if colinear
   */
-  ccw(p, { EPSILON = PRESET_EPSILON } = {}) { 
-    return CCWPoint.ccw(this.A, this.B, p, { EPSILON }); 
-  }
+  ccw(p) { return CCWPoint.ccw(this.A, this.B, p); }
   
  /**
   * Quick function to determine if this ray could intersect another
   *
   * @param {Ray}    r         Other ray to test for intersection
-  * @param {number} EPSILON   How exact do we want to be? 
   * @return {boolean} Could the segments intersect?
   */
-  intersects(r, { EPSILON = PRESET_EPSILON } = {}) {  
+  intersects(r) {  
     if(!(r instanceof CCWRay)) { r = CCWRay.fromRay(r); }
   
-    return this.ccw(r.A, { EPSILON }) !== this.ccw(r.B, { EPSILON }) &&
-           r.ccw(this.A, { EPSILON }) !== r.ccw(this.B, { EPSILON });
+    return this.ccw(r.A) !== this.ccw(r.B) &&
+           r.ccw(this.A) !== r.ccw(this.B);
   }  
   
  /**
@@ -216,10 +212,9 @@ export class CCWRay extends Ray {
     
     // Get vector distances
     const t0 = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d;
-    const t1 = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / d;
     
     return new this.A.constructor(x1 + t0 * (x2 - x1),
-                                  y1 + t1 * (y2 - y1));
+                                  y1 + t0 * (y2 - y1));
   }
   
  /**
@@ -231,7 +226,8 @@ export class CCWRay extends Ray {
   intersection(r, { EPSILON = PRESET_EPSILON } = {}) {
     const intersection = this.potentialIntersection(r, { EPSILON });
     if(!intersection) return false;
-    if(!this.contains(intersection) || !r.contains(intersection)) return false;
+    if(!this.contains(intersection, { EPSILON }) || 
+       !r.contains(intersection, { EPSILON })) return false;
     
     return this.A.constructor.fromPoint(intersection);
   }
@@ -247,7 +243,7 @@ export class CCWRay extends Ray {
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
     // ensure the point is collinear with this ray
-    if(!assume_collinear && this.ccw(p, EPSILON) !== 0) return false;
+    if(!assume_collinear && this.ccw(p) !== 0) return false;
 //      console.log(`testccw|CCWRay.contains ${p.x}, ${p.y} testing max/min`);
     // test if is an endpoint or between the endpoints
     // recall that we already established the point is collinear above.
@@ -286,13 +282,13 @@ export class CCWRay extends Ray {
        this.B.almostEqual(p, { EPSILON })) { return false; }
     if(p.almostEqual(origin, { EPSILON })) { return false; }
   
-    const ABP = this.ccw(p, { EPSILON });
-    const ABO = this.ccw(origin, { EPSILON });
+    const ABP = this.ccw(p);
+    const ABO = this.ccw(origin);
     
     // construct a line of the same type as this line
     // to ensure we use the correct ccw test for pixels versus points
     const lineOA = new this(origin, this.A);
-    const OAP = lineOA.ccw(p, {EPSILON} );
+    const OAP = lineOA.ccw(p);
       
     // don't need almostEqual here; covered by ccw above.
     if(ABP !== ABO && ABP !== OAP) return true;
@@ -313,7 +309,7 @@ export class CCWRay extends Ray {
    if(p.almostEqual(origin, { EPSILON })) { return false; }
    
    const PO = new this.constructor(p, origin);
-   return PO.intersects(this, { EPSILON});
+   return PO.intersects(this, { EPSILON });
  }
   
  /**
@@ -448,13 +444,13 @@ export class CCWRay extends Ray {
         // the two rays form a T, with this ray at the top of the T
         // segment.A is the intersection point
         // This ray blocks if origin is above the T
-        return AB.ccw(origin, { EPSILON }) !== AB.ccw(D);
+        return AB.ccw(origin) !== AB.ccw(D);
        
       } else if(AB.contains(D)) {
         // the two rays form a T, with this ray at the top of the T
         // segment.B is the intersection point
         // This ray blocks if origin is above the T
-        return AB.ccw(origin, { EPSILON }) !== AB.ccw(C);
+        return AB.ccw(origin) !== AB.ccw(C);
         
       } else if(CD.contains(A)) {
         // two rays for a T, with the segment at the top of the T
@@ -464,12 +460,12 @@ export class CCWRay extends Ray {
         // If the origin is in line with the bottom of the T, this ray blocks an 
         // infinitesimally small portion of the top of the T
         
-        return CD.ccw(origin, { EPSILON }) === CD.ccw(B);
+        return CD.ccw(origin) === CD.ccw(B);
       
       } else if(CD.contains(this.B)) {
         // two rays for a T, with the segment at the top of the T
         // same as for this.A above
-        return CD.ccw(origin, { EPSILON }) === CD.ccw(A);
+        return CD.ccw(origin) === CD.ccw(A);
         
       } else if(AB.ccw(C) !== AB.ccw(D) &&
                 CD.ccw(A) !== CD.ccw(B)) {
@@ -504,8 +500,8 @@ export class CCWRay extends Ray {
       // A is closer
       const AC = new this.constructor(A, C);
       const AD = new this.constructor(A, D);
-      const ACO = AC.ccw(origin, { EPSILON });
-      const ADO = AD.ccw(origin, { EPSILON });
+      const ACO = AC.ccw(origin);
+      const ADO = AD.ccw(origin);
       
       if(ACO === ABC && ADO !== ABC) return true;
     
@@ -513,8 +509,8 @@ export class CCWRay extends Ray {
       // B is closer
       const BC = new this.constructor(B, C);
       const BD = new this.constructor(B, D);
-      const BCO = BC.ccw(origin, { EPSILON });
-      const BDO = BD.ccw(origin, { EPSILON });
+      const BCO = BC.ccw(origin);
+      const BDO = BD.ccw(origin);
       
       if(BCO === ABC && BDO !== ABC) return true;
     

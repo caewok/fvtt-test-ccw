@@ -2,7 +2,6 @@
 
 import { CCWRay } from "./class_CCWRay.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
-import { almostEqual, PRESET_EPSILON } from "./util.js";
 
 /**
  * Represent a ray, or segment that starts and ends at 
@@ -61,7 +60,7 @@ export class CCWPixelRay extends CCWRay {
   * would only include up to 0.5, 0.5. 
   * To overcome this appears to require more resource-intensive tests. 
   */
-  contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
+  contains(p, { assume_collinear = false } = {}) {
     console.log(`testccw|PixelRay.contains ${p.x}, ${p.y}`)
     return CCWRay.prototype.contains.call(this, p, 
       { assume_collinear, EPSILON: Math.SQRT1_2});
