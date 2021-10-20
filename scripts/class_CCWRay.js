@@ -84,6 +84,15 @@ export class CCWRay extends Ray {
   */
   static fromRay(r) { return new this(r.A, r.B); } 
   
+ /**
+  * Construct a CCWRay from an array of 4 coordinates, as with Walls.
+  * @param {number[4]} coords
+  * @return {CCWRay}
+  */
+  static fromCoords(coords) { 
+    return new this({ x: coords[0], y: coords[1] }, { x: coords[2], y: coords[3] })
+  } 
+  
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
