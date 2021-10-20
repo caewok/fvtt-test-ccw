@@ -228,9 +228,9 @@ export class CCWRay extends Ray {
   * @return {CCWRay|false} Could the segments intersect?
   */
   intersection(r, { EPSILON = PRESET_EPSILON } = {}) {
-    const intersection = this.potententialIntersection(r, { EPSILON });
+    const intersection = this.potentialIntersection(r, { EPSILON });
     if(!intersection) return false;
-    if(!this.contains(intersection)) return false;
+    if(!this.contains(intersection) || !r.contains(intersection)) return false;
     
     return this.A.constructor.fromPoint(intersection);
   }
@@ -244,10 +244,10 @@ export class CCWRay extends Ray {
   * @return {boolean} Does segment include point?
   */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
-
+    console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
     // ensure the point is collinear with this ray
     if(!assume_collinear && this.ccw(p, EPSILON) !== 0) return false;
-    
+     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y} testing max/min`);
     // test if is an endpoint or between the endpoints
     // recall that we already established the point is collinear above.
     const max_x = Math.max(this.A.x, this.B.x);

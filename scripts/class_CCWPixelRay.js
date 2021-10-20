@@ -62,6 +62,7 @@ export class CCWPixelRay extends CCWRay {
   * To overcome this appears to require more resource-intensive tests. 
   */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
+    console.log(`testccw|PixelRay.contains ${p.x}, ${p.y}`)
     return CCWRay.prototype.contains.call(this, p, 
       { assume_collinear, EPSILON: Math.SQRT1_2});
   }
