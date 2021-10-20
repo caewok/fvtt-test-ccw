@@ -177,7 +177,7 @@ export class CCWRay extends Ray {
   * @param {number} EPSILON   How exact do we want to be? 
   * @return {boolean} Could the segments intersect?
   */
-  intersects(r, { EPSILON = PRESET_EPSILON }) {  
+  intersects(r, { EPSILON = PRESET_EPSILON } = {}) {  
     if(!(r instanceof CCWRay)) { r = CCWRay.fromRay(r); }
   
     return this.ccw(r.A, { EPSILON }) !== this.ccw(r.B, { EPSILON }) &&
