@@ -34,6 +34,18 @@ export class CCWRay extends Ray {
   * @type {number[4]}
   */
   get coords() { return [this.A.x, this.A.y, this.B.x, this.B.y]; }
+ /**
+  
+  * Homogenous coordinates
+  * @type {number[3]}
+  */
+  get homogenous() {
+    return [
+      this.A.y. * 1 - 1 * this.B.y,
+      1 * this.B.x - this.A.x * 1,
+      this.A.x * this.B.y - this.A.y * this.B.x
+    ];
+  } 
 
  /**
   * Store the squared distance for use with comparisons
@@ -189,6 +201,36 @@ export class CCWRay extends Ray {
     return this.ccw(r.A, { EPSILON }) !== this.ccw(r.B, { EPSILON }) &&
            r.ccw(this.A, { EPSILON }) !== r.ccw(this.B, { EPSILON });
   }  
+  
+ /**
+  * Could this ray intersect another if both were infinite?
+  * @param {Ray}    r         Other ray to test for intersection
+  * @param {number} EPSILON   How exact do we want to be? 
+  * @return {boolean} Could the segments intersect?
+  */
+  potentialIntersection(r) {
+    // Use homogenous coordinates, take the cross product
+    // U1 = (a1, b1, 1), U2 = (a2, b2, 1)
+    // I = U1 x U2 = (b1c2 - b2c1, a2c1 - a1c2, a1b2 - a2b1)
+    // U = [a, b, c]: -a/b = slope, -c/a x-intercept
+    
+    
+    
+    
+    
+    const a1 = this.dx;
+    const a2 = r.dx;
+    const b1 = this.dy;
+    const a2 = r.dy;
+    
+    const ci = a1 * b2 - a2 * b1;
+    if(almostEqual(ci, 0)) return [];
+    
+    const ai = b1 * 1 - b2 * 1;
+    const bi = a2 * 1 - a1 * 1;
+    
+    return new this.A.constructor(ai, bi);
+  }
   
  /**
   * Test if point is on/very near the segment.
