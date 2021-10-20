@@ -33,7 +33,7 @@ export class CCWRay extends Ray {
   * Get coordinates as an array
   * @type {number[4]}
   */
-  get coords() { return [A.x, A.y, B.x, B.y]; }
+  get coords() { return [this.A.x, this.A.y, this.B.x, this.B.y]; }
 
  /**
   * Store the squared distance for use with comparisons
