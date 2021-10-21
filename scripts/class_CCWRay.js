@@ -608,7 +608,7 @@ export class CCWRay extends Ray {
     switch(method) {
       case "geometry":
         return this.potentiallyIntersectsCircleGeometry(center, radius);
-      case "algebra":
+      case "quadratic":
         return this.potentiallyIntersectsCircleQuadratic(center, radius);  
     }
   }
@@ -625,7 +625,7 @@ export class CCWRay extends Ray {
     switch(method) {
       case "geometry":
         return this.potentialIntersectionsWithCircleGeometry(center, radius);
-      case "algebra":
+      case "quadratic":
         return this.potentialIntersectionsWithCircleQuadratic(center, radius);  
     }    
   }
@@ -986,16 +986,16 @@ export class CCWRay extends Ray {
   * @param {PIXI.Point} center
   * @param {number} radius
   */
-  drawCircleIntersection(r, center, radius, { method = "geometry", 
-                                              circleColor = COLORS.white, 
-                                              lineColor = COLORS.blue, 
-                                              intersectionColor = COLORS.red } = {}) {
+  drawCircleIntersection(center, radius, { method = "geometry", 
+                                           circleColor = COLORS.white, 
+                                           lineColor = COLORS.blue, 
+                                           intersectionColor = COLORS.red } = {}) {
     const g = canvas.controls.debug;
-    const intersections = r.intersectionsWithCircle(center, radius, { method });
     g.lineStyle(4.0, lineColor);
     g.drawCircle(center.x, center.y, radius);    
     center.draw(circleColor);
-    r.draw(lineColor);
+    this.draw(lineColor);
+    const intersections = this.intersectionsWithCircle(center, radius, { method });
     intersections.forEach(i => i.draw(intersectionColor))
   } 
   
