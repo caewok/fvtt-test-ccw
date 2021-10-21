@@ -843,7 +843,7 @@ export class CCWRay extends Ray {
       // tangent point to circle is E
       const Ex = t * Dx + this.A.x;
       const Ey = t * Dy + this.A.y;
-      return [ new this.A.constructor(Ex, Ey) ];
+      return [ new CCWPoint(Ex, Ey) ];
       
     } else if(LEC2 > R2) {
       return []; // no intersections
@@ -857,7 +857,7 @@ export class CCWRay extends Ray {
       const Gx = (t + dt) * Dx + this.A.x;
       const Gy = (t + dt) * Dy + this.A.y
       
-      return [ new this.A.constructor(Fx, Fy), new this.A.constructor(Gx, Gy) ];
+      return [ new CCWPoint(Fx, Fy), new CCWPoint(Gx, Gy) ];
     }
   }
   
