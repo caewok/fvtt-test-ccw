@@ -160,14 +160,24 @@ export class PotentialWallList extends BinarySearchTree {
     const A = AB.A;
     const B = AB.B;
     const C = CD.A;
-    const D = CD.B;
+    let D = CD.B;
   
     // Test what side BC and origin are in relation to AB
     const ABO = AB.ccw(origin);
     const ABC = AB.ccw(C);
-    const ABD = AB.ccw(D);
+    let ABD = AB.ccw(D);
 
-    if(ABC === 0 && ABD === 0) return 0; // either they are the same or they are colinear
+    if(ABC === 0 && ABD === 0) {
+      // either they are the same or they are colinear
+      // id check above can be used to check if they are the same
+      // otherwise, could use almostEqual to compare A, B, C, and D
+      // here, assume colinear. For sorting, need one in front of the other, 
+      // so adjust position of one vertex by a pixel
+      // (using a pixel ensures it will be different even if rounding for an endpoint)
+      // change x unless it is a horizontal line
+      D = CD.dy ? new D.constructor(D.x + 1, D.y) : new D.constructor(D.x, D.y + 1)
+      ABD = AB.ccw(D);
+    }
     
     // If the origin is on the same side as CD, then CD is in front of AB
     if(ABO === ABC && ABO === ABD) return -1;
