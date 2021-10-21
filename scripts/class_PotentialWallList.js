@@ -155,8 +155,8 @@ export class PotentialWallList extends BinarySearchTree {
   * @return {-1, 0, 1} -1 if AB is in front, 1 if CD is in front, 0 if equal
   */
   static inFrontOf(AB, CD, origin) {
-    if(AB.id === CD.id) return 0;
-  
+    if(AB.id && CD.id && AB.id === CD.id) return 0;
+   
     const A = AB.A;
     const B = AB.B;
     const C = CD.A;
@@ -166,6 +166,8 @@ export class PotentialWallList extends BinarySearchTree {
     const ABO = AB.ccw(origin);
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
+
+    if(ABC === 0 && ABD === 0) return 0; // either they are the same or they are colinear
     
     // If the origin is on the same side as CD, then CD is in front of AB
     if(ABO === ABC && ABO === ABD) return -1;

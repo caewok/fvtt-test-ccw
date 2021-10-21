@@ -119,7 +119,7 @@ export class CCWRay extends Ray {
   projectDistance(dist, { fromEndpoint = "A" } = {}) {
     const t = dist / this.distance;
     const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t); 
-    const r = new this(this[fromEndpoint], B);
+    const r = new this.constructor(this[fromEndpoint], B);
     
     // unclear whether we should force distance to equal the provided distance
     r._distance = dist;
@@ -137,7 +137,7 @@ export class CCWRay extends Ray {
   projectDistanceSquared(dist_squared, { fromEndpoint = "A" } = {}) {
     const t = Math.sqrt(dist_squared / this.distanceSquared);
     const B = fromEndpoint === "A" ? this.project(t) : this.projectB(t);
-    const r = new this(this[fromEndpoint], B);
+    const r = new this.constructor(this[fromEndpoint], B);
   
     // unclear whether we should force distance to equal the provided distance
     r._distanceSquared = dist_squared
@@ -154,8 +154,8 @@ export class CCWRay extends Ray {
   * @return {CCWPoint} The coordinates of the projected point
   */
   project(t) {
-    const res = Ray.constructor.project(t);
-    return CCWPoint.fromPoint(res.x, res.y);
+    const res = Ray.prototype.project.call(this, t);
+    return CCWPoint.fromPoint(res);
   }
 
  /**
@@ -344,16 +344,16 @@ export class CCWRay extends Ray {
   * @return {boolean} True if this segment blocks another
   */
   blocksSegmentRayTest(segment, origin, { EPSILON = PRESET_EPSILON,
-                                          check_overlap = false } = {}) {
+                                           check_overlap = false } = {}) {
     if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
     
     // Call this AB and segment CD
     const AB = this;
     const CD = segment;
-    const A = this.A;
-    const B = this.B;
-    const C = segment.A;
-    const D = segment.B;
+    const A = AB.A;
+    const B = AB.B;
+    const C = CD.A;
+    const D = CD.B;
     
     if(check_overlap) {
       // if the rays share an endpoint, no overlap
@@ -397,26 +397,49 @@ export class CCWRay extends Ray {
       }
     }
 
+    // account for when endpoints are shared.
+    // don't test shared endpoints for intersections 
+    const AC_shared = A.almostEqual(C);
+    const BC_shared = B.almostEqual(C);
+
     // does C --> origin or D --> origin intersect AB? 
     // if yes, AB blocks
-    const CO = new this.constructor(C, origin);
-    if(CO.intersects(AB, { EPSILON })) return true;
-    
-    const DO = new this.constructor(D, origin);
-    if(DO.intersects(AB, { EPSILON })) return true; 
-    
+    if(!AC_shared && !BC_shared) {
+      const CO = new this.constructor(C, origin);
+      if(CO.intersects(AB, { EPSILON })) return true;
+    }
+
+    const AD_shared = A.almostEqual(D);
+    const BD_shared = B.almostEqual(D);
+
+    if(!AD_shared && !BC_shared) {
+      const DO = new this.constructor(D, origin);
+      if(DO.intersects(AB, { EPSILON })) return true; 
+    }
+
+    // if O --> A intersects CD, then doesn't block 
+    // (CD is betwee O and AB, so CD blocks, not AB) 
+    const OA = new this.constructor(origin, A);
+    if(!AC_shared && !AD_shared && OA.intersects(CD)) { return false; }
+
+    const OB = new this.constructor(origin, B);
+    if(!BC_shared && !BD_shared && OB.intersects(CD)) { return false; }
     // does origin --> A --> canvas edge intersect CD? If yes, blocks
-    // does origin --> B --> canvas edge intersect CD? If yes, blocks    
+    // (already determined above that CD is not between origin and A)
     const maxRSquared = canvas.dimensions.maxR * canvas.dimensions.maxR;
     
-    const OA = new this.constructor(origin, A);
-    const OA_extended = OA.projectDistanceSquared(maxRSquared);
-    if(OA_extended.intersects(CD)) return true;
-    
-    const OB = new this.constructor(origin, B);
-    const OB_extended = OB.projectDistanceSquared(maxRSquared);
-    if(OB_extended.intersects(CD)) return true;
-    
+    if(!AC_shared && !AD_shared) {
+      const OA_extended = OA.projectDistanceSquared(maxRSquared);
+      if(OA_extended.intersects(CD)) return true;
+    }
+
+    // does origin --> B --> canvas edge intersect CD? If yes, blocks
+    // (already determined above that CDis not between origin and B)
+    if(!BC_shared && !BD_shared) {
+      const OB_extended = OB.projectDistanceSquared(maxRSquared);
+      if(OB_extended.intersects(CD)) return true;
+    }
+
     return false;                                       
   }
   
@@ -440,13 +463,13 @@ export class CCWRay extends Ray {
     // this segment is AB
     // other segment is CD
     // O is origin
-    const A = this.A;
-    const B = this.B;
-    const C = segment.A;
-    const D = segment.B;
-    
     const AB = this;
     const CD = segment;
+
+    const A = AB.A;
+    const B = AB.B;
+    const C = CD.A;
+    const D = CD.B;
     
     if(check_overlap) {    
       // if the rays share an endpoint, no overlap
@@ -499,6 +522,26 @@ export class CCWRay extends Ray {
     const ABO = AB.ccw(origin);
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
+
+    if(ABC === 0) {
+      // C shares either A or B vertex
+      const OC = new this.constructor(origin, C);
+      const OCD = OC.ccw(D);
+      // figure out whether A or B is shared & use the other one
+      const OCAB = C.almostEqual(A) ? OC.ccw(B) : OC.ccw(A);
+      
+      return OCAB === OCD; // if A/B on same side of OC line as D, then AB blocks
+    }
+
+    if(ABD === 0) { 
+      // D shares either A or B vertex
+      const OD = new this.constructor(origin, D);
+      const ODC = OD.ccw(C);
+      // figure out whether A or B is shared & use the other one
+      const ODAB = D.almostEqual(A) ? OD.ccw(B) : OD.ccw(A);
+      
+      return ODAB === ODC; // if A/B on same side of OC line as D, then AB blocks
+    }
     
     // If the origin is on the same side as CD, then CD blocks AB
     if(ABO === ABC && ABO === ABD) return false;
