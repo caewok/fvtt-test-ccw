@@ -409,10 +409,10 @@ export class CCWRay extends Ray {
       if(CO.intersects(AB, { EPSILON })) return true;
     }
 
-    const AD_shared = A.almostEqual(D);
-    const BD_shared = B.almostEqual(D);
+    const AD_shared = A.almostEqual(D, { EPSILON });
+    const BD_shared = B.almostEqual(D, { EPSILON });
 
-    if(!AD_shared && !BC_shared) {
+    if(!AD_shared && !BD_shared) {
       const DO = new this.constructor(D, origin);
       if(DO.intersects(AB, { EPSILON })) return true; 
     }
@@ -525,6 +525,9 @@ export class CCWRay extends Ray {
 
     if(ABC === 0) {
       // C shares either A or B vertex
+      if(ABC === ABO) return false;
+
+      // check origin versus the non-shared vertices
       const OC = new this.constructor(origin, C);
       const OCD = OC.ccw(D);
       // figure out whether A or B is shared & use the other one
@@ -535,6 +538,10 @@ export class CCWRay extends Ray {
 
     if(ABD === 0) { 
       // D shares either A or B vertex
+      // if C is on same side as O, no block
+      if(ABC === ABO) return false;
+
+      // check origin versus the non-shared vertices
       const OD = new this.constructor(origin, D);
       const ODC = OD.ccw(C);
       // figure out whether A or B is shared & use the other one
@@ -543,7 +550,7 @@ export class CCWRay extends Ray {
       return ODAB === ODC; // if A/B on same side of OC line as D, then AB blocks
     }
     
-    // If the origin is on the same side as CD, then CD blocks AB
+    // If the origin is on the same side as CD, then AB doesn't block; CD blocks AB
     if(ABO === ABC && ABO === ABD) return false;
     
     // If the origin is on the opposite side of CD, AB blocks CD
