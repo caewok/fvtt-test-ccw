@@ -10,7 +10,6 @@ import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
-import { CCWSightRay }        from "./class_CCWSightRay.js";
 import { CCWSweepPolygon }    from "./class_CCWSweepPolygon.js";
 import { CCWPoint }           from "./class_CCWPoint.js";
 import { CCWPixelPoint }      from "./class_CCWPixelPoint.js";
@@ -83,7 +82,6 @@ Hooks.once('init', async function() {
     benchmark: testCCWBenchmarkSight,
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
-    CCWSightRay: CCWSightRay,
     CCWSweepPolygon: CCWSweepPolygon,
     
     CCWPoint: CCWPoint,

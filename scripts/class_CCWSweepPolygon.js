@@ -2,7 +2,7 @@
 'use strict';
 
 
-
+import { CCWPoint }           from "./class_CCWPoint.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWRay }             from "./class_CCWRay.js";
@@ -179,10 +179,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
              // - could be a wall that barely pierces the circle: can ignore; both outside
              // - if one is on the edge, the other should be inside
              if(wall.A.insideRadius && 
-                (!wall.B.insideRadius || pointsAlmostEqual(wall.B, i0))) {
+                (!wall.B.insideRadius || i0.almostEqual(wall.B))) {
                wall = CCWSweepWall.createFromPoints(wall.A, i0, wall, opts); 
              } else if(wall.B.insideRadius && 
-                (!wall.A.insideRadius || pointsAlmostEqual(wall.A, i0))) {
+                (!wall.A.insideRadius || i0.almostEqual(wall.A))) {
                wall = CCWSweepWall.createFromPoints(i0, wall.B, wall, opts);
              } else if(wall.A.insideRadius && wall.B.insideRadius){
                // if both inside, should not have any intersections to begin with
@@ -425,8 +425,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         if(!start_ray.intersects(w)) return false;
 
         // if the starting endpoint is at the start of the wall, don't include it
-        if(pointsAlmostEqual(w.A, start_endpoint) || 
-           pointsAlmostEqual(w.B, start_endpoint)) {
+        if(start_endpoint.almostEqual(w.A) || 
+           start_endpoint.almostEqual(w.B)) {
           const ccw = PotentialWallList.endpointWallCCW(origin, start_endpoint, w) === 1;  
           if(!ccw) return false;
         }
@@ -526,7 +526,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         continue; 
       }
@@ -547,7 +547,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
       }
@@ -636,7 +636,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
                Boolean(actual_closest_wall) && 
                closest_wall.id !== actual_closest_wall.id) {
                const new_intersection = this._getRayIntersection(closest_wall, ray);
-              if(!pointsAlmostEqual(new_intersection, ray.B, 1e-1)) { 
+              if(!new_intersection.almostEqual(new_intersection, ray.B, 1e-1)) { 
                 collisions.push(new_intersection.x, new_intersection.y) 
               }
             }
@@ -698,13 +698,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         // if the ray does not actually intersect the closest wall, we need to add padding
         // if the intersection point is basically at the endpoint, skip
         if(!closest_wall || 
           (!ray.intersects(closest_wall) && 
-           !pointsAlmostEqual(intersection, new_intersection, 1e-1))) { needs_padding = true; }  
+           !intersection.almostEqual( new_intersection, 1e-1))) { needs_padding = true; }  
           
         continue; 
       }
@@ -729,7 +729,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!pointsAlmostEqual(intersection, new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
         
         continue;
       }
@@ -828,8 +828,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // if aMin to aMax is greater than 180º, easier to determine what is out
       // if endpoint is CCW to minRay and CW to maxRay, it is outside
       this.endpoints.forEach(e => {
-        if(ccwPoints(origin, r0.B, e) > 0 || 
-           ccwPoints(origin, r1.B, e) < 0) {
+        if(CCWPoint.ccw(origin, r0.B, e) > 0 || 
+           CCWPoint.ccw(origin, r1.B, e) < 0) {
           const k = CCWSweepPoint.getKey(e.x, e.y);
           this.endpoints.delete(k);
           }
@@ -839,8 +839,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // if aMin to aMax is less than 180º, easier to determine what is in
       // endpoint is CW to minRay and CCW to maxRay, it is inside
       this.endpoints.forEach(e => {
-        if(!(ccwPoints(origin, r0.B, e) <= 0 && 
-             ccwPoints(origin, r1.B, e) >= 0)) {
+        if(!(CCWPoint.ccw(origin, r0.B, e) <= 0 && 
+             CCWPoint.ccw(origin, r1.B, e) >= 0)) {
           const k = CCWSweepPoint.getKey(e.x, e.y);
           this.endpoints.delete(k);
         }
@@ -898,7 +898,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         }
       }
         
-      return orient2dPoints(origin, a, b);
+      return CCWPoint.orient2d(origin, a, b);
    
     });
   }

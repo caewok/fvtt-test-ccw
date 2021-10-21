@@ -5,11 +5,8 @@
 // - walls can be ignored && removed if CCW of current sweep sight ray
 // - walls should be added if CW of current sweep sight ray. 
 // - in line walls? Add?
-import { log } from "./module.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
-
-
-
+import { CCWPoint }         from "./class_CCWPoint.js";
 
 /**
  * Store ordered list of potential walls, ordered by closeness to the origin.
@@ -133,8 +130,8 @@ export class PotentialWallList extends BinarySearchTree {
   * @return {1|0|-1} 1 if CCW, -1 of CW, 0 if in line 
   */
   static endpointWallCCW(origin, endpoint, wall) {
-     const non_anchor = pointsAlmostEqual(wall.A, endpoint) ? wall.B : wall.A;
-     return ccwPoints(origin, endpoint, non_anchor);
+     const non_anchor = endpoint.almostEqual(wall.A) ? wall.B : wall.A;
+     return CCWPoint.ccw(origin, endpoint, non_anchor);
   }
   
  /**
@@ -158,7 +155,7 @@ export class PotentialWallList extends BinarySearchTree {
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
     const A = AB.A;
-    const B = AB.B;
+//     const B = AB.B;
     const C = CD.A;
     const D = CD.B;
   

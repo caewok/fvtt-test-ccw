@@ -8,6 +8,7 @@ import { arraySwap,
          compareXY_A,
          compareYX,
          MapArray } from "./util.js";
+import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWRay } from "./class_CCWRay.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
@@ -46,8 +47,8 @@ export class IdentifyIntersections {
     let remainder = wall;
     intersections.forEach(i_point => {
       // check that we are not repeating points
-      if(pointsAlmostEqual(remainder.A, i_point) || 
-         pointsAlmostEqual(i_point, wall.B)) { return; }
+      if(i_point.almostEqual(remainder.A) || 
+         i_point.almostEqual(wall.B)) { return; }
       const new_w = CCWSweepWall.createFromPoints(remainder.A, i_point, wall); 
       finished_walls.push(new_w);
       remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
@@ -145,8 +146,8 @@ export class IdentifyIntersections {
             const curr_remainder = remainders.get(id);
             
             // check that we are not repeating endpoints
-            if(pointsAlmostEqual(curr_remainder.A, i_point) || 
-               pointsAlmostEqual(i_point, curr_remainder.B)) { return; }
+            if(i_point.almostEqual(curr_remainder.A) || 
+               i_point.almostEqual(curr_remainder.B)) { return; }
             
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
                                                         i_point, w); 
@@ -217,14 +218,14 @@ export class BruteForceIntersections {
          const i_point = w0.intersectSegment(w1.coords);
          
          // count the intersection unless it is an endpoint of that wall
-         if(!(pointsAlmostEqual(w0.A, i_point) || 
-              pointsAlmostEqual(w0.B, i_point))) {
+         if(!(i_point.almostEqual(w0.A) || 
+              i_point.almostEqual(w0.B))) {
             this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
          }
           
          // same for the second wall
-         if(!(pointsAlmostEqual(w1.A, i_point) || 
-              pointsAlmostEqual(w1.B, i_point))) {
+         if(!(i_point.almostEqual(w1.A) || 
+              i_point.almostEqual(w1.B))) {
             this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
          } 
        }
@@ -300,14 +301,14 @@ export class SimpleSweepIntersections {
          const i_point = w0.intersectSegment(w1.coords);
          
          // count the intersection unless it is an endpoint of that wall
-         if(!(pointsAlmostEqual(w0.A, i_point) || 
-              pointsAlmostEqual(w0.B, i_point))) {
+         if(!(i_point.almostEqual(w0.A) || 
+              i_point.almostEqual(w0.B))) {
             this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
          }
           
          // same for the second wall
-         if(!(pointsAlmostEqual(w1.A, i_point) || 
-              pointsAlmostEqual(w1.B, i_point))) {
+         if(!(i_point.almostEqual(w1.A) || 
+              i_point.almostEqual(w1.B))) {
             this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
          } 
        }
@@ -619,7 +620,7 @@ export class BentleyOttomanSweepIntersections {
         // if they share a left endpoint, compare their right endpoints
         // (No intersection will be found, they should be oriented so the 
         //  the one moving up is above the one moving down)
-        if(pointsAlmostEqual(a.left, a.right)) { return compareYX(a.right, b.right); }
+        if(a.left.almostEqual(a.right)) { return compareYX(a.right, b.right); }
       
         // One has endpoint in the middle of another
         // a.right --> a --> b.right 
@@ -630,7 +631,7 @@ export class BentleyOttomanSweepIntersections {
         //const ccw = orient2dPoints(a.right, a, b.right)
         //if(ccw > 0) return 1;
         //if(ccw < 0) return -1;
-        return orient2dPoints(a.right, a, b.right);
+        return CCWPoint.orient2d(a.right, a, b.right);
       }
             
       return compareYX(a.left, b.left);
@@ -671,11 +672,11 @@ export class BentleyOttomanSweepIntersections {
     
     // if the intersection is at the endpoints of the two walls, skip
     // (if only endpoint of one, include)
-    const endpoint1 = pointsAlmostEqual(s1.left, intersection) || 
-                      pointsAlmostEqual(s1.right, intersection)
+    const endpoint1 = intersection.almostEqual(s1.left) || 
+                      intersection.almostEqual(s1.right)
     
-    const endpoint2 = pointsAlmostEqual(s2.left, intersection) || 
-                      pointsAlmostEqual(s2.right, intersection)
+    const endpoint2 = intersection.almostEqual(s2.left) || 
+                      intersection.almostEqual(s2.right)
     if(endpoint1 && endpoint2) return;
     
     
