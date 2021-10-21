@@ -1,7 +1,7 @@
 'use strict';
 
 // See Number.EPSILON for smallest possible error number.
-export const PRESET_EPSILON = 1e-16;
+export const PRESET_EPSILON = 1e-08;
 
 
 // Simple set of colors for drawing and debugging 
