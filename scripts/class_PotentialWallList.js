@@ -158,32 +158,32 @@ export class PotentialWallList extends BinarySearchTree {
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
     const A = AB.A;
-    const B = AB.B;
+    let B = AB.B;
     const C = CD.A;
     let D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    const ABO = AB.ccw(origin);
-    const ABC = AB.ccw(C);
+    let ABO = AB.ccw(origin);
+    let ABC = AB.ccw(C);
     let ABD = AB.ccw(D);
 
-    if(ABC === 0 && ABD === 0) {
-      // either they are the same or they are colinear
+    if(ABO === 0 && ABC === 0 && ABD === 0) {
+      // either they are the same or they are colinear to the origin
       // id check above can be used to check if they are the same
       // otherwise, could use almostEqual to compare A, B, C, and D
-      // here, assume colinear. For sorting, need one in front of the other, 
-      // so adjust position of one vertex by a pixel
-      // (using a pixel ensures it will be different even if rounding for an endpoint)
-      // change x unless it is a horizontal line
-      D = CD.dy ? new D.constructor(D.x + 1, D.y) : new D.constructor(D.x, D.y + 1)
-      ABD = AB.ccw(D);
+      // here, assume colinear. For sorting, need one in front of the other.
+      // so pick the closer of OA or OC (recall no overlaps)
+      OA = new AB.constructor(origin, A);
+      OC = new CD.constructor(origin, C);
+      
+      return OA.distanceSquared < OC.distanceSquared ? -1 : 1;
     }
     
     // If the origin is on the same side as CD, then CD is in front of AB
-    if(ABO === ABC && ABO === ABD) return -1;
+    if(ABO === ABC && ABO === ABD) return 1;
     
     // If the origin is on the opposite side of CD, AB is in front
-    if(ABO !== ABC && ABO !== ABD) return 1;
+    if(ABO !== ABC && ABO !== ABD) return -1;
     
     // CD crosses the AB infinite line. 
     // Test where A and O are in relation to C
@@ -191,9 +191,9 @@ export class PotentialWallList extends BinarySearchTree {
     const CDA = CD.ccw(A);
     
     // If A and O are on same side of CD, AB is in front
-    if(CDO === CDA) return 1;
+    if(CDO === CDA) return -1;
     
-    return -1;
+    return 1;
   } 
   
   
