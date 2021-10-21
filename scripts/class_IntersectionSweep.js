@@ -8,7 +8,7 @@ import { arraySwap,
          compareXY_A,
          compareYX,
          MapArray } from "./util.js";
-import { CCWSightRay } from "./class_CCWSightRay.js";
+import { CCWRay } from "./class_CCWRay.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
@@ -808,7 +808,7 @@ export class IntersectionSweepEvent {
       const pt = new CCWSweepPoint(this.x, this.y);
       pt.draw(color, alpha)
     } else {
-      const r = new CCWSightRay({ x: this.left.x, y: this.left.y },
+      const r = new CCWRay({ x: this.left.x, y: this.left.y },
                                 { x: this.right.x, y: this.right.y });
      
      r.draw(color, alpha, width);                           
