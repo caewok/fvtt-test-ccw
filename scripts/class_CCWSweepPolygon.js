@@ -5,10 +5,10 @@
 
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
-import { CCWSightRay }        from "./class_CCWSightRay.js";
+import { CCWRay }             from "./class_CCWRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
-import { MODULE_ID }	      from "./module.js";
+import { MODULE_ID }	        from "./module.js";
 import { IdentifyIntersections } from "./class_IntersectionSweep.js";         
 
 /**
@@ -254,7 +254,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // Use fromAngle to get the points relative to the origin
      const a_translated = angles.map(a => Math.normalizeRadians(Math.toRadians(a + rotation)));
-     const r = a_translated.map(a => CCWSightRay.fromAngle(origin.x, origin.y, a, radius));
+     const r = a_translated.map(a => CCWRay.fromAngle(origin.x, origin.y, a, radius));
                
      // construct walls between the points
      const ln = angles.length;
@@ -377,14 +377,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // Limit angle: Sort from the starting ray instead of from due west
     if(isLimited) {
       // for non-limited, start ray is set to the first endpoint after sorting.
-      start_ray = CCWSightRay.fromAngle(origin.x, origin.y, aMin, radius);
-      end_ray =   CCWSightRay.fromAngle(origin.x, origin.y, aMax, radius);
+      start_ray = CCWRay.fromAngle(origin.x, origin.y, aMin, radius);
+      end_ray =   CCWRay.fromAngle(origin.x, origin.y, aMax, radius);
       this._trimEndpointsByLimitedAngle(start_ray, end_ray);
       endpoints = CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], start_ray.B);
 
     } else{
       endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = endpoints.length > 0 ? CCWSightRay.fromReferenceSquared(origin, endpoints[0], radius2) : undefined;
+      start_ray = endpoints.length > 0 ? CCWRay.fromReferenceSquared(origin, endpoints[0], radius2) : undefined;
     }
 
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
@@ -496,7 +496,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
                 
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         // add the intersection point unless we already did
@@ -514,7 +514,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -534,7 +534,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
         
@@ -555,7 +555,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === (endpoints_ln - 1))) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -599,8 +599,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // draw an arc from where the collisions ended to the ray for the new endpoint
         const l = collisions.length;
         const last_collision = { x: collisions[l - 2], y: collisions[l - 1] };
-        const prior_ray = CCWSightRay.fromReferenceSquared(origin, last_collision, radius2);
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const prior_ray = CCWRay.fromReferenceSquared(origin, last_collision, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         
         this._addPadding(prior_ray, ray, collisions);
       }
@@ -609,7 +609,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // mark end of vision ray as collision
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest({type});
@@ -660,7 +660,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // find its intersection point and add the collision
         // sightline --> endpoint at closest wall --> next closest wall
       
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
       
         // add the intersection point unless we already did
@@ -686,7 +686,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
         // mark the intersection at the current closest wall
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2); 
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -718,7 +718,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is the endpoint in front of the closest wall? 
       if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
 
@@ -737,7 +737,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(isLimited && (i === 0 || i === endpoints_ln)) {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
-        const ray = CCWSightRay.fromReferenceSquared(origin, endpoint, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -784,8 +784,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
           
         // draw an arc from where the collisions ended to the ray for the first collision
         // basically same as padding in the algorithm for loop above
-        const prior_ray = CCWSightRay.fromReferenceSquared(origin, prior, radius2);
-        const ray = CCWSightRay.fromReferenceSquared(origin, next, radius2);
+        const prior_ray = CCWRay.fromReferenceSquared(origin, prior, radius2);
+        const ray = CCWRay.fromReferenceSquared(origin, next, radius2);
         this._addPadding(prior_ray, ray, collisions);
       
         if(coll_ln < 2) {
@@ -802,7 +802,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Construct a CCWSweepPoint from a ray, testing if it hits a wall.
    * Assume wall may be undefined
    * @param {CCWSweepWall} wall   Wall to test for intersection.
-   * @param {CCWSightRay}  ray    Ray to test for intersection.
+   * @param {CCWRay}  ray    Ray to test for intersection.
    * @param {CCWSweepPoint} Either the wall intersection or end of the ray
    * @private
    */
@@ -816,8 +816,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   /*
    * Trim endpoints to only those between starting and ending rays.
-   * @param {CCWSightRay} r0    Starting ray
-   * @param {CCWSightRay} r1    Ending ray
+   * @param {CCWRay} r0    Starting ray
+   * @param {CCWRay} r1    Ending ray
    * @private
    */
   _trimEndpointsByLimitedAngle(r0, r1) {
@@ -941,8 +941,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Draw a circular arc between two points.
    * Add to collisions each point on the arc, given a defined padding radian distance.
    * https://www.measurethat.net/Benchmarks/Show/4223/0/array-concat-vs-spread-operator-vs-push
-   * @param {CCWSightRay} r0        The prior CCWSightRay that was tested
-   * @param {CCWSightRay} r1        The next CCWSightRay that will be tested
+   * @param {CCWRay} r0        The prior CCWRay that was tested
+   * @param {CCWRay} r1        The next CCWRay that will be tested
    * @param {[number]} collisions   Array of collision points to which to add
    * @return {[number]} The updated collisions array
    */
