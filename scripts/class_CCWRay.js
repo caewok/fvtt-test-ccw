@@ -624,9 +624,9 @@ export class CCWRay extends Ray {
   potentialIntersectionsWithCircle(center, radius, { method = "geometry" } = {}) {
     switch(method) {
       case "geometry":
-        return this.potentiallyIntersectsCircleGeometry(center, radius);
+        return this.potentialIntersectionsWithCircleGeometry(center, radius);
       case "algebra":
-        return this.potentiallyIntersectsCircleQuadratic(center, radius);  
+        return this.potentialIntersectionsWithCircleQuadratic(center, radius);  
     }    
   }
   
