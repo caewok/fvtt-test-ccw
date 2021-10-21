@@ -158,14 +158,14 @@ export class PotentialWallList extends BinarySearchTree {
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
     const A = AB.A;
-    let B = AB.B;
+    const B = AB.B;
     const C = CD.A;
-    let D = CD.B;
+    const D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    let ABO = AB.ccw(origin);
-    let ABC = AB.ccw(C);
-    let ABD = AB.ccw(D);
+    const ABO = AB.ccw(origin);
+    const ABC = AB.ccw(C);
+    const ABD = AB.ccw(D);
 
     if(ABO === 0 && ABC === 0 && ABD === 0) {
       // either they are the same or they are colinear to the origin
@@ -173,8 +173,8 @@ export class PotentialWallList extends BinarySearchTree {
       // otherwise, could use almostEqual to compare A, B, C, and D
       // here, assume colinear. For sorting, need one in front of the other.
       // so pick the closer of OA or OC (recall no overlaps)
-      OA = new AB.constructor(origin, A);
-      OC = new CD.constructor(origin, C);
+      const OA = new AB.constructor(origin, A);
+      const OC = new CD.constructor(origin, C);
       
       return OA.distanceSquared < OC.distanceSquared ? -1 : 1;
     }
