@@ -74,13 +74,13 @@ export class CCWPixelPoint extends CCWPoint {
     
     // Ultimately need the distance between the two points but first check the easy case
     // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
-    if(!CCWPoint.pointsAlmostEqual(this, p, { EPSILON: Math.SQRT1_2 })) { return false; }
+    if(!CCWPoint.almostEqual(this, p, { EPSILON: Math.SQRT1_2 })) { return false; }
     
     // within the √2 / 2 bounding box
     // compare distance squared.
     // equality with the distance measurement
     const dist2 = this.distanceSquared(p);
-    if(almostEqual(dist2, 0.5, { EPSILON })) return true;
+    if(CCWPoint.almostEqual(dist2, 0.5, { EPSILON })) return true;
     return dist2 < 0.5; // √2 / 2 * √2 / 2 = 0.5    
   }
 }
