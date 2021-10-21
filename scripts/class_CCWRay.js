@@ -242,6 +242,15 @@ export class CCWRay extends Ray {
   }
   
  /**
+  * Dot product of this with another segment. Vector dot product:
+  * a • b = ax * bx + ay * by, where ax, bx are change in x, ay, by are change in y
+  */
+  dot(r) {
+    return this.dx * r.dx + this.dy * r.dy;
+  }
+     
+  
+ /**
   * Test if point is on/very near the segment.
   * 
   * @param {x: number, y: number}  p     Point to test
@@ -251,23 +260,24 @@ export class CCWRay extends Ray {
   */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
+    if(this.A.almostEqual(p) || this.B.almostEqual(p)) return true;
+
     // ensure the point is collinear with this ray
     if(!assume_collinear && this.ccw(p) !== 0) return false;
 //      console.log(`testccw|CCWRay.contains ${p.x}, ${p.y} testing max/min`);
     // test if is an endpoint or between the endpoints
     // recall that we already established the point is collinear above.
-    const max_x = Math.max(this.A.x, this.B.x);
-    const min_x = Math.min(this.A.x, this.B.x);
-    const max_y = Math.max(this.A.y, this.B.y);
-    const min_y = Math.min(this.A.y, this.B.y);
-
-    const within_x = ((p.x < max_x || almostEqual(p.x, max_x, { EPSILON })) &&
-                (p.x > min_x || almostEqual(p.x, min_x, { EPSILON })));
-
-    const within_y = ((p.y < max_y || almostEqual(p.y, max_y, { EPSILON })) &&
-                (p.y > min_y || almostEqual(p.y, min_y, { EPSILON })));
- 
-    return within_x && within_y;
+     
+    // instead of min/max tests for x and y, test instead if the dot product
+    // AB • AC is positive and less than AB • AB
+    // Easier to make work with CCWPixelRay
+    const k_ab = this.dot(this);
+    const k_ac = this.dot(p);
+    
+    // if k_ac === 0, point p coincides with A (handled by prior check)    
+    // if k_ac === k_ab, point p coincides with B (handled by prior check)
+    // k_ac is between 0 and k_ab, point is on the segment
+    return k_ac >= 0 && k_ac <= k_ab;
   } 
   
   /* -------------------------------------------- */

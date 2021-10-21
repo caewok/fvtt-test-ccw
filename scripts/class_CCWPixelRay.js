@@ -50,20 +50,4 @@ export class CCWPixelRay extends CCWRay {
     if(orientation2 < cutoff) return 0; 
     return orientation < 0 ? -1 : 1;    
   }
-  
- /**
-  * Test if point is on/very near the segment.
-  * Override by adjusting EPSILON to account for x and y within √2 / 2
-  * Note: this overshoots the endpoints very slightly. It captures everything near the 
-  * endpoint to within √2 / 2 of x or √2 / 2 of y, instead of √2 / 2 of the distance
-  * of x, y. So if endpoint is 0, 0: 0.7, 0.7 would be within even though a typical point
-  * would only include up to 0.5, 0.5. 
-  * To overcome this appears to require more resource-intensive tests. 
-  */
-  contains(p, { assume_collinear = false } = {}) {
-    console.log(`testccw|PixelRay.contains ${p.x}, ${p.y}`)
-    return CCWRay.prototype.contains.call(this, p, 
-      { assume_collinear, EPSILON: Math.SQRT1_2});
-  }
-
 }
