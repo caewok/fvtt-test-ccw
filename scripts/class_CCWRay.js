@@ -102,7 +102,7 @@ export class CCWRay extends Ray {
    * @returns {CCWSightRay}
    */
    reverse() {
-     const r = new this(this.B, this.A);
+     const r = new this.constructor(this.B, this.A);
      r._distance = this._distance;
      r._angle = Math.PI - this._angle;
      r._distanceSquared = this._distanceSquared;
@@ -651,10 +651,10 @@ export class CCWRay extends Ray {
     // filter by points contained within the line first b/c robust is more expensive
     // robust moves points up/down line but not away from line
     let pts = potential_pts.filter(p => 
-      this.contains(p, { assume_colinearity: true, EPSILON }))
+      this.contains(p, { assume_collinear: true, EPSILON }))
     
     if(robust) {
-      pts = pts.map(p => this.makeCircleIntersectionRobust(p, center, radius));
+      pts = pts.map(p => this.robustIntersectionWithCircle(p, center, radius));
     }
     
     return pts;
