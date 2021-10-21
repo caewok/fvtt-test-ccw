@@ -980,4 +980,23 @@ export class CCWRay extends Ray {
       lineTo(this.B.x, this.B.y);
   }
   
+ /**
+  * Draw circle and intersection points for debugging
+  * @param {CCWRay} r       
+  * @param {PIXI.Point} center
+  * @param {number} radius
+  */
+  drawCircleIntersection(r, center, radius, { method = "geometry", 
+                                              circleColor = COLORS.white, 
+                                              lineColor = COLORS.blue, 
+                                              intersectionColor = COLORS.red } = {}) {
+    const g = canvas.controls.debug;
+    const intersections = r.intersectionsWithCircle(center, radius, { method });
+    g.lineStyle(4.0, lineColor);
+    g.drawCircle(center.x, center.y, radius);    
+    center.draw(circleColor);
+    r.draw(lineColor);
+    intersections.forEach(i => i.draw(intersectionColor))
+  } 
+  
 }
