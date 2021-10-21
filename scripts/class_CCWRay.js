@@ -271,8 +271,9 @@ export class CCWRay extends Ray {
     // instead of min/max tests for x and y, test instead if the dot product
     // AB • AC is positive and less than AB • AB
     // Easier to make work with CCWPixelRay
+    const AC = new this.constructor(this.A, p);
     const k_ab = this.dot(this);
-    const k_ac = this.dot(p);
+    const k_ac = this.dot(AC);
     
     // if k_ac === 0, point p coincides with A (handled by prior check)    
     // if k_ac === k_ab, point p coincides with B (handled by prior check)
