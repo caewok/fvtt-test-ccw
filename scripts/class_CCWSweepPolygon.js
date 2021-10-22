@@ -140,6 +140,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      } else {
        candidate_walls = candidate_walls.map(w => CCWSweepWall.create(wall))
      }
+     
+    // add the canvas 4-corners endpoints and walls 
+     if(!hasRadius) { candidate_walls.push(...this._getCanvasEdges()); }
+     
      candidate_walls.forEach(wall => {       
        // update origin and type for this particular sweep
        wall.origin = origin;
@@ -184,8 +188,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        this.walls.set(wall.id, wall);
      });
      
-     // add the canvas 4-corners endpoints and walls 
-     if(!this.config.hasRadius) { this._addCanvasEdges(); }
+    
    }
    
   /**
@@ -273,9 +276,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Construct four walls and four endpoints representing the canvas edge.
    * Add to the walls and endpoints sets, respectively.
    */
-   _addCanvasEdges() {
-     const opts = {origin: this.origin, radius: this.config.radius};
-
+   _getCanvasEdges() {
      // organize clockwise from 0,0
      let canvas_pts = [{ x: 0, y: 0 }, 
                  { x: canvas.dimensions.width, y: 0 },
@@ -284,23 +285,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      canvas_pts = canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
      
      const canvas_walls = [
-         new CCWSweepWall(canvas_pts[0], canvas_pts[1], opts),
-         new CCWSweepWall(canvas_pts[1], canvas_pts[2], opts),
-         new CCWSweepWall(canvas_pts[2], canvas_pts[3], opts),
-         new CCWSweepWall(canvas_pts[3], canvas_pts[0], opts),
+         new CCWSweepWall(canvas_pts[0], canvas_pts[1]),
+         new CCWSweepWall(canvas_pts[1], canvas_pts[2]),
+         new CCWSweepWall(canvas_pts[2], canvas_pts[3]),
+         new CCWSweepWall(canvas_pts[3], canvas_pts[0]),
        ];
      
-     
-     for(let i = 0; i < 4; i += 1) {
-       const j = (i + 1) % 4;
-
-       // each corner point has two canvas walls
-       canvas_pts[j].walls.add(canvas_walls[i]);
-       canvas_pts[j].walls.add(canvas_walls[j]);
-
-       this.walls.set(canvas_walls[j].id, canvas_walls[j]);
-       this.endpoints.set(canvas_pts[j].key, canvas_pts[j]);
-     }
+     return canvas_walls;
    } 
    
   /* -------------------------------------------- */
