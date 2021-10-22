@@ -78,7 +78,7 @@ export class CCWSweepPoint extends CCWPixelPoint {
   /**
    * Check if this endpoint counts as terrain and so might be excluded. 
    * Hypothesis: 
-   * - If any wall is not not terrain, endpoint must count as collision
+   * - If any wall is not terrain, endpoint must count as collision
    * - If more than two terrain walls, endpoint must count as collision
    * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
    *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.

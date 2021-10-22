@@ -19,6 +19,7 @@ import { IdentifyIntersections,
          BruteForceIntersections,
          SimpleSweepIntersections,
          BentleyOttomanSweepIntersections,
+         IntersectionSweepWallEvent,
          IntersectionSweepEvent } from "./class_IntersectionSweep.js";     
 
 export const MODULE_ID = 'testccw';
@@ -98,6 +99,7 @@ Hooks.once('init', async function() {
     BruteForceIntersections: BruteForceIntersections,
     SimpleSweepIntersections: SimpleSweepIntersections,
     BentleyOttomanSweepIntersections: BentleyOttomanSweepIntersections,
+    IntersectionSweepWallEvent: IntersectionSweepWallEvent,
     IntersectionSweepEvent: IntersectionSweepEvent }
 });
 

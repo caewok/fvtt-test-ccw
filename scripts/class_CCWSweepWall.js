@@ -151,13 +151,13 @@ export class CCWSweepWall extends CCWPixelRay {
   /*
    * Take a wall and convert it to a CCWSweepWall
    * @param {Wall}    wall
-   * @param {Object}  opts          Options passed to CCWSweepWall
+   * @param {Object}  opts          Options passed to CCWSweepWall or other creator
    * @param {boolean}  keep_wall_id  Take id from wall provided
    *   Generally don't want to keep the id as it will lead to repeated ids,
    *   and the sweep algorithm required unique ids
    * @return {CCWSweepWall}
    */
-  static create(wall, opts = {}, { keep_wall_id = false } = {}) {
+  static create(wall, opts, { keep_wall_id = false } = {}) {
     
     if(wall instanceof CCWSweepWall) {
       // so we can pass a mix of wall & SweepWall
@@ -169,8 +169,7 @@ export class CCWSweepWall extends CCWPixelRay {
     }
    
     const [x0, y0, x1, y1] = wall.coords;
-    const w = new CCWSweepWall({ x: x0, y: y0 },
-                               { x: x1, y: y1 }, opts);
+    const w = new this({ x: x0, y: y0 }, { x: x1, y: y1 }, );
     w.isOpen = wall.isOpen;
     //w.data = duplicate(wall.data);
     w.data = wall.data;
