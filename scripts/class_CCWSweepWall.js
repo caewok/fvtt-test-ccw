@@ -122,7 +122,6 @@ export class CCWSweepWall extends CCWPixelRay {
   */ 
   include() { 
     const type = this.type;
-    const origin = this.origin;
     if(!type) return true;
   
     // Special case - coerce interior walls to block light and sight

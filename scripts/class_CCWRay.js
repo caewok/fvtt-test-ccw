@@ -284,6 +284,25 @@ export class CCWRay extends Ray {
   /* -------------------------------------------- */
   /*  In Front Of Methods                         */
   /* -------------------------------------------- */
+ 
+ /**
+  * Test whether this segment blocks a point, based on a relative origin/vision point.
+  * If the point is colinear with this ray or equals the origin, returns false.
+  *
+  * @param {PIXI.Point}  point      Point to test
+  * @param {PIXI.Point}  origin     Vision/observer point
+  * @param {number}      EPSILON    Tolerated error for almostEqual and ccw tests
+  * @param {"ccw"|"ray"} test_type  Type of test to run
+  * @return {boolean} true if this point is blocked by the segment; false otherwise
+  */
+  blocksPoint(p, origin, { EPSILON = PRESET_EPSILON, test_type = "ccw" } = {}) {
+    switch(test_type) {
+      case "ccw":
+        return this.blocksPointCCWTest(p, origin, { EPSILON });
+      case "ray":
+        return this.blocksPointRayTest(p, origin, { EPSILON }); 
+    }       
+  }  
   
  /**
    * Return true if this ray blocks the point, based on a relative origin point.
@@ -326,7 +345,7 @@ export class CCWRay extends Ray {
   
  /**
   * Alternative test for whether this segment blocks view of a segment, based
-  * on a relative origin point. 
+  * on a relative origin/vision point. 
   *
   * @param {PIXI.Point}  point     Point to test
   * @param {PIXI.Point}  origin    Vision/observer point
@@ -340,6 +359,28 @@ export class CCWRay extends Ray {
    const PO = new this.constructor(p, origin);
    return PO.intersects(this, { EPSILON });
  }
+  
+ /**
+  * Test for whether this segment partially bocks vision of another.
+  * @param {Ray} segment        Segment to test
+  * @param {PIXI.Point} origin  Vision/observer point
+  * @param {number}     EPSILON   Tolerated error for intersection test
+  * @param {boolean}    check_overlap  If true, test if the segments overlap other
+  *                                    than at an endpoint. If false, this is assumed
+  *                                    not to happen.
+  * @param {"ray"|"ccw"}    test_type Type of test to run
+  * @return {boolean} True if this segment blocks another 
+  */
+  blocksSegment(segment, origin, { EPSILON = PRESET_EPSILON,
+                                   check_overlap = false,
+                                   test_type = "ccw"} = {}) {
+    switch(test_type) {
+      case "ccw":
+        return this.blocksSegmentCCWTest(segment, origin, { EPSILON, check_overlap });
+      case "ray":
+        return this.blocksSegmentRayTest(segment, origin, { EPSILON, check_overlap }); 
+    }                                                                 
+  }
   
  /**
   * Alternative test for whether this segment partially blocks vision of the other

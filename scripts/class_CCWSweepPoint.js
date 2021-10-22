@@ -1,8 +1,6 @@
 'use strict';
 
-import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
-import { almostEqual } from "./util.js";
 
 /* 
  * Represent a wall endpoint.
@@ -94,12 +92,11 @@ export class CCWSweepPoint extends CCWPixelPoint {
     if(walls.some(w => w.data?.[type] !== 2)) return false;
     if(ln === 1) return true;
 
-    // if the both block equally, it is a terrain point
+    // if both block equally, it is a terrain point
     // if neither block, it is a terrain point
-    // TO-DO: should inFrontOfSegment return true when both block equally?
 
-    const wall0_in_front = walls[0].inFrontOfSegment(walls[1], this.origin);
-    const wall1_in_front = walls[1].inFrontOfSegment(walls[0], this.origin);
+    const wall0_in_front = walls[0].blocksSegment(walls[1], this.origin);
+    const wall1_in_front = walls[1].blocksSegment(walls[0], this.origin);
     if(wall0_in_front && wall1_in_front) return true;
     if(!wall0_in_front && !wall1_in_front) return true;
     return false;
