@@ -76,9 +76,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   /** @inheritdoc */
-  // config includes: {type="sight", angle=360, density=6, radius, rotation, debug=false}
-  initialize(origin, config) {
-    super.initialize(origin, config);
+  initialize(origin, {type="sight", angle=360, density=6, radius, rotation=0, debug=false} = {}) {  
+    super.initialize(origin, {type, angle, density, radius, rotation, debug});
     const cfg = this.config;
     
     this.origin = CCWPixelPoint.fromPoint(origin);
