@@ -116,6 +116,14 @@ export class IdentifyIntersections {
     const remainders = new Map(); // Track remaining wall pieces by wall id
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
+    // to test ordering
+    queue = sweeper.event_queue.inorder()
+    queue.forEach((q, idx) => {
+      q.sweepPosition.draw();
+      q.sweepPosition.label(idx);
+    })
+    
+    
     // we are moving left-to-right, so we can chop up walls as we go
     while(sweeper.incomplete) {
       const e = sweeper.step();
@@ -381,10 +389,8 @@ export class BentleyOttomanSweepIntersections {
     
     walls.forEach(w => {
       // construct object for needed wall data
-      this.event_queue.insert(IntersectionSweepWallEvent.create(w, 
-        { event: "left" }, { keep_wall_id: true }));
-      this.event_queue.insert(IntersectionSweepWallEvent.create(w, 
-        { event: "right" }, { keep_wall_id: true }));
+      this.event_queue.insert(IntersectionSweepWallEvent.create(w, "left"));
+      this.event_queue.insert(IntersectionSweepWallEvent.create(w, "right"));
     });
   }
  
@@ -745,6 +751,16 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
                          this.left.y - this.slope * this.left.x;
   }
   
+  /**
+   * Override create to add the event
+   * @override
+   */ 
+   static create(wall, event = "left") {
+     obj = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
+     obj.event = event;
+     return obj;
+   } 
+  
   /** 
    * Get the left endpoint, measured as leftmost x or topmost y if x is equal.
    * @type {CCWSweepPoint}
@@ -774,6 +790,15 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
    */
    set sweepX(value) {
      this._sweep_x = value;
+     this._sweepPosition = undefined;
+   }
+
+  /**
+   * Set the event and update sweep_x accordingly
+   */
+   set event(value) {
+     this.event = value;
+     this._sweep_x = this.event === "right" ? this.right.x : this.left.x;
      this._sweepPosition = undefined;
    }
 
