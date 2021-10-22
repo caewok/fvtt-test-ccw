@@ -117,11 +117,11 @@ export class IdentifyIntersections {
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
     // to test ordering
-    queue = sweeper.event_queue.inorder()
-    queue.forEach((q, idx) => {
-      q.sweepPosition.draw();
-      q.sweepPosition.label(idx);
-    })
+    // queue = sweeper.event_queue.inorder()
+//     queue.forEach((q, idx) => {
+//       q.sweepPosition.draw();
+//       q.sweepPosition.label(idx);
+//     })
     
     
     // we are moving left-to-right, so we can chop up walls as we go
@@ -756,7 +756,7 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
    * @override
    */ 
    static create(wall, event = "left") {
-     obj = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
+     const obj = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
      obj.event = event;
      return obj;
    } 
