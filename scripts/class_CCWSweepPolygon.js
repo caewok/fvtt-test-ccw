@@ -3,6 +3,7 @@
 
 
 import { CCWPoint }           from "./class_CCWPoint.js";
+import { CCWPixelPoint }           from "./class_CCWPixelPoint.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWRay }             from "./class_CCWRay.js";
@@ -54,16 +55,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
     // Same as RadialSweepPolygon up to this._initializeEndpoints
     let t0 = performance.now();
-    const {angle, debug, rotation, type} = this.config;
-    if ( this.config.radius === 0 ) return this;
-    this.config.hasRadius = this.config.radius > 0;
-
-    // Record configuration parameters
-    this.config.maxR = canvas.dimensions.maxR;
-    const isLimited = this.config.isLimited = angle < 360;
-    this.config.aMin = isLimited ? Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2))) : -Math.PI;
-    this.config.aMax = isLimited ? this.config.aMin + Math.toRadians(angle) : Math.PI;
-        
+           
     // Construct endpoints for each wall
     this._initializeEndpoints(type);
     
@@ -84,11 +76,30 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   /** @inheritdoc */
-  initialize(origin, {type="sight", angle=360, density=6, radius, rotation, debug=false}={}) {
-    this.origin = origin;
-    this.config = {type, angle, density, radius, rotation, debug};
+  // config includes: {type="sight", angle=360, density=6, radius, rotation, debug=false}
+  initialize(origin, config) {
+    super.initialize(origin, config);
+    const cfg = this.config;
+    
+    this.origin = CCWPixelPoint.fromPoint(origin);
+    
+    // configure limited radius
+    cfg.hasRadius = cfg.radius > 0;
+    cfg.radius = cfg.radius ?? cfg.maxR;
+    cfg.radius2 = Math.pow(cfg.radius, 2);
+    
+    // configure limited angle
+    cfg.aMin = -Math.PI;
+    cfg.aMax = Math.PI;
+    cfg.isLimited = cfg.angle < 360;
+    if(cfg.isLimited) {
+      cfg.aMin = Math.normalizeRadians(Math.toRadians(cfg.rotation + 90 - (cfg.angle / 2)));
+      cfg.rMin = CCWRay.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius || cfg.maxR);
+      cfg.aMax = cfg.aMin + Math.toRadians(cfg.angle);
+      cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius || cfg.maxR);
+    } 
   }
-  
+
   /* -------------------------------------------- */
   /*  Endpoint Management                         */
   /* -------------------------------------------- */
@@ -108,9 +119,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.walls.clear();
      this.endpoints.clear();
      
-     const origin = new CCWPixelPoint.fromPoint(origin);
-     const { hasRadius, radius } = this.config;
-     const radiusSquared = Math.pow(radius, 2) + 1e-8; // add a bit to radius to ensure we capture all relevant points
+     const origin = this.origin;
+     const { hasRadius, radius, radius2 } = this.config;
           
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
@@ -122,17 +132,18 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // radius informs the shape but otherwise is turned off; rely on border walls
        // add these border walls and identify intersections
        // TO-DO: Permit arbitrary polygons, possibly taken from user drawing on map
-       if(game.modules.get(MODULE_ID).api.light_shape === "triangle") {
-         const triangle_walls = this.constructGeometricShapeWalls([0, 120, 240]);
-         candidate_walls.push(...triangle_walls);
-       
-       } else if(game.modules.get(MODULE_ID).api.light_shape === "square") {
-         const square_walls = this.constructGeometricShapeWalls([0, 90, 180, 270]);
-         candidate_walls.push(...square_walls);
+       let points;
+       switch(game.modules.get(MODULE_ID).api.light_shape) {
+         case "triangle": 
+           points = [0, 120, 240];
+           break;
+         case "square":
+           points = [0, 90, 180, 270];
+           break;
        }
-
-//       this.config.hasRadius = false;    // set to false to run non-radius sweep, 
-                                           // relying on the shape borders instead
+       
+       poly_walls = this.constructGeometricShapeWalls(points);
+       candidate_walls.push(...poly_walls);
      }
      
      // add the canvas 4-corners endpoints and walls 
@@ -155,7 +166,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        // test for inclusion in the FOV radius
        if(hasRadius) {
-         wall =  this.splitWallAtRadius(wall, origin, radius, radiusSquared);
+         wall =  this.splitWallAtRadius(wall, origin, radius, radius2);
          if(!wall) return; // can skip the wall as it is outside the radius
        } 
           
@@ -196,17 +207,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Test if a wall should be within a given radius and split the wall if necessary
    * to include only the portion within the radius.
    * @param {CCWSweepWall} wall  
-   * @param {PIXI.Point} origin
-   * @param {number} radius
-   * @param {number} radiusSquared  Can cache this calculation if looping or provide 
-   *                                a different value to deal with near-circle cases.
    * @return {false|CCWSweepWall}
    */
-   splitWallAtRadius(wall, origin, radius, radiusSquared = Math.pow(radius, 2)) {
+   splitWallAtRadius(wall) {
+     const origin = this.origin;
+     const { radius, radius2 } = this.cfg;
+     
+   
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
      const intersects_radius = LEC2 < radiusSquared; // if equal, would be a tangent
-     const A_inside_radius = wall.A.distanceSquared < radiusSquared;
-     const B_inside_radius = wall.B.distanceSquared < radiusSquared;
+     const A_inside_radius = wall.A.distanceSquared < radius2;
+     const B_inside_radius = wall.B.distanceSquared < radius2;
      const both_inside = (A_inside_radius || B_inside_radius)
            
      // if no intersection, drop if the wall is outside; use entire wall if inside      
@@ -258,7 +269,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      const origin = this.origin; 
      const rotation = this.config.rotation ?? 0;
      const radius = this.config.radius;
-     const opts = { origin, radius };
      
      // Use fromAngle to get the points relative to the origin
      const a_translated = angles.map(a => Math.normalizeRadians(Math.toRadians(a + rotation)));
@@ -268,8 +278,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      const ln = angles.length;
      return r.map((p, idx)  => {
        const dest = (idx + 1) % ln;
-       return new CCWSweepWall(p.B, r[dest].B, opts);
-     })
+       return new CCWSweepWall(p.B, r[dest].B, { origin });
+     });
    }
    
    
