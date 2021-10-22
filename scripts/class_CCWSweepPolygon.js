@@ -94,10 +94,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     cfg.isLimited = cfg.angle < 360;
     if(cfg.isLimited) {
       cfg.aMin = Math.normalizeRadians(Math.toRadians(cfg.rotation + 90 - (cfg.angle / 2)));
-      cfg.rMin = CCWRay.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius || cfg.maxR);
       cfg.aMax = cfg.aMin + Math.toRadians(cfg.angle);
       cfg.rMax = CCWRay.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius || cfg.maxR);
     } 
+    cfg.rMin = CCWRay.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius || cfg.maxR);
   }
 
   /* -------------------------------------------- */
