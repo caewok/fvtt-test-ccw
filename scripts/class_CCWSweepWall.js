@@ -19,8 +19,8 @@ export class CCWSweepWall extends CCWPixelRay {
     this._A = CCWSweepPoint.fromPoint(A, { origin  });
     this._B = CCWSweepPoint.fromPoint(B, { origin });
     
-    this._A.walls.add(this);
-    this._B.walls.add(this);
+    this._A.walls.set(this.id, this);
+    this._B.walls.set(this.id, this);
     
     /* -------------------------------------------- */
     /*  Properties                                  */
@@ -75,7 +75,15 @@ export class CCWSweepWall extends CCWPixelRay {
   /**
    * @type {string}
    */ 
-  set id(value ) { this._id = value; }
+  set id(value ) { 
+    this._A.walls.delete(this.id);
+    this._B.walls.delete(this.id);
+    
+    this._id = value; 
+    
+    this._A.walls.set(this.id, this);
+    this._B.walls.set(this.id, this);
+  }
    
   /*
    * @param {x: number, y: number}

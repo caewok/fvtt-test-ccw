@@ -23,7 +23,7 @@ export class CCWSweepPoint extends CCWPixelPoint {
      * Record the set of walls which connect to this Endpoint
      * @type {Set<CCWSweepWall>}
      */
-    this.walls = new Set();
+    this.walls = new Map();
     
     /**
      * Origin for the sweep.

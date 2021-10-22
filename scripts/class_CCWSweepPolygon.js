@@ -182,7 +182,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // link wall(s) to endpoints 
        if(this.endpoints.has(ak)) {
          const a = this.endpoints.get(ak);
-         a.walls.add(wall);
+         a.walls.set(wall.id, wall);
          wall.A = a;
        } else {
          this.endpoints.set(ak, wall.A);
@@ -190,7 +190,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        if(this.endpoints.has(bk)) {
          const b = this.endpoints.get(bk);
-         b.walls.add(wall);
+         b.walls.set(wall.id, wall);
          wall.B = b;
        } else {
          this.endpoints.set(bk, wall.B);
