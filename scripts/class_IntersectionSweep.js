@@ -389,8 +389,8 @@ export class BentleyOttomanSweepIntersections {
     
     walls.forEach(w => {
       // construct object for needed wall data
-      this.event_queue.insert(IntersectionSweepWallEvent.create(w, "left"));
-      this.event_queue.insert(IntersectionSweepWallEvent.create(w, "right"));
+      this.event_queue.insert(IntersectionSweepWallEvent.createEvent(w, "left"));
+      this.event_queue.insert(IntersectionSweepWallEvent.createEvent(w, "right"));
     });
   }
  
@@ -755,10 +755,8 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
    * Override create to add the event
    * @override
    */ 
-   static create(wall, event = "left") {
-     const obj = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
-     obj.event = event;
-     return obj;
+   static createEvent(wall, event = "left") {
+     return this.create(wall, { event }, { keep_wall_id: true });
    } 
   
   /** 

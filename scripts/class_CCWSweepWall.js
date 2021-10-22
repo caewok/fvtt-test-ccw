@@ -158,7 +158,6 @@ export class CCWSweepWall extends CCWPixelRay {
    * @return {CCWSweepWall}
    */
   static create(wall, opts, { keep_wall_id = false } = {}) {
-    
     if(wall instanceof CCWSweepWall) {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
@@ -169,7 +168,7 @@ export class CCWSweepWall extends CCWPixelRay {
     }
    
     const [x0, y0, x1, y1] = wall.coords;
-    const w = new this({ x: x0, y: y0 }, { x: x1, y: y1 }, );
+    const w = new this({ x: x0, y: y0 }, { x: x1, y: y1 }, opts);
     w.isOpen = wall.isOpen;
     //w.data = duplicate(wall.data);
     w.data = wall.data;
