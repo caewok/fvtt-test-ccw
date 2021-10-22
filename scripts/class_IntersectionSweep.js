@@ -134,7 +134,7 @@ export class IdentifyIntersections {
         case "left":
           // add to the store
           remainders.set(e.id, CCWSweepWall.createFromPoints(e.left, 
-                                  e.right, e.base_wall));
+                                  e.right, e, {}, { keep_wall_id: true }));
         break;
         
         case "right":
@@ -158,7 +158,7 @@ export class IdentifyIntersections {
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
                                                         i_point, w); 
             const new_remainder = CCWSweepWall.createFromPoints(i_point, 
-                                                                curr_remainder.B, w); 
+                                                                curr_remainder.B, w, {}, { keep_wall_id: true }); 
             finished_walls.push(new_w);
             remainders.set(id, new_remainder);
           });  
