@@ -1,5 +1,5 @@
 'use strict';
-/* globals PIXI, canvas, game */
+/* globals PIXI, canvas, game, CONFIG */
 
 import { almostEqual, PRESET_EPSILON, COLORS } from "./util.js";
 import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
@@ -177,8 +177,8 @@ export class CCWPoint extends PIXI.Point {
     if ( !canvas.controls.debug.polygonText ) {
       canvas.controls.debug.polygonText = canvas.controls.addChild(new PIXI.Container());
     }
-    const text = canvas.controls.debug.polygonText;
-    const t = text.addChild(new PIXI.Text(String(text), CONFIG.canvasTextStyle));
+    const polygonText = canvas.controls.debug.polygonText;
+    const t = polygonText.addChild(new PIXI.Text(String(text), CONFIG.canvasTextStyle));
     t.position.set(this.x, this.y);
   }  
   
