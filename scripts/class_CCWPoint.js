@@ -169,5 +169,18 @@ export class CCWPoint extends PIXI.Point {
       .endFill();
   }
   
+ /**
+  * Draw a text label next to the point (for debugging)
+  * @param {string} string
+  */
+  label(text) {
+    if ( !canvas.controls.debug.polygonText ) {
+      canvas.controls.debug.polygonText = canvas.controls.addChild(new PIXI.Container());
+    }
+    const text = canvas.controls.debug.polygonText;
+    const t = text.addChild(new PIXI.Text(String(text), CONFIG.canvasTextStyle));
+    t.position.set(this.x, this.y);
+  }  
+  
 
 }
