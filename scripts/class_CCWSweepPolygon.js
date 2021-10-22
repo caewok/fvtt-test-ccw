@@ -321,33 +321,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   /* -------------------------------------------- */
   
-  /**
-   * Comparable to RadialSweepPolygon version. Differences:
-   * - Uses CCWSweepWall method whichSide for one-directional walls.
-   * - Static, so it can be used by the static getRayCollisions method.
-   *
-   * Test whether a Wall object should be included as a candidate for collision from the polygon origin
-   * @param {Wall} wall         The Wall being considered
-   * @param {string} type       The type of polygon being computed
-   * @returns {boolean}         Should the wall be included?
-   * 
-   */
-  static includeWall(wall, type, origin) { 
-    // Special case - coerce interior walls to block light and sight
-    if(type === "sight" && wall.isInterior) return true;
-
-    // Ignore non-blocking walls and open doors
-    if(!wall.data[type] || wall.isOpen) return false;
-
-    // Ignore walls on line with origin unless this is movement
-    const origin_side = wall.whichSide(origin);
-    if(type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
-
-    if(!wall.data.dir) return true; // wall not one-directional
-
-    // Ignore one-directional walls which are facing away from the origin    
-    return origin_side === wall.data.dir;
-  }
+  
   
   /* -------------------------------------------- */
   /*  CCW Radial Sweep                            */
