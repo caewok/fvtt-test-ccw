@@ -134,15 +134,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 //       this.config.hasRadius = false;    // set to false to run non-radius sweep, 
                                            // relying on the shape borders instead
      }
+     
+     // add the canvas 4-corners endpoints and walls 
+     if(!hasRadius) { candidate_walls.push(...this._getCanvasEdges()); }
+     
      // TO-DO: Move this to only when walls change
      if(game.modules.get(MODULE_ID).api.detect_intersections) { 
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
      } else {
        candidate_walls = candidate_walls.map(w => CCWSweepWall.create(wall))
      }
-     
-    // add the canvas 4-corners endpoints and walls 
-     if(!hasRadius) { candidate_walls.push(...this._getCanvasEdges()); }
      
      candidate_walls.forEach(wall => {       
        // update origin and type for this particular sweep
@@ -228,7 +229,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      }
      
      if(wall.B.insideRadius && (!A_inside_radius || wall.A.almostEqual(i0))) {
-       return  CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
+       return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
      }
      
      // otherwise, if both are inside but not yet caught, return the wall.
@@ -278,22 +279,20 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
    _getCanvasEdges() {
      // organize clockwise from 0,0
-     let canvas_pts = [{ x: 0, y: 0 }, 
-                 { x: canvas.dimensions.width, y: 0 },
-                 { x: canvas.dimensions.width, y: canvas.dimensions.height },
-                 { x: 0, y: canvas.dimensions.height }];
-     canvas_pts = canvas_pts.map(pt => new CCWSweepPoint(pt.x, pt.y, opts));
+     const d = canvas.dimensions;
+     const c0 = {x: 0, y: 0};
+     const c1 = {x: d.width, y: 0};
+     const c2 = {x: d.width, y: d.height};
+     const c3 = {x: 0, y: d.height};
      
-     const canvas_walls = [
-         new CCWSweepWall(canvas_pts[0], canvas_pts[1]),
-         new CCWSweepWall(canvas_pts[1], canvas_pts[2]),
-         new CCWSweepWall(canvas_pts[2], canvas_pts[3]),
-         new CCWSweepWall(canvas_pts[3], canvas_pts[0]),
-       ];
-     
-     return canvas_walls;
+     return [
+       new CCWSweepWall(c0, c1),
+       new CCWSweepWall(c1, c2),
+       new CCWSweepWall(c2, c3),
+       new CCWSweepWall(c3, c0),
+     ];
    } 
-   
+    
   /* -------------------------------------------- */
     
   /**
