@@ -157,25 +157,31 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        const ak = wall.A.key;
        const bk = wall.B.key;
      
-       // if the two wall endpoints are nearly identical, skip
+       // if the two wall endpoints are nearly identical, skip the wall
        // causes problems b/c the endpoints list is by key, and so with 
        // identical keys the two endpoints only show up once, when they should be distinct
        // treat as a point, which is not a wall and does not block
        if(ak === bk) return;  
      
        // all tests concluded; add wall and endpoints to respective tracking lists.
-
-       let a = this.endpoints.get(ak);
-       let b = this.endpoints.get(bk);
+       // link wall(s) to endpoints 
+       if(this.endpoints.has(ak)) {
+         const a = this.endpoints.get(ak);
+         wall.A = a;
+         a.walls.add(wall);
+       } else {
+         this.endpoints.set(ak, wall.A);
+       }
+       
+       if(this.endpoints.has(bk)) {
+         const b = this.endpoints.get(bk);
+         wall.B = a;
+         b.walls.add(wall);
+       } else {
+         this.endpoints.set(bk, wall.B);
+       }
      
-       if(!a) { a = new CCWSweepPoint(wall.A.x, wall.A.y, opts); }
-       if(!b) { b = new CCWSweepPoint(wall.B.x, wall.B.y, opts); }
-              
-       a.walls.add(wall);
-       b.walls.add(wall);
        this.walls.set(wall.id, wall);
-       if(!this.endpoints.has(ak)) { this.endpoints.set(ak, a); } 
-       if(!this.endpoints.has(bk)) { this.endpoints.set(bk, b); }
      });
      
      // add the canvas 4-corners endpoints and walls 
