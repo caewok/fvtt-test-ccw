@@ -57,13 +57,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     let t0 = performance.now();
            
     // Construct endpoints for each wall
-    this._initializeEndpoints(type);
+    this._initializeEndpoints();
     
     // Iterate over endpoints and construct the Polygon geometry
     this._sweepEndpoints();
     
     // Debug sight visualization
-    if(debug) {
+    if(this.config.debug) {
       let t1 = performance.now();
       console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
       this.visualize();
@@ -96,7 +96,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       cfg.aMin = Math.normalizeRadians(Math.toRadians(cfg.rotation + 90 - (cfg.angle / 2)));
       cfg.rMin = CCWRay.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius || cfg.maxR);
       cfg.aMax = cfg.aMin + Math.toRadians(cfg.angle);
-      cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius || cfg.maxR);
+      cfg.rMax = CCWRay.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius || cfg.maxR);
     } 
   }
 
@@ -115,12 +115,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @param {string} type       The type of polygon being constructed in WALL_RESTRICTION_TYPES
    * @private
    */
-   _initializeEndpoints(type) {
+   _initializeEndpoints() {
      this.walls.clear();
      this.endpoints.clear();
      
      const origin = this.origin;
-     const { hasRadius, radius, radius2 } = this.config;
+     const { type, hasRadius, radius, radius2 } = this.config;
           
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
@@ -142,7 +142,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
            break;
        }
        
-       poly_walls = this.constructGeometricShapeWalls(points);
+       const poly_walls = this.constructGeometricShapeWalls(points);
        candidate_walls.push(...poly_walls);
      }
      
@@ -215,7 +215,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
    
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
-     const intersects_radius = LEC2 < radiusSquared; // if equal, would be a tangent
+     const intersects_radius = LEC2 < radius2; // if equal, would be a tangent
      const A_inside_radius = wall.A.distanceSquared < radius2;
      const B_inside_radius = wall.B.distanceSquared < radius2;
      const both_inside = (A_inside_radius || B_inside_radius)
