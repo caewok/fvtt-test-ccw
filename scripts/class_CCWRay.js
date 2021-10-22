@@ -266,7 +266,8 @@ export class CCWRay extends Ray {
   */
   contains(p, { assume_collinear = false, EPSILON = PRESET_EPSILON } = {}) {
 //     console.log(`testccw|CCWRay.contains ${p.x}, ${p.y}`);
-    if(this.A.almostEqual(p) || this.B.almostEqual(p)) return true;
+    if(this.A.almostEqual(p, { EPSILON }) || 
+       this.B.almostEqual(p, { EPSILON })) return true;
 
     // ensure the point is collinear with this ray
     if(!assume_collinear && this.ccw(p) !== 0) return false;

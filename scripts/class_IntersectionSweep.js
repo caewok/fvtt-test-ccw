@@ -2,7 +2,6 @@
 'use strict';
 
 import { arraySwap, 
-         almostEqual, 
          COLORS,
          compareXY,
          compareXY_A,
@@ -666,7 +665,7 @@ export class BentleyOttomanSweepIntersections {
     
     const s1_wall = s1.base_wall;
     const s2_wall = s2.base_wall;
-    const intersection = s1_wall.intersectSegment(s2_wall.coords);
+    const intersection = s1_wall.intersection(s2_wall);
     
     if(!intersection) return;
     
@@ -736,7 +735,7 @@ export class IntersectionSweepEvent {
       this.base_wall = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
       
       this.coords = wall.coords;
-      const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
+      const is_left = CCWPoint.almostEqual(this.coords[0], this.coords[2]) ? 
                      this.coords[1] < this.coords[3] : // use top (smaller) y
                      this.coords[0] < this.coords[2]; // use left (smaller) x
       
@@ -752,7 +751,7 @@ export class IntersectionSweepEvent {
       // b = y - slope * x
       // if dx === 0, line is vertical
       this.slope = this.dy / this.dx;
-      this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
+      this.y_intercept = CCWPoint.almostEqual(this.dx, 0) ? undefined : 
                          this.left.y - this.slope * this.left.x;
       
     } else if(intersection) {
@@ -797,7 +796,7 @@ export class IntersectionSweepEvent {
     if(this.event === "right") return this.right.y;
     
     // vertical
-    if(almostEqual(this.dx, 0)) return this.event === "left" ? this.left.y : this.right.y; 
+    if(CCWPoint.almostEqual(this.dx, 0)) return this.event === "left" ? this.left.y : this.right.y; 
     
     return this.slope * x + this.y_intercept;
   }
