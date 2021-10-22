@@ -197,6 +197,7 @@ export class CCWRay extends Ray {
     return this.ccw(r.A) !== this.ccw(r.B) &&
            r.ccw(this.A) !== r.ccw(this.B);
   }  
+
   
  /**
   * Get the intersection between this ray and another if both were infinite?
@@ -208,22 +209,27 @@ export class CCWRay extends Ray {
     
     const x1 = this.A.x;
     const y1 = this.A.y;
-    const x2 = this.B.x;
-    const y2 = this.B.y;
+    //const x2 = this.B.x;
+    //const y2 = this.B.y;
     const x3 = r.A.x;
     const y3 = r.A.y;
-    const x4 = r.B.x;
-    const y4 = r.B.y;
+    //const x4 = r.B.x;
+    //const y4 = r.B.y;
     
     // Check denominator - avoid parallel lines where d = 0
-    let d = ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1));
+    const d = r.dy * this.dx - r.dx * this.dy;
+    //const d = ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1));
     if (almostEqual(d, 0, EPSILON)) { return false; }
     
     // Get vector distances
-    const t0 = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d;
+    const t0 = (r.dx * (y1 - y3) - r.dy * (x1 - x3)) / d
+    //const t0 = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d;
     
-    return new this.A.constructor(x1 + t0 * (x2 - x1),
-                                  y1 + t0 * (y2 - y1));
+    return new this.A.constructor(this.A.x + t0 * this.dx,
+                                  this.A.y + t0 * this.dy);
+    
+    // return new this.A.constructor(x1 + t0 * (x2 - x1),
+//                                   y1 + t0 * (y2 - y1));
   }
   
  /**
