@@ -35,28 +35,6 @@ export class CCWSweepPoint extends CCWPixelPoint {
      */
     this._origin = origin;
     
-    /**
-     * Radius of the FOV.
-     * Only required if insideRadius is used.
-     * Should be strictly positive.
-     * @type {number}
-     * @private
-     */
-    this._radius = radius;
-        
-    /**
-     * Cache whether this point is inside the FOV radius.
-     * @type {boolean}
-     * @private
-     */
-    this._insideRadius = undefined;
-    
-    /**
-     * Cache the distance squared to the origin
-     * @type {number}
-     * @private
-     */
-    this._distanceSquaredToOrigin = undefined;
   }
   
   /* -------------------------------------------- */
@@ -75,74 +53,21 @@ export class CCWSweepPoint extends CCWPixelPoint {
   /* -------------------------------------------- */
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
-  
- /**
-  * @type {number}
-  */
-  get radius() { return this._radius; }
-  
+
  /**
   * @type {x: number, y: number}
   */
   get origin() { return this._origin; }
     
-  /** 
-   * Is this point associated with a radius? Radius 0 does not count.
-   * @return {boolean}
-   */
-  get hasRadius() {
-    return Boolean(this._radius);
-  }
-  
-  /**
-   * Distance squared to origin. Used for comparisons.
-   * @type {number}
-   */
-  get distanceSquaredToOrigin() {
-    if(this._distanceSquaredToOrigin === undefined) {
-      this._distanceSquaredToOrigin = this.distanceSquared(this.origin);
-    }
-    return this._distanceSquaredToOrigin;
-  }
-    
-  /**
-   * Is this point inside the FOV radius?
-   * @type {undefined|boolean}
-   */
-  get insideRadius() {
-    if(!this.hasRadius || !this.origin) return undefined;
-    if(this._insideRadius === undefined) { 
-      const res = CCWPoint.inCircle(this._circlePoints[0],
-                                    this._circlePoints[1],
-                                    this._circlePoints[2],
-                                    this);
-                           
-      this._insideRadius = almostEqual(res, 0) ? true :  // on the circle
-                           res > 0 ? false : true;                     
-    }
-    return this._insideRadius;
-  }
-  
   /**
    * When setting origin, un-cache measurements that depend on it.
    * @param {x: number, y: number} value
    */
   set origin(value) {
     this._origin = value;
-    this._distanceSquaredToOrigin = undefined;
-    this._insideRadius = undefined;
-    this._updateCirclePoints();
   }
   
-  /**
-   * When setting radius, un-cache measurements that depend on it.
-   * @param {number} value
-   */
-  set radius(value) {
-    this._radius = value;
-    this._insideRadius = undefined;
-    this._updateCirclePoints();
-  }
+
   
 
   /* -------------------------------------------- */
