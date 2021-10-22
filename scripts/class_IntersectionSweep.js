@@ -214,7 +214,7 @@ export class BruteForceIntersections {
      
      this.walls.forEach(w1 => {
        if(w0.intersects(w1)) {
-         const i_point = w0.intersectSegment(w1.coords);
+         const i_point = w0.intersection(w1);
          
          // count the intersection unless it is an endpoint of that wall
          if(!(i_point.almostEqual(w0.A) || 
@@ -297,7 +297,7 @@ export class SimpleSweepIntersections {
         if(w1.A.x > w0.B.x) { break; }
      
        if(w0.intersects(w1)) {
-         const i_point = w0.intersectSegment(w1.coords);
+         const i_point = w0.intersection(w1);
          
          // count the intersection unless it is an endpoint of that wall
          if(!(i_point.almostEqual(w0.A) || 
@@ -710,7 +710,7 @@ export class BentleyOttomanSweepIntersections {
     
     const s1_wall = s1.base_wall;
     const s2_wall = s2.base_wall;
-    const intersection = s1_wall.intersectSegment(s2_wall.coords)
+    const intersection = s1_wall.intersection(s2_wall);
     
     if(!intersection) return;
      
