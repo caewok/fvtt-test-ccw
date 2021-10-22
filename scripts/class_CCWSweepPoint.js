@@ -14,7 +14,7 @@ import { almostEqual } from "./util.js";
  * @property {number} y     The y-coordinate
  */
 export class CCWSweepPoint extends CCWPixelPoint {
-  constructor(x, y, {origin, radius} = {}) {
+  constructor(x, y, { origin } = {}) {
     super(x, y)
 
     /* -------------------------------------------- */
@@ -46,8 +46,8 @@ export class CCWSweepPoint extends CCWPixelPoint {
   * @param {x: number, y: number} p
   * @return CCWPoint
   */ 
-  static fromPoint(p, { origin, radius } = {}) {
-    return new this(p.x, p.y, origin, radius);
+  static fromPoint(p, { origin } = {}) {
+    return new this(p.x, p.y, origin);
   }
   
   /* -------------------------------------------- */
