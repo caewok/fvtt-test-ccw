@@ -791,15 +791,6 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
      this._sweepPosition = undefined;
    }
 
-  /**
-   * Set the event and update sweep_x accordingly
-   */
-   set event(value) {
-     this.event = value;
-     this._sweep_x = this.event === "right" ? this.right.x : this.left.x;
-     this._sweepPosition = undefined;
-   }
-
   /** 
    * switch line colors based on left vs right for debugging
    */
