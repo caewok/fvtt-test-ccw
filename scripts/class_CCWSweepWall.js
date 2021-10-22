@@ -3,7 +3,6 @@
 
 import { CCWPixelRay } from "./class_CCWPixelRay.js";
 import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
-import { almostEqual } from "./util.js";
 
 /*
  * Subclass of CCWPixelRay used for storing Wall segments used in the CCW Sweep algorithm.
@@ -116,19 +115,28 @@ export class CCWSweepWall extends CCWPixelRay {
   * Determine whether this wall should count for purposes of vision, 
   * given the present origin and type.
   * Comparable to RadialSweepPolygon version.
-  * Test whether a Wall object should be included as a candidate for collision from the polygon origin
+  * Test whether a Wall object should be included as a candidate for 
+  *   collision from the polygon origin
+  * If type or origin not defined, will default to true for those tests.
   * @type {boolean}
   */ 
   include() { 
+    const type = this.type;
+    const origin = this.origin;
+    if(!type) return true;
+  
     // Special case - coerce interior walls to block light and sight
-    if(this.type === "sight" && this.isInterior) return true;
+    if(type === "sight" && this.isInterior) return true;
 
     // Ignore non-blocking walls and open doors
     if(!this.data[type] || this.isOpen) return false;
 
     // Ignore walls on line with origin unless this is movement
-    const origin_side = this.whichSide(this.origin);
-    if(this.type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
+    const origin = this.origin;
+    if(!origin) return true;
+    
+    const origin_side = this.whichSide(origin);
+    if(type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
 
     if(!this.data.dir) return true; // wall not one-directional
 
