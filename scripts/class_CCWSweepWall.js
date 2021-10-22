@@ -20,6 +20,9 @@ export class CCWSweepWall extends CCWPixelRay {
     this._A = CCWSweepPoint.fromPoint(A, { origin  });
     this._B = CCWSweepPoint.fromPoint(B, { origin });
     
+    this._A.walls.add(this);
+    this._B.walls.add(this);
+    
     /* -------------------------------------------- */
     /*  Properties                                  */
     /* -------------------------------------------- */
