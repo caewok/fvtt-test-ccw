@@ -615,10 +615,10 @@ export class CCWRay extends Ray {
   * @param {"geometry"|"quadratic"} method  Type of algorithm to use.
   * @return {boolean} True if an intersection exists (in real space).
   */
-  potentiallyIntersectsCircle(center, radius, { method = "geometry" } = {}) {
+  potentiallyIntersectsCircle(center, radius, { method = "geometry", returnLEC2 = false } = {}) {
     switch(method) {
       case "geometry":
-        return this.potentiallyIntersectsCircleGeometry(center, radius);
+        return this.potentiallyIntersectsCircleGeometry(center, radius, { returnLEC2 });
       case "quadratic":
         return this.potentiallyIntersectsCircleQuadratic(center, radius);  
     }
@@ -632,10 +632,10 @@ export class CCWRay extends Ray {
   * @param {"geometry"|"quadratic"} method  Type of algorithm to use.
   * @return {[{CCWPoint}]|undefined} One or two intersection points or undefined.
   */
-  potentialIntersectionsWithCircle(center, radius, { method = "geometry" } = {}) {
+  potentialIntersectionsWithCircle(center, radius, { method = "geometry", LEC2 = undefined } = {}) {
     switch(method) {
       case "geometry":
-        return this.potentialIntersectionsWithCircleGeometry(center, radius);
+        return this.potentialIntersectionsWithCircleGeometry(center, radius, { LEC2 });
       case "quadratic":
         return this.potentialIntersectionsWithCircleQuadratic(center, radius);  
     }    
@@ -653,11 +653,12 @@ export class CCWRay extends Ray {
   * @return {[{CCWPoint}]|undefined} One or two intersection points or undefined.
   */  
   intersectionsWithCircle(center, radius, { method = "geometry", 
+                                            LEC2 = undefined,
                                             EPSILON = PRESET_EPSILON,
                                             robust = false } = {}) {
     const potential_pts = this.potentialIntersectionsWithCircle(center, 
                                                                 radius, 
-                                                                { method });
+                                                                { method, LEC2 });
                                                                 
     // filter by points contained within the line first b/c robust is more expensive
     // robust moves points up/down line but not away from line
@@ -810,11 +811,11 @@ export class CCWRay extends Ray {
     const Ey = t * Dy + this.A.y;
     const Edx = Ex - center.x;
     const Edy = Ey - center.y;
-    const LEC2 = Edx * Edx + Edy * Edy;
-    const R2 = radius * radius;
-
+    const LEC2 = Math.pow(Edx, 2) + Math.pow(Edy, 2);
+    
     if(returnLEC2) return LEC2; // allow this calculation to be stored
-
+    
+    const R2 = Math.pow(radius, 2);
     return (LEC2 < R2 || almostEqual(LEC2, R2)); // if equal, it is a tangent
   }
   
