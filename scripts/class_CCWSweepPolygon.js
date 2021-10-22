@@ -830,7 +830,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */ 
   static sortEndpointsCW(origin, endpoints) {
     if(endpoints.length === 0) return endpoints;
-    // to sort CCW to CW, change the signs of the four constants and the orient2dPOints return.
+    // to sort CCW to CW, change the signs of the four constants and the orient2dPoints return.
     const TOP = -1;
     const BOTTOM = 1; 
     const LEFT = -1;
@@ -985,8 +985,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // for each wall, test if valid for the type and if it intersects with the ray
      const intersecting_walls = [];
      for(let i = 0; i < ln; i += 1) {
-       const wall = CCWSweepWall.create(candidate_walls[i]);
-       if(!CCWSweepPolygon.includeWall(wall, type, ray.A)) continue;
+       const wall = CCWSweepWall.create(candidate_walls[i], { origin: ray.A, type: type });
+       if(!wall.include) continue;
        if(wall.intersects(ray)) { // wall.intersects is a faster version that does not get the actual intersection
          if(mode === "any") return true;
          intersecting_walls.push(wall);
