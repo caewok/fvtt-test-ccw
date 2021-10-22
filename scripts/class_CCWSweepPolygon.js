@@ -108,8 +108,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.walls.clear();
      this.endpoints.clear();
      
-     const opts = {origin: this.origin, radius: this.config.radius};
-     
+     const origin = this.origin;
+     const { hasRadius, radius } = this.config;
+     const radiusSquared = Math.pow(radius, 2) + 1e-8; // add a bit to radius to ensure we capture all relevant points
+          
      // Consider all walls in the Scene
      // candidate walls sometimes a Set (lights), sometimes an Array (token)
      let candidate_walls = this._getCandidateWalls();
@@ -135,75 +137,23 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      // TO-DO: Move this to only when walls change
      if(game.modules.get(MODULE_ID).api.detect_intersections) { 
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
-     } 
+     } else {
+       candidate_walls = candidate_walls.map(w => CCWSweepWall.create(wall))
+     }
      candidate_walls.forEach(wall => {       
+       // update origin and type for this particular sweep
+       wall.origin = origin;
+       wall.type = type;
+     
        // Test whether a wall should be included in the set considered for this polygon
-       if(!CCWSweepPolygon.includeWall(wall, type, this.origin)) return;
-       
-       // Even if IdentifyIntersections used, stil need to update origin and radius
-       // If we could guarantee the wall is already a CCWSweepWall, could just update
-       // origin and radius directly instead of creating new version.
-       wall = CCWSweepWall.create(wall, opts); 
+       if(!wall.include) return;
        
        // test for inclusion in the FOV radius
-       if(this.config.hasRadius) {
-         // if wall doesn't intersect the radius, skip if it is not inside
-         // conservatively skip only if both endpoints are not inside (should be always both or neither
-         // b/c otherwise the line should go through the circle)
-         // note: wall.intersectsRadius treats the wall as an undending line
-         if(!wall.intersectsRadius && !(wall.A.insideRadius || wall.B.insideRadius)) return;
-         
-         // Can reject tangents by peeking at the intersect data
-         if(wall.isTangentToRadius) return;
-         
-         // if the wall intersects the radius, split wall into portion within
-         if(wall.intersectsRadius) {
-           // Use pointsAlmostEqual to avoid situation where wall endpoint is
-           // very close to the circle and thus it is unclear whether it is inside or not
-         
-           const i0 = wall.radiusIntersections[0];
-           const i1 = wall.radiusIntersections[1];
- 
-           if(wall.radiusIntersections.length === 0) {
-             // may have had an intersection but it was not within the segment
-             // can skip if the points are outside
-             if(!(wall.A.insideRadius || wall.B.insideRadius)) return;
-           } else if(wall.radiusIntersections.length === 2) {         
-             wall = CCWSweepWall.createFromPoints(i0, i1, wall, opts);                                     
-           } else 
-             // If only one endpoint is inside the circle, can easily construct wall 
-             //   from that endpoint to the circle edge.
-             // Here is the annoying part---
-             // If one or both endpoints are near the circle edge, things take a turn:
-             // - assume both cannot be that close to the edge or there would be two intersections
-             // - could be a wall that barely pierces the circle: can ignore; both outside
-             // - if one is on the edge, the other should be inside
-             if(wall.A.insideRadius && 
-                (!wall.B.insideRadius || i0.almostEqual(wall.B))) {
-               wall = CCWSweepWall.createFromPoints(wall.A, i0, wall, opts); 
-             } else if(wall.B.insideRadius && 
-                (!wall.A.insideRadius || i0.almostEqual(wall.A))) {
-               wall = CCWSweepWall.createFromPoints(i0, wall.B, wall, opts);
-             } else if(wall.A.insideRadius && wall.B.insideRadius){
-               // if both inside, should not have any intersections to begin with
-               // but just in case...
-               // do nothing so we include this wall
-             
-             } else {
-               // reject the wall
-               // should be a wall that barely pierces the circle
-               // wall.A not inside; wall.B not inside
-               return;
-                       
-           } 
-         } // if wall.intersectsRadius
-       } // if this.config.hasRadius 
-       
-       wall.round(); // ensure we are using integer pixel locations for endpoints
-                     // could be done outside loop; then only need to round the radius intersections
-         
-      
-         
+       if(hasRadius) {
+         wall =  this.splitWallAtRadius(wall, origin, radius, radiusSquared);
+         if(!wall) return; // can skip the wall as it is outside the radius
+       } 
+          
        const ak = wall.A.key;
        const bk = wall.B.key;
      
@@ -230,6 +180,52 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      
      // add the canvas 4-corners endpoints and walls 
      if(!this.config.hasRadius) { this._addCanvasEdges(); }
+   }
+   
+  /**
+   * Test if a wall should be within a given radius and split the wall if necessary
+   * to include only the portion within the radius.
+   * @param {CCWSweepWall} wall  
+   * @param {number} origin
+   * @param {number} radiusSquared
+   * @return {false|CCWSweepWall}
+   */
+   splitWallAtRadius(wall, origin, radius, radiusSquared = Math.pow(radius, 2)) {
+     const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
+     const intersects_radius = LEC2 < radiusSquared; // if equal, would be a tangent
+     const A_inside_radius = wall.A.distanceSquared < radiusSquared;
+     const B_inside_radius = wall.B.distanceSquared < radiusSquared;
+     const both_inside = (A_inside_radius || B_inside_radius)
+           
+     // if no intersection, drop if the wall is outside; use entire wall if inside      
+     if(!intersects_radius) { return both_inside ? wall : false; }
+     
+     // if the wall intersects the radius, split wall into portion within
+     const intersections = wall.intersectionsWithCircle(center, radius, { LEC2 });
+     const i0 = intersections[0];
+     const i1 = intersections[1];
+     
+     // may have had an intersection but it was not within the segment
+     // can skip if the points are outside
+     if(intersections.length === 0) { return both_inside ? wall : false; }     
+     
+     // If two intersections found, break the wall at the intersections
+     if(intersections.length === 2) return CCWSweepWall.createFromPoints(i0, i1, wall, { origin });
+     
+     // if only 1 intersection, then need to determine which wall is outside.
+     // trim from outside point to intersection, leaving only the inside wall portion.
+     if(A_inside_radius && (!B_inside_radius || wall.B.almostEqual(i0))) {
+       return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin }); 
+     }
+     
+     if(wall.B.insideRadius && (!A_inside_radius || wall.A.almostEqual(i0))) {
+       return  CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
+     }
+     
+     // otherwise, if both are inside but not yet caught, return the wall.
+     // remainder, if any, should be walls that barely pierce the circle and 
+     // so we can ignore
+     return both_inside ? wall : false;
    }
    
   /* -------------------------------------------- */
