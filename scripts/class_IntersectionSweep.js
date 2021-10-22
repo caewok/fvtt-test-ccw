@@ -604,7 +604,7 @@ export class BentleyOttomanSweepIntersections {
   * @private
   */
   compareYX(a, b) {
-    const res = compareYX(a, b);
+    const res = compareYX(a.sweepPosition, b.sweepPosition);
     //if(res === 0) { return compareYX(a.left, b.left); }
     if(res === 0) {
       if(a.event === "left" && b.event !== "left") return -1;
@@ -630,7 +630,7 @@ export class BentleyOttomanSweepIntersections {
         //const ccw = orient2dPoints(a.right, a, b.right)
         //if(ccw > 0) return 1;
         //if(ccw < 0) return -1;
-        return CCWPoint.orient2d(a.right, a, b.right);
+        return CCWPoint.orient2d(a.right, a.sweepPosition, b.right);
       }
             
       return compareYX(a.left, b.left);
@@ -639,7 +639,7 @@ export class BentleyOttomanSweepIntersections {
   }
   
   compareXY(a, b) {
-    const res = compareXY(a, b);
+    const res = compareXY(a.sweepPosition, b.sweepPosition);
     if(res === 0) {
      if(a.event === "left" && b.event !== "left") return -1;
      if(a.event === "right" && b.event !== "right") return 1;
