@@ -46,8 +46,8 @@ export class IdentifyIntersections {
     let remainder = wall;
     intersections.forEach(i_point => {
       // check that we are not repeating points
-      if(i_point.almostEqual(remainder.A) || 
-         i_point.almostEqual(wall.B)) { return; }
+      if(remainder.A.almostEqual(i_point) || 
+         remainder.B.almostEqual(i_point)) { return; }
       const new_w = CCWSweepWall.createFromPoints(remainder.A, i_point, wall); 
       finished_walls.push(new_w);
       remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
@@ -479,7 +479,7 @@ export class BentleyOttomanSweepIntersections {
     // rest already intersected at this point, so don't need to test
     const walls_arr = [...e.walls.values()];   
     const idxs = walls_arr.map(w => {
-      this.intersections_map.push(w.id, { x: e.x, y: e.y });
+      this.intersections_map.push(w.id, CCWPoint.fromPoint(e));
       return this.sweep_status.findIndex(elem => elem.id === w.id);
     });
     const ln = idxs.length;
@@ -739,11 +739,8 @@ export class IntersectionSweepEvent {
                      this.coords[1] < this.coords[3] : // use top (smaller) y
                      this.coords[0] < this.coords[2]; // use left (smaller) x
       
-      this.left = is_left ? { x: this.coords[0], y: this.coords[1] } :
-                            { x: this.coords[2], y: this.coords[3] };
-      this.right = is_left ? { x: this.coords[2], y: this.coords[3] } :
-                             { x: this.coords[0], y: this.coords[1] };                            
-           
+      this.left = is_left ? this.base_wall.A : this.base_wall.B;
+      this.right = is_left ? this.base_wall.B : this.base_wall.A;
       this.dx = this.right.x - this.left.x;
       this.dy = this.right.y - this.left.y;
   
@@ -756,7 +753,7 @@ export class IntersectionSweepEvent {
       
     } else if(intersection) {
       this.coords = [intersection.x, intersection.y];  
-      this.left = { x: intersection.x, y: intersection.y }
+      this.left = CCWPoint.fromPoint(intersection);
       this.right = this.left;
     }
     
