@@ -153,7 +153,7 @@ export class CCWPoint extends PIXI.Point {
   distanceSquared(p) {
     const dx = this.x - p.x;
     const dy = this.y - p.y;
-    return (dx*dx + dy*dy);
+    return Math.pow(dx, 2) + Math.pow(dy, 2);
   }
 
  /**
