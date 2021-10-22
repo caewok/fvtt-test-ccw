@@ -5,6 +5,7 @@ import { arraySwap,
          compareXY,
          compareXY_A,
          compareYX,
+         almostEqual,
          MapArray } from "./util.js";
 import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
@@ -730,7 +731,7 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
     this.event = event;
      
     // leftmost x or topmost y if x is equal. 
-    this._is_left = CCWPoint.almostEqual(this.A.x, this.B.x) ? 
+    this._is_left = almostEqual(this.A.x, this.B.x) ? 
                     this.A.y < this.B.y : this.A.x < this.B.x; 
     
     // temp x value to hold current sweep location
@@ -740,7 +741,7 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
     this._sweepPosition = undefined; 
     
     // store y_intercept for use when adjusting for sweep location.
-    this.y_intercept = CCWPoint.almostEqual(this.dx, 0) ? undefined : 
+    this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
                          this.left.y - this.slope * this.left.x;
   }
   
@@ -760,7 +761,7 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
    
      if(this._sweepPosition === undefined) {
        // test for vertical
-       const y = CCWPoint.almostEqual(this.dx, 0) ? this.left.y : 
+       const y = almostEqual(this.dx, 0) ? this.left.y : 
                    this.slope * this._sweep_x + this.y_intercept;
      
        this._sweepPosition = new CCWSweepPoint(this._sweep_x, y);
