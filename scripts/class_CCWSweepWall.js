@@ -194,16 +194,11 @@ export class CCWSweepWall extends CCWPixelRay {
   * @return {CCWSweepWall}
   */
   static createFromPoints(A, B, wall, opts = {}, { keep_wall_id = false } = {}) {
-    const w = new CCWSweepWall(A, B, opts);
+    const w = new this(A, B, opts);
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
-    
-    if(keep_wall_id) { 
-      w._id = wall.data._id;   
-    } else {
-      w._id = undefined;
-    }
+    w._id = keep_wall_id ? wall.data._id : undefined;
     
     if(!w.data._id) { w.data._id = w.id; }  
     
