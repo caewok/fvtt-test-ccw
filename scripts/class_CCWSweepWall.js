@@ -12,7 +12,7 @@ import { almostEqual } from "./util.js";
  * @extends{CCWSightRay}
  */
 export class CCWSweepWall extends CCWPixelRay {
-  constructor(A, B, { origin } = {}) {
+  constructor(A, B, { origin, type } = {}) {
     super(A, B);
 
     // Re-set A and B with origin and radius
@@ -50,6 +50,12 @@ export class CCWSweepWall extends CCWPixelRay {
      * @private
      */
     this._origin = origin;
+    
+   /**
+    * Type of wall
+    * @type {string}
+    */ 
+    this.type = type;
   }
   
   /* -------------------------------------------- */
@@ -102,6 +108,32 @@ export class CCWSweepWall extends CCWPixelRay {
    set B(value) {
      this._B = CCWSweepPoint.fromPoint(value, { origin: this.origin });
    }
+   
+ /**
+  * Determine whether this wall should count for purposes of vision, 
+  * given the present origin and type.
+  * Comparable to RadialSweepPolygon version.
+  * Test whether a Wall object should be included as a candidate for collision from the polygon origin
+  * @type {boolean}
+  */ 
+  include() { 
+    // Special case - coerce interior walls to block light and sight
+    if(this.type === "sight" && this.isInterior) return true;
+
+    // Ignore non-blocking walls and open doors
+    if(!this.data[type] || this.isOpen) return false;
+
+    // Ignore walls on line with origin unless this is movement
+    const origin_side = this.whichSide(this.origin);
+    if(this.type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
+
+    if(!this.data.dir) return true; // wall not one-directional
+
+    // Ignore one-directional walls which are facing away from the origin    
+    return origin_side === this.data.dir;
+  }
+   
+   
   /* -------------------------------------------- */
   /*  Factory Function                            */
   /* -------------------------------------------- */
@@ -194,6 +226,9 @@ export class CCWSweepWall extends CCWPixelRay {
            orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : 
                              CONST.WALL_DIRECTIONS.BOTH;
   }  
+  
+  
+
 } 
 
 
