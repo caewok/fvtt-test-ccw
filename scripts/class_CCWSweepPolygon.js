@@ -1,4 +1,4 @@
-/* globals PointSourcePolygon, WallEndpoint, canvas, NormalizedRectangle, CONST, game */
+/* globals PointSourcePolygon, WallEndpoint, canvas, NormalizedRectangle, game */
 'use strict';
 
 
@@ -108,7 +108,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.walls.clear();
      this.endpoints.clear();
      
-     const origin = this.origin;
+     const origin = new CCWPixelPoint.fromPoint(origin);
      const { hasRadius, radius } = this.config;
      const radiusSquared = Math.pow(radius, 2) + 1e-8; // add a bit to radius to ensure we capture all relevant points
           
@@ -142,7 +142,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      if(game.modules.get(MODULE_ID).api.detect_intersections) { 
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
      } else {
-       candidate_walls = candidate_walls.map(w => CCWSweepWall.create(wall))
+       candidate_walls = candidate_walls.map(w => CCWSweepWall.create(w))
      }
      
      candidate_walls.forEach(wall => {       
@@ -172,16 +172,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // link wall(s) to endpoints 
        if(this.endpoints.has(ak)) {
          const a = this.endpoints.get(ak);
-         wall.A = a;
          a.walls.add(wall);
+         wall.A = a;
        } else {
          this.endpoints.set(ak, wall.A);
        }
        
        if(this.endpoints.has(bk)) {
          const b = this.endpoints.get(bk);
-         wall.B = a;
          b.walls.add(wall);
+         wall.B = b;
        } else {
          this.endpoints.set(bk, wall.B);
        }
@@ -196,8 +196,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * Test if a wall should be within a given radius and split the wall if necessary
    * to include only the portion within the radius.
    * @param {CCWSweepWall} wall  
-   * @param {number} origin
-   * @param {number} radiusSquared
+   * @param {PIXI.Point} origin
+   * @param {number} radius
+   * @param {number} radiusSquared  Can cache this calculation if looping or provide 
+   *                                a different value to deal with near-circle cases.
    * @return {false|CCWSweepWall}
    */
    splitWallAtRadius(wall, origin, radius, radiusSquared = Math.pow(radius, 2)) {
@@ -211,7 +213,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      if(!intersects_radius) { return both_inside ? wall : false; }
      
      // if the wall intersects the radius, split wall into portion within
-     const intersections = wall.intersectionsWithCircle(center, radius, { LEC2 });
+     const intersections = wall.intersectionsWithCircle(origin, radius, { LEC2 });
      const i0 = intersections[0];
      const i1 = intersections[1];
      
