@@ -105,8 +105,6 @@ export class CCWSweepWall extends CCWPixelRay {
    */
   set origin(value) {
     this._origin = value;
-    this.A.origin = value;
-    this.B.origin = value;
     this._ccwOrigin = undefined;
   }
   
@@ -125,7 +123,7 @@ export class CCWSweepWall extends CCWPixelRay {
    */
    get A() { return this._A; }
    set A(value) {
-     this._A = CCWSweepPoint.fromPoint(value, { origin: this.origin });
+     this._A = CCWSweepPoint.fromPoint(value);
    }
    
   /**
@@ -133,40 +131,29 @@ export class CCWSweepWall extends CCWPixelRay {
    */
    get B() { return this._B; }
    set B(value) {
-     this._B = CCWSweepPoint.fromPoint(value, { origin: this.origin });
+     this._B = CCWSweepPoint.fromPoint(value);
    }
    
- /**
-  * Determine whether this wall should count for purposes of vision, 
-  * given the present origin and type.
-  * Comparable to RadialSweepPolygon version.
-  * Test whether a Wall object should be included as a candidate for 
-  *   collision from the polygon origin
-  * If type or origin not defined, will default to true for those tests.
-  * @type {boolean}
-  */ 
-  include() { 
-    const type = this.type;
-    if(!type) return true;
+    /*
+   * Report the side of the origin in relation to the wall, using ccw algorithm.
+   * Return in terms of CONST.WALL_DIRECTIONS
+   *
+   * Wall left/right direction measured in Foundry from wall.B --> wall.A
+   * 
+   * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
+   *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
+   *                 BOTH if all three points are in line.
+   */
+  get whichSide() {
+    const orientation = this.ccwOrigin;
   
-    // Special case - coerce interior walls to block light and sight
-    if(type === "sight" && this.isInterior) return true;
-
-    // Ignore non-blocking walls and open doors
-    if(!this.data[type] || this.isOpen) return false;
-
-    // Ignore walls on line with origin unless this is movement
-    const origin = this.origin;
-    if(!origin) return true;
-    
-    const origin_side = this.whichSide(origin);
-    if(type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
-
-    if(!this.data.dir) return true; // wall not one-directional
-
-    // Ignore one-directional walls which are facing away from the origin    
-    return origin_side === this.data.dir;
-  }
+    return orientation < 0 ? CONST.WALL_DIRECTIONS.LEFT : 
+           orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : 
+                             CONST.WALL_DIRECTIONS.BOTH;
+  }  
+  
+   
+ 
    
    
   /* -------------------------------------------- */
@@ -236,25 +223,37 @@ export class CCWSweepWall extends CCWPixelRay {
   /*  Methods                                     */
   /* -------------------------------------------- */
    
-  /*
-   * Report the side of the origin in relation to the wall, using ccw algorithm.
-   * Return in terms of CONST.WALL_DIRECTIONS
-   *
-   * Wall left/right direction measured in Foundry from wall.B --> wall.A
-   * 
-   * @param {x: number, y: number} p  
-   * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
-   *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
-   *                 BOTH if all three points are in line.
-   */
-  whichSide(p) {
-    const orientation = this.orient2d(p);
+ /**
+  * Determine whether this wall should count for purposes of vision, 
+  * given the present origin and type.
+  * Comparable to RadialSweepPolygon version.
+  * Test whether a Wall object should be included as a candidate for 
+  *   collision from the polygon origin
+  * If type or origin not defined, will default to true for those tests.
+  * @type {boolean}
+  */ 
+  include() { 
+    const type = this.type;
+    if(!type) return true;
   
-    return orientation < 0 ? CONST.WALL_DIRECTIONS.LEFT : 
-           orientation > 0 ? CONST.WALL_DIRECTIONS.RIGHT : 
-                             CONST.WALL_DIRECTIONS.BOTH;
-  }  
-  
+    // Special case - coerce interior walls to block light and sight
+    if(type === "sight" && this.isInterior) return true;
+
+    // Ignore non-blocking walls and open doors
+    if(!this.data[type] || this.isOpen) return false;
+
+    // Ignore walls on line with origin unless this is movement
+    const origin = this.origin;
+    if(!origin) return true;
+    
+    const origin_side = this.whichSide;
+    if(type !== "move" && origin_side === CONST.WALL_DIRECTIONS.BOTH) return false;
+
+    if(!this.data.dir) return true; // wall not one-directional
+
+    // Ignore one-directional walls which are facing away from the origin    
+    return origin_side === this.data.dir;
+  }
   
 
 } 

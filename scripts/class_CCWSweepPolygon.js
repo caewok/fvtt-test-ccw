@@ -211,6 +211,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // update origin and type for this particular sweep
        wall.origin = origin;
        wall.type = type;
+       
+       // If the wall is colinear with the origin, ignore it
+       if(wall.ccwOrigin === 0) return;
      
        // Test whether a wall should be included in the set considered for this polygon
        if(!wall.include) return;

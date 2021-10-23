@@ -12,7 +12,7 @@ import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
  * @property {number} y     The y-coordinate
  */
 export class CCWSweepPoint extends CCWPixelPoint {
-  constructor(x, y, { origin } = {}) {
+  constructor(x, y) {
     super(x, y)
 
     /* -------------------------------------------- */
@@ -24,15 +24,7 @@ export class CCWSweepPoint extends CCWPixelPoint {
      * @type {Set<CCWSweepWall>}
      */
     this.walls = new Map();
-    
-    /**
-     * Origin for the sweep.
-     * Only required if insideRadius is used.
-     * @type {x: number, y: number}
-     * @private
-     */
-    this._origin = origin;
-    
+        
   }
   
   /* -------------------------------------------- */
@@ -44,29 +36,15 @@ export class CCWSweepPoint extends CCWPixelPoint {
   * @param {x: number, y: number} p
   * @return CCWPoint
   */ 
-  static fromPoint(p, { origin } = {}) {
-    return new this(p.x, p.y, origin);
+  static fromPoint(p) {
+    return new this(p.x, p.y);
   }
   
   /* -------------------------------------------- */
   /*  Getters / Setters                           */
   /* -------------------------------------------- */
 
- /**
-  * @type {x: number, y: number}
-  */
-  get origin() { return this._origin; }
-    
-  /**
-   * When setting origin, un-cache measurements that depend on it.
-   * @param {x: number, y: number} value
-   */
-  set origin(value) {
-    this._origin = value;
-  }
-  
-
-  
+ 
 
   /* -------------------------------------------- */
   /*  Methods                                     */
@@ -94,9 +72,9 @@ export class CCWSweepPoint extends CCWPixelPoint {
 
     // if both block equally, it is a terrain point
     // if neither block, it is a terrain point
-
-    const wall0_in_front = walls[0].blocksSegment(walls[1], this.origin);
-    const wall1_in_front = walls[1].blocksSegment(walls[0], this.origin);
+    const origin = walls[0].origin;
+    const wall0_in_front = walls[0].blocksSegment(walls[1], origin);
+    const wall1_in_front = walls[1].blocksSegment(walls[0], origin);
     if(wall0_in_front && wall1_in_front) return true;
     if(!wall0_in_front && !wall1_in_front) return true;
     return false;
