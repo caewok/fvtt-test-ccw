@@ -151,8 +151,8 @@ export class PotentialWallList extends BinarySearchTree {
   * @param {PIXI.Point} origin
   * @return {-1, 0, 1} -1 if AB is in front, 1 if CD is in front, 0 if equal
   */
-  static inFrontOf(AB, CD) {
-    const origin = AB.origin;
+  static inFrontOf(AB, CD, origin = AB.origin) {
+    //const origin = AB.origin;
     
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
@@ -162,7 +162,7 @@ export class PotentialWallList extends BinarySearchTree {
     const D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    const ABO = AB.ccwOrigin;
+    const ABO = AB.ccw(origin);
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
 
@@ -186,7 +186,7 @@ export class PotentialWallList extends BinarySearchTree {
     
     // CD crosses the AB infinite line. 
     // Test where A and O are in relation to C
-    const CDO = CD.ccwOrigin;
+    const CDO = CD.ccw(origin);
     const CDA = CD.ccw(A);
     
     // If A and O are on same side of CD, AB is in front
