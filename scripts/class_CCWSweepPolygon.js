@@ -26,7 +26,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   constructor(...args) {
     super(...args);
 
-    console.log(`${MODULE_ID}|CCWSweepPolygon created.`);
+    //console.log(`${MODULE_ID}|CCWSweepPolygon created.`);
   
     /**
      * The limiting radius of the polygon, if applicable
