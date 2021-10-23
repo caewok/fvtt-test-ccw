@@ -117,6 +117,7 @@ export class IdentifyIntersections {
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
     // to test ordering
+    // canvas.controls.debug.polygonText.destroy()
     // queue = sweeper.event_queue.inorder()
 //     queue.forEach((q, idx) => {
 //       q.sweepPosition.draw();
@@ -128,7 +129,6 @@ export class IdentifyIntersections {
     while(sweeper.incomplete) {
       const e = sweeper.step();
       //e.draw()
-      const i_point = e.left; // could just use e but this saves a few calcs.
       
       switch(e.event) {
         case "left":
@@ -152,12 +152,12 @@ export class IdentifyIntersections {
             const curr_remainder = remainders.get(id);
             
             // check that we are not repeating endpoints
-            if(i_point.almostEqual(curr_remainder.A) || 
-               i_point.almostEqual(curr_remainder.B)) { return; }
+            if(e.almostEqual(curr_remainder.A) || 
+               e.almostEqual(curr_remainder.B)) { return; }
             
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
-                                                        i_point, w); 
-            const new_remainder = CCWSweepWall.createFromPoints(i_point, 
+                                                        e, w); 
+            const new_remainder = CCWSweepWall.createFromPoints(e, 
                                                                 curr_remainder.B, w, {}, { keep_wall_id: true }); 
             finished_walls.push(new_w);
             remainders.set(id, new_remainder);
