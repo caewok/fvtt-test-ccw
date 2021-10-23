@@ -216,11 +216,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        if(wall.ccwOrigin === 0) return;
      
        // Test whether a wall should be included in the set considered for this polygon
-       if(!wall.include) return;
+       if(!wall.include()) return;
        
        // test for inclusion in the FOV radius
        if(hasRadius) {
-         wall =  this.splitWallAtRadius(wall, origin, radius, radius2);
+         wall = this.splitWallAtRadius(wall, origin, radius, radius2);
          if(!wall) return; // can skip the wall as it is outside the radius
        } 
           
