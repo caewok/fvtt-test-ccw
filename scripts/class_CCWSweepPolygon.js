@@ -269,8 +269,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
      const intersects_radius = LEC2 < radius2; // if equal, would be a tangent
-     const A_inside_radius = wall.A.distanceSquared < radius2;
-     const B_inside_radius = wall.B.distanceSquared < radius2;
+     const A_inside_radius = wall.A.distanceSquared(origin) < radius2;
+     const B_inside_radius = wall.B.distanceSquared(origin) < radius2;
      const both_inside = (A_inside_radius || B_inside_radius)
            
      // if no intersection, drop if the wall is outside; use entire wall if inside      
