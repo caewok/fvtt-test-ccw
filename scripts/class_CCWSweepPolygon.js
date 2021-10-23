@@ -215,7 +215,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        wall.type = type;
        
        // If the wall is colinear with the origin, ignore it
-       if(wall.ccwOrigin === 0) return;
+       //if(wall.ccwOrigin === 0) return;
      
        // Test whether a wall should be included in the set considered for this polygon
        if(!wall.include()) return;
@@ -396,8 +396,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
     // reset the ray history
-    if(cfg.debug) { this.ray_history = [rMin]; }
-    if(cfg.debug && rMax) this.ray_history.push(rMax);
+    if(this.config.debug) { this.ray_history = [rMin]; }
+    if(this.config.debug && rMax) this.ray_history.push(rMax);
 
     // ----- SORT ENDPOINTS ----- //
     // Sort endpoints from the rMin to rMax rays.
