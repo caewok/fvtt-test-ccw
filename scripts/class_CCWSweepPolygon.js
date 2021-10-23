@@ -49,6 +49,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      * Mapping of CCWSweepWall objects that can affect this polygon.
      */
     this.walls = new Map(); 
+    
+    this.endpoints_sorted = [];
+    this.ray_history = [];
   }
   
   /** @inheritdoc */
@@ -123,6 +126,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     // label endpoints in order
     this.endpoints_sorted.forEach((e, idx) => e.label(idx));
+    
     
     // draw rays
     this.ray_history.forEach(r => r.draw(COLORS.blue, .7));
