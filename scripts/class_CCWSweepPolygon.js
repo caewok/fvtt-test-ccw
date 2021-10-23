@@ -382,6 +382,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const origin = this.origin;
     const { isLimited, hasRadius, rMin, rMax } = this.config;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
+    
+    // reset the ray history
+    this.ray_history = [rMin];
+    if(rMax) this.ray_history.push(rMax);
 
     // ----- SORT ENDPOINTS ----- //
     // Sort endpoints from the rMin to rMax rays.
