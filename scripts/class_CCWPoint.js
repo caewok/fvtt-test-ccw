@@ -40,16 +40,15 @@ export class CCWPoint extends PIXI.Point {
   * @param {number}    EPSILON   Error tolerance for almostEqual test.
   * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
   */
-  static orient2d(p1, p2, p3) {
-  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
-    return orient2dfast(p1.x, p1.y,
-                        p2.x, p2.y,
-                        p3.x, p3.y)
-  }
-
-  return orient2d(p1.x, p1.y,
-                  p2.x, p2.y,
-                  p3.x, p3.y);
+  static orient2d(p1, p2, p3, { robust = game.modules.get(MODULE_ID).api.use_robust_ccw } = {}) {
+  return robust ? 
+    orient2d(p1.x, p1.y,
+             p2.x, p2.y,
+             p3.x, p3.y) :
+    
+    orient2dfast(p1.x, p1.y,
+                 p2.x, p2.y,
+                 p3.x, p3.y)              
   } 
   
  /**
@@ -59,8 +58,8 @@ export class CCWPoint extends PIXI.Point {
   * @param {x, y} p3   Point in {x, y} format.
   * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
   */
-  static ccw(p1, p2, p3) {
-    return Math.sign(CCWPoint.orient2d(p1, p2, p3));                     
+  static ccw(p1, p2, p3, { robust = game.modules.get(MODULE_ID).api.use_robust_ccw } = {}) {
+    return Math.sign(CCWPoint.orient2d(p1, p2, p3, { robust }));                     
   } 
   
  /**
