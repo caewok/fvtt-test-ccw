@@ -1,4 +1,4 @@
-/* globals PointSourcePolygon, WallEndpoint, canvas, NormalizedRectangle, game */
+/* globals PointSourcePolygon, WallEndpoint, canvas, NormalizedRectangle, game, CONST */
 'use strict';
 
 
@@ -10,7 +10,8 @@ import { CCWRay }             from "./class_CCWRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
 import { Bezier }             from "./class_Bezier.js";
 import { MODULE_ID }	        from "./module.js";
-import { IdentifyIntersections } from "./class_IntersectionSweep.js";         
+import { IdentifyIntersections } from "./class_IntersectionSweep.js";    
+import { COLORS }             from "./util.js";     
 
 /**
  * Compute a PointSourcePolygon using the "CCW Radial Sweep" algorithm.
@@ -111,25 +112,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   /** @override */
   visualize() {
-    const {radius, hasLimitedAngle, hasLimitedRadius, rMin, rMax} = this.config;
     let dg = canvas.controls.debug;
     dg.clear();
     
-
     // Text debugging
     if ( canvas.controls.debug.polygonText ) { 
       canvas.controls.debug.polygonText.destroy(); 
     }
     
     // label endpoints in order
-    this.endpoints_sorted.forEach((e, idx) => e.label(idx); );
+    this.endpoints_sorted.forEach((e, idx) => e.label(idx));
     
     // draw rays
     this.ray_history.forEach(r => r.draw(COLORS.blue, .7));
     
     // draw collisions
-    for(i = 0; i < collisions.length; i += 2) {
-      const c = new CCWPoint(collisions[i], collisions[i+1]);
+    const ln = this.points.length;
+    for(let i = 0; i < ln; i += 2) {
+      const c = new CCWPoint(this.points[i], this.points[i+1]);
       c.draw(COLORS.red);
     }
     
@@ -140,7 +140,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       [CONST.WALL_SENSE_TYPES.LIMITED]: 0x81B90C
     }
     
-    this.walls.forEach(e => w.draw(limitColors[w.data[w.type]]));
+    this.walls.forEach(w => w.draw(limitColors[w.data[w.type]]));
   }
 
   /* -------------------------------------------- */
@@ -380,7 +380,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpoints() {
     const origin = this.origin;
-    const { maxR, isLimited, aMin, aMax, hasRadius, radius, rMin, rMax } = this.config;
+    const { isLimited, hasRadius, rMin, rMax } = this.config;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
 
     // ----- SORT ENDPOINTS ----- //
@@ -458,7 +458,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
-    const { isLimited, type, radius, radius2 } = this.config;
+    const { isLimited, type, radius2 } = this.config;
     const collisions = this.points;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});

@@ -725,7 +725,10 @@ export class BentleyOttomanSweepIntersections {
 
 
 export class IntersectionSweepEvent extends CCWSweepPoint {
-  event = "intersection";
+  constructor(...args) {
+    super(...args);
+    this.event = "intersection";
+  }
 
   get left() { return this; }
   get right() { return this; }
