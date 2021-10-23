@@ -28,8 +28,7 @@ export class CCWPoint extends PIXI.Point {
   * @return {Boolean} True if points are within the error of each other.
   */
   static almostEqual(p1, p2, { EPSILON = PRESET_EPSILON } = {}) {
-    if(!almostEqual(p1.x, p2.x, { EPSILON })) return false;
-    return almostEqual(p1.y, p2.y, { EPSILON });  
+    almostEqual(p1.x, p2.x, { EPSILON }) ? almostEqual(p1.y, p2.y, { EPSILON }) : false;
   }
   
  /**

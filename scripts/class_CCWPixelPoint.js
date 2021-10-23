@@ -59,7 +59,7 @@ export class CCWPixelPoint extends CCWPoint {
   */
   equals(p) {
     if(p instanceof CCWPixelPoint) return this.key === p.key;
-    return PIXI.Point.prototype.equals.call(this, p);
+    return this.x === p.x ? this.y === p.y : false;
   }
   
  /**
@@ -70,7 +70,7 @@ export class CCWPixelPoint extends CCWPoint {
   * @return {boolean}
   */
   almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
-    if(p instanceof CCWPixelPoint) return this.key === p.key;
+    if(p instanceof CCWPixelPoint) { return this.key === p.key; }
     
     // Ultimately need the distance between the two points but first check the easy case
     // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
