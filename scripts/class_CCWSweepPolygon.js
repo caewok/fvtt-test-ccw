@@ -265,8 +265,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
    splitWallAtRadius(wall) {
      const origin = this.origin;
-     const { radius, radius2 } = this.cfg;
-     
+     const { radius, radius2 } = this.config;
    
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
      const intersects_radius = LEC2 < radius2; // if equal, would be a tangent
