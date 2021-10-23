@@ -120,7 +120,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
     // Text debugging
     if ( canvas.controls.debug.polygonText ) { 
-      canvas.controls.debug.polygonText.destroy(); 
+       canvas.controls.debug.polygonText.removeChildren();
     }
     
     // draw endpoints in neutral gray (will color collisions later)

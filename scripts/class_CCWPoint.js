@@ -178,6 +178,11 @@ export class CCWPoint extends PIXI.Point {
       canvas.controls.debug.polygonText = canvas.controls.addChild(new PIXI.Container());
     }
     const polygonText = canvas.controls.debug.polygonText;
+    
+    // update existing label if it exists at or very near this endpoint
+    let idx = polygonText.children.findIndex(c => this.almostEqual(c.position));
+    if(idx !== -1) { canvas.controls.debug.polygonText.removeChildAt(idx); }
+    
     const t = polygonText.addChild(new PIXI.Text(String(text), CONFIG.canvasTextStyle));
     t.position.set(this.x, this.y);
   }  
