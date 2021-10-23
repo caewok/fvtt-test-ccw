@@ -527,7 +527,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
       
       // is the endpoint in front of the closest wall? 
-      if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+      if(!closest_wall.blocksPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         ray_history.push(ray);
@@ -718,7 +718,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
       
       // is the endpoint in front of the closest wall? 
-      if(!closest_wall.inFrontOfPoint(endpoint, origin)) {
+      if(!closest_wall.blocksPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         ray_history.push(ray);
