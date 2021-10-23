@@ -1,17 +1,7 @@
-/* globals game */
 'use strict';
 
-// Utility functions
-import { orient2d, orient2dfast } from "./lib/orient2d.min.js";
-import { incircle, incirclefast } from "./lib/incircle.min.js";
-import { MODULE_ID } from "./module.js"
-
-// Ray.prototype.potentialIntersectionsCircle is precise to ~ 1e-10
-// May be ways to address that, but for now, setting EPSILON to 1e-8
-// works, so that once an intersection point is found, it is determined to be 
-// on the line for any future tests, like for contains.
 // See Number.EPSILON for smallest possible error number.
-export const PRESET_EPSILON = 1e-8;
+export const PRESET_EPSILON = 1e-08;
 
 
 // Simple set of colors for drawing and debugging 
@@ -40,7 +30,7 @@ export const COLORS = {
   *
   * @return {Boolean} True if x and y are within the error of each other.
   */
-export function almostEqual(x, y, EPSILON = PRESET_EPSILON) {
+export function almostEqual(x, y, { EPSILON = PRESET_EPSILON } = {}) {
   return Math.abs(x - y) < EPSILON;
 }
 
@@ -56,110 +46,6 @@ export function round(value, precision = 0) {
   const multiplier = Math.pow(10, precision || 0);
   return Math.round(value * multiplier) / multiplier;
 }
-
-/**
- * Are two points basically at the same spot?
- * @param {x, y}    p1        First point
- * @param {x, y}    p2        Second point
- * @param {Number}  EPSILON   Small number representing error within which the points 
- *                              will be considered equal
- * @return {Boolean} True if points are within the error of each other.
- */
-export function pointsAlmostEqual(p1, p2, EPSILON = PRESET_EPSILON) {
-  return almostEqual(p1.x, p2.x, EPSILON) && almostEqual(p1.y, p2.y, EPSILON);
-}
-
-/**
- * Calculate the distance between two points in {x,y} dimensions.
- * @param {x, y} A   Point in {x, y} format.
- * @param {x, y} B   Point in {x, y} format.
- * @param {Number}  EPSILON   Small number representing error within which the distance 
- *                              will be considered 0
- * @return The distance between the two points.
- */
-export function calculateDistance(A, B, EPSILON = PRESET_EPSILON) {
-  // could use pointsAlmostEqual function but this avoids double-calculating
-  const dx = Math.abs(B.x - A.x); 
-  const dy = Math.abs(B.y - A.y);
-  if(dy < EPSILON && dx < EPSILON) { return 0; }
-  if(dy < EPSILON) { return dx; }
-  if(dx < EPSILON) { return dy; }
-
-  return Math.hypot(dy, dx);
-}
-
-/**
- * Is point 3 clockwise or counterclockwise (CCW) of the line from p1 -> p2 -> p3
- * @param {x, y} p1   Point in {x, y} format.
- * @param {x, y} p2   Point in {x, y} format.
- * @param {x, y} p3   Point in {x, y} format.
- * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
- */
-export function orient2dPoints(p1, p2, p3) {
-  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
-    return orient2dfast(p1.x, p1.y,
-                        p2.x, p2.y,
-                        p3.x, p3.y)
-  }
-
-  return orient2d(p1.x, p1.y,
-                  p2.x, p2.y,
-                  p3.x, p3.y);
-}
-
-
-/**
- * Same as orient2dPoints but checks for 0 and returns -1, 0, or 1
- * @param {x, y} p1   Point in {x, y} format.
- * @param {x, y} p2   Point in {x, y} format.
- * @param {x, y} p3   Point in {x, y} format.
- * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
- */
-export function ccwPoints(p1, p2, p3, EPSILON = PRESET_EPSILON) {
-  const res = orient2dPoints(p1, p2, p3);
-  if(almostEqual(res, 0, EPSILON)) return 0;
-  return res < 0 ? -1 : 1;                       
-}
-
-/**
- * Given three counter-clockwise points that define a circle, is this fourth point
- * within the circle?
- * @param {x, y} p1   Point in {x, y} format.
- * @param {x, y} p2   Point in {x, y} format.
- * @param {x, y} p3   Point in {x, y} format.
- * @param {x, y} p4   Point in {x, y} format.
- * @return {Number}   Positive if outside circle, Negative if inside, 0 if on circle
- */
-export function inCirclePoints(p1, p2, p3, p4) {
-  if(!p1 || !p2 || !p3 || !p4) console.warn(`${MODULE_ID}|point undefined`, p1, p2, p3, p4);
-
-   if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
-    return incirclefast(p1.x, p1.y,
-                        p2.x, p2.y,
-                        p3.x, p3.y,
-                        p4.x, p4.y);
-  }
-
-  return incircle(p1.x, p1.y,
-                  p2.x, p2.y,
-                  p3.x, p3.y,
-                  p4.x, p4.y);
-}
-
-/**
- * Comparable to ccw for inCirclePoints.
- * @param {x, y} p1   Point in {x, y} format.
- * @param {x, y} p2   Point in {x, y} format.
- * @param {x, y} p3   Point in {x, y} format.
- * @param {x, y} p4   Point in {x, y} format.
- * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
- */
-export function outsideCircle(p1, p2, p3, p4, EPSILON = PRESET_EPSILON) {
-  const res = inCirclePoints(p1, p2, p3, p4);
-  if(almostEqual(res, 0, EPSILON)) return 0;
-  return res < 0 ? -1 : 1;
-}
- 
 
 
 /*
