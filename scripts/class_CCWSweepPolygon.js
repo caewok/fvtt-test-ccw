@@ -91,6 +91,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     this.origin = CCWPixelPoint.fromPoint(origin);
     
     // configure limited radius
+    cfg.maxR = canvas.scene.dimensions.maxR;
     cfg.hasRadius = cfg.radius > 0;
     cfg.radius = cfg.radius ?? cfg.maxR;
     cfg.radius2 = Math.pow(cfg.radius, 2);
