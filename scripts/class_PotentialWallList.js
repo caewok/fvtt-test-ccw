@@ -152,6 +152,8 @@ export class PotentialWallList extends BinarySearchTree {
   * @return {-1, 0, 1} -1 if AB is in front, 1 if CD is in front, 0 if equal
   */
   static inFrontOf(AB, CD, origin) {
+    const origin = AB.origin;
+    
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
     const A = AB.A;
