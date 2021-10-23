@@ -54,6 +54,14 @@ export class CCWSweepWall extends CCWPixelRay {
     this._origin = origin;
     
    /**
+    * Store the ccw result for this line to the origin.
+    * Used repeatedly in sorting the sweep
+    * @type {-1|0|1}
+    * @private
+    */
+    this._ccwOrigin = undefined; 
+    
+   /**
     * Type of wall
     * @type {string}
     */ 
@@ -91,7 +99,7 @@ export class CCWSweepWall extends CCWPixelRay {
   get origin() { return this._origin; }
     
 
-  /*
+  /**
    * When setting origin, un-cache measurements that depend on it.
    * @param {x: number, y: number} value
    */
@@ -99,6 +107,15 @@ export class CCWSweepWall extends CCWPixelRay {
     this._origin = value;
     this.A.origin = value;
     this.B.origin = value;
+    this._ccwOrigin = undefined;
+  }
+  
+ /**
+  * Cache the ccw measurement for this line to the origin.
+  */
+  get ccwOrigin() { 
+    if(this._ccwOrigin === undefined) { this._ccwOrigin = this.ccw(this.origin); }
+    return this._ccwOrigin;
   }
   
   /**
