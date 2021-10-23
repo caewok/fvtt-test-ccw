@@ -162,7 +162,7 @@ export class PotentialWallList extends BinarySearchTree {
     const D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    const ABO = AB.ccw(origin);
+    const ABO = AB.ccwOrigin;
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
 
@@ -186,7 +186,7 @@ export class PotentialWallList extends BinarySearchTree {
     
     // CD crosses the AB infinite line. 
     // Test where A and O are in relation to C
-    const CDO = CD.ccw(origin);
+    const CDO = CD.ccwOrigin;
     const CDA = CD.ccw(A);
     
     // If A and O are on same side of CD, AB is in front
