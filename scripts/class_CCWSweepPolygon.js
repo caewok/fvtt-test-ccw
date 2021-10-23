@@ -59,6 +59,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // Construct endpoints for each wall
     this._initializeEndpoints();
     
+    // If limited angle of vision, trim endpoints
+    if(this.config.isLimited) { 
+      this._trimEndpointsByLimitedAngle(this.config.rMin, this.config.rMax); 
+    }
+    
     // Iterate over endpoints and construct the Polygon geometry
     this._sweepEndpoints();
     
@@ -336,34 +341,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpoints() {
     const origin = this.origin;
-    const { maxR, isLimited, aMin, aMax, hasRadius } = this.config;
-    const radius = this.config.radius ?? maxR;
-    const radius2 = radius * radius;
+    const { maxR, isLimited, aMin, aMax, hasRadius, radius, rMin, rMax } = this.config;
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
 
-    // ----- INITIAL RAY INTERSECTION ---- //
-    // Begin with a ray at the lowest angle to establish initial conditions
-    // If the FOV has a limited angle, then get the max as well.
-    let start_ray = undefined;
-    let end_ray = undefined;
-    let endpoints = undefined;
+    // ----- SORT ENDPOINTS ----- //
+    // Sort endpoints from the rMin to rMax rays.
+    // For non-limited vision, this will be from due west, moving clockwise.
+    const endpoints = isLimited ?
+      CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], rMin.B) :
+      CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
 
-    // ----- LIMITED ANGLE FILTER AND SORT ENDPOINTS CW ----- //
-    // Sort endpoints from CW (0) to CCW (last)
-    // No limit angle: Sort in relation to a line due west from origin.
-    // Limit angle: Sort from the starting ray instead of from due west
-    if(isLimited) {
-      // for non-limited, start ray is set to the first endpoint after sorting.
-      start_ray = CCWRay.fromAngle(origin.x, origin.y, aMin, radius);
-      end_ray =   CCWRay.fromAngle(origin.x, origin.y, aMax, radius);
-      this._trimEndpointsByLimitedAngle(start_ray, end_ray);
-      endpoints = CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], start_ray.B);
-
-    } else{
-      endpoints = CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
-      start_ray = endpoints.length > 0 ? CCWRay.fromReferenceSquared(origin, endpoints[0], radius2) : undefined;
-    }
-
+    
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
       let start_wall = undefined;
@@ -371,35 +359,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       
       if(!hasRadius) {
          // if not radius-limited, we need the canvas wall that each ray intersects, if any
-         const canvas_pts = [{ x: 0, y: 0 }, 
-                     { x: canvas.dimensions.width, y: 0 },
-                     { x: canvas.dimensions.width, y: canvas.dimensions.height },
-                     { x: 0, y: canvas.dimensions.height }];
+         const canvas_walls = this._getCanvasEdges();
 
-         const canvas_walls = [
-             new CCWSweepWall(canvas_pts[0], canvas_pts[1]),
-             new CCWSweepWall(canvas_pts[1], canvas_pts[2]),
-             new CCWSweepWall(canvas_pts[2], canvas_pts[3]),
-             new CCWSweepWall(canvas_pts[3], canvas_pts[0]),
-           ];
-  
-        start_wall = canvas_walls.filter(w => w.intersects(start_ray))[0];        
-        end_wall = canvas_walls.filter(w => w.intersects(end_ray))[0];   
+         start_wall = canvas_walls.filter(w => w.intersects(rMin))[0];        
+         end_wall = canvas_walls.filter(w => w.intersects(rMax))[0];   
       }
 
-      const start_point = this._getRayIntersection(start_wall, start_ray);
-      const end_point = this._getRayIntersection(end_wall, end_ray);
+      const start_point = this._getRayIntersection(start_wall, rMin);
+      const end_point = this._getRayIntersection(end_wall, rMax);
 
-      const opts = {origin: origin, radius: radius};
-      endpoints.unshift(new CCWSweepPoint(start_point.x, start_point.y, opts)); // first endpoint
-      endpoints.push(new CCWSweepPoint(end_point.x, end_point.y, opts)); // last endpoint
+      endpoints.unshift(CCWSweepPoint.fromPoint(start_point, { origin })); // first endpoint
+      endpoints.push(CCWSweepPoint.fromPoint(end_point, { origin } )); // last endpoint
     }
 
     // ----- STARTING STATE ------ //
     if(endpoints.length > 0) {
       const start_endpoint = endpoints[0];
       const start_walls = [...this.walls.values()].filter(w => {
-        if(!start_ray.intersects(w)) return false;
+        if(!rMin.intersects(w)) return false;
 
         // if the starting endpoint is at the start of the wall, don't include it
         if(start_endpoint.almostEqual(w.A) || 
@@ -441,9 +418,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
-    const radius = this.config.maxR;
-    const radius2 = radius * radius;
-    const { isLimited, type } = this.config;
+    const { isLimited, type, radius, radius2 } = this.config;
     const collisions = this.points;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
@@ -557,8 +532,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpointsRadius(potential_walls, endpoints) {
     const endpoints_ln = endpoints.length;
-    const { radius, isLimited, type } = this.config;
-    const radius2 = radius * radius;
+    const { radius, radius2, isLimited, type } = this.config;
     const collisions = this.points;
     const origin = this.origin;
     let needs_padding = false;
