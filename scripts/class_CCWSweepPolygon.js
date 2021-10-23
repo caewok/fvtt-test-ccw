@@ -110,8 +110,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     } 
     cfg.rMin = CCWRay.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius || cfg.maxR);
     
-    this.ray_history = [cfg.rMin];  // for debugging with visualize
-    if(cfg.rMax) { this.ray_history.push(cfg.rMax) }
+    if(cfg.debug) {
+      this.ray_history = [cfg.rMin];  // for debugging with visualize
+      if(cfg.rMax) { this.ray_history.push(cfg.rMax) }
+    }
   }
   
   /** @override */
@@ -394,8 +396,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
     // reset the ray history
-    this.ray_history = [rMin];
-    if(rMax) this.ray_history.push(rMax);
+    if(cfg.debug) { this.ray_history = [rMin]; }
+    if(cfg.debug && rMax) this.ray_history.push(rMax);
 
     // ----- SORT ENDPOINTS ----- //
     // Sort endpoints from the rMin to rMax rays.
@@ -478,6 +480,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     let closest_wall = potential_walls.closest({type});
     let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     const ray_history = this.ray_history;  // for debugging with visualize
+    const debug = this.config.debug;
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -504,7 +507,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
                 
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         // add the intersection point unless we already did
@@ -523,7 +526,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // mark the intersection at the current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -544,7 +547,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(!closest_wall.blocksPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
         
@@ -566,7 +569,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -613,7 +616,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const prior_ray = CCWRay.fromReferenceSquared(origin, last_collision, radius2);
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
         
-        ray_history.push(prior_ray, ray);
+        if(debug) { ray_history.push(prior_ray, ray); }
         
         this._addPadding(prior_ray, ray, collisions);
       }
@@ -623,7 +626,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // try to get new closer wall from this endpoint
       if(!closest_wall) {
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         collisions.push(ray.B.x, ray.B.y); 
         
         closest_wall = potential_walls.closest({type});
@@ -675,7 +678,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // sightline --> endpoint at closest wall --> next closest wall
       
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
       
         // add the intersection point unless we already did
@@ -702,7 +705,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // mark the intersection at the current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2); 
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         
         collisions.push(intersection.x, intersection.y);
@@ -735,7 +738,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       if(!closest_wall.blocksPoint(endpoint, origin)) {
         // Find and mark intersection of sightline --> endpoint --> current closest wall
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         collisions.push(intersection.x, intersection.y);
 
@@ -755,7 +758,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // limited endpoint behind closest wall. 
         // mark that spot on the closest wall: origin --> closest --> limited start/end point
         const ray = CCWRay.fromReferenceSquared(origin, endpoint, radius2);
-        ray_history.push(ray);
+        if(debug) { ray_history.push(ray); }
         const intersection = this._getRayIntersection(closest_wall, ray);
         if(intersection) { collisions.push(intersection.x, intersection.y); }
         //continue
@@ -806,7 +809,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         const ray = CCWRay.fromReferenceSquared(origin, next, radius2);
         this._addPadding(prior_ray, ray, collisions);
         
-        ray_history.push(prior_ray, ray);
+        if(debug) { ray_history.push(prior_ray, ray); }
       
         if(coll_ln < 2) {
           // we added collision point #2, so we need to also connect #1 to #2
