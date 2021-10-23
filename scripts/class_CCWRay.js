@@ -327,6 +327,8 @@ export class CCWRay extends Ray {
     const A = this.A;
     const B = this.B;
 
+//    console.log(`testccw|blocksPoint: AB is ${AB.constructor.name}, A is ${A.constructor.name}, B is ${B.constructor.name}, p is ${p.constructor.name}, origin is ${origin.constructor.name}`); 
+
     // test using A and B in case they are PixelPoints.
     if(A.almostEqual(p, { EPSILON }) || 
        B.almostEqual(p, { EPSILON })) { return false; }
@@ -342,6 +344,8 @@ export class CCWRay extends Ray {
     // to ensure we use the correct ccw test for pixels versus points
     // if line OP splits A and B, then we know AB blocks
     const OP = new this.constructor(origin, p);
+ //   console.log(`testccw|blocksPoint: OP is ${OP.constructor.name}`);
+
     const OPA = OP.ccw(A);
     const OPB = OP.ccw(B);
       
