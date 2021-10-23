@@ -116,17 +116,27 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   /** @override */
   visualize() {
-    let dg = canvas.controls.debug;
-    dg.clear();
-    
+    canvas.controls.debug.clear();
+        
     // Text debugging
     if ( canvas.controls.debug.polygonText ) { 
       canvas.controls.debug.polygonText.destroy(); 
     }
     
+    // draw endpoints in neutral gray (will color collisions later)
+    this.endpoints.forEach(e => e.draw(COLORS.gray))
+    
     // label endpoints in order
     this.endpoints_sorted.forEach((e, idx) => e.label(idx));
     
+    // Define limitation colors & draw candidate edges
+    const limitColors = {
+      [CONST.WALL_SENSE_TYPES.NONE]: 0x77E7E8,
+      [CONST.WALL_SENSE_TYPES.NORMAL]: 0xFFFFBB,
+      [CONST.WALL_SENSE_TYPES.LIMITED]: 0x81B90C
+    }
+    
+    this.walls.forEach(w => w.draw(limitColors[w.data[w.type]]));
     
     // draw rays
     this.ray_history.forEach(r => r.draw(COLORS.blue, .7));
@@ -138,14 +148,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       c.draw(COLORS.red);
     }
     
-    // Define limitation colors & draw candidate edges
-    const limitColors = {
-      [CONST.WALL_SENSE_TYPES.NONE]: 0x77E7E8,
-      [CONST.WALL_SENSE_TYPES.NORMAL]: 0xFFFFBB,
-      [CONST.WALL_SENSE_TYPES.LIMITED]: 0x81B90C
-    }
     
-    this.walls.forEach(w => w.draw(limitColors[w.data[w.type]]));
   }
 
   /* -------------------------------------------- */
