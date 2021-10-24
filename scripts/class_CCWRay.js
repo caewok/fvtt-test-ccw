@@ -20,8 +20,8 @@ export class CCWRay extends Ray {
   constructor(A, B) {
     super(A, B);
     
-    this.A = CCWPoint.fromPoint(A);
-    this.B = CCWPoint.fromPoint(B);
+    if(!(A instanceof CCWPoint)) this.A = CCWPoint.fromPoint(A);
+    if(!(B instanceof CCWPoint)) this.B = CCWPoint.fromPoint(B);
     
     this._distanceSquared = undefined;
   }
@@ -155,7 +155,7 @@ export class CCWRay extends Ray {
   */
   project(t) {
     const res = Ray.prototype.project.call(this, t);
-    return CCWPoint.fromPoint(res);
+    return this.A.constructor.fromPoint(res);
   }
 
  /**
@@ -192,7 +192,7 @@ export class CCWRay extends Ray {
   * @return {boolean} Could the segments intersect?
   */
   intersects(r) {  
-    if(!(r instanceof CCWRay)) { r = CCWRay.fromRay(r); }
+    if(!(r instanceof CCWRay)) { r = this.fromRay(r); }
   
     return this.ccw(r.A) !== this.ccw(r.B) &&
            r.ccw(this.A) !== r.ccw(this.B);
@@ -244,7 +244,7 @@ export class CCWRay extends Ray {
     if(!this.contains(intersection, { EPSILON }) || 
        !r.contains(intersection, { EPSILON })) return false;
     
-    return this.A.constructor.fromPoint(intersection);
+    return intersection;
   }
   
  /**

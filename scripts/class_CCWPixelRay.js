@@ -27,8 +27,8 @@ export class CCWPixelRay extends CCWRay {
   constructor(A, B) {
     super(A, B);
     
-    this.A = CCWPixelPoint.fromPoint(A);
-    this.B = CCWPixelPoint.fromPoint(B);
+    if(!(A instanceof CCWPixelPoint)) this.A = CCWPixelPoint.fromPoint(A);
+    if(!(B instanceof CCWPixelPoint)) this.B = CCWPixelPoint.fromPoint(B);
   }
   
  /**
