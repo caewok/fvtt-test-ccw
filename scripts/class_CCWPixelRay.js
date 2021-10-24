@@ -1,6 +1,7 @@
 'use strict';
 
 import { CCWRay } from "./class_CCWRay.js";
+import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
 
 /**
