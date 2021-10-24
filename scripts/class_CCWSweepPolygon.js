@@ -50,12 +50,17 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      */
     this.walls = new Map(); 
     
+    this.start_walls = []; // Array of walls that intersect the starting ray
     this.endpoints_sorted = [];
     this.ray_history = [];
+    
+    
   }
   
   /** @inheritdoc */
   compute() {
+    
+    this._preprocessWalls();
   
     // Same as RadialSweepPolygon up to this._initializeEndpoints
     let t0 = performance.now();
@@ -156,6 +161,28 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   /* -------------------------------------------- */
   /*  Endpoint Management                         */
   /* -------------------------------------------- */
+  
+  
+  /**
+   * Preprocess walls. Needed when walls change in the scene.
+   * TO-DO: Should pull all walls, and later trim by quad tree rectangle.
+   * Could do by filter the wall ids returned by _getCandidateWalls
+   * @private
+   */
+   _preprocessWalls() {
+     let candidate_walls = this._getCandidateWalls();
+     if(!(candidate_walls instanceof Array)) candidate_walls = [...candidate_walls.values()]; 
+     
+     candidate_walls.push(...this._getCanvasEdges());
+     
+     if(game.modules.get(MODULE_ID).api.detect_intersections) { 
+       candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
+     } else {
+       candidate_walls = candidate_walls.map(w => CCWSweepWall.create(w))
+     }
+     
+     this.walls = candidate_walls;
+   }
 
   /**
    * Comparable to RadialSweepPolygon version. Differences:
@@ -165,21 +192,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * - trim walls if using limited radius
    *
    * Initialize the endpoints present for walls within this Scene.
-   * @param {string} type       The type of polygon being constructed in WALL_RESTRICTION_TYPES
    * @private
    */
    _initializeEndpoints() {
-     this.walls.clear();
-     this.endpoints.clear();
+     candidate_walls = this.walls;
      
      const origin = this.origin;
-     const { type, hasRadius, radius, radius2 } = this.config;
+     const { type, hasRadius, radius, radius2, rMin } = this.config;
           
-     // Consider all walls in the Scene
-     // candidate walls sometimes a Set (lights), sometimes an Array (token)
-     let candidate_walls = this._getCandidateWalls();
-     if(!(candidate_walls instanceof Array)) candidate_walls = [...candidate_walls.values()]; 
-
      if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
        // construct a specialized light shape
        // radius informs the shape but otherwise is turned off; rely on border walls
@@ -197,17 +217,10 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        const poly_walls = this.constructGeometricShapeWalls(points);
        candidate_walls.push(...poly_walls);
-     }
-     
-     // add the canvas 4-corners endpoints and walls 
-     if(!hasRadius) { candidate_walls.push(...this._getCanvasEdges()); }
-     
-     // TO-DO: Move this to only when walls change
-     if(game.modules.get(MODULE_ID).api.detect_intersections) { 
+       
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
-     } else {
-       candidate_walls = candidate_walls.map(w => CCWSweepWall.create(w))
      }
+     
      
      candidate_walls.forEach(wall => {       
        // update origin and type for this particular sweep
@@ -251,9 +264,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
          wall.B = b;
        } else {
          this.endpoints.set(bk, wall.B);
-       }
-     
-       this.walls.set(wall.id, wall);
+       } 
+       
+       // add wall to starting walls if it intersects the starting ray
+       if(rMin.intersects(wall)) this.start_walls.push(wall);
+           
      });
      
     
@@ -409,30 +424,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
-      let start_wall = undefined;
-      let end_wall = undefined;
-      
-      if(!hasRadius) {
-         // if not radius-limited, we need the canvas wall that each ray intersects, if any
-         const canvas_walls = this._getCanvasEdges();
-
-         start_wall = canvas_walls.filter(w => w.intersects(rMin))[0];        
-         end_wall = canvas_walls.filter(w => w.intersects(rMax))[0];   
-      }
-
-      const start_point = this._getRayIntersection(start_wall, rMin);
-      const end_point = this._getRayIntersection(end_wall, rMax);
-
-      endpoints.unshift(CCWSweepPoint.fromPoint(start_point, { origin })); // first endpoint
-      endpoints.push(CCWSweepPoint.fromPoint(end_point, { origin } )); // last endpoint
+      // add endpoints at the end of the respective start/end rays
+      endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin });
+      endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin } ))
     }
 
     // ----- STARTING STATE ------ //
     if(endpoints.length > 0) {
       const start_endpoint = endpoints[0];
-      const start_walls = [...this.walls.values()].filter(w => {
-        if(!rMin.intersects(w)) return false;
-
+      const start_walls = this.start_walls.filter(w => {
         // if the starting endpoint is at the start of the wall, don't include it
         if(start_endpoint.almostEqual(w.A) || 
            start_endpoint.almostEqual(w.B)) {
