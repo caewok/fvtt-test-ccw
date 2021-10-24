@@ -39,9 +39,9 @@ export class CCWPixelRay extends CCWRay {
   */
   ccw(p) { 
     // if both pixels, normal ccw will work fine.
-    if(p instanceof CCWPixelPoint) {
-      return CCWPoint.ccw(this.A, this.B, p, { robust: false });
-    }
+    // need not be robust or check for near 0
+    const orientation = CCWPoint.orient2d(this.A, this.B, p);
+    if(p instanceof CCWPixelPoint) { return Math.sign(orientation); }
     
     // p may be close enough to the line to be colinear
     // orient2d returns ~ double the area of the triangle formed by the three points.
@@ -49,9 +49,7 @@ export class CCWPixelRay extends CCWRay {
     // area of √2 / 2. 
     // a line 1,2 --> 1,0 with point 1 - √2 / 2, 0 returns √2 / 2 * 2
     // I.e., a given point would be nearly colinear if orient2d <= √2 /2 * line distance
-    // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2
-    
-    const orientation = this.orient2d(p);
+    // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2    
     const orientation2 = orientation * orientation;
     const cutoff = 0.5 * this.distanceSquared;
     
