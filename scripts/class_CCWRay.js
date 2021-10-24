@@ -203,7 +203,9 @@ export class CCWRay extends Ray {
   * Get the intersection between this ray and another if both were infinite?
   * @param {Ray}    r         Other ray to test for intersection
   * @param {number} EPSILON   How exact is the parallel test?
-  * @return {CCWRay|false} Could the segments intersect?
+  * @return {CCWPoint|false}  Point of intersection or false.
+  *                           Point is always CCWPoint b/c it is likely non-integer
+  *                           and could be compared to nearby PixelPoints. 
   */
   potentialIntersection(r, { EPSILON = PRESET_EPSILON } = {}) {
     
@@ -225,11 +227,8 @@ export class CCWRay extends Ray {
     const t0 = (r.dx * (y1 - y3) - r.dy * (x1 - x3)) / d
     //const t0 = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d;
     
-    return new this.A.constructor(this.A.x + t0 * this.dx,
-                                  this.A.y + t0 * this.dy);
-    
-    // return new this.A.constructor(x1 + t0 * (x2 - x1),
-//                                   y1 + t0 * (y2 - y1));
+    return new CCWPoint(x1 + t0 * this.dx,
+                        y1 + t0 * this.dy);
   }
   
  /**
