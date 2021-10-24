@@ -207,8 +207,7 @@ export class CCWRay extends Ray {
   *                           Point is always CCWPoint b/c it is likely non-integer
   *                           and could be compared to nearby PixelPoints. 
   */
-  potentialIntersection(r, { EPSILON = PRESET_EPSILON } = {}) {
-    
+  potentialIntersection(r, { EPSILON = PRESET_EPSILON } = {}) { 
     const x1 = this.A.x;
     const y1 = this.A.y;
     //const x2 = this.B.x;
@@ -238,12 +237,12 @@ export class CCWRay extends Ray {
   * @return {CCWRay|false} Could the segments intersect?
   */
   intersection(r, { EPSILON = PRESET_EPSILON } = {}) {
-    const intersection = this.potentialIntersection(r, { EPSILON });
-    if(!intersection) return false;
-    if(!this.contains(intersection, { EPSILON }) || 
-       !r.contains(intersection, { EPSILON })) return false;
+    // intersect is very fast, so test that first
+    // intersect assumes segments, not lines, so can avoid testing 
+    // if the points are contained in the segment
+    if(!this.intersects(r)) { return false; }
     
-    return intersection;
+    return this.potentialIntersection(r, { EPSILON });
   }
   
  /**
