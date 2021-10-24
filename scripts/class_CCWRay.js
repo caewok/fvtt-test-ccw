@@ -183,7 +183,7 @@ export class CCWRay extends Ray {
   * @param {PIXI.Point} p
   * @return {1|0|-1}   1 if CCW, -1 if CW, 0 if colinear
   */
-  ccw(p) { return CCWPoint.ccw(this.A, this.B, p); }
+  ccw(p, { EPSILON = PRESET_EPSILON } = {}) { return CCWPoint.ccw(this.A, this.B, p, { EPSILON }); }
   
  /**
   * Quick function to determine if this ray could intersect another
