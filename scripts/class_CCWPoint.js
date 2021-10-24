@@ -126,7 +126,8 @@ export class CCWPoint extends PIXI.Point {
   * @return {boolean}
   */
   almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
-    return CCWPoint.almostEqual(this, p, { EPSILON });
+    return almostEqual(p1.x, p2.x, { EPSILON }) ? 
+           almostEqual(p1.y, p2.y, { EPSILON }) : false;
   }
   
  /**
