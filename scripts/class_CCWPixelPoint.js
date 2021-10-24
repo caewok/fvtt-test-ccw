@@ -1,5 +1,5 @@
 'use strict';
-/* globals PIXI, WallEndpoint */
+/* globals WallEndpoint */
 
 import { CCWPoint } from "./class_CCWPoint.js";
 import { PRESET_EPSILON } from "./util.js";

@@ -195,7 +195,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @private
    */
    _initializeEndpoints() {
-     candidate_walls = this.walls;
+     let candidate_walls = this.walls;
      
      const origin = this.origin;
      const { type, hasRadius, radius, radius2, rMin } = this.config;
@@ -425,8 +425,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
     if(isLimited) {
       // add endpoints at the end of the respective start/end rays
-      endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin });
-      endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin } ))
+      endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin }));
+      endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin }));
     }
 
     // ----- STARTING STATE ------ //
@@ -601,6 +601,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     let closest_wall = potential_walls.closest({type});
     let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     const ray_history = this.ray_history; // for debugging with visualize
+    const debug = this.config.debug;
     
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
