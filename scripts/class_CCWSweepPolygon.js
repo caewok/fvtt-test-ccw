@@ -493,8 +493,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
-         endpoint.almostEqual(closest_wall.B, 1e-1)) {
+      if(endpoint.almostEqual(closest_wall.A) || 
+         endpoint.almostEqual(closest_wall.B)) {
 
         collisions.push(endpoint.x, endpoint.y);
         
@@ -512,15 +512,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // add the intersection point unless we already did
         // (occurs at join points of two walls)
-        if(!endpoint.almostEqual(intersection, 1e-1)) { collisions.push(intersection.x, intersection.y) }
+        if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
         
         continue;
       }
       
       // the following can only happen if the actual closest wall is a terrain wall
       if(actual_closest_wall.id !== closest_wall.id &&
-         (endpoint.almostEqual(actual_closest_wall.A, 1e-1) || 
-          endpoint.almostEqual(actual_closest_wall.B, 1e-1))) {
+         (endpoint.almostEqual(actual_closest_wall.A) || 
+          endpoint.almostEqual(actual_closest_wall.B))) {
           
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
@@ -537,9 +537,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
         // check to see if the intersection has changed
-        const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
-          
+        let new_intersection = this._getRayIntersection(closest_wall, ray);
+        
+        // coerce the new_intersection to a PixelPoint, b/c it may be a collision
+        if(!(new_intersection instanceof CCWPixelPoint)) {
+          new_intersection = CCWPixelPoint.fromPoint(new_intersection);
+        }
+        
+        if(!new_intersection.almostEqual(intersection)) { 
+          collisions.push(new_intersection.x, new_intersection.y); 
+        }   
         continue; 
       }
       
@@ -559,8 +566,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
         // check to see if the intersection has changed
-        const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        let new_intersection = this._getRayIntersection(closest_wall, ray);
+        
+        // coerce the new_intersection to a PixelPoint, b/c it may be a collision
+        if(!(new_intersection instanceof CCWPixelPoint)) {
+          new_intersection = CCWPixelPoint.fromPoint(new_intersection);
+        }
+        
+        if(!new_intersection.almostEqual(intersection)) { 
+          collisions.push(new_intersection.x, new_intersection.y); 
+        }
         
         continue;
       }
@@ -667,8 +682,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // is this endpoint at the end of the closest_wall?
       // (if it were the beginning of a wall, that wall would not yet be the closest)
       // TO-DO: Would it be faster/better to compare the point keys?
-      if(endpoint.almostEqual(closest_wall.A, 1e-1) || 
-         endpoint.almostEqual(closest_wall.B, 1e-1)) {
+      if(endpoint.almostEqual(closest_wall.A) || 
+         endpoint.almostEqual(closest_wall.B)) {
         closest_wall = potential_walls.closest({type});
         actual_closest_wall = potential_walls.closest({skip_terrain: false});
         
@@ -686,21 +701,21 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         // (occurs at join points of two walls)
         // Possible that the intersection is a floating point and thus
         // must test almost equal, not endpoint keys
-        if(!endpoint.almostEqual(intersection, 1e-1)) { collisions.push(intersection.x, intersection.y) }
+        if(!endpoint.almostEqual(intersection)) { collisions.push(intersection.x, intersection.y) }
           
         // if the ray does not actually intersect the closest wall, we need to add padding
         // if the intersection point is basically at the endpoint, skip
         if(!closest_wall || 
           (!ray.intersects(closest_wall) && 
-           !endpoint.almostEqual(intersection, 1e-1))) { needs_padding = true; }  
+           !endpoint.almostEqual(intersection))) { needs_padding = true; }  
         
         continue;
       }
       
       // the following can only happen if the actual closest wall is a terrain wall
       if(actual_closest_wall.id !== closest_wall.id &&
-         (endpoint.almostEqual(actual_closest_wall.A, 1e-1) || 
-          endpoint.almostEqual(actual_closest_wall.B, 1e-1))) {
+         (endpoint.almostEqual(actual_closest_wall.A) || 
+          endpoint.almostEqual(actual_closest_wall.B))) {
           
         // origin --> (actual) closest terrain wall endpoint --> closest wall (might be terrain) --> other walls?
         
@@ -718,13 +733,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
         // check to see if the intersection has changed
         const new_intersection = this._getRayIntersection(closest_wall, ray);
-        if(!intersection.almostEqual(new_intersection, 1e-1)) { collisions.push(new_intersection.x, new_intersection.y) }
+        if(!intersection.almostEqual(new_intersection)) { collisions.push(new_intersection.x, new_intersection.y) }
           
         // if the ray does not actually intersect the closest wall, we need to add padding
         // if the intersection point is basically at the endpoint, skip
         if(!closest_wall || 
           (!ray.intersects(closest_wall) && 
-           !intersection.almostEqual( new_intersection, 1e-1))) { needs_padding = true; }  
+           !intersection.almostEqual( new_intersection))) { needs_padding = true; }  
           
         continue; 
       }
@@ -821,6 +836,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
     //this.points = collisions;
   }
+  
+  // ----------- SWEEP SUB-METHODS -------------- // 
+
+  
+  
   
   /*
    * Construct a CCWSweepPoint from a ray, testing if it hits a wall.
