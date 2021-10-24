@@ -309,7 +309,7 @@ export class SimpleSweepIntersections {
          // count the intersection unless it is an endpoint of that wall
          // compare by endpoints b/c those are likely CCWPixelPoints.
          if(!(w0.A.almostEqual(i_point) || 
-              w0.B.almostEqual(i_point)) {
+              w0.B.almostEqual(i_point))) {
             this.intersections_map.push(w0.id, i_point);
          }
           
