@@ -16,7 +16,7 @@ export class CCWSweepWall extends CCWPixelRay {
 
     if(update_endpoints) {
       this.A = new CCWSweepPoint(A.x, A.y);
-      this.A = new CCWSweepPoint(B.x, B.y);
+      this.B = new CCWSweepPoint(B.x, B.y);
     } 
         
     this.A.walls.set(this.id, this);

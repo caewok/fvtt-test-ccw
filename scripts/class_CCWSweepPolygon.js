@@ -648,7 +648,7 @@ Endpoint is at end of closest wall:
       // for debugging
       if(!hasRadius) { console.error(`testccw|_markWallIntersection unexpectedly found no closest wall`); }
 
-      ray = CCWPixelRay.fromReferenceSquared(this.origin, endpoint, radius2); 
+      const ray = CCWPixelRay.fromReferenceSquared(this.origin, endpoint, radius2); 
       this.ray_history.push(ray);
       this.points.push(ray.B.x, ray.B.y);
       return { padding: true };
