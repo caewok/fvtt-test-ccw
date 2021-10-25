@@ -640,29 +640,49 @@ Endpoint is at end of closest wall:
   * Mark the intersection for a wall.
   */
   _markWallIntersection(endpoint, potential_walls) {
-    const { type, radius2 } = this.config;
+    const { type, hasRadius, radius2 } = this.config;
     const closest_wall = potential_walls.closest({type}); // if terrain, this is second-closest
-    
-    // Find the intersection point for the next-closest wall
-    const ray = CCWPixelRay.fromReferenceSquared(this.origin, endpoint, radius2); 
-    this.ray_history.push(ray);
-    
-    // if no closest wall, then needs padding; return
+        
+    // if no closest wall, needs padding. Find the radius point for the ray
     if(!closest_wall) {
+      // for debugging
+      if(!hasRadius) { console.error(`testccw|_markWallIntersection unexpectedly found no closest wall`); }
+
+      ray = CCWPixelRay.fromReferenceSquared(this.origin, endpoint, radius2); 
+      this.ray_history.push(ray);
       this.points.push(ray.B.x, ray.B.y);
       return { padding: true };
     }
     
-    const intersection = closest_wall.intersection(ray);
-    
-    // if no intersection, then we need padding
-    if(!intersection) {
-      this.points.push(ray.B.x, ray.B.y);
-      return { padding: true };
+    // does the next closest wall left endpoint share this endpoint?
+    // then we are just walking from old closest wall to new closest.
+    if(closest_wall.leftEndpoint.almostEqual(endpoint)) { return; }
+     
+    // Find the intersection point for the next-closest wall
+    // if we need to consider the radius, draw the ray to the radius
+    let intersection;
+    if(hasRadius) {
+      const ray = CCWPixelRay.fromReferenceSquared(this.origin, endpoint, radius2);
+      this.ray_history.push(ray); 
+      intersection = closest_wall.intersection(ray);
+     
+      // if no intersection, then we need padding
+      if(!intersection) {
+        this.points.push(ray.B.x, ray.B.y);
+        return { padding: true };
+      }
+    } else {
+      // use potentialIntersection b/c we know the next closest wall must intersect.
+      // that is b/c if it is in the wall queue, the sweep line must be between 
+      // the two endpoints for the wall (otherwise it either would not yet be added or
+      // would already be removed.)
+      const ray = new CCWPixelRay(this.origin, endpoint);
+      this.ray_history.push(ray);
+      intersection = closest_wall.potentialIntersection(ray);
     }
     
     if(!endpoint.almostEqual(intersection)) {
-      this.points.push(intersection.x, intersection.y)
+      Poly.points.push(intersection.x, intersection.y)
     }
   }
 
