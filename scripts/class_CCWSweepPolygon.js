@@ -412,8 +412,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
     
     // reset the ray history
-    if(this.config.debug) { this.ray_history = [rMin]; }
-    if(this.config.debug && rMax) this.ray_history.push(rMax);
+    this.ray_history = [rMin]; 
+    if(rMax) this.ray_history.push(rMax);
 
     // ----- SORT ENDPOINTS ----- //
     // Sort endpoints from the rMin to rMax rays.
@@ -677,21 +677,7 @@ Endpoint is at end of closest wall:
     this._markWallIntersection(endpoint, potential_walls);
     
     this.points.push(endpoint.x, endpoint.y);
-  
-    // Find and mark intersection of sightline --> endpoint --> current closest wall
-    const ray = CCWPixelRay.fromReferenceSquared(origin, endpoint, radius2); 
-    this.ray_history.push(ray);
-
-    const closest_wall = potential_walls.closest({type}); // if terrain, this is second-closest
-
-    if(!closest_wall) { 
-     // 
-
-    }
-
-    const intersection = closest_wall.intersection(ray);
-    this.points.push(intersection.x, intersection.y);
-
+    potential_walls.addFromEndpoint(endpoint);
   }
  
 
