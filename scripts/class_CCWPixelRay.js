@@ -28,7 +28,7 @@ export class CCWPixelRay extends CCWRay {
     super(A, B, { update_endpoints: false });
     
     if(update_endpoints) {
-      this.A = new CCWPixelPoint(A.x, y: A.y);
+      this.A = new CCWPixelPoint(A.x, A.y);
       this.A = new CCWPixelPoint(B.x, B.y);
     } 
   }

@@ -15,7 +15,7 @@ export class CCWSweepWall extends CCWPixelRay {
     super(A, B, { update_endpoints: false });
 
     if(update_endpoints) {
-      this.A = new CCWSweepPoint(A.x, y: A.y);
+      this.A = new CCWSweepPoint(A.x, A.y);
       this.A = new CCWSweepPoint(B.x, B.y);
     } 
         

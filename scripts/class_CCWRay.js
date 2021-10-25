@@ -24,7 +24,7 @@ export class CCWRay extends Ray {
     super(A, B);
     
     if(update_endpoints) {
-      this.A = new CCWPoint(A.x, y: A.y);
+      this.A = new CCWPoint(A.x, A.y);
       this.A = new CCWPoint(B.x, B.y);
     } 
     
