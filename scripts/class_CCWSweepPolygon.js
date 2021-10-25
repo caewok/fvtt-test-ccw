@@ -27,6 +27,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   constructor(...args) {
     super(...args);
 
+    //console.log(`testccw|Constructing polygon`); 
+
     //console.log(`${MODULE_ID}|CCWSweepPolygon created.`);
   
     /**
@@ -60,7 +62,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   /** @inheritdoc */
   compute() {
-    
+    //console.log(`testccw|Computing polygon`); 
+  
     this._preprocessWalls();
   
     // Same as RadialSweepPolygon up to this._initializeEndpoints
@@ -83,19 +86,24 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
       this.visualize();
     }  
+
+    //console.log(`testccw|${this.points.length} points`, this.points);
     
     // Clean up
-    delete this.endpoints;
-    delete this.walls;
-    delete this.ray_history;
-    delete this.endpoints_sorted;
+//    delete this.endpoints;
+//    delete this.walls;
+//    delete this.ray_history;
+//    delete this.endpoints_sorted;
     return this;
   }
   
   /** @inheritdoc */
   initialize(origin, {type="sight", angle=360, density=6, radius, rotation=0, debug=false} = {}) {  
+    //console.log(`testccw|Initializing polygon`); 
     super.initialize(origin, {type, angle, density, radius, rotation, debug});
     const cfg = this.config;
+
+    if(game.modules.get('testccw').api.debug) cfg.debug = true;
     
     this.origin = CCWPixelPoint.fromPoint(origin);
     
@@ -500,6 +508,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   _sweepEndpointsRadius(potential_walls, endpoints) {
+    //console.log(`testccw|_sweepEndpointsRadius`);
     const { type, isLimited } = this.config;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
@@ -517,7 +526,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
       
       if(!closest_wall) {
-        Poly._processEndpointInFront(endpoint, potential_walls);
+        this._processEndpointInFront(endpoint, potential_walls);
       
       } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         const res = this._processEndOfWall(endpoint, potential_walls);
@@ -540,7 +549,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const coll_ln = this.points.length;
     if(coll_ln < 3) needs_padding = true; // no way to have 2 points encompass vision
     
-    if(needs_padding) { this._addPaddingAtRadiusSweepEnd(closest_wall); }
+    if(needs_padding) { 
+     //console.log(`testccw|adding padding`);
+     this._addPaddingAtRadiusSweepEnd(closest_wall); }
   }
     
     
@@ -577,6 +588,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _addPaddingAtRadiusSweepEnd(closest_wall) {
     const collisions = this.points;
     const coll_ln = collisions.length;
+    const origin = this.origin;
     const { radius, radius2 } = this.config;
   
     // next two might have undefined, depending on number of collisions
@@ -592,6 +604,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        closest_wall.contains(next)) { 
        return;
     } 
+
+    //console.log(`testccw|_addPaddingAtRadiusSweepEnd adding padding to ${collisions.length} collisions.`);
 
     if(coll_ln === 0) {
       // pick an appropriate point
@@ -610,6 +624,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // basically same as padding in the algorithm for loop above
     const prior_ray = CCWPixelRay.fromReferenceSquared(origin, prior, radius2);
     const ray = CCWPixelRay.fromReferenceSquared(origin, next, radius2);
+    //console.log(`testccw|_addPaddingAtRadiusSweepEnd now have ${collisions.length} collisions.`, prior_ray, ray);
     this._addPadding(prior_ray, ray, collisions);
 
     this.ray_history.push(prior_ray, ray);
@@ -618,8 +633,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // we added collision point #2, so we need to also connect #1 to #2
       collisions.push(next.x, next.y);
       this._addPadding(ray, prior_ray, collisions); 
+      //console.log(`testccw|_addPaddingAtRadiusSweepEnd now have ${collisions.length} collisions.`, prior_ray, ray);
     }
-    
+    //console.log(`testccw|_addPaddingAtRadiusSweepEnd now have ${collisions.length} collisions.`);
+
+    this.points = collisions;
   }      
       
       
@@ -685,7 +703,7 @@ Endpoint is at end of closest wall:
     }
     
     if(!endpoint.almostEqual(intersection)) {
-      Poly.points.push(intersection.x, intersection.y)
+      this.points.push(intersection.x, intersection.y)
     }
   }
 
@@ -934,6 +952,7 @@ Endpoint is at end of closest wall:
      
      // for each wall, test if valid for the type and if it intersects with the ray
      const intersecting_walls = [];
+     ray = CCWRay.fromRay(ray);
      for(let i = 0; i < ln; i += 1) {
        const wall = CCWSweepWall.create(candidate_walls[i], { origin: ray.A, type: type });
        if(!wall.include) continue;
