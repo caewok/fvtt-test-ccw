@@ -448,8 +448,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 //     }
 
     // ----- STARTING STATE ------ //
-    if(endpoints.length > 0) {
-      const start_endpoint = endpoints[0];
+    if(isLimited || endpoints.length > 0) {
+      const start_endpoint = isLimited ? rMin.B : endpoints[0];
       const start_walls = this.start_walls.filter(w => {
         // if the starting endpoint is at the start of the wall, don't include it
         if(start_endpoint.almostEqual(w.A) || 
@@ -555,6 +555,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       // deal with the minimum limited angle ray
       if(!closest_wall) {
         this.points.push(rMin.B.x, rMin.B.y);
+        needs_padding = true;
       } else if(closest_wall.blocksPoint(rMin.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
