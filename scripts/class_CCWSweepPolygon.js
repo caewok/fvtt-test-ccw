@@ -544,7 +544,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   
   _sweepEndpointsRadius(potential_walls, endpoints) {
     //console.log(`testccw|_sweepEndpointsRadius`);
-    const { type, isLimited } = this.config;
+    const { type, isLimited, rMin, rMax } = this.config;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
     //let actual_closest_wall = potential_walls.closest({skip_terrain: false});
@@ -558,7 +558,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       } else if(closest_wall.blocksPoint(rMin.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
-        res = this._markWallIntersection(rMin.B, potential_walls);
+        const res = this._markWallIntersection(rMin.B, potential_walls);
         needs_padding = res?.padding;
       } else {
         // limited endpoint is in front; mark it
