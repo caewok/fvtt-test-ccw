@@ -498,13 +498,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     if(isLimited) {
-      if(closest_wall.blocksPoint(rMin.B)) {
+      if(closest_wall.blocksPoint(rMin.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
-        this._markWallIntersection(endpoint, potential_walls);
+        this._markWallIntersection(rMin.B, potential_walls);
       } else {
         // limited endpoint is in front; mark it
-        this.points.push(endpoint.x, endpoint.y);
+        this.points.push(rMin.B.x, rMin.B.y);
       }
     }
     
@@ -526,13 +526,13 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
     
     if(isLimited) {
-      if(closest_wall.blocksPoint(rMax.B)) {
+      if(closest_wall.blocksPoint(rMax.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
-        this._markWallIntersection(endpoint, potential_walls);
+        this._markWallIntersection(rMax.B, potential_walls);
       } else {
         // limited endpoint is in front; mark it
-        this.points.push(endpoint.x, endpoint.y);
+        this.points.push(rMax.B.x, rMax.B.y);
       }
     }
   }
@@ -548,15 +548,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     
     if(isLimited) {
       if(!closest_wall) {
-        this.points.push(endpoint.x, endpoint.y);
-      } else if(closest_wall.blocksPoint(rMin.B)) {
+        this.points.push(rMin.B.x, rMin.B.y);
+      } else if(closest_wall.blocksPoint(rMin.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
-        res = this._markWallIntersection(endpoint, potential_walls);
+        res = this._markWallIntersection(rMin.B, potential_walls);
         needs_padding = res?.padding;
       } else {
         // limited endpoint is in front; mark it
-        this.points.push(endpoint.x, endpoint.y);
+        this.points.push(rMin.B.x, rMin.B.y);
       }
     }
     
@@ -594,14 +594,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
       
       if(!closest_wall) {
-        this.points.push(endpoint.x, endpoint.y);
-      } else if(closest_wall.blocksPoint(rMax.B)) {
+        this.points.push(rMax.B.x, rMax.B.y);
+      } else if(closest_wall.blocksPoint(rMax.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
-        this._markWallIntersection(endpoint, potential_walls);
+        this._markWallIntersection(rMax.B, potential_walls);
       } else {
         // limited endpoint is in front; mark it
-        this.points.push(endpoint.x, endpoint.y);
+        this.points.push(rMax.B.x, rMax.B.y);
       }
       needs_padding = false;
     }
