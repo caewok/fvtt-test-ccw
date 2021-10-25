@@ -197,6 +197,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
    _initializeEndpoints() {
      let candidate_walls = this.walls;
+     this.endpoints.clear()
      
      const origin = this.origin;
      const { type, hasRadius, radius, radius2, rMin } = this.config;
