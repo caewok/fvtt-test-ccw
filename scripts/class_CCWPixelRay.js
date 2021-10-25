@@ -24,11 +24,13 @@ import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
  */
 
 export class CCWPixelRay extends CCWRay {
-  constructor(A, B) {
-    super(A, B);
+  constructor(A, B, { update_endpoints = true } = {}) {
+    super(A, B, { update_endpoints: false });
     
-    if(!(A instanceof CCWPixelPoint)) this.A = CCWPixelPoint.fromPoint(A);
-    if(!(B instanceof CCWPixelPoint)) this.B = CCWPixelPoint.fromPoint(B);
+    if(update_endpoints) {
+      this.A = new CCWPixelPoint(A.x, y: A.y);
+      this.A = new CCWPixelPoint(B.x, B.y);
+    } 
   }
   
  /**

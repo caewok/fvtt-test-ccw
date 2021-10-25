@@ -11,18 +11,14 @@ import { CCWSweepPoint } from "./class_CCWSweepPoint.js";
  * @extends{CCWSightRay}
  */
 export class CCWSweepWall extends CCWPixelRay {
-  constructor(A, B, { origin, type, clear_endpoint_walls = true } = {}) {
-    super(A, B);
+  constructor(A, B, { origin, type, update_endpoints = true } = {}) {
+    super(A, B, { update_endpoints: false });
 
-    // Re-set A and B
-    if(!(this.A instanceof CCWSweepPoint)) this.A = CCWSweepPoint.fromPoint(A);
-    if(!(this.B instanceof CCWSweepPoint)) this.B = CCWSweepPoint.fromPoint(B);
-    
-    if(clear_endpoint_walls) {
-      this.A.walls.clear();
-      this.B.walls.clear();
-    }
-    
+    if(update_endpoints) {
+      this.A = new CCWSweepPoint(A.x, y: A.y);
+      this.A = new CCWSweepPoint(B.x, B.y);
+    } 
+        
     this.A.walls.set(this.id, this);
     this.B.walls.set(this.id, this);
     
