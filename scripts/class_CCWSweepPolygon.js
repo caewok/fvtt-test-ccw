@@ -498,6 +498,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     if(isLimited) {
+      // deal with the minimum limited angle ray
+      // Mark either the endpoint or (more likely) the intersection with closest wall.
       if(closest_wall.blocksPoint(rMin.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
@@ -526,6 +528,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
     
     if(isLimited) {
+      // deal with the maximum limited angle ray
+      // need to first update the closest wall
+      closest_wall = potential_walls.closest({type});
       if(closest_wall.blocksPoint(rMax.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
@@ -547,6 +552,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     let needs_padding = false;
     
     if(isLimited) {
+      // deal with the minimum limited angle ray
       if(!closest_wall) {
         this.points.push(rMin.B.x, rMin.B.y);
       } else if(closest_wall.blocksPoint(rMin.B, origin)) {
@@ -588,6 +594,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     }
     
     if(isLimited) {
+      // deal with the maximum limited angle ray
+      // need to first update the closest wall
+      closest_wall = potential_walls.closest({type});
       if(needs_padding) {
         this._addPaddingForEndpoint(rMax.B);
         needs_padding = false;
