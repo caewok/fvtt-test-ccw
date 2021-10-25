@@ -14,13 +14,12 @@ export class CCWSweepWall extends CCWPixelRay {
   constructor(A, B, { origin, type } = {}) {
     super(A, B);
 
-    // Re-set A and B with origin and radius
-    // See setter below
-    this._A = CCWSweepPoint.fromPoint(A, { origin  });
-    this._B = CCWSweepPoint.fromPoint(B, { origin });
+    // Re-set A and B
+    if(!(this.A instanceof CCWSweepPoint)) this.A = CCWSweepPoint.fromPoint(A);
+    if(!(this.B instanceof CCWSweepPoint)) this.B = CCWSweepPoint.fromPoint(B);
     
-    this._A.walls.set(this.id, this);
-    this._B.walls.set(this.id, this);
+    this.A.walls.set(this.id, this);
+    this.B.walls.set(this.id, this);
     
     /* -------------------------------------------- */
     /*  Properties                                  */
@@ -66,6 +65,12 @@ export class CCWSweepWall extends CCWPixelRay {
     * @type {string}
     */ 
     this.type = type;
+    
+   /**
+    * Cache the left and right endpoints in relation to origin.
+    * @type {CCWSweepPoint}
+    */
+    this._endpointOrientation = undefined;
   }
   
   /* -------------------------------------------- */
@@ -84,13 +89,13 @@ export class CCWSweepWall extends CCWPixelRay {
    * @type {string}
    */ 
   set id(value ) { 
-    this._A.walls.delete(this.id);
-    this._B.walls.delete(this.id);
+    this.A.walls.delete(this.id);
+    this.B.walls.delete(this.id);
     
     this._id = value; 
     
-    this._A.walls.set(this.id, this);
-    this._B.walls.set(this.id, this);
+    this.A.walls.set(this.id, this);
+    this.B.walls.set(this.id, this);
   }
    
   /*
@@ -106,6 +111,8 @@ export class CCWSweepWall extends CCWPixelRay {
   set origin(value) {
     this._origin = value;
     this._ccwOrigin = undefined;
+    this._distanceSquaredOrigin = undefined;
+    this._endpointOrientation = undefined;
   }
   
  /**
@@ -116,34 +123,30 @@ export class CCWSweepWall extends CCWPixelRay {
     return this._ccwOrigin;
   }
   
-  /**
-   * Make A and B SweepPoints
-   * Useful for consistency in treating endpoints and walls
-   * @type {CCWSweepPoint}
-   */
-   get A() { return this._A; }
-   set A(value) {
-     this._A = CCWSweepPoint.fromPoint(value);
-   }
-   
-  /**
-   * @type {CCWSweepPoint}
-   */
-   get B() { return this._B; }
-   set B(value) {
-     this._B = CCWSweepPoint.fromPoint(value);
-   }
-   
-    /*
-   * Report the side of the origin in relation to the wall, using ccw algorithm.
-   * Return in terms of CONST.WALL_DIRECTIONS
-   *
-   * Wall left/right direction measured in Foundry from wall.B --> wall.A
-   * 
-   * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
-   *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
-   *                 BOTH if all three points are in line.
-   */
+ /**
+  * Cache the distance squared to the origin.
+  * Every use case seems to check both A and B, so just cache together.
+  */
+  get distanceSquaredOrigin() {
+    if(this._distanceSquaredOrigin === undefined) {
+      this._distanceSquaredOrigin = { A: this.A.distanceSquared(this.origin),
+                                      B: this.B.distanceSquared(this.origin) }
+    }
+    return this._distanceSquaredOrigin;
+  }
+  
+  
+
+ /**
+  * Report the side of the origin in relation to the wall, using ccw algorithm.
+  * Return in terms of CONST.WALL_DIRECTIONS
+  *
+  * Wall left/right direction measured in Foundry from wall.B --> wall.A
+  * 
+  * @return {0|1|2} RIGHT if wall.B --> wall.A --> origin is a CCW (left) turn
+  *                 LEFT if wall.B --> wall.A --> origin is a CW (right) turn
+  *                 BOTH if all three points are in line.
+  */
   get whichSide() {
     const orientation = this.ccwOrigin;
   
@@ -152,8 +155,35 @@ export class CCWSweepWall extends CCWPixelRay {
                              CONST.WALL_DIRECTIONS.BOTH;
   }  
   
-   
- 
+ /**
+  * Get the point counterclockwise (left/start) in relation to the origin.
+  * If in line with the origin, the closer point is the left/start point
+  * Will be the starting point for the sweep.
+  * Named 'left' and 'right' to avoid confusion with ccw/cw. or start/end endpoint.
+  */
+  get leftEndpoint() {
+    if(this._endpointOrientation === undefined) {
+      if(this.ccwOrigin === 0) {
+        this._endpointOrientation = 
+          this._distanceSquaredOrigin.A > this._distanceSquaredOrigin.B ?
+          { left: this.B, right: this.A } : { left: this.A, right: this.B };
+        
+      } else {
+        this._endpointOrientation = this.ccwOrigin === 1 ? 
+          { left: this.B, right: this.A } : { left: this.A, right: this.B };
+      }
+    }
+    return this._endpointOrientation.left;
+  }
+  
+  get rightEndpoint() {
+    if(this._endpointOrientation === undefined) {
+      // just run the left endpoint again to set both.
+      this.leftEndpoint;
+    }
+    return this._endpointOrientation.right;
+  }
+  
    
    
   /* -------------------------------------------- */
@@ -254,6 +284,7 @@ export class CCWSweepWall extends CCWPixelRay {
     // Ignore one-directional walls which are facing away from the origin    
     return origin_side === this.data.dir;
   }
+  
   
 
 } 
