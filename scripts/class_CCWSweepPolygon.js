@@ -494,7 +494,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
       } else {
         // endpoint is behind the closest wall; nothing more to do.
-        potential_walls.addFromEndpoint(endpoint);
+        potential_walls.updateWallsFromEndpoint(endpoint);
       }
     }
   }
@@ -525,7 +525,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         
       } else {
         // endpoint is behind the closest wall; nothing more to do.
-        potential_walls.addFromEndpoint(endpoint);
+        potential_walls.updateWallsFromEndpoint(endpoint);
       }
       closest_wall = potential_walls.closest({type});
     }
@@ -671,14 +671,12 @@ Endpoint is at end of closest wall:
   * 1. mark the intersection on the current closest wall.
   * 2. Mark this closer endpoint
   */
-  _processEndpointInFront(endpoint, potential_walls) {
-    const { type, radius2 } = this.config;
-    
+  _processEndpointInFront(endpoint, potential_walls) {    
     // endpoint in front, so the current closest wall needs to be marked
     this._markWallIntersection(endpoint, potential_walls);
     
     this.points.push(endpoint.x, endpoint.y);
-    potential_walls.addFromEndpoint(endpoint);
+    potential_walls.updateWallsFromEndpoint(endpoint);
   }
  
 
@@ -690,7 +688,7 @@ Endpoint is at end of closest wall:
   */
   _processEndOfWall(endpoint, potential_walls) {
     this.points.push(endpoint.x, endpoint.y);
-    potential_walls.addFromEndpoint(endpoint);
+    potential_walls.updateWallsFromEndpoint(endpoint);
     return this._markWallIntersection(endpoint, potential_walls);
   }
   

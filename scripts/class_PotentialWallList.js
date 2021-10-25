@@ -60,26 +60,29 @@ export class PotentialWallList extends BinarySearchTree {
   * Add walls connected to an endpoint to the list.
   * @param {Endpoint} endpoint    Endpoint containing 0+ walls connected to it.
   */
-  addFromEndpoint(endpoint) {
+  updateWallsFromEndpoint(endpoint) {
     // endpoint.walls are a Set
   
     const to_remove = [];
     const to_add = [];
     
     endpoint.walls.forEach(w => {
-      // if we have already seen it, it must be CCW
-      // or (unlikely) it is otherwise CCW
-      if(this.walls_encountered.has(w.id) || 
-         PotentialWallList.endpointWallCCW(this.origin, endpoint, w) >= 0) {
-         to_remove.push(w)
+      // walls with this endpoint as the left endpoint should be added
+      // walls with this endpoint as the right endpoint should be removed
+      if(w.leftEndpoint.almostEqual(endpoint)) {
+        to_add.push(w)
+      } else if(w.rightEndpoint.almostEqual(endpoint)){
+        to_remove.push(w)
       } else {
-        to_add.push(w);
+        // for debugging; can remove the rightEndpoint test later.
+        console.error(`testccw|updateWallsFromEndpoint: Encountered wall that does not share endpoint.`);
       }
-    })
+    });
     
     this.removeWalls(to_remove);
     this.addWalls(to_add);
   }
+     
   
  /**
   * Remove walls connected to an endpoint from the list 
@@ -162,7 +165,7 @@ export class PotentialWallList extends BinarySearchTree {
     const D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    const ABO = AB.ccw(origin);
+    const ABO = AB.ccw(origin); 
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
 
