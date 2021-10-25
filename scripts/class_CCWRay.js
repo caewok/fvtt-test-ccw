@@ -13,15 +13,20 @@ import { MODULE_ID } from "./module.js";
  * Subclass of Ray with additional methods to calculate intersections and orientation.
  * Like Foundry method, a "ray" considered to have a starting point A and ending point B.
  * Unlike Foundry method, the CCWRay uses CCWPoint.
+ * @param {boolean} update_endpoints    If true, re-create endpoints so that whatever is 
+ *                                      passed through is not linked. If false,
+ *                                      take whatever object is passed as A and B.
  * @extends {Ray}
  */
 
 export class CCWRay extends Ray {
-  constructor(A, B) {
+  constructor(A, B, { update_endpoints = true } = {}) {
     super(A, B);
     
-    if(!(A instanceof CCWPoint)) this.A = CCWPoint.fromPoint(A);
-    if(!(B instanceof CCWPoint)) this.B = CCWPoint.fromPoint(B);
+    if(update_endpoints) {
+      this.A = new CCWPoint(A.x, y: A.y);
+      this.A = new CCWPoint(B.x, B.y);
+    } 
     
     this._distanceSquared = undefined;
   }
@@ -319,7 +324,7 @@ export class CCWRay extends Ray {
    * @return {boolean} true if this point is blocked by the segment; false otherwise
    */
   blocksPointCCWTest(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
-    if(!(p instanceof CCWPoint)) p = this.A.constructor.fromPoint(p);
+    if(!(p instanceof CCWPoint)) p = new this.A.constructor(p.x, p.y);
   
     const AB = this;
     const A = this.A;
@@ -406,7 +411,7 @@ export class CCWRay extends Ray {
   */
   blocksSegmentRayTest(segment, origin, { EPSILON = PRESET_EPSILON,
                                            check_overlap = false } = {}) {
-    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
+    if(!(segment instanceof CCWRay)) segment = new this.constructor(segment.A, segment.B);
     
     // Call this AB and segment CD
     const AB = this;
@@ -519,7 +524,7 @@ export class CCWRay extends Ray {
   */   
   blocksSegmentCCWTest(segment, origin, { EPSILON = PRESET_EPSILON, 
                                       check_overlap = false } = {}) {
-    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
+    if(!(segment instanceof CCWRay)) segment = new this.constructor(segment.A, segment.B);
     
     // this segment is AB
     // other segment is CD
