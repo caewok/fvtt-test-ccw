@@ -13,15 +13,20 @@ import { MODULE_ID } from "./module.js";
  * Subclass of Ray with additional methods to calculate intersections and orientation.
  * Like Foundry method, a "ray" considered to have a starting point A and ending point B.
  * Unlike Foundry method, the CCWRay uses CCWPoint.
+ * @param {boolean} update_endpoints    If true, re-create endpoints so that whatever is 
+ *                                      passed through is not linked. If false,
+ *                                      take whatever object is passed as A and B.
  * @extends {Ray}
  */
 
 export class CCWRay extends Ray {
-  constructor(A, B) {
+  constructor(A, B, { update_endpoints = true } = {}) {
     super(A, B);
     
-    this.A = CCWPoint.fromPoint(A);
-    this.B = CCWPoint.fromPoint(B);
+    if(update_endpoints) {
+      this.A = new CCWPoint(A.x, A.y);
+      this.B = new CCWPoint(B.x, B.y);
+    } 
     
     this._distanceSquared = undefined;
   }
@@ -155,7 +160,7 @@ export class CCWRay extends Ray {
   */
   project(t) {
     const res = Ray.prototype.project.call(this, t);
-    return CCWPoint.fromPoint(res);
+    return this.A.constructor.fromPoint(res);
   }
 
  /**
@@ -183,7 +188,7 @@ export class CCWRay extends Ray {
   * @param {PIXI.Point} p
   * @return {1|0|-1}   1 if CCW, -1 if CW, 0 if colinear
   */
-  ccw(p) { return CCWPoint.ccw(this.A, this.B, p); }
+  ccw(p, { EPSILON = PRESET_EPSILON } = {}) { return CCWPoint.ccw(this.A, this.B, p, { EPSILON }); }
   
  /**
   * Quick function to determine if this ray could intersect another
@@ -192,7 +197,7 @@ export class CCWRay extends Ray {
   * @return {boolean} Could the segments intersect?
   */
   intersects(r) {  
-    if(!(r instanceof CCWRay)) { r = CCWRay.fromRay(r); }
+    if(!(r instanceof CCWRay)) { r = this.fromRay(r); }
   
     return this.ccw(r.A) !== this.ccw(r.B) &&
            r.ccw(this.A) !== r.ccw(this.B);
@@ -203,10 +208,11 @@ export class CCWRay extends Ray {
   * Get the intersection between this ray and another if both were infinite?
   * @param {Ray}    r         Other ray to test for intersection
   * @param {number} EPSILON   How exact is the parallel test?
-  * @return {CCWRay|false} Could the segments intersect?
+  * @return {CCWPoint|false}  Point of intersection or false.
+  *                           Point is always CCWPoint b/c it is likely non-integer
+  *                           and could be compared to nearby PixelPoints. 
   */
-  potentialIntersection(r, { EPSILON = PRESET_EPSILON } = {}) {
-    
+  potentialIntersection(r, { EPSILON = PRESET_EPSILON } = {}) { 
     const x1 = this.A.x;
     const y1 = this.A.y;
     //const x2 = this.B.x;
@@ -225,11 +231,8 @@ export class CCWRay extends Ray {
     const t0 = (r.dx * (y1 - y3) - r.dy * (x1 - x3)) / d
     //const t0 = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d;
     
-    return new this.A.constructor(this.A.x + t0 * this.dx,
-                                  this.A.y + t0 * this.dy);
-    
-    // return new this.A.constructor(x1 + t0 * (x2 - x1),
-//                                   y1 + t0 * (y2 - y1));
+    return new CCWPoint(x1 + t0 * this.dx,
+                        y1 + t0 * this.dy);
   }
   
  /**
@@ -239,12 +242,12 @@ export class CCWRay extends Ray {
   * @return {CCWRay|false} Could the segments intersect?
   */
   intersection(r, { EPSILON = PRESET_EPSILON } = {}) {
-    const intersection = this.potentialIntersection(r, { EPSILON });
-    if(!intersection) return false;
-    if(!this.contains(intersection, { EPSILON }) || 
-       !r.contains(intersection, { EPSILON })) return false;
+    // intersect is very fast, so test that first
+    // intersect assumes segments, not lines, so can avoid testing 
+    // if the points are contained in the segment
+    if(!this.intersects(r)) { return false; }
     
-    return this.A.constructor.fromPoint(intersection);
+    return this.potentialIntersection(r, { EPSILON });
   }
   
  /**
@@ -321,11 +324,13 @@ export class CCWRay extends Ray {
    * @return {boolean} true if this point is blocked by the segment; false otherwise
    */
   blocksPointCCWTest(p, origin, { EPSILON = PRESET_EPSILON } = {}) {
-    if(!(p instanceof CCWPoint)) p = this.A.constructor.fromPoint(p);
+    if(!(p instanceof CCWPoint)) p = new this.A.constructor(p.x, p.y);
   
     const AB = this;
     const A = this.A;
     const B = this.B;
+
+//    console.log(`testccw|blocksPoint: AB is ${AB.constructor.name}, A is ${A.constructor.name}, B is ${B.constructor.name}, p is ${p.constructor.name}, origin is ${origin.constructor.name}`); 
 
     // test using A and B in case they are PixelPoints.
     if(A.almostEqual(p, { EPSILON }) || 
@@ -342,6 +347,8 @@ export class CCWRay extends Ray {
     // to ensure we use the correct ccw test for pixels versus points
     // if line OP splits A and B, then we know AB blocks
     const OP = new this.constructor(origin, p);
+ //   console.log(`testccw|blocksPoint: OP is ${OP.constructor.name}`);
+
     const OPA = OP.ccw(A);
     const OPB = OP.ccw(B);
       
@@ -404,7 +411,7 @@ export class CCWRay extends Ray {
   */
   blocksSegmentRayTest(segment, origin, { EPSILON = PRESET_EPSILON,
                                            check_overlap = false } = {}) {
-    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
+    if(!(segment instanceof CCWRay)) segment = new this.constructor(segment.A, segment.B);
     
     // Call this AB and segment CD
     const AB = this;
@@ -517,7 +524,7 @@ export class CCWRay extends Ray {
   */   
   blocksSegmentCCWTest(segment, origin, { EPSILON = PRESET_EPSILON, 
                                       check_overlap = false } = {}) {
-    if(!(segment instanceof CCWRay)) segment = this.constructor.fromRay(segment);
+    if(!(segment instanceof CCWRay)) segment = new this.constructor(segment.A, segment.B);
     
     // this segment is AB
     // other segment is CD

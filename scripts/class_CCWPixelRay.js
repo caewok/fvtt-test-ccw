@@ -1,6 +1,7 @@
 'use strict';
 
 import { CCWRay } from "./class_CCWRay.js";
+import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
 
 /**
@@ -23,11 +24,13 @@ import { CCWPixelPoint } from "./class_CCWPixelPoint.js";
  */
 
 export class CCWPixelRay extends CCWRay {
-  constructor(A, B) {
-    super(A, B);
+  constructor(A, B, { update_endpoints = true } = {}) {
+    super(A, B, { update_endpoints: false });
     
-    this.A = CCWPixelPoint.fromPoint(A);
-    this.B = CCWPixelPoint.fromPoint(B);
+    if(update_endpoints) {
+      this.A = new CCWPixelPoint(A.x, A.y);
+      this.B = new CCWPixelPoint(B.x, B.y);
+    } 
   }
   
  /**
@@ -37,13 +40,22 @@ export class CCWPixelRay extends CCWRay {
   * @override
   */
   ccw(p) { 
+    // if both pixels, normal ccw will work fine.
+    // need not be robust or check for near 0
+    
+    if(p instanceof CCWPixelPoint) { 
+      const orientation = CCWPoint.orient2d(this.A, this.B, p, { robust: false });
+      return Math.sign(orientation); 
+    }
+    
+    // p may be close enough to the line to be colinear
     // orient2d returns ~ double the area of the triangle formed by the three points.
     // in the base case, a line 1,1 --> 1,0 and a point 1 - √2 / 2, 0 returns
     // area of √2 / 2. 
     // a line 1,2 --> 1,0 with point 1 - √2 / 2, 0 returns √2 / 2 * 2
     // I.e., a given point would be nearly colinear if orient2d <= √2 /2 * line distance
-    // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2
-    const orientation = this.orient2d(p);
+    // Can square both sides, to compare orient2d ^ 2 <= 0.5 * line distance ^2    
+    const orientation = CCWPoint.orient2d(this.A, this.B, p);
     const orientation2 = orientation * orientation;
     const cutoff = 0.5 * this.distanceSquared;
     

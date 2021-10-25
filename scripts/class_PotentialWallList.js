@@ -60,26 +60,29 @@ export class PotentialWallList extends BinarySearchTree {
   * Add walls connected to an endpoint to the list.
   * @param {Endpoint} endpoint    Endpoint containing 0+ walls connected to it.
   */
-  addFromEndpoint(endpoint) {
+  updateWallsFromEndpoint(endpoint) {
     // endpoint.walls are a Set
   
     const to_remove = [];
     const to_add = [];
     
     endpoint.walls.forEach(w => {
-      // if we have already seen it, it must be CCW
-      // or (unlikely) it is otherwise CCW
-      if(this.walls_encountered.has(w.id) || 
-         PotentialWallList.endpointWallCCW(this.origin, endpoint, w) >= 0) {
-         to_remove.push(w)
+      // walls with this endpoint as the left endpoint should be added
+      // walls with this endpoint as the right endpoint should be removed
+      if(w.leftEndpoint.almostEqual(endpoint)) {
+        to_add.push(w)
+      } else if(w.rightEndpoint.almostEqual(endpoint)){
+        to_remove.push(w)
       } else {
-        to_add.push(w);
+        // for debugging; can remove the rightEndpoint test later.
+        console.error(`testccw|updateWallsFromEndpoint: Encountered wall that does not share endpoint.`);
       }
-    })
+    });
     
     this.removeWalls(to_remove);
     this.addWalls(to_add);
   }
+     
   
  /**
   * Remove walls connected to an endpoint from the list 
@@ -151,8 +154,8 @@ export class PotentialWallList extends BinarySearchTree {
   * @param {PIXI.Point} origin
   * @return {-1, 0, 1} -1 if AB is in front, 1 if CD is in front, 0 if equal
   */
-  static inFrontOf(AB, CD) {
-    const origin = AB.origin;
+  static inFrontOf(AB, CD, origin = AB.origin) {
+    //const origin = AB.origin;
     
     if(AB.id && CD.id && AB.id === CD.id) return 0;
    
@@ -162,7 +165,7 @@ export class PotentialWallList extends BinarySearchTree {
     const D = CD.B;
   
     // Test what side BC and origin are in relation to AB
-    const ABO = AB.ccwOrigin;
+    const ABO = AB.ccw(origin); 
     const ABC = AB.ccw(C);
     const ABD = AB.ccw(D);
 
@@ -186,7 +189,7 @@ export class PotentialWallList extends BinarySearchTree {
     
     // CD crosses the AB infinite line. 
     // Test where A and O are in relation to C
-    const CDO = CD.ccwOrigin;
+    const CDO = CD.ccw(origin);
     const CDA = CD.ccw(A);
     
     // If A and O are on same side of CD, AB is in front

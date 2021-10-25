@@ -28,8 +28,7 @@ export class CCWPoint extends PIXI.Point {
   * @return {Boolean} True if points are within the error of each other.
   */
   static almostEqual(p1, p2, { EPSILON = PRESET_EPSILON } = {}) {
-    if(!almostEqual(p1.x, p2.x, { EPSILON })) return false;
-    return almostEqual(p1.y, p2.y, { EPSILON });  
+    return almostEqual(p1.x, p2.x, { EPSILON }) ? almostEqual(p1.y, p2.y, { EPSILON }) : false;
   }
   
  /**
@@ -40,16 +39,15 @@ export class CCWPoint extends PIXI.Point {
   * @param {number}    EPSILON   Error tolerance for almostEqual test.
   * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
   */
-  static orient2d(p1, p2, p3) {
-  if(!game.modules.get(MODULE_ID).api.use_robust_ccw) {
-    return orient2dfast(p1.x, p1.y,
-                        p2.x, p2.y,
-                        p3.x, p3.y)
-  }
-
-  return orient2d(p1.x, p1.y,
-                  p2.x, p2.y,
-                  p3.x, p3.y);
+  static orient2d(p1, p2, p3, { robust = game.modules.get(MODULE_ID).api.use_robust_ccw } = {}) {
+  return robust ? 
+    orient2d(p1.x, p1.y,
+             p2.x, p2.y,
+             p3.x, p3.y) :
+    
+    orient2dfast(p1.x, p1.y,
+                 p2.x, p2.y,
+                 p3.x, p3.y)              
   } 
   
  /**
@@ -59,8 +57,10 @@ export class CCWPoint extends PIXI.Point {
   * @param {x, y} p3   Point in {x, y} format.
   * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
   */
-  static ccw(p1, p2, p3) {
-    return Math.sign(CCWPoint.orient2d(p1, p2, p3));                     
+  static ccw(p1, p2, p3, { EPSILON = PRESET_EPSILON, 
+                           robust = game.modules.get(MODULE_ID).api.use_robust_ccw } = {}) {
+    const res = CCWPoint.orient2d(p1, p2, p3, { robust });
+    return almostEqual(res, 0, { EPSILON }) ? 0 : Math.sign(res);  
   } 
   
  /**
@@ -96,8 +96,9 @@ export class CCWPoint extends PIXI.Point {
   * @param {x, y} p4   Point in {x, y} format.
   * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
   */
-  static outsideCircle(p1, p2, p3, p4) {
-    return Math.sign(CCWPoint.inCircle(p1, p2, p3, p4));
+  static outsideCircle(p1, p2, p3, p4, { EPSILON = PRESET_EPSILON } = {}) {
+    const res = CCWPoint.inCircle(p1, p2, p3, p4);
+    return almostEqual(res, 0, { EPSILON }) ? 0 : Math.sign(res);  
   }
   
   
@@ -125,7 +126,8 @@ export class CCWPoint extends PIXI.Point {
   * @return {boolean}
   */
   almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
-    return CCWPoint.almostEqual(this, p, { EPSILON });
+    return almostEqual(this.x, p.x, { EPSILON }) ? 
+           almostEqual(this.y, p.y, { EPSILON }) : false;
   }
   
  /**

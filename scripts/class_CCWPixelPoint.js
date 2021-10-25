@@ -1,5 +1,5 @@
 'use strict';
-/* globals PIXI, WallEndpoint */
+/* globals WallEndpoint */
 
 import { CCWPoint } from "./class_CCWPoint.js";
 import { PRESET_EPSILON } from "./util.js";
@@ -46,7 +46,7 @@ export class CCWPixelPoint extends CCWPoint {
     */
     this.key = CCWPixelPoint.getKey(this.x, this.y);
   }
-     
+       
   /* -------------------------------------------- */
   /*  Methods                                     */
   /* -------------------------------------------- */
@@ -59,7 +59,7 @@ export class CCWPixelPoint extends CCWPoint {
   */
   equals(p) {
     if(p instanceof CCWPixelPoint) return this.key === p.key;
-    return PIXI.Point.prototype.equals.call(this, p);
+    return this.x === p.x ? this.y === p.y : false;
   }
   
  /**
@@ -69,19 +69,22 @@ export class CCWPixelPoint extends CCWPoint {
   * @param {number}     EPSILON Passed to almostEqual.
   * @return {boolean}
   */
-  almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {
-    if(p instanceof CCWPixelPoint) return this.key === p.key;
+  almostEqual(p) {
+    if(p instanceof CCWPixelPoint) { return this.key === p.key; }
     
+    // to try to improve speed, don't just call almostEqual.
     // Ultimately need the distance between the two points but first check the easy case
     // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
-    if(!CCWPoint.almostEqual(this, p, { EPSILON: Math.SQRT1_2 })) { return false; }
+    const dx = Math.abs(p.x - this.x);
+    if(dx > Math.SQRT1_2) return false;
+    
+    const dy = Math.abs(p.y - this.y);
+    if(dy > Math.SQRT1_2) return false;
     
     // within the √2 / 2 bounding box
     // compare distance squared.
-    // equality with the distance measurement
-    const dist2 = this.distanceSquared(p);
-    if(CCWPoint.almostEqual(dist2, 0.5, { EPSILON })) return true;
-    return dist2 < 0.5; // √2 / 2 * √2 / 2 = 0.5    
+    const dist2 = Math.pow(dx, 2) + Math.pow(dy, 2);
+    return dist2 < 0.5;
   }
 }
 
