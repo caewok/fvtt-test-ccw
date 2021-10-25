@@ -509,25 +509,28 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
+      closest_wall = potential_walls.closest({type});
       
       if(needs_padding) {
         this._addPaddingForEndpoint(endpoint);
         needs_padding = false;
       }
       
-      if(!closest_wall || endpoint.almostEqual(closest_wall.rightEndpoint)) {
+      if(!closest_wall) {
+        Poly._processEndpointInFront(endpoint, potential_walls);
+      
+      } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         const res = this._processEndOfWall(endpoint, potential_walls);
         needs_padding = res?.padding
          
       } else if(!closest_wall.blocksPoint(endpoint, origin)) {
-        const res = this._processEndpointInFront(endpoint, potential_walls);
-        needs_padding = res?.padding
+        this._processEndpointInFront(endpoint, potential_walls);
+        //needs_padding = res?.padding
         
       } else {
         // endpoint is behind the closest wall; nothing more to do.
         potential_walls.updateWallsFromEndpoint(endpoint);
       }
-      closest_wall = potential_walls.closest({type});
     }
     
     // catch when the last collision point needs padding to the first point
