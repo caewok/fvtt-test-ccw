@@ -850,10 +850,8 @@ Endpoint is at end of closest wall:
   * @param {PotentialWallList} potential_walls
   * @return { undefined|{ padding: true }}
   */
-  _processEndOfWall(endpoint, potential_walls) {
-    const { type } = this.config; 
-    
-    if(!endpoint.isTerrainExcluded(this.config.type)) { 
+  _processEndOfWall(endpoint, potential_walls) {    
+    if(!endpoint.isTerrainExcluded()) { 
       this.points.push(endpoint.x, endpoint.y); 
     }
   
@@ -890,8 +888,8 @@ Endpoint is at end of closest wall:
  /**
   * Process when sweep reaches an endpoint in front of the closest wall.
   * Endpoint is in front of closest wall:
+  * - if closest wall is terrain, mark position at second-closest wall
   * - mark position at closest wall.
-  * - if closest wall is terrain, also mark position at second-closest wall
   * - push endpoint unless terrain exempt
   * - update wall list 
   * @param {CCWSweepPoint} endpoint
@@ -900,9 +898,15 @@ Endpoint is at end of closest wall:
   _processEndpointInFrontOfWall(endpoint, potential_walls) {    
     // endpoint in front, so the current closest wall needs to be marked
     const closest_wall = potential_walls.closest();
+    
+    if(closest_wall.isTerrain) {
+      const second_closest_wall = potential_walls.secondClosest();
+      this._markWallIntersection(endpoint, second_closest_wall);
+    }
+    
     this._markWallIntersection(endpoint, closest_wall);
     
-    if(!endpoint.isTerrainExcluded(this.config.type)) { 
+    if(!endpoint.isTerrainExcluded()) { 
       this.points.push(endpoint.x, endpoint.y); 
     }
     
