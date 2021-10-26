@@ -479,6 +479,27 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   
+  
+/* Terrain wall rules
+
+1. Endpoint has at least one non-terrain wall: Endpoint counts as collision.
+2. Endpoint has 2+ terrain walls: Endpoint counts as collision.
+3. Endpoint has 2 terrain walls: 
+   -- If one is in front of the other, the endpoint counts as collision. 
+   (terrain walls here form a V; with one in front the one behind will become the 
+   new "closest" wall, so you need the point of the V for the vision polygon). 
+   -- If you can see both walls equally (you are looking directly at the point 
+   of the V or you are inside the V), then the endpoint doesn't count; 
+   fall back to next closest wall.
+4. Default otherwise is that the endpoint does not count as a collision; fall back to the next closest wall.
+
+Walls:
+If terrain wall is the closest wall, get the second-closest.
+
+
+*/ 
+  
+  
   /**
    * Loop over each endpoint and add collision points.
    * Non-radius version: Assumes the FOV extends to the canvas edge 
@@ -515,7 +536,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       const endpoint = endpoints[i];   
       closest_wall = potential_walls.closest({type});
       
-      if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
+      if(endpoint.isTerrainExcluded(type)) {
+        potential_walls.updateWallsFromEndpoint(endpoint);
+      } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         this._processEndOfWall(endpoint, potential_walls);
          
       } else if(!closest_wall.blocksPoint(endpoint, origin)) {
@@ -577,7 +600,9 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         needs_padding = false;
       }
       
-      if(!closest_wall) {
+      if(endpoint.isTerrainExcluded(type)) {
+        potential_walls.updateWallsFromEndpoint(endpoint);
+      } if(!closest_wall) {
         this._processEndpointInFront(endpoint, potential_walls);
       
       } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
