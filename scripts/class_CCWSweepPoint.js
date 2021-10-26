@@ -70,7 +70,7 @@ export class CCWSweepPoint extends CCWPixelPoint {
     if(ln === 1) {
       // single wall: if it is terrain, can exclude.
       const wall = this.walls.values().next().value;
-      return w.data?.[type] === 2;
+      return wall.data?.[type] === 2;
     
     } else if(ln === 2) {
       // two walls: both must be terrain to exclude.
