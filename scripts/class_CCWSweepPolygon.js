@@ -208,7 +208,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.endpoints.clear()
      
      const origin = this.origin;
-     const { type, hasRadius, radius, radius2, rMin } = this.config;
+     const { type, hasRadius, radius, radius2, rMin, isLimited } = this.config;
           
      if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
        // construct a specialized light shape
@@ -230,6 +230,14 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
      }
+     
+//      if(isLimited) {
+//        // add limited angle walls
+//        wMin = new CCWSweepWall(rMin.A, rMin.B);
+//        wMax = new CCWSweepWall(rMax.A, rMax.B);
+//        candidate_walls.push(wMin, wMax);
+//        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
+//      }
      
      
      candidate_walls.forEach(wall => {       
@@ -433,15 +441,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
     
     // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
-    if(isLimited) {
-      // add endpoints at the end of the respective start/end rays
-      endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin }));
-      endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin }));
-    }
+   //  if(isLimited) {
+//       // add endpoints at the end of the respective start/end rays
+//       endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin }));
+//       endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin }));
+//     }
 
     // ----- STARTING STATE ------ //
-    if(endpoints.length > 0) {
-      const start_endpoint = endpoints[0];
+    if(isLimited || endpoints.length > 0) {
+      const start_endpoint = isLimited ? rMin.B : endpoints[0];
       const start_walls = this.start_walls.filter(w => {
         // if the starting endpoint is at the start of the wall, don't include it
         if(start_endpoint.almostEqual(w.A) || 
@@ -484,10 +492,23 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    */
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
 
-    const { type } = this.config;
+    const { type, isLimited, rMin, rMax } = this.config;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
     // let actual_closest_wall = potential_walls.closest({skip_terrain: false});
+    
+    if(isLimited) {
+      // deal with the minimum limited angle ray
+      // Mark either the endpoint or (more likely) the intersection with closest wall.
+      if(closest_wall.blocksPoint(rMin.B, origin)) {
+        // closest wall is in front of the limited endpoint; 
+        // mark that point on the wall
+        this._markWallIntersection(rMin.B, potential_walls);
+      } else {
+        // limited endpoint is in front; mark it
+        this.points.push(rMin.B.x, rMin.B.y);
+      }
+    }
     
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
@@ -505,16 +526,47 @@ export class CCWSweepPolygon extends PointSourcePolygon {
         potential_walls.updateWallsFromEndpoint(endpoint);
       }
     }
+    
+    if(isLimited) {
+      // deal with the maximum limited angle ray
+      // need to first update the closest wall
+      closest_wall = potential_walls.closest({type});
+      if(closest_wall.blocksPoint(rMax.B, origin)) {
+        // closest wall is in front of the limited endpoint; 
+        // mark that point on the wall
+        this._markWallIntersection(rMax.B, potential_walls);
+      } else {
+        // limited endpoint is in front; mark it
+        this.points.push(rMax.B.x, rMax.B.y);
+      }
+    }
   }
   
   _sweepEndpointsRadius(potential_walls, endpoints) {
     //console.log(`testccw|_sweepEndpointsRadius`);
-    const { type, isLimited } = this.config;
+    const { type, isLimited, rMin, rMax } = this.config;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
     //let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     let needs_padding = false;
+    
+    if(isLimited) {
+      // deal with the minimum limited angle ray
+      if(!closest_wall) {
+        this.points.push(rMin.B.x, rMin.B.y);
+        needs_padding = true;
+      } else if(closest_wall.blocksPoint(rMin.B, origin)) {
+        // closest wall is in front of the limited endpoint; 
+        // mark that point on the wall
+        const res = this._markWallIntersection(rMin.B, potential_walls);
+        needs_padding = res?.padding;
+      } else {
+        // limited endpoint is in front; mark it
+        this.points.push(rMin.B.x, rMin.B.y);
+      }
+    }
+    
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
@@ -542,9 +594,30 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
     }
     
+    if(isLimited) {
+      // deal with the maximum limited angle ray
+      // need to first update the closest wall
+      closest_wall = potential_walls.closest({type});
+      if(needs_padding) {
+        this._addPaddingForEndpoint(rMax.B);
+        needs_padding = false;
+      }
+      
+      if(!closest_wall) {
+        this.points.push(rMax.B.x, rMax.B.y);
+      } else if(closest_wall.blocksPoint(rMax.B, origin)) {
+        // closest wall is in front of the limited endpoint; 
+        // mark that point on the wall
+        this._markWallIntersection(rMax.B, potential_walls);
+      } else {
+        // limited endpoint is in front; mark it
+        this.points.push(rMax.B.x, rMax.B.y);
+      }
+      needs_padding = false;
+    }
+    
     // catch when the last collision point needs padding to the first point
     // the above algorithm will flag when that happens, but there are also special cases.
-    if(isLimited) needs_padding = false;
     
     const coll_ln = this.points.length;
     if(coll_ln < 3) needs_padding = true; // no way to have 2 points encompass vision
