@@ -60,26 +60,25 @@ export class CCWSweepPoint extends CCWPixelPoint {
    * - If more than two terrain walls, endpoint must count as collision
    * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
    *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
-   * @param {string}    type   Type of vision: light, sight, sound
    * @return {boolean} True if a single terrain wall is present in the set
    */
-  isTerrainExcluded(type) {
+  isTerrainExcluded() {
     const ln = this.walls.size
     
     // 1 non-terrain wall or 2+ terrain walls = counts as collision    
     if(ln === 1) {
       // single wall: if it is terrain, can exclude.
       const wall = this.walls.values().next().value;
-      return wall.data?.[type] === 2;
+      return wall.isTerrain;
     
     } else if(ln === 2) {
       // two walls: both must be terrain to exclude.
       const iter = this.walls.values();
       const wall0 = iter.next().value;
-      if(wall0.data?.[type] !== 2) return false;
+      if(wall0.isTerrain) return false;
       
       const wall1 = iter.next().value;
-      if(wall1.data?.[type] !== 2) return false;
+      if(wall1.isTerrain) return false;
       
       // if both terrain but one block the other, do not exclude
       // can tell by checking if non-shared endpoints are on opposite sides.
