@@ -534,21 +534,9 @@ If terrain wall is the closest wall, get the second-closest.
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
-      closest_wall = potential_walls.closest({ type, skip_terrain: false });
-      const closest_is_terrain = closest_wall.data?.[type] === 2;
-      let terrain_wall = undefined;
-      if(closest_is_terrain) {
-        terrain_wall = closest_wall;
-        closest_wall = potential_walls.secondClosest();
-      }
-
-      if(closest_is_terrain && 
-         endpoint.isTerrainExcluded(type) && 
-         (endpoint.almostEqual(terrain_wall.rightEndpoint) || 
-          endpoint.almostEqual(terrain_wall.leftEndpoint))) {
-        potential_walls.updateWallsFromEndpoint(endpoint);
-
-      } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
+      closest_wall = potential_walls.closest({ type })
+      
+      if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         this._processEndOfWall(endpoint, potential_walls);
 
       } else if(!closest_wall.blocksPoint(endpoint, origin)) {
