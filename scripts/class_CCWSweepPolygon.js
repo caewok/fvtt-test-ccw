@@ -857,7 +857,6 @@ Endpoint is at end of closest wall:
       this.points.push(endpoint.x, endpoint.y); 
     }
   
-    this.points.push(endpoint.x, endpoint.y);
     potential_walls.updateWallsFromEndpoint(endpoint);
     const closest_wall = potential_walls.closest();
     let res = this._markWallIntersection(endpoint, closest_wall);
