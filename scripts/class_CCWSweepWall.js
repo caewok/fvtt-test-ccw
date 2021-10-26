@@ -72,6 +72,13 @@ export class CCWSweepWall extends CCWPixelRay {
     * @type {CCWSweepPoint}
     */
     this._endpointOrientation = undefined;
+    
+   /**
+    * Cache whether this is a terrain wall.
+    * Meaning, has type 2 for the given type.
+    * @type {boolean}
+    */
+    this._isTerrain = undefined; 
   }
   
   /* -------------------------------------------- */
@@ -135,6 +142,14 @@ export class CCWSweepWall extends CCWPixelRay {
     }
     return this._distanceSquaredOrigin;
   }
+  
+ /**
+  * Cache whether this is a terrain wall.
+  */
+  get isTerrain() {
+    if(this._isTerrain === undefined) { this._isTerrain = this.data?.[this.type] === 2; }
+    return this._isTerrain;
+  } 
   
   
 
