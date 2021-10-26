@@ -614,7 +614,7 @@ If terrain wall is the closest wall, get the second-closest.
       }
       
       if(!closest_wall) {
-        this._processEndpointInFront(endpoint, potential_walls);
+        this._processEndpointInFrontOfWall(endpoint, potential_walls);
       
       } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         const res = this._processEndOfWall(endpoint, potential_walls);
@@ -628,7 +628,9 @@ If terrain wall is the closest wall, get the second-closest.
         // closest wall is terrain
         // check second closest for right of or in front of second-closest wall
         const second_closest = potential_walls.secondClosest();
-        if(endpoint.almostEqual(second_closest.rightEndpoint)) {
+        if(!second_closest) {
+          this._processEndpointInFrontOfSecondWall(endpoint, potential_walls);
+        } else if(endpoint.almostEqual(second_closest.rightEndpoint)) {
           const res = this._processEndOfSecondWall(endpoint, potential_walls);
           needs_padding = res?.padding;
 
@@ -859,7 +861,7 @@ Endpoint is at end of closest wall:
     const closest_wall = potential_walls.closest();
     let res = this._markWallIntersection(endpoint, closest_wall);
     
-    if(closest_wall.isTerrain) {
+    if(closest_wall && closest_wall.isTerrain) {
       const second_closest_wall = potential_walls.secondClosest();
       res = this._markWallIntersection(endpoint, second_closest_wall);
     }
@@ -898,7 +900,7 @@ Endpoint is at end of closest wall:
     // endpoint in front, so the current closest wall needs to be marked
     const closest_wall = potential_walls.closest();
     
-    if(closest_wall.isTerrain) {
+    if(closest_wall && closest_wall.isTerrain) {
       const second_closest_wall = potential_walls.secondClosest();
       this._markWallIntersection(endpoint, second_closest_wall);
     }
