@@ -75,17 +75,18 @@ export class CCWSweepPoint extends CCWPixelPoint {
       // two walls: both must be terrain to exclude.
       const iter = this.walls.values();
       const wall0 = iter.next().value;
-      if(wall0.isTerrain) return false;
+      if(!wall0.isTerrain) return false;
       
       const wall1 = iter.next().value;
-      if(wall1.isTerrain) return false;
+      if(!wall1.isTerrain) return false;
       
       // if both terrain but one block the other, do not exclude
       // can tell by checking if non-shared endpoints are on opposite sides.
       // e.g.:
       // V with origin in middle: O can see both non-shared endpoints; 1 on either side.
       // V with origin on one side: O sees both non-shared on the same side.
-      return wall0.leftEndpoint.almostEqual(wall1.rightEndpoint)
+      return wall0.leftEndpoint.almostEqual(wall1.rightEndpoint) ||
+             wall0.rightEndpoint.almostEqual(wall1.leftEndpoint);
     } 
     
     // if 0 walls or more than 2, this endpoint counts as collision.
