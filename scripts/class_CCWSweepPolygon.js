@@ -824,7 +824,10 @@ Endpoint is at end of closest wall:
     // endpoint in front, so the current closest wall needs to be marked
     this._markWallIntersection(endpoint, potential_walls);
     
-    this.points.push(endpoint.x, endpoint.y);
+    if(!endpoint.isTerrainExcluded(this.config.type)) { 
+      this.points.push(endpoint.x, endpoint.y); 
+    }
+    
     potential_walls.updateWallsFromEndpoint(endpoint);
   }
  
