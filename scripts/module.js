@@ -7,6 +7,8 @@ import { orient2d }               from "./lib/orient2d.min.js";
 import { incircle }               from "./lib/incircle.min.js";
 import { BinarySearchTree }       from "./class_BinarySearchTree.js";
 import { PriorityQueueMap }       from "./class_PriorityQueueMap.js";
+import { PriorityQueueSet }       from "./class_PriorityQueueSet.js";
+import { PriorityQueueBST }       from "./class_PriorityQueueBST.js";
 import { PotentialWallList }      from "./class_PotentialWallList.js";
 import { Bezier }                 from "./class_Bezier.js";
 import { CCWSweepWall }           from "./class_CCWSweepWall.js";
@@ -95,6 +97,9 @@ Hooks.once('init', async function() {
     incircle: incircle,
     BinarySearchTree: BinarySearchTree,
     PriorityQueueMap: PriorityQueueMap,
+    PriorityQueueSet: PriorityQueueSet,
+    PriorityQueueBST: PriorityQueueBST,
+    
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,
     IdentifyIntersections: IdentifyIntersections,

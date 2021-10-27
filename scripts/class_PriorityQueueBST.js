@@ -1,5 +1,6 @@
 /* globals foundry */
 
+import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 /**
  * Priority Queue provides quick O(1) access to the smallest object in the queue.
@@ -13,7 +14,7 @@
  * Id is optional; a random id will be added if not present.
  */
 
-export class PriorityQueueMap {
+export class PriorityQueueBST {
 
  /**
   * Constructor
@@ -21,7 +22,7 @@ export class PriorityQueueMap {
   *   Default is to compare the objects' data property using less-than or greater-than.
   */
   constructor(comparefn = (a, b) => { return a.data === b.data ? 0 : a.data < b.data ? -1 : 1 }) {
-    this.queue = new Map();
+    this.queue = new BinarySearchTree(comparefn);
     this.first = undefined;
     this._second = undefined;
     this.comparefn = comparefn;
@@ -32,10 +33,10 @@ export class PriorityQueueMap {
   * @param {string} id
   * @return {boolean}
   */
-  has(id) {
-    if(this.first?.id === id) return true;
-    if(this._second?.id === id) return true;
-    return this.queue.has(id);
+  has(obj) {
+    if(Object.is(this.first, obj)) return true;
+    if(Object.is(this._second, obj)) return true;
+    return Boolean(this.queue.find(obj));
   } 
   
  /**
@@ -88,39 +89,15 @@ export class PriorityQueueMap {
   * @return {undefined|Object}
   * @private
   */
-  _pullSmallestFromQueue() {
-    if(this.queue.size === 0) { return undefined; }
-    
-    let iter = this.queue.values();
-    let result = iter.next();
-    if(this.queue.size === 1) {
-      this.queue.clear();
-      return result.value;
-    }
-    
-    // should be at least 2 total in queue, so pull another iteration and compare
-    let smallest = result.value;
-    result = iter.next();
-    while(!result.done) {
-      smallest = this.comparefn(smallest, result.value) === 1 ? result.value : smallest;
-      result = iter.next();
-    }
-    
-    this.queue.delete(smallest.id);
-    return smallest;
-  }
+  _pullSmallestFromQueue() { return this.queue.pullMinNode(); }
     
  /**
   * Add an object to the queue.
   * Runs in O(1). May do 1 or 2 comparisons to the existing first and second position
   * objects, if any. 
   * @param {Object} obj
-  * @return {string} id   ID for the object, which will be created if
-  *   obj.id does not exist. Required to remove an object.
   */
-  insert(obj) {
-    if(!obj?.id) { obj.id = foundry.utils.randomID(); }
-  
+  insert(obj) {  
     if(!this.first) {
       this.first = obj;
     } else {
@@ -141,11 +118,10 @@ export class PriorityQueueMap {
         larger = second_cmp ? this.first : obj;
         smaller = second_cmp ? obj : this.first;
         this._second = smaller;
-        this.queue.set(larger.id, larger);
+        this.queue.insert(larger);
       }
     }  
     
-    return obj.id;
   }
   
  /**
@@ -154,8 +130,8 @@ export class PriorityQueueMap {
   * Will be slightly faster if the object is in the first or second position.
   * @param {string} id    Id of object to remove
   */
-  remove(id) {
-    if(this.first.id === id) {
+  remove(obj) {  
+    if(Object.is(this.first, obj)) {
       // This is the smallest object; clear first and second positions.
       // use private this._second to access to not trigger the search-and-cache
       this.first = this._second;
@@ -163,12 +139,12 @@ export class PriorityQueueMap {
       
       if(!this.first) { this.first = this._pullSmallestFromQueue(); }
       
-    } else if(this._second?.id === id) {
+    } else if(Object.is(this._second, obj)) {
       // This is the second-smallest object; clear second position.
       this._second = undefined;
     } else {
       // Object is somewhere in the queue; remove
-      this.queue.delete(id);
+      this.queue.remove(obj);
     }
   }
 
