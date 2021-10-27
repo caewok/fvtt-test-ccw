@@ -87,7 +87,8 @@ export class PriorityQueueMap {
       return result.value;
     }
     
-    let smallest = result;
+    // should be at least 2 total in queue, so pull another iteration and compare
+    let smallest = result.value;
     result = iter.next();
     while(!result.done) {
       smallest = this.comparefn(smallest, result.value) === 1 ? result.value : smallest;
