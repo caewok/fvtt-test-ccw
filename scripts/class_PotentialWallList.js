@@ -106,11 +106,11 @@ export class PotentialWallList extends BinarySearchTree {
       w = this.findMinNode().data;
     }
 
-    if(skip_terrain && w.data?.[type] === 2) {
-      // w.data[type] === 2 if the wall is limited for the type of vision 
-      //  (sight, sound, light)
-      w = this.secondClosest();
-    }
+    // if(skip_terrain && w.data?.[type] === 2) {
+//       // w.data[type] === 2 if the wall is limited for the type of vision 
+//       //  (sight, sound, light)
+//       w = this.secondClosest();
+//     }
 
     return w;
   }

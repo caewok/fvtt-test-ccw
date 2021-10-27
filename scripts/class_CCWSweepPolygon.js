@@ -208,7 +208,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      this.endpoints.clear()
      
      const origin = this.origin;
-     const { type, hasRadius, radius, radius2, rMin, isLimited } = this.config;
+     const { type, hasRadius, radius, radius2, rMin } = this.config;
           
      if(type === "light" && game.modules.get(MODULE_ID).api.light_shape !== "circle") {
        // construct a specialized light shape
@@ -299,14 +299,15 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @return {false|CCWSweepWall}
    */
    splitWallAtRadius(wall) {
-     const origin = this.origin;
+     const origin = wall.origin;
+     const type = wall.type;
      const { radius, radius2 } = this.config;
    
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
      const intersects_radius = LEC2 < radius2; // if equal, would be a tangent
      const A_inside_radius = wall.distanceSquaredOrigin.A < radius2;
      const B_inside_radius = wall.distanceSquaredOrigin.B < radius2;
-     const both_inside = (A_inside_radius || B_inside_radius)
+     const both_inside = A_inside_radius && B_inside_radius;
            
      // if no intersection, drop if the wall is outside; use entire wall if inside      
      if(!intersects_radius) { return both_inside ? wall : false; }
@@ -321,16 +322,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      if(intersections.length === 0) { return both_inside ? wall : false; }     
      
      // If two intersections found, break the wall at the intersections
-     if(intersections.length === 2) return CCWSweepWall.createFromPoints(i0, i1, wall, { origin });
+     if(intersections.length === 2) return CCWSweepWall.createFromPoints(i0, i1, wall, { origin, type });
      
      // if only 1 intersection, then need to determine which wall is outside.
      // trim from outside point to intersection, leaving only the inside wall portion.
      if(A_inside_radius && (!B_inside_radius || wall.B.almostEqual(i0))) {
-       return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin }); 
+       return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin, type }); 
      }
      
-     if(wall.B.insideRadius && (!A_inside_radius || wall.A.almostEqual(i0))) {
-       return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
+     if(B_inside_radius && (!A_inside_radius || wall.A.almostEqual(i0))) {
+       return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin, type });
      }
      
      // otherwise, if both are inside but not yet caught, return the wall.
@@ -479,6 +480,27 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   
+  
+/* Terrain wall rules
+
+1. Endpoint has at least one non-terrain wall: Endpoint counts as collision.
+2. Endpoint has 2+ terrain walls: Endpoint counts as collision.
+3. Endpoint has 2 terrain walls: 
+   -- If one is in front of the other, the endpoint counts as collision. 
+   (terrain walls here form a V; with one in front the one behind will become the 
+   new "closest" wall, so you need the point of the V for the vision polygon). 
+   -- If you can see both walls equally (you are looking directly at the point 
+   of the V or you are inside the V), then the endpoint doesn't count; 
+   fall back to next closest wall.
+4. Default otherwise is that the endpoint does not count as a collision; fall back to the next closest wall.
+
+Walls:
+If terrain wall is the closest wall, get the second-closest.
+
+
+*/ 
+  
+  
   /**
    * Loop over each endpoint and add collision points.
    * Non-radius version: Assumes the FOV extends to the canvas edge 
@@ -513,13 +535,28 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
-      closest_wall = potential_walls.closest({type});
+      closest_wall = potential_walls.closest({ type })
       
       if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         this._processEndOfWall(endpoint, potential_walls);
-         
+
       } else if(!closest_wall.blocksPoint(endpoint, origin)) {
-        this._processEndpointInFront(endpoint, potential_walls);
+        this._processEndpointInFrontOfWall(endpoint, potential_walls);
+
+      } else if(closest_wall.isTerrain) {
+        // closest wall is terrain
+        // check second closest for right of or in front of second-closest wall
+        const second_closest = potential_walls.secondClosest();
+        if(endpoint.almostEqual(second_closest.rightEndpoint)) {
+          this._processEndOfSecondWall(endpoint, potential_walls);
+
+        } else if(!second_closest.blocksPoint(endpoint, origin)) {
+          this._processEndpointInFrontOfSecondWall(endpoint, potential_walls);
+
+        } else {
+          // endpoint behind second-closest wall; nothing more to do
+          potential_walls.updateWallsFromEndpoint(endpoint);
+        }
         
       } else {
         // endpoint is behind the closest wall; nothing more to do.
@@ -578,15 +615,33 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       }
       
       if(!closest_wall) {
-        this._processEndpointInFront(endpoint, potential_walls);
+        const res = this._processEndpointInFrontOfWall(endpoint, potential_walls);
+        needs_padding = res?.padding;
       
       } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         const res = this._processEndOfWall(endpoint, potential_walls);
-        needs_padding = res?.padding
+        needs_padding = res?.padding;
          
       } else if(!closest_wall.blocksPoint(endpoint, origin)) {
-        this._processEndpointInFront(endpoint, potential_walls);
+        this._processEndpointInFrontOfWall(endpoint, potential_walls);
         //needs_padding = res?.padding
+        
+      } else if(closest_wall.isTerrain) {
+        // closest wall is terrain
+        // check second closest for right of or in front of second-closest wall
+        const second_closest = potential_walls.secondClosest();
+        if(!second_closest) {
+          this._processEndpointInFrontOfSecondWall(endpoint, potential_walls);
+        } else if(endpoint.almostEqual(second_closest.rightEndpoint)) {
+          const res = this._processEndOfSecondWall(endpoint, potential_walls);
+          needs_padding = res?.padding;
+
+        } else if(!second_closest.blocksPoint(endpoint, origin)) {
+          this._processEndpointInFrontOfSecondWall(endpoint, potential_walls);
+
+        } else {
+          potential_walls.updateWallsFromEndpoint(endpoint);
+        }
         
       } else {
         // endpoint is behind the closest wall; nothing more to do.
@@ -732,10 +787,17 @@ Endpoint is at end of closest wall:
 
  /**
   * Mark the intersection for a wall.
+  * Basically, draw a line from the origin to the endpoint.
+  * Assume the line continues on. 
+  * Does the line intersect the closest wall? If yes, mark that intersection as a 
+  * point (collision) in the vision polygon.
+  * @param {CCWSweepPoint} endpoint
+  * @param {CCWSweepWall}  wall
+  * @return {undefined|{ padding: true }} Indicate if padding may be required for radius
+  *   vision, based on having hit the end of the radius. 
   */
-  _markWallIntersection(endpoint, potential_walls) {
-    const { type, hasRadius, radius2 } = this.config;
-    const closest_wall = potential_walls.closest({type}); // if terrain, this is second-closest
+  _markWallIntersection(endpoint, closest_wall) {
+    const { hasRadius, radius2 } = this.config;
         
     // if no closest wall, needs padding. Find the radius point for the ray
     if(!closest_wall) {
@@ -781,29 +843,97 @@ Endpoint is at end of closest wall:
   }
 
  /**
-  * Process when the sweep encounters an endpoint in front of the closest wall.
-  * 1. mark the intersection on the current closest wall.
-  * 2. Mark this closer endpoint
+  * Process when the sweep reaches the end of a wall.
+  * Endpoint is at the right of the closest wall (end of wall):
+  * - push endpoint unless terrain exempt
+  * - update wall list
+  * - mark position at now-closest wall.
+  * - if the now-closest wall is terrain, also mark position at now-second-closest wall
+  * Padding should be only for radius version of the sweep
+  * @param {CCWSweepPoint} endpoint
+  * @param {PotentialWallList} potential_walls
+  * @return { undefined|{ padding: true }}
   */
-  _processEndpointInFront(endpoint, potential_walls) {    
-    // endpoint in front, so the current closest wall needs to be marked
-    this._markWallIntersection(endpoint, potential_walls);
+  _processEndOfWall(endpoint, potential_walls) {    
+    if(!endpoint.isTerrainExcluded()) { 
+      this.points.push(endpoint.x, endpoint.y); 
+    }
+  
+    potential_walls.updateWallsFromEndpoint(endpoint);
+    const closest_wall = potential_walls.closest();
+    let res = this._markWallIntersection(endpoint, closest_wall);
     
-    this.points.push(endpoint.x, endpoint.y);
+    if(closest_wall && closest_wall.isTerrain) {
+      const second_closest_wall = potential_walls.secondClosest();
+      res = this._markWallIntersection(endpoint, second_closest_wall);
+    }
+    return res;
+  }
+  
+ /**
+  * Process when sweep reaches the end of a wall behind a terrain wall.
+  * Closest wall is terrain. Endpoint is at right of second-closest wall (end of wall)
+  * - push endpoint
+  * - update wall list
+  * - mark position on now-second-closest wall (closest is still terrain)
+  * Padding should be only for radius version of the sweep.
+  * @param {CCWSweepPoint} endpoint
+  * @param {PotentialWallList} potential_walls
+  * @return { undefined|{ padding: true }}
+  */
+  _processEndOfSecondWall(endpoint, potential_walls) {
+    this.points.push(endpoint.x, endpoint.y); 
+    potential_walls.updateWallsFromEndpoint(endpoint);
+    const second_closest_wall = potential_walls.secondClosest();
+    return this._markWallIntersection(endpoint, second_closest_wall);
+  }
+  
+ /**
+  * Process when sweep reaches an endpoint in front of the closest wall.
+  * Endpoint is in front of closest wall:
+  * - if closest wall is terrain, mark position at second-closest wall
+  * - mark position at closest wall.
+  * - push endpoint unless terrain exempt
+  * - update wall list 
+  * @param {CCWSweepPoint} endpoint
+  * @param {PotentialWallList} potential_walls
+  */
+  _processEndpointInFrontOfWall(endpoint, potential_walls) {    
+    // endpoint in front, so the current closest wall needs to be marked
+    const closest_wall = potential_walls.closest();
+    
+    if(closest_wall && closest_wall.isTerrain) {
+      const second_closest_wall = potential_walls.secondClosest();
+      this._markWallIntersection(endpoint, second_closest_wall);
+    }
+    
+    const res = this._markWallIntersection(endpoint, closest_wall);
+    
+    if(!endpoint.isTerrainExcluded()) { 
+      this.points.push(endpoint.x, endpoint.y); 
+    } else if(!closest_wall) {
+      potential_walls.updateWallsFromEndpoint(endpoint);
+      return res;
+    }
+    
     potential_walls.updateWallsFromEndpoint(endpoint);
   }
- 
-
+  
  /**
-  * Process when the sweep reaches the end of a wall:
-  * 1. Add the endpoint to collision points
-  * 2. Get the intersection point on the next closest wall, if any
-  * Padding should be only for radius version of the sweep
+  * Process when sweep reaches an endpoint between the closest wall, which is a 
+  * terrain wall, and the second closest wall.
+  * Closest wall is terrain. Endpoint is in front of second-closest wall.
+  * - mark position at second-closest wall (closest is still terrain).
+  * - push endpoint (behind terrain, so always mark)
+  * - update wall list 
+  * @param {CCWSweepPoint} endpoint
+  * @param {PotentialWallList} potential_walls
   */
-  _processEndOfWall(endpoint, potential_walls) {
-    this.points.push(endpoint.x, endpoint.y);
+  _processEndpointInFrontOfSecondWall(endpoint, potential_walls) {
+    const second_closest_wall = potential_walls.secondClosest();
+    this._markWallIntersection(endpoint, second_closest_wall);
+    this.points.push(endpoint.x, endpoint.y); 
     potential_walls.updateWallsFromEndpoint(endpoint);
-    return this._markWallIntersection(endpoint, potential_walls);
   }
   
   

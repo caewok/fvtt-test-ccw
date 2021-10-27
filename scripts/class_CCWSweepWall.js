@@ -72,6 +72,13 @@ export class CCWSweepWall extends CCWPixelRay {
     * @type {CCWSweepPoint}
     */
     this._endpointOrientation = undefined;
+    
+   /**
+    * Cache whether this is a terrain wall.
+    * Meaning, has type 2 for the given type.
+    * @type {boolean}
+    */
+    this._isTerrain = undefined; 
   }
   
   /* -------------------------------------------- */
@@ -135,6 +142,14 @@ export class CCWSweepWall extends CCWPixelRay {
     }
     return this._distanceSquaredOrigin;
   }
+  
+ /**
+  * Cache whether this is a terrain wall.
+  */
+  get isTerrain() {
+    if(this._isTerrain === undefined) { this._isTerrain = this.data?.[this.type] === 2; }
+    return this._isTerrain;
+  } 
   
   
 
@@ -205,7 +220,7 @@ export class CCWSweepWall extends CCWPixelRay {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
       if(opts?.origin) wall.origin = opts.origin;      
-      if(!keep_wall_id) wall._id = undefined;
+      if(!keep_wall_id) wall.id = foundry.utils.randomID();
       
       return wall; 
     }
@@ -216,7 +231,7 @@ export class CCWSweepWall extends CCWPixelRay {
     //w.data = duplicate(wall.data);
     w.data = wall.data;
     w.isInterior = (wall.roof?.occluded === false);
-    if(keep_wall_id) { w._id = wall.data._id; }
+    if(keep_wall_id) { w.id = wall.data._id; }
     
      if(!w.data._id) { w.data._id = w.id; }  
     
@@ -241,7 +256,7 @@ export class CCWSweepWall extends CCWPixelRay {
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
-    w._id = keep_wall_id ? wall.data._id : undefined;
+    w.id = keep_wall_id ? wall.data._id : foundry.utils.randomID();
     
     if(!w.data._id) { w.data._id = w.id; }  
     
