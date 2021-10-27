@@ -220,7 +220,7 @@ export class CCWSweepWall extends CCWPixelRay {
       // so we can pass a mix of wall & SweepWall
       // need to update options, if any
       if(opts?.origin) wall.origin = opts.origin;      
-      if(!keep_wall_id) wall._id = undefined;
+      if(!keep_wall_id) wall.id = foundry.utils.randomID();
       
       return wall; 
     }
