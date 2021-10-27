@@ -615,7 +615,8 @@ If terrain wall is the closest wall, get the second-closest.
       }
       
       if(!closest_wall) {
-        this._processEndpointInFrontOfWall(endpoint, potential_walls);
+        const res = this._processEndpointInFrontOfWall(endpoint, potential_walls);
+        needs_padding = res?.padding;
       
       } else if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         const res = this._processEndOfWall(endpoint, potential_walls);
@@ -910,6 +911,9 @@ Endpoint is at end of closest wall:
     
     if(!endpoint.isTerrainExcluded()) { 
       this.points.push(endpoint.x, endpoint.y); 
+    } else if(!closest_wall) {
+      const res = potential_walls.updateWallsFromEndpoint(endpoint);
+      return res;
     }
     
     potential_walls.updateWallsFromEndpoint(endpoint);
