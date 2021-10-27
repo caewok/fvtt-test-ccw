@@ -66,7 +66,7 @@ export class PriorityQueueSet {
   pullFirst() {
     const res = this.first;
     if(!res) { return undefined; }
-    this.remove(res.id);
+    this.remove(res);
     return res;
   } 
   
@@ -77,7 +77,7 @@ export class PriorityQueueSet {
   pullSecond() {
     const res = this.second;
     if(!res) { return undefined; }
-    this.remove(res.id);
+    this.remove(res);
     return res;
   } 
   
