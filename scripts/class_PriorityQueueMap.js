@@ -32,7 +32,7 @@ export class PriorityQueueMap {
   * @return {number}
   */
   get size() {
-    return this.queue.size + this.first ?? 0 + this._second ?? 0;
+    return this.queue.size + (this.first ? 1 : 0) + (this._second ? 1 : 0);
   } 
   
  /**
