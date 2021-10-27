@@ -907,12 +907,12 @@ Endpoint is at end of closest wall:
       this._markWallIntersection(endpoint, second_closest_wall);
     }
     
-    this._markWallIntersection(endpoint, closest_wall);
+    const res = this._markWallIntersection(endpoint, closest_wall);
     
     if(!endpoint.isTerrainExcluded()) { 
       this.points.push(endpoint.x, endpoint.y); 
     } else if(!closest_wall) {
-      const res = potential_walls.updateWallsFromEndpoint(endpoint);
+      potential_walls.updateWallsFromEndpoint(endpoint);
       return res;
     }
     
