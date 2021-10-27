@@ -254,7 +254,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // test for inclusion in the FOV radius
        if(hasRadius) {
          wall = this.splitWallAtRadius(wall, origin, radius, radius2);
-         if(!wall) return; // can skip the wall as it is outside the radius
        } 
           
        const ak = wall.A.key;
@@ -299,7 +298,8 @@ export class CCWSweepPolygon extends PointSourcePolygon {
    * @return {false|CCWSweepWall}
    */
    splitWallAtRadius(wall) {
-     const origin = this.origin;
+     const origin = wall.origin;
+     const type = wall.type;
      const { radius, radius2 } = this.config;
    
      const LEC2 = wall.potentiallyIntersectsCircle(origin, radius, { returnLEC2: true });
@@ -321,16 +321,16 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      if(intersections.length === 0) { return both_inside ? wall : false; }     
      
      // If two intersections found, break the wall at the intersections
-     if(intersections.length === 2) return CCWSweepWall.createFromPoints(i0, i1, wall, { origin });
+     if(intersections.length === 2) return CCWSweepWall.createFromPoints(i0, i1, wall, { origin, type });
      
      // if only 1 intersection, then need to determine which wall is outside.
      // trim from outside point to intersection, leaving only the inside wall portion.
      if(A_inside_radius && (!B_inside_radius || wall.B.almostEqual(i0))) {
-       return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin }); 
+       return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin, type }); 
      }
      
      if(B_inside_radius && (!A_inside_radius || wall.A.almostEqual(i0))) {
-       return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
+       return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin, type });
      }
      
      // otherwise, if both are inside but not yet caught, return the wall.
