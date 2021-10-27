@@ -45,7 +45,7 @@ export class PotentialWallList extends PriorityQueueSet {
   removeWalls(walls) {  
     //log(`Checking to remove ${walls?.length}|${walls?.size}`, walls);
     walls.forEach(w => {
-      if(this.has(w.id)) {
+      if(this.has(w)) {
         //log(`Removing ${w?.id}`, w, this);
         this.remove(w);
       }  
@@ -113,11 +113,8 @@ export class PotentialWallList extends PriorityQueueSet {
   * Retrieve the second-closest wall to the origin
   * @return {Wall}
   */
-  secondClosest() {
-    if(this.walls_encountered.size < 2) return undefined;
-    return this.nthInOrder(2);
-  } 
-  
+  secondClosest() { return this.second; }
+
  /**
   * Determine if a far wall, opposite the endpoint, is CCW or CW given a vision point.
   * origin --> endpoint --> first wall endpoint not equal to endpoint
