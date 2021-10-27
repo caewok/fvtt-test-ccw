@@ -254,6 +254,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        // test for inclusion in the FOV radius
        if(hasRadius) {
          wall = this.splitWallAtRadius(wall, origin, radius, radius2);
+         if(!wall) return; // can skip the wall as it is outside the radius
        } 
           
        const ak = wall.A.key;
