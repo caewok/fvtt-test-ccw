@@ -28,6 +28,14 @@ export class PriorityQueueMap {
   }
   
  /**
+  * Count how many objects are in the queue
+  * @return {number}
+  */
+  get size() {
+    return this.queue.size + this.first ?? 0 + this._second ?? 0;
+  } 
+  
+ /**
   * Retrieve the second-closest, if any.
   * Runs in O(1) if a second exists; O(n) the first time to execute the search.
   * @return {Object}
@@ -46,7 +54,7 @@ export class PriorityQueueMap {
   */
   pullFirst() {
     const res = this.first;
-    if(!res) return undefined;
+    if(!res) { return undefined; }
     this.remove(res.id);
     return res;
   } 
@@ -70,7 +78,7 @@ export class PriorityQueueMap {
   * @private
   */
   _pullSmallestFromQueue() {
-    if(this.queue.size === 0) return undefined;
+    if(this.queue.size === 0) { return undefined; }
     
     let iter = this.queue.values();
     let result = iter.next();
@@ -80,9 +88,10 @@ export class PriorityQueueMap {
     }
     
     let smallest = result;
+    result = iter.next;
     while(!result.done) {
-      result = iter.next;
       smallest = this.comparefn(smallest, result.value) === 1 ? result.value : smallest;
+      result = iter.next;
     }
     
     this.queue.delete(smallest.id);
@@ -98,7 +107,7 @@ export class PriorityQueueMap {
   *   obj.id does not exist. Required to remove an object.
   */
   insert(obj) {
-    if(!obj?.id) obj.id = foundry.utils.randomID();
+    if(!obj?.id) { obj.id = foundry.utils.randomID(); }
   
     if(!this.first) {
       this.first = obj;
