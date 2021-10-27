@@ -112,7 +112,7 @@ export class PriorityQueueBST {
       this.first = smaller;
       
       if(!this._second) {
-        this.queue.set(larger.id, larger);
+        this.queue.insert(larger);
       } else {
         const second_cmp = this.comparefn(this._second, larger) === 1;
         larger = second_cmp ? this.first : obj;
