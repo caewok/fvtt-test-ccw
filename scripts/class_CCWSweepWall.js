@@ -256,7 +256,7 @@ export class CCWSweepWall extends CCWPixelRay {
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
-    w.id = keep_wall_id ? wall.data._id : undefined;
+    w.id = keep_wall_id ? wall.data._id : foundry.utils.randomID();
     
     if(!w.data._id) { w.data._id = w.id; }  
     
