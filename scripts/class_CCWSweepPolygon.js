@@ -306,7 +306,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
      const intersects_radius = LEC2 < radius2; // if equal, would be a tangent
      const A_inside_radius = wall.distanceSquaredOrigin.A < radius2;
      const B_inside_radius = wall.distanceSquaredOrigin.B < radius2;
-     const both_inside = (A_inside_radius || B_inside_radius)
+     const both_inside = A_inside_radius && B_inside_radius;
            
      // if no intersection, drop if the wall is outside; use entire wall if inside      
      if(!intersects_radius) { return both_inside ? wall : false; }
@@ -329,7 +329,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        return CCWSweepWall.createFromPoints(wall.A, i0, wall, { origin }); 
      }
      
-     if(wall.B.insideRadius && (!A_inside_radius || wall.A.almostEqual(i0))) {
+     if(B_inside_radius && (!A_inside_radius || wall.A.almostEqual(i0))) {
        return CCWSweepWall.createFromPoints(i0, wall.B, wall, { origin });
      }
      
