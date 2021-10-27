@@ -88,10 +88,10 @@ export class PriorityQueueMap {
     }
     
     let smallest = result;
-    result = iter.next;
+    result = iter.next();
     while(!result.done) {
       smallest = this.comparefn(smallest, result.value) === 1 ? result.value : smallest;
-      result = iter.next;
+      result = iter.next();
     }
     
     this.queue.delete(smallest.id);
