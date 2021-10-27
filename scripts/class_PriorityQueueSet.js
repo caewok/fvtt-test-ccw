@@ -28,8 +28,8 @@ export class PriorityQueueSet {
   }
   
  /**
-  * Does the queue have this id?
-  * @param {string} id
+  * Does the queue have this object?
+  * @param {Object} obj
   * @return {boolean}
   */
   has(obj) {
@@ -147,7 +147,6 @@ export class PriorityQueueSet {
   * Removes object from the queue.
   * Speed likely O(1)---based on speed of adding to queue.
   * Will be slightly faster if the object is in the first or second position.
-  * @param {string} id    Id of object to remove
   */
   remove(obj) {  
     if(Object.is(this.first, obj)) {
