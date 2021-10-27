@@ -97,7 +97,7 @@ export class PriorityQueueMap {
   * @return {string} id   ID for the object, which will be created if
   *   obj.id does not exist. Required to remove an object.
   */
-  add(obj) {
+  insert(obj) {
     if(!obj?.id) obj.id = foundry.utils.randomID();
   
     if(!this.first) {
