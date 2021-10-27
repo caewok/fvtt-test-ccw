@@ -9,6 +9,8 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWRay }             from "./class_CCWRay.js";
 import { CCWPixelRay }        from "./class_CCWPixelRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
+import { PriorityQueueSet }   from "./class_PriorityQueueSet.js";
+
 import { Bezier }             from "./class_Bezier.js";
 import { MODULE_ID }	        from "./module.js";
 import { IdentifyIntersections } from "./class_IntersectionSweep.js";    
