@@ -231,7 +231,7 @@ export class CCWSweepWall extends CCWPixelRay {
     //w.data = duplicate(wall.data);
     w.data = wall.data;
     w.isInterior = (wall.roof?.occluded === false);
-    if(keep_wall_id) { w._id = wall.data._id; }
+    if(keep_wall_id) { w.id = wall.data._id; }
     
      if(!w.data._id) { w.data._id = w.id; }  
     
@@ -256,7 +256,7 @@ export class CCWSweepWall extends CCWPixelRay {
     w.isOpen = wall.isOpen;
     w.data = wall.data;
     w.isInterior = wall instanceof CCWSweepWall ? w.isInterior : (wall.roof?.occluded === false);
-    w._id = keep_wall_id ? wall.data._id : undefined;
+    w.id = keep_wall_id ? wall.data._id : undefined;
     
     if(!w.data._id) { w.data._id = w.id; }  
     
