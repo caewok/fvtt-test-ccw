@@ -1,3 +1,25 @@
+# 0.2.0
+Key changes:
+1. Visualize the sweep algorithm.
+2. New class inheritance: CCWSweepPoint --> CCWPixelPoint --> CCWPoint --> PIXI.Point
+3. New class inheritance: CCWSweepRay --> CCWPixelRay --> CCWRay --> Ray
+4. Re-factor sweep based on two foundational methods: 
+   - `_processEndpointInFrontOfWall`
+   - `_processEndOfWall`
+5. Use a Priority Queue instead of a Binary Search Tree for storing walls during the sweep.
+
+
+CCWSweepPoint --> CCWPixelPoint --> CCWPoint --> PIXI.Point
+- CCWPoint contains methods for testing near equality and orientation of points.
+- CCWPixelPoint forces points to have integer (pixel) coordinates. 
+- CCWSweepPoint represents a wall endpoint, and stores connected walls.
+
+CCWSweepRay --> CCWPixelRay --> CCWRay --> Ray:
+- CCWRay contains methods for testing orientation of points to the ray as well as calculating intersections and line-circle intersections.
+- CCWPixelRay considers the ray to be the width of a pixel with CCWPixelPoints at either end.
+- CCWSweepRay represents a wall.
+
+
 # 0.1.4
 Key changes:
 1. Toggle to treat lights as triangle or square shape.
