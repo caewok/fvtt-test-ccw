@@ -138,8 +138,8 @@ export class PriorityQueueMap {
         this.queue.set(larger.id, larger);
       } else {
         const second_cmp = this.comparefn(this._second, larger) === 1;
-        larger = second_cmp ? this.first : obj;
-        smaller = second_cmp ? obj : this.first;
+        larger = second_cmp ? this._second : larger;
+        smaller = second_cmp ? larger : this._second;
         this._second = smaller;
         this.queue.set(larger.id, larger);
       }
