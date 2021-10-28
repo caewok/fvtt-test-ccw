@@ -43,7 +43,8 @@ export class PriorityQueueBST {
   } 
   
   get first() {
-    if(!this._first) { this._first = this.queue.findMinNode()?.data; }
+    if(this.size === 0) return undefined;
+    if(!this._first) { this._first = this.queue.findMinNode().data; }
     return this._first;
   } 
   
@@ -53,6 +54,7 @@ export class PriorityQueueBST {
   * @return {Object}
   */  
   get second() {
+    if(this.size < 2) return undefined;
     if(!this._second) { this._second = this.queue.nthInOrder(2); }
     return this._second;
   }
