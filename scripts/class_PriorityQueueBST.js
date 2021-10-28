@@ -107,18 +107,18 @@ export class PriorityQueueBST {
       // only set a second if it has already been set (accessed)
       
       const first_cmp = this.comparefn(this.first, obj) === 1;
-      let larger = first_cmp ? this.first : obj;
-      let smaller = first_cmp ? obj : this.first;
+      const smaller = first_cmp ? obj : this.first;
+      const larger = first_cmp ? this.first : obj; 
       this.first = smaller;
       
       if(!this._second) {
         this.queue.insert(larger);
       } else {
         const second_cmp = this.comparefn(this._second, larger) === 1;
-        larger = second_cmp ? this.first : obj;
-        smaller = second_cmp ? obj : this.first;
-        this._second = smaller;
-        this.queue.insert(larger);
+        const second_smaller = second_cmp ? larger : this._second;
+        const second_larger = second_cmp ? this._second : larger;
+        this._second = second_smaller;
+        this.queue.insert(second_larger);
       }
     }  
     
