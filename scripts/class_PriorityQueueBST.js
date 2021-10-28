@@ -9,7 +9,10 @@ import { BinarySearchTree } from "./class_BinarySearchTree.js";
  * Access to other objects are not supported directly 
  * (but can be achieved by examining the queue property)
  * Objects should have a data property for comparisons and an id property for lookup.
- * Id is optional; a random id will be added if not present.
+ * 
+ * Unlike QueueMap or QueueSet, every object is added to the BST; first and second are
+ * just cached if used. 
+ * Mainly intended to compare BST performance to QueueMap or QueueSet.
  */
 
 export class PriorityQueueBST {
@@ -28,8 +31,8 @@ export class PriorityQueueBST {
   }
   
  /**
-  * Does the queue have this id?
-  * @param {string} id
+  * Does the queue have this object?
+  * @param {Object} obj
   * @return {boolean}
   */
   has(obj) { return this.idsInQueue.has(obj.id); } 
@@ -42,6 +45,10 @@ export class PriorityQueueBST {
     return this.queue.size;
   } 
   
+  /**
+   * Retrieve the first-closest, if any.
+   * Caches the result.
+   */
   get first() {
     if(this.size === 0) return undefined;
     if(!this._first) { this._first = this.queue.findMinNode().data; }
@@ -50,7 +57,6 @@ export class PriorityQueueBST {
   
  /**
   * Retrieve the second-closest, if any.
-  * Runs in O(1) if a second exists; O(n) the first time to execute the search.
   * @return {Object}
   */  
   get second() {
@@ -98,8 +104,6 @@ export class PriorityQueueBST {
   
  /**
   * Removes object from the queue.
-  * Speed likely O(1)---based on speed of adding to queue.
-  * Will be slightly faster if the object is in the first or second position.
   * @param {string} id    Id of object to remove
   */
   remove(obj) {  

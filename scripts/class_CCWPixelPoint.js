@@ -66,7 +66,6 @@ export class CCWPixelPoint extends CCWPoint {
   * Is this point almost equal to another?
   * The point must be within ± √2 / 2 of this point.
   * @param {PIXI.Point} p
-  * @param {number}     EPSILON Passed to almostEqual.
   * @return {boolean}
   */
   almostEqual(p) {

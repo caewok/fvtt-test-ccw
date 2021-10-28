@@ -7,10 +7,9 @@
  * Once a second smallest is requested, it tracks the second-smallest until the queue is
  * depleted.
  * Add and remove methods are supported. 
- * Access to other objects are not supported directly 
+ * Access to other objects is not supported directly 
  * (but can be achieved by examining the queue property)
  * Objects should have a data property for comparisons and an id property for lookup.
- * Id is optional; a random id will be added if not present.
  */
 
 export class PriorityQueueMap {
@@ -21,6 +20,10 @@ export class PriorityQueueMap {
   *   Default is to compare the objects' data property using less-than or greater-than.
   */
   constructor(comparefn = (a, b) => { return a.data === b.data ? 0 : a.data < b.data ? -1 : 1 }) {
+  
+    // Everything but first and second objects are added to the queue
+    // Second object is stored here only once asked to get the second object
+    // (e.g., a map without terrain walls will never need the second wall for the sweep)
     this.queue = new Map();
     this.first = undefined;
     this._second = undefined;
@@ -28,8 +31,8 @@ export class PriorityQueueMap {
   }
   
  /**
-  * Does the queue have this id?
-  * @param {string} id
+  * Does the queue have this object?
+  * @param {Object} obj
   * @return {boolean}
   */
   has(obj) {
@@ -49,7 +52,6 @@ export class PriorityQueueMap {
       
  /**
   * Retrieve the second-closest, if any.
-  * Runs in O(1) if a second exists; O(n) the first time to execute the search.
   * @return {Object}
   */  
   get second() {
@@ -116,15 +118,9 @@ export class PriorityQueueMap {
     
  /**
   * Add an object to the queue.
-  * Runs in O(1). May do 1 or 2 comparisons to the existing first and second position
-  * objects, if any. 
   * @param {Object} obj
-  * @return {string} id   ID for the object, which will be created if
-  *   obj.id does not exist. Required to remove an object.
   */
-  insert(obj) {
-    if(!obj?.id) { obj.id = foundry.utils.randomID(); }
-  
+  insert(obj) {  
     if(!this.first) {
       this.first = obj;
     } else {
@@ -147,9 +143,7 @@ export class PriorityQueueMap {
         this._second = second_smaller;
         this.queue.set(second_larger.id, second_larger);
       }
-    }  
-    
-    return obj.id;
+    }      
   }
   
  /**

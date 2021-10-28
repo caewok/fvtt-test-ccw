@@ -12,6 +12,7 @@ import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
  */
 export async function testCCWBenchmarkSight(n=1000, ...args) {
   const { use_bezier, use_robust_ccw, debug } = game.modules.get(MODULE_ID).api;
+  game.modules.get(MODULE_ID).api.debug = false;
   
   // count number of unique endpoints
   const num_endpoints = new Set();
@@ -22,7 +23,7 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   });
 
   console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
- 
+  
   await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   

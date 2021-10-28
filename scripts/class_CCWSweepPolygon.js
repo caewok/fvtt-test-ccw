@@ -177,7 +177,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   /**
    * Preprocess walls. Needed when walls change in the scene.
    * TO-DO: Should pull all walls, and later trim by quad tree rectangle.
-   * Could do by filter the wall ids returned by _getCandidateWalls
+   * Could do by filtering the wall ids returned by _getCandidateWalls
    * @private
    */
    _preprocessWalls() {
@@ -197,7 +197,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
   /**
    * Comparable to RadialSweepPolygon version. Differences:
-   * - loops using forEach
    * - converts walls to CCWSweepWall
    * - converts endpoints to CCWSweepPoint
    * - trim walls if using limited radius
@@ -232,24 +231,12 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        
        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
      }
-     
-//      if(isLimited) {
-//        // add limited angle walls
-//        wMin = new CCWSweepWall(rMin.A, rMin.B);
-//        wMax = new CCWSweepWall(rMax.A, rMax.B);
-//        candidate_walls.push(wMin, wMax);
-//        candidate_walls = IdentifyIntersections.processWallIntersectionsSimpleSweep(candidate_walls); 
-//      }
-     
-     
+          
      candidate_walls.forEach(wall => {       
        // update origin and type for this particular sweep
        wall.origin = origin;
        wall.type = type;
-       
-       // If the wall is colinear with the origin, ignore it
-       //if(wall.ccwOrigin === 0) return;
-     
+            
        // Test whether a wall should be included in the set considered for this polygon
        if(!wall.include()) return;
        
@@ -290,8 +277,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
        if(rMin.intersects(wall)) this.start_walls.push(wall);
            
      });
-     
-    
    }
    
   /**
@@ -379,6 +364,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   /**
    * Construct four walls and four endpoints representing the canvas edge.
    * Add to the walls and endpoints sets, respectively.
+   * @return {Array[4 CCWSweepWall]}
    */
    _getCanvasEdges() {
      // organize clockwise from 0,0
@@ -442,14 +428,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
       CCWSweepPolygon.sortEndpointsCWFrom(origin, [...this.endpoints.values()], rMin.B) :
       CCWSweepPolygon.sortEndpointsCW(origin, [...this.endpoints.values()]);
 
-    
-    // ----- ADD LIMITED ANGLE ENDPOINTS ----- //
-   //  if(isLimited) {
-//       // add endpoints at the end of the respective start/end rays
-//       endpoints.unshift(CCWSweepPoint.fromPoint(rMin.B, { origin }));
-//       endpoints.push(CCWSweepPoint.fromPoint(rMax.B, { origin }));
-//     }
-
     // ----- STARTING STATE ------ //
     if(isLimited || endpoints.length > 0) {
       const start_endpoint = isLimited ? rMin.B : endpoints[0];
@@ -498,8 +476,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
 
 Walls:
 If terrain wall is the closest wall, get the second-closest.
-
-
 */ 
   
   
@@ -581,6 +557,18 @@ If terrain wall is the closest wall, get the second-closest.
     }
   }
   
+ /**
+  * Loop over each endpoint and add collision points.
+  * Radius version: Assumes walls have been removed or split so only ones remaining
+  *   are inside the radius. This means if no wall is found, padding is required to 
+  *   draw the radius FOV circle.
+  * Assumes endpoints have already been sorted.
+  * Assumes starting walls have been placed in the BST
+  * Assumes walls in line with the origin have been removed.
+  * @param {PotentialWallList} potential_walls   Binary search tree ordering walls by closeness
+  * @param {[CCWSweepPoint]} endpoints           Sorted (CW --> CCW) array of endpoints
+  * @private
+  */
   _sweepEndpointsRadius(potential_walls, endpoints) {
     //console.log(`testccw|_sweepEndpointsRadius`);
     const { type, isLimited, rMin, rMax } = this.config;
@@ -687,7 +675,9 @@ If terrain wall is the closest wall, get the second-closest.
     
   
   /**
-   * Add padding for given endpoint
+   * Add padding for given endpoint. Meaning get a set of points that outline the radius
+   * circle between the last collision point to this new endpoint.
+   * @param {CCWSweepPoint} endpoint
    */
    _addPaddingForEndpoint(endpoint) {
      // draw an arc from where the collisions ended to the ray for the new endpoint
@@ -713,7 +703,10 @@ If terrain wall is the closest wall, get the second-closest.
    }
 
  /**
-  * Add padding at end of radius sweep
+  * Add padding at end of radius sweep.
+  * Functionally similar to _addPaddingForEndpoint but handles edge cases where no walls
+  * have been found.
+  * @param {CCWSweepWall} closest_wall The closest wall, if any, at the end of the sweep.
   */
   _addPaddingAtRadiusSweepEnd(closest_wall) {
     const collisions = this.points;
@@ -778,23 +771,29 @@ If terrain wall is the closest wall, get the second-closest.
 /*
 Sweep options:
 
-Endpoint is in front of closest wall:
+1. Endpoint is behind closest wall: do nothing
 
-Endpoint is behind closest wall: do nothing
-
-Endpoint is at end of closest wall:
+2. Endpoint is at end of closest wall:
 - mark endpoint
 - "fall back" to the next closest wall. Mark intersection.
+
+3. Endpoint is in front of closest wall:
+- mark intersection at that closest wall.
+- get the new closest wall
+- mark endpoint
+
+Handling terrain walls is just applying versions of (1), (2), or (3)
 */
 
  /**
-  * Mark the intersection for a wall.
+  * Workhorse function to mark the intersection for a wall.
   * Basically, draw a line from the origin to the endpoint.
   * Assume the line continues on. 
   * Does the line intersect the closest wall? If yes, mark that intersection as a 
   * point (collision) in the vision polygon.
+  * If no closest wall, flag for padding.
   * @param {CCWSweepPoint} endpoint
-  * @param {CCWSweepWall}  wall
+  * @param {CCWSweepWall}  closest_wall
   * @return {undefined|{ padding: true }} Indicate if padding may be required for radius
   *   vision, based on having hit the end of the radius. 
   */
@@ -874,6 +873,7 @@ Endpoint is at end of closest wall:
   
  /**
   * Process when sweep reaches the end of a wall behind a terrain wall.
+  * Modified version of _processEndOfWall
   * Closest wall is terrain. Endpoint is at right of second-closest wall (end of wall)
   * - push endpoint
   * - update wall list
@@ -924,6 +924,7 @@ Endpoint is at end of closest wall:
  /**
   * Process when sweep reaches an endpoint between the closest wall, which is a 
   * terrain wall, and the second closest wall.
+  * Modified version of _processEndpointInFrontOfWall
   * Closest wall is terrain. Endpoint is in front of second-closest wall.
   * - mark position at second-closest wall (closest is still terrain).
   * - push endpoint (behind terrain, so always mark)
@@ -938,24 +939,6 @@ Endpoint is at end of closest wall:
     potential_walls.updateWallsFromEndpoint(endpoint);
   }
   
-  
-  
-  
-  
-  /*
-   * Construct a CCWSweepPoint from a ray, testing if it hits a wall.
-   * Assume wall may be undefined
-   * @param {CCWSweepWall} wall   Wall to test for intersection.
-   * @param {CCWRay}  ray    Ray to test for intersection.
-   * @param {CCWSweepPoint} Either the wall intersection or end of the ray
-   * @private
-   */
-  _getRayIntersection(wall, ray) {
-    let intersection = undefined;
-    if(wall) { intersection = ray.intersection(wall); }
-    return intersection ? intersection : ray.B;
-  }
-   
   
   /*
    * Trim endpoints to only those between starting and ending rays.
