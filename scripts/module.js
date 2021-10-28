@@ -2,20 +2,27 @@
 'use strict';
 
 // import { registerCCW } from "./patching.js";
-import { testCCWBenchmarkSight } from "./benchmark.js";
-import { orient2d } from "./lib/orient2d.min.js";
-import { incircle } from "./lib/incircle.min.js";
-import { BinarySearchTree }  from "./class_BinarySearchTree.js";
-import { PotentialWallList } from "./class_PotentialWallList.js";
-import { Bezier } from "./class_Bezier.js";
-import { CCWSweepWall }       from "./class_CCWSweepWall.js";
-import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
-import { CCWSightRay }        from "./class_CCWSightRay.js";
+import { testCCWBenchmarkSight }  from "./benchmark.js";
+import { orient2d }               from "./lib/orient2d.min.js";
+import { incircle }               from "./lib/incircle.min.js";
+import { BinarySearchTree }       from "./class_BinarySearchTree.js";
+import { PriorityQueueMap }       from "./class_PriorityQueueMap.js";
+import { PriorityQueueSet }       from "./class_PriorityQueueSet.js";
+import { PriorityQueueBST }       from "./class_PriorityQueueBST.js";
+import { PotentialWallList }      from "./class_PotentialWallList.js";
+import { Bezier }                 from "./class_Bezier.js";
+import { CCWSweepWall }           from "./class_CCWSweepWall.js";
+import { CCWSweepPoint }          from "./class_CCWSweepPoint.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
+import { CCWPoint }               from "./class_CCWPoint.js";
+import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
+import { CCWRay }                 from "./class_CCWRay.js";
+import { CCWPixelRay }            from "./class_CCWPixelRay.js";
 import { IdentifyIntersections, 
          BruteForceIntersections,
          SimpleSweepIntersections,
          BentleyOttomanSweepIntersections,
+         IntersectionSweepWallEvent,
          IntersectionSweepEvent } from "./class_IntersectionSweep.js";     
 
 export const MODULE_ID = 'testccw';
@@ -79,17 +86,27 @@ Hooks.once('init', async function() {
     benchmark: testCCWBenchmarkSight,
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
-    CCWSightRay: CCWSightRay,
     CCWSweepPolygon: CCWSweepPolygon,
+    
+    CCWPoint: CCWPoint,
+    CCWPixelPoint: CCWPixelPoint,
+    CCWRay: CCWRay,
+    CCWPixelRay: CCWPixelRay,
+    
     orient2d: orient2d,
     incircle: incircle,
     BinarySearchTree: BinarySearchTree,
+    PriorityQueueMap: PriorityQueueMap,
+    PriorityQueueSet: PriorityQueueSet,
+    PriorityQueueBST: PriorityQueueBST,
+    
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,
     IdentifyIntersections: IdentifyIntersections,
     BruteForceIntersections: BruteForceIntersections,
     SimpleSweepIntersections: SimpleSweepIntersections,
     BentleyOttomanSweepIntersections: BentleyOttomanSweepIntersections,
+    IntersectionSweepWallEvent: IntersectionSweepWallEvent,
     IntersectionSweepEvent: IntersectionSweepEvent }
 });
 

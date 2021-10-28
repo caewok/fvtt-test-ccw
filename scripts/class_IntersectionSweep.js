@@ -1,16 +1,13 @@
-/* globals foundry */
 'use strict';
 
 import { arraySwap, 
-         almostEqual, 
-         pointsAlmostEqual, 
-         orient2dPoints,
          COLORS,
          compareXY,
          compareXY_A,
          compareYX,
+         almostEqual,
          MapArray } from "./util.js";
-import { CCWSightRay } from "./class_CCWSightRay.js";
+import { CCWPoint } from "./class_CCWPoint.js";
 import { CCWSweepWall }       from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
@@ -48,8 +45,8 @@ export class IdentifyIntersections {
     let remainder = wall;
     intersections.forEach(i_point => {
       // check that we are not repeating points
-      if(pointsAlmostEqual(remainder.A, i_point) || 
-         pointsAlmostEqual(i_point, wall.B)) { return; }
+      if(remainder.A.almostEqual(i_point) || 
+         remainder.B.almostEqual(i_point)) { return; }
       const new_w = CCWSweepWall.createFromPoints(remainder.A, i_point, wall); 
       finished_walls.push(new_w);
       remainder = CCWSweepWall.createFromPoints(i_point, remainder.B, wall);
@@ -119,17 +116,25 @@ export class IdentifyIntersections {
     const remainders = new Map(); // Track remaining wall pieces by wall id
     const sweeper = new BentleyOttomanSweepIntersections(walls);
     
+    // to test ordering
+    // canvas.controls.debug.polygonText.destroy()
+    // queue = sweeper.event_queue.inorder()
+//     queue.forEach((q, idx) => {
+//       q.sweepPosition.draw();
+//       q.sweepPosition.label(idx);
+//     })
+    
+    
     // we are moving left-to-right, so we can chop up walls as we go
     while(sweeper.incomplete) {
       const e = sweeper.step();
       //e.draw()
-      const i_point = e.left; // could just use e but this saves a few calcs.
       
       switch(e.event) {
         case "left":
           // add to the store
           remainders.set(e.id, CCWSweepWall.createFromPoints(e.left, 
-                                  e.right, e.base_wall));
+                                  e.right, e, {}, { keep_wall_id: true }));
         break;
         
         case "right":
@@ -147,13 +152,13 @@ export class IdentifyIntersections {
             const curr_remainder = remainders.get(id);
             
             // check that we are not repeating endpoints
-            if(pointsAlmostEqual(curr_remainder.A, i_point) || 
-               pointsAlmostEqual(i_point, curr_remainder.B)) { return; }
+            if(curr_remainder.A.almostEqual(e) || 
+               curr_remainder.B.almostEqual(e)) { return; }
             
             const new_w = CCWSweepWall.createFromPoints(curr_remainder.A, 
-                                                        i_point, w); 
-            const new_remainder = CCWSweepWall.createFromPoints(i_point, 
-                                                                curr_remainder.B, w); 
+                                                        e, w); 
+            const new_remainder = CCWSweepWall.createFromPoints(e, 
+                                                                curr_remainder.B, w, {}, { keep_wall_id: true }); 
             finished_walls.push(new_w);
             remainders.set(id, new_remainder);
           });  
@@ -216,18 +221,18 @@ export class BruteForceIntersections {
      
      this.walls.forEach(w1 => {
        if(w0.intersects(w1)) {
-         const i_point = w0.intersectSegment(w1.coords);
+         const i_point = w0.intersection(w1);
          
          // count the intersection unless it is an endpoint of that wall
-         if(!(pointsAlmostEqual(w0.A, i_point) || 
-              pointsAlmostEqual(w0.B, i_point))) {
-            this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
+         if(!(w0.A.almostEqual(i_point) || 
+              w0.B.almostEqual(i_point))) {
+            this.intersections_map.push(w0.id, i_point);
          }
           
          // same for the second wall
-         if(!(pointsAlmostEqual(w1.A, i_point) || 
-              pointsAlmostEqual(w1.B, i_point))) {
-            this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
+         if(!(w1.A.almostEqual(i_point) || 
+              w1.B.almostEqual(i_point))) {
+            this.intersections_map.push(w1.id, i_point)  
          } 
        }
      });
@@ -299,18 +304,19 @@ export class SimpleSweepIntersections {
         if(w1.A.x > w0.B.x) { break; }
      
        if(w0.intersects(w1)) {
-         const i_point = w0.intersectSegment(w1.coords);
+         const i_point = w0.intersection(w1);
          
          // count the intersection unless it is an endpoint of that wall
-         if(!(pointsAlmostEqual(w0.A, i_point) || 
-              pointsAlmostEqual(w0.B, i_point))) {
-            this.intersections_map.push(w0.id, { x: i_point.x, y: i_point.y });
+         // compare by endpoints b/c those are likely CCWPixelPoints.
+         if(!(w0.A.almostEqual(i_point) || 
+              w0.B.almostEqual(i_point))) {
+            this.intersections_map.push(w0.id, i_point);
          }
           
          // same for the second wall
-         if(!(pointsAlmostEqual(w1.A, i_point) || 
-              pointsAlmostEqual(w1.B, i_point))) {
-            this.intersections_map.push(w1.id, { x: i_point.x, y: i_point.y })  
+         if(!(w1.A.almostEqual(i_point) || 
+              w1.B.almostEqual(i_point))) {
+            this.intersections_map.push(w1.id, i_point)  
          } 
        }
      }
@@ -384,8 +390,8 @@ export class BentleyOttomanSweepIntersections {
     
     walls.forEach(w => {
       // construct object for needed wall data
-      this.event_queue.insert(new IntersectionSweepEvent("left", { wall: w }));
-      this.event_queue.insert(new IntersectionSweepEvent("right", { wall: w }));
+      this.event_queue.insert(IntersectionSweepWallEvent.createEvent(w, "left"));
+      this.event_queue.insert(IntersectionSweepWallEvent.createEvent(w, "right"));
     });
   }
  
@@ -481,7 +487,7 @@ export class BentleyOttomanSweepIntersections {
     // rest already intersected at this point, so don't need to test
     const walls_arr = [...e.walls.values()];   
     const idxs = walls_arr.map(w => {
-      this.intersections_map.push(w.id, { x: e.x, y: e.y });
+      this.intersections_map.push(w.id, e);
       return this.sweep_status.findIndex(elem => elem.id === w.id);
     });
     const ln = idxs.length;
@@ -530,14 +536,14 @@ export class BentleyOttomanSweepIntersections {
 
     // is it before the first element?
     // if a is less, will be -1
-    this.sweep_status[0].x = sweep_x;
+    this.sweep_status[0].sweepX = sweep_x;
     if(this.compareYX(this.sweep_status[0], segment) > -1) {
       this.sweep_status.unshift(segment);
       return 0;
     }
     
     // is it after the last element?
-    this.sweep_status[ln - 1].x = sweep_x;
+    this.sweep_status[ln - 1].sweepX = sweep_x;
     if(this.compareYX(this.sweep_status[ln - 1], segment) < 1) {
       this.sweep_status.push(segment);
       return ln;
@@ -553,7 +559,7 @@ export class BentleyOttomanSweepIntersections {
       const mid = Math.floor((start + end) / 2);
       
       // are we less than or greater than mid?
-      this.sweep_status[mid].x = sweep_x;
+      this.sweep_status[mid].sweepX = sweep_x;
       const mid_score = this.compareYX(this.sweep_status[mid], segment);
       // -1: sweep is before segment
       //  1: sweep is after segment
@@ -568,7 +574,7 @@ export class BentleyOttomanSweepIntersections {
       // are we between mid - 1 & mid?
       if(mid_score === 1) {
         // segment is before mid
-        this.sweep_status[mid - 1].x = sweep_x;
+        this.sweep_status[mid - 1].sweepX = sweep_x;
         if(this.compareYX(this.sweep_status[mid - 1], segment) < 1) {
           // segment is after the mid - 1 and before mid (or equal)
           this.sweep_status.splice(mid, 0, segment); // insert just before mid
@@ -580,7 +586,7 @@ export class BentleyOttomanSweepIntersections {
         }
       } else {
         // segment is after mid
-        this.sweep_status[mid + 1].x = sweep_x;
+        this.sweep_status[mid + 1].sweepX = sweep_x;
         if(this.compareYX(this.sweep_status[mid + 1], segment) > -1) {
           // segment is before the mid + 1 and after mid (or equal)
           this.sweep_status.splice(mid + 1, 0, segment); // insert just after mid
@@ -606,7 +612,7 @@ export class BentleyOttomanSweepIntersections {
   * @private
   */
   compareYX(a, b) {
-    const res = compareYX(a, b);
+    const res = compareYX(a.sweepPosition, b.sweepPosition);
     //if(res === 0) { return compareYX(a.left, b.left); }
     if(res === 0) {
       if(a.event === "left" && b.event !== "left") return -1;
@@ -621,7 +627,7 @@ export class BentleyOttomanSweepIntersections {
         // if they share a left endpoint, compare their right endpoints
         // (No intersection will be found, they should be oriented so the 
         //  the one moving up is above the one moving down)
-        if(pointsAlmostEqual(a.left, a.right)) { return compareYX(a.right, b.right); }
+        if(a.left.almostEqual(a.right)) { return compareYX(a.right, b.right); }
       
         // One has endpoint in the middle of another
         // a.right --> a --> b.right 
@@ -632,7 +638,7 @@ export class BentleyOttomanSweepIntersections {
         //const ccw = orient2dPoints(a.right, a, b.right)
         //if(ccw > 0) return 1;
         //if(ccw < 0) return -1;
-        return orient2dPoints(a.right, a, b.right);
+        return CCWPoint.orient2d(a.right, a.sweepPosition, b.right);
       }
             
       return compareYX(a.left, b.left);
@@ -641,7 +647,7 @@ export class BentleyOttomanSweepIntersections {
   }
   
   compareXY(a, b) {
-    const res = compareXY(a, b);
+    const res = compareXY(a.sweepPosition, b.sweepPosition);
     if(res === 0) {
      if(a.event === "left" && b.event !== "left") return -1;
      if(a.event === "right" && b.event !== "right") return 1;
@@ -665,24 +671,22 @@ export class BentleyOttomanSweepIntersections {
     if(!s1) return;
     if(!s2) return;
     
-    const s1_wall = s1.base_wall;
-    const s2_wall = s2.base_wall;
-    const intersection = s1_wall.intersectSegment(s2_wall.coords);
+    const intersection = s1.intersection(s2);
     
     if(!intersection) return;
     
     // if the intersection is at the endpoints of the two walls, skip
     // (if only endpoint of one, include)
-    const endpoint1 = pointsAlmostEqual(s1.left, intersection) || 
-                      pointsAlmostEqual(s1.right, intersection)
+    const endpoint1 = s1.left.almostEqual(intersection) || 
+                      s1.right.almostEqual(intersection)
     
-    const endpoint2 = pointsAlmostEqual(s2.left, intersection) || 
-                      pointsAlmostEqual(s2.right, intersection)
+    const endpoint2 = s2.left.almostEqual(intersection) || 
+                      s2.right.almostEqual(intersection)
     if(endpoint1 && endpoint2) return;
     
     
     // construct the intersection so we can find it in the queue if it exists
-    const new_intersection = new IntersectionSweepEvent("intersection", { intersection: intersection });
+    const new_intersection = IntersectionSweepEvent.fromPoint(intersection);
     
     // if the intersection is in the past, skip
     if(this.compareXY(new_intersection, e) === -1) return;
@@ -690,12 +694,12 @@ export class BentleyOttomanSweepIntersections {
     let existing_intersection = this.event_queue.find(new_intersection);
     if(existing_intersection) {
       // update with additional wall(s)
-      existing_intersection.data.walls.set(s1_wall.id, s1_wall);
-      existing_intersection.data.walls.set(s2_wall.id, s2_wall);
+      existing_intersection.walls.set(s1.id, s1);
+      existing_intersection.walls.set(s2.id, s2);
       existing_intersection.event = "intersection"; // probably unnecessary
     } else {
-      new_intersection.walls.set(s1_wall.id, s1_wall);
-      new_intersection.walls.set(s2_wall.id, s2_wall);
+      new_intersection.walls.set(s1.id, s1);
+      new_intersection.walls.set(s2.id, s2);
       this.event_queue.insert(new_intersection);  
     }
   }
@@ -710,9 +714,7 @@ export class BentleyOttomanSweepIntersections {
     if(!s1) return;
     if(!s2) return;
     
-    const s1_wall = s1.base_wall;
-    const s2_wall = s2.base_wall;
-    const intersection = s1_wall.intersectSegment(s2_wall.coords)
+    const intersection = s1.intersection(s2);
     
     if(!intersection) return;
      
@@ -722,100 +724,86 @@ export class BentleyOttomanSweepIntersections {
 
 }
 
-export class IntersectionSweepEvent {
-  constructor(event, { wall = undefined, intersection = undefined} = {}) {
-    if(!wall && !intersection) { console.error(`testccw|IntersectionSweepEvent: Either wall or intersection must be provided.`); }
-   
-    this.event = event;
-    this._id = undefined;
-    this.walls = new Map(); // used for intersections
-    this.coords = undefined;
-    this.base_wall = undefined;
-   
-    if(wall) {
-      this._id = wall.data._id;
-      this.base_wall = CCWSweepWall.create(wall, {}, { keep_wall_id: true });
-      
-      this.coords = wall.coords;
-      const is_left = almostEqual(this.coords[0], this.coords[2]) ? 
-                     this.coords[1] < this.coords[3] : // use top (smaller) y
-                     this.coords[0] < this.coords[2]; // use left (smaller) x
-      
-      this.left = is_left ? { x: this.coords[0], y: this.coords[1] } :
-                            { x: this.coords[2], y: this.coords[3] };
-      this.right = is_left ? { x: this.coords[2], y: this.coords[3] } :
-                             { x: this.coords[0], y: this.coords[1] };                            
-           
-      this.dx = this.right.x - this.left.x;
-      this.dy = this.right.y - this.left.y;
-  
-      // y = slope*x + b
-      // b = y - slope * x
-      // if dx === 0, line is vertical
-      this.slope = this.dy / this.dx;
-      this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
-                         this.left.y - this.slope * this.left.x;
-      
-    } else if(intersection) {
-      this.coords = [intersection.x, intersection.y];  
-      this.left = { x: intersection.x, y: intersection.y }
-      this.right = this.left;
-    }
-    
-    this._sweep_x = undefined; // temp x value to hold current sweep location
-    this._sweep_y = undefined; // temp y value to hold current sweep location
-  }
-  
- /**
-  * The id of the associated wall.
-  */
-  get id() {
-    if(!this._id ) { this._id = foundry.utils.randomID(); }
-    return this._id;  
-  }
-  
- /**
-  * @type {string}
-  */ 
-  set id(value ) { this._id = value; }
-  
-  get x() {
-    return this._sweep_x ?? (this.event === "right" ? this.right.x : this.left.x);      
-  }
-  
-  set x(value) {
-    this._sweep_x = value;
-    this._sweep_y = undefined;
-  }
-  
-  get y() {
-    if(this._sweep_y === undefined) { this._sweep_y = this.getY(this.x); }
-    return this._sweep_y;
+
+export class IntersectionSweepEvent extends CCWSweepPoint {
+  constructor(...args) {
+    super(...args);
+    this.event = "intersection";
   }
 
-  getY(x) {
-    if(this.event === "intersection") return this.left.y;
-    if(this.event === "right") return this.right.y;
+  get left() { return this; }
+  get right() { return this; }
+  get sweepPosition() { return this; }
+  set sweepX(value) {}
+}
+
+export class IntersectionSweepWallEvent extends CCWSweepWall {
+  constructor(A, B, { event, origin, type } = {}) {
+    super(A, B, { origin, type });
+    this.event = event;
+     
+    // leftmost x or topmost y if x is equal. 
+    this._is_left = almostEqual(this.A.x, this.B.x) ? 
+                    this.A.y < this.B.y : this.A.x < this.B.x; 
     
-    // vertical
-    if(almostEqual(this.dx, 0)) return this.event === "left" ? this.left.y : this.right.y; 
+    // temp x value to hold current sweep location
+    this._sweep_x = this.event === "right" ? this.right.x : this.left.x; 
     
-    return this.slope * x + this.y_intercept;
+    // current position given the sweep location
+    this._sweepPosition = undefined; 
+    
+    // store y_intercept for use when adjusting for sweep location.
+    this.y_intercept = almostEqual(this.dx, 0) ? undefined : 
+                         this.left.y - this.slope * this.left.x;
   }
   
+  /**
+   * Override create to add the event
+   * @override
+   */ 
+   static createEvent(wall, event = "left") {
+     return this.create(wall, { event }, { keep_wall_id: true });
+   } 
+  
+  /** 
+   * Get the left endpoint, measured as leftmost x or topmost y if x is equal.
+   * @type {CCWSweepPoint}
+   */
+   get left() { return this._is_left ? this.A : this.B; }
+   get right() { return this._is_left ? this.B : this.A; }
+  
+  /**
+   * Get the point at the current sweep x location
+   * @type {number}  
+   */
+   get sweepPosition() {
+     if(this.event === "right") return this.right;
+   
+     if(this._sweepPosition === undefined) {
+       // test for vertical
+       const y = almostEqual(this.dx, 0) ? this.left.y : 
+                   this.slope * this._sweep_x + this.y_intercept;
+     
+       this._sweepPosition = new CCWSweepPoint(this._sweep_x, y);
+     }
+     return this._sweepPosition;
+   }
+   
+  /**
+   * Set the current sweep location along the x axis
+   */
+   set sweepX(value) {
+     this._sweep_x = value;
+     this._sweepPosition = undefined;
+   }
+
+  /** 
+   * switch line colors based on left vs right for debugging
+   */
   draw(color, alpha = 1, width = 1) {
     if(!color) color = this.event === "right" ? COLORS.black : COLORS.red;
-  
-    if(this.event === "intersection") {
-      const pt = new CCWSweepPoint(this.x, this.y);
-      pt.draw(color, alpha)
-    } else {
-      const r = new CCWSightRay({ x: this.left.x, y: this.left.y },
-                                { x: this.right.x, y: this.right.y });
-     
-     r.draw(color, alpha, width);                           
     
-    }
+    CCWSweepWall.prototype.draw.call(this, color, alpha, width);
   }
 }
 
