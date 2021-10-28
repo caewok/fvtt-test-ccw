@@ -9,6 +9,8 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWRay }             from "./class_CCWRay.js";
 import { CCWPixelRay }        from "./class_CCWPixelRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
+import { PriorityQueueSet }   from "./class_PriorityQueueSet.js";
+
 import { Bezier }             from "./class_Bezier.js";
 import { MODULE_ID }	        from "./module.js";
 import { IdentifyIntersections } from "./class_IntersectionSweep.js";    
@@ -427,7 +429,7 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   _sweepEndpoints() {
     const origin = this.origin;
     const { isLimited, hasRadius, rMin, rMax } = this.config;
-    const potential_walls = new PotentialWallList(origin); // BST ordered by closeness
+    const potential_walls = new PotentialWallList(); // BST ordered by closeness
     
     // reset the ray history
     this.ray_history = [rMin]; 
@@ -1177,7 +1179,7 @@ Endpoint is at end of closest wall:
      } else {
       // mode "closest"
       // Use the BST to find the closest wall, get the intersection, and return
-      const potential_walls = new PotentialWallList(ray.A);
+      const potential_walls = new PotentialWallList();
       potential_walls.add(intersecting_walls);
       const closest = potential_walls.closest();
       const i = ray.intersectSegment(closest.coords);

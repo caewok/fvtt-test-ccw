@@ -5,7 +5,7 @@
 // - walls can be ignored && removed if CCW of current sweep sight ray
 // - walls should be added if CW of current sweep sight ray. 
 // - in line walls? Add?
-import { BinarySearchTree } from "./class_BinarySearchTree.js";
+import { PriorityQueueMap } from "./class_PriorityQueueMap.js";
 import { CCWPoint }         from "./class_CCWPoint.js";
 
 /**
@@ -15,11 +15,9 @@ import { CCWPoint }         from "./class_CCWPoint.js";
  * @property {Set}        walls_encountered   Cache of wall ids checked when adding 
  *                                              or removing walls 
  */  
-export class PotentialWallList extends BinarySearchTree {
-  constructor(origin) {
+export class PotentialWallList extends PriorityQueueMap {
+  constructor() {
     super(PotentialWallList.inFrontOf);
-    this.origin = origin;
-    this.walls_encountered = new Set(); 
   }
 
   /* -------------------------------------------- */
@@ -34,8 +32,7 @@ export class PotentialWallList extends BinarySearchTree {
   */ 
   addWalls(walls) {  
     walls.forEach(w => {
-      if(!this.walls_encountered.has(w.id)) {
-        this.walls_encountered.add(w.id);
+      if(!this.has(w)) {
         this.insert(w);      
       }
     });
@@ -48,9 +45,8 @@ export class PotentialWallList extends BinarySearchTree {
   removeWalls(walls) {  
     //log(`Checking to remove ${walls?.length}|${walls?.size}`, walls);
     walls.forEach(w => {
-      if(this.walls_encountered.has(w.id)) {
+      if(this.has(w)) {
         //log(`Removing ${w?.id}`, w, this);
-        this.walls_encountered.delete(w.id);
         this.remove(w);
       }  
     });
@@ -96,14 +92,12 @@ export class PotentialWallList extends BinarySearchTree {
   * @return {Wall}
   */
   closest({remove = false, skip_terrain = true, type = "sight"} = {}) {
-    if(this.walls_encountered.size === 0) return undefined;
     
     let w = undefined;
     if(remove) {
-      w = this.pullMinNode();
-      this.walls_encountered.delete(w.id);
+      w = this.pullFirst();
     } else {
-      w = this.findMinNode().data;
+      w = this.first;
     }
 
     // if(skip_terrain && w.data?.[type] === 2) {
@@ -119,11 +113,8 @@ export class PotentialWallList extends BinarySearchTree {
   * Retrieve the second-closest wall to the origin
   * @return {Wall}
   */
-  secondClosest() {
-    if(this.walls_encountered.size < 2) return undefined;
-    return this.nthInOrder(2);
-  } 
-  
+  secondClosest() { return this.second; }
+
  /**
   * Determine if a far wall, opposite the endpoint, is CCW or CW given a vision point.
   * origin --> endpoint --> first wall endpoint not equal to endpoint
