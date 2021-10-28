@@ -32,7 +32,8 @@ export class PriorityQueueMap {
   * @param {string} id
   * @return {boolean}
   */
-  has(id) {
+  has(obj) {
+    const id = obj.id;
     if(this.first?.id === id) return true;
     if(this._second?.id === id) return true;
     return this.queue.has(id);
@@ -157,7 +158,9 @@ export class PriorityQueueMap {
   * Will be slightly faster if the object is in the first or second position.
   * @param {string} id    Id of object to remove
   */
-  remove(id) {
+  remove(obj) {
+    const id = obj.id
+  
     if(this.first.id === id) {
       // This is the smallest object; clear first and second positions.
       // use private this._second to access to not trigger the search-and-cache
