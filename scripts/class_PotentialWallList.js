@@ -91,23 +91,7 @@ export class PotentialWallList extends PriorityQueueMap {
   *                                 retrieve next-closest
   * @return {Wall}
   */
-  closest({remove = false, skip_terrain = true, type = "sight"} = {}) {
-    
-    let w = undefined;
-    if(remove) {
-      w = this.pullFirst();
-    } else {
-      w = this.first;
-    }
-
-    // if(skip_terrain && w.data?.[type] === 2) {
-//       // w.data[type] === 2 if the wall is limited for the type of vision 
-//       //  (sight, sound, light)
-//       w = this.secondClosest();
-//     }
-
-    return w;
-  }
+  closest() { return this.first; }
   
  /**
   * Retrieve the second-closest wall to the origin

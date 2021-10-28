@@ -1,6 +1,3 @@
-/* globals foundry */
-
-
 /**
  * Priority Queue provides quick O(1) access to the smallest object in the queue.
  * It will optionally locate and cache the second smallest object. 

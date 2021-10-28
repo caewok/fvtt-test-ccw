@@ -2,7 +2,6 @@
 /* globals WallEndpoint */
 
 import { CCWPoint } from "./class_CCWPoint.js";
-import { PRESET_EPSILON } from "./util.js";
 
 /**
  * Represent point as a single pixel, meaning it has integer x,y coordinates.

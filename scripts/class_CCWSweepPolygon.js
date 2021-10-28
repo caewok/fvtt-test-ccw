@@ -9,7 +9,6 @@ import { CCWSweepPoint }      from "./class_CCWSweepPoint.js";
 import { CCWRay }             from "./class_CCWRay.js";
 import { CCWPixelRay }        from "./class_CCWPixelRay.js";
 import { PotentialWallList }  from "./class_PotentialWallList.js";
-import { PriorityQueueSet }   from "./class_PriorityQueueSet.js";
 
 import { Bezier }             from "./class_Bezier.js";
 import { MODULE_ID }	        from "./module.js";
@@ -492,10 +491,9 @@ If terrain wall is the closest wall, get the second-closest.
    */
   _sweepEndpointsNoRadius(potential_walls, endpoints) {
 
-    const { type, isLimited, rMin, rMax } = this.config;
+    const { isLimited, rMin, rMax } = this.config;
     const origin = this.origin;
-    let closest_wall = potential_walls.closest({type});
-    // let actual_closest_wall = potential_walls.closest({skip_terrain: false});
+    let closest_wall = potential_walls.closest();
     
     if(isLimited) {
       // deal with the minimum limited angle ray
@@ -513,7 +511,7 @@ If terrain wall is the closest wall, get the second-closest.
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
-      closest_wall = potential_walls.closest({ type })
+      closest_wall = potential_walls.closest()
       
       if(endpoint.almostEqual(closest_wall.rightEndpoint)) {
         this._processEndOfWall(endpoint, potential_walls);
@@ -545,7 +543,7 @@ If terrain wall is the closest wall, get the second-closest.
     if(isLimited) {
       // deal with the maximum limited angle ray
       // need to first update the closest wall
-      closest_wall = potential_walls.closest({type});
+      closest_wall = potential_walls.closest();
       if(closest_wall.blocksPoint(rMax.B, origin)) {
         // closest wall is in front of the limited endpoint; 
         // mark that point on the wall
@@ -574,7 +572,6 @@ If terrain wall is the closest wall, get the second-closest.
     const { type, isLimited, rMin, rMax } = this.config;
     const origin = this.origin;
     let closest_wall = potential_walls.closest({type});
-    //let actual_closest_wall = potential_walls.closest({skip_terrain: false});
     
     let needs_padding = false;
     
@@ -597,7 +594,7 @@ If terrain wall is the closest wall, get the second-closest.
     const endpoints_ln = endpoints.length;
     for(let i = 0; i < endpoints_ln; i += 1) {
       const endpoint = endpoints[i];   
-      closest_wall = potential_walls.closest({type});
+      closest_wall = potential_walls.closest();
       
       if(needs_padding) {
         this._addPaddingForEndpoint(endpoint);
@@ -642,7 +639,7 @@ If terrain wall is the closest wall, get the second-closest.
     if(isLimited) {
       // deal with the maximum limited angle ray
       // need to first update the closest wall
-      closest_wall = potential_walls.closest({type});
+      closest_wall = potential_walls.closest();
       if(needs_padding) {
         this._addPaddingForEndpoint(rMax.B);
         needs_padding = false;
