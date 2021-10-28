@@ -46,7 +46,7 @@ export class PriorityQueueMap {
   get size() {
     return this.queue.size + (this.first ? 1 : 0) + (this._second ? 1 : 0);
   } 
-  
+      
  /**
   * Retrieve the second-closest, if any.
   * Runs in O(1) if a second exists; O(n) the first time to execute the search.
@@ -65,10 +65,11 @@ export class PriorityQueueMap {
   * @return {undefined|Object}
   */
   pullFirst() {
-    const res = this.first;
-    if(!res) { return undefined; }
-    this.remove(res.id);
-    return res;
+    // if we have identified a second, it becomes the new first
+    const out = this.first;
+    this._first = this._second ? this._second : this._pullSmallestFromQueue();
+    this._second = undefined;
+    return out;
   } 
   
  /**
@@ -76,10 +77,9 @@ export class PriorityQueueMap {
   * @return {undefined|Object}
   */
   pullSecond() {
-    const res = this.second;
-    if(!res) { return undefined; }
-    this.remove(res.id);
-    return res;
+    const out = this.second;
+    this._second = undefined;    
+    return out;
   } 
   
   // 15, 25

@@ -64,10 +64,10 @@ export class PriorityQueueSet {
   * @return {undefined|Object}
   */
   pullFirst() {
-    const res = this.first;
-    if(!res) { return undefined; }
-    this.remove(res);
-    return res;
+    const out = this.first;
+    this._first = this._second ? this._second : this._pullSmallestFromQueue();
+    this._second = undefined;
+    return out;
   } 
   
  /**
@@ -75,10 +75,9 @@ export class PriorityQueueSet {
   * @return {undefined|Object}
   */
   pullSecond() {
-    const res = this.second;
-    if(!res) { return undefined; }
-    this.remove(res);
-    return res;
+    const out = this.second;
+    this._second = undefined;    
+    return out;
   } 
   
   
