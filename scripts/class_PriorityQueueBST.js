@@ -11,7 +11,8 @@ import { BinarySearchTree } from "./class_BinarySearchTree.js";
  * Objects should have a data property for comparisons and an id property for lookup.
  * 
  * Unlike QueueMap or QueueSet, every object is added to the BST; first and second are
- * just cached if used
+ * just cached if used. 
+ * Mainly intended to compare BST performance to QueueMap or QueueSet.
  */
 
 export class PriorityQueueBST {
