@@ -81,6 +81,9 @@ export class PriorityQueueMap {
     return res;
   } 
   
+  // 15, 25
+  // insert 22, insert 17, insert 13
+  
   
  /**
   * Internal method to search queue for smallest entry.
@@ -130,18 +133,18 @@ export class PriorityQueueMap {
       // only set a second if it has already been set (accessed)
       
       const first_cmp = this.comparefn(this.first, obj) === 1;
-      let larger = first_cmp ? this.first : obj;
-      let smaller = first_cmp ? obj : this.first;
+      const smaller = first_cmp ? obj : this.first;
+      const larger = first_cmp ? this.first : obj;
       this.first = smaller;
       
       if(!this._second) {
         this.queue.set(larger.id, larger);
       } else {
         const second_cmp = this.comparefn(this._second, larger) === 1;
-        larger = second_cmp ? this._second : larger;
-        smaller = second_cmp ? larger : this._second;
-        this._second = smaller;
-        this.queue.set(larger.id, larger);
+        const second_smaller = second_cmp ? larger : this._second;
+        const second_larger = second_cmp ? this._second : larger;
+        this._second = second_smaller;
+        this.queue.set(second_larger.id, second_larger);
       }
     }  
     
