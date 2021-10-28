@@ -7,10 +7,9 @@
  * Once a second smallest is requested, it tracks the second-smallest until the queue is
  * depleted.
  * Add and remove methods are supported. 
- * Access to other objects are not supported directly 
+ * Access to other objects is not supported directly 
  * (but can be achieved by examining the queue property)
  * Objects should have a data property for comparisons and an id property for lookup.
- * Id is optional; a random id will be added if not present.
  */
 
 export class PriorityQueueSet {
@@ -48,7 +47,6 @@ export class PriorityQueueSet {
   
  /**
   * Retrieve the second-closest, if any.
-  * Runs in O(1) if a second exists; O(n) the first time to execute the search.
   * @return {Object}
   */  
   get second() {
@@ -111,8 +109,6 @@ export class PriorityQueueSet {
     
  /**
   * Add an object to the queue.
-  * Runs in O(1). May do 1 or 2 comparisons to the existing first and second position
-  * objects, if any. 
   * @param {Object} obj
   */
   insert(obj) {  
@@ -144,8 +140,6 @@ export class PriorityQueueSet {
   
  /**
   * Removes object from the queue.
-  * Speed likely O(1)---based on speed of adding to queue.
-  * Will be slightly faster if the object is in the first or second position.
   */
   remove(obj) {  
     if(Object.is(this.first, obj)) {

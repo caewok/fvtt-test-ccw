@@ -33,10 +33,10 @@ export class CCWPoint extends PIXI.Point {
   
  /**
   * Is point 3 clockwise or counterclockwise (CCW) of the line from p1 -> p2 -> p3
-  * @param {x, y} p1   Point in {x, y} format.
-  * @param {x, y} p2   Point in {x, y} format.
-  * @param {x, y} p3   Point in {x, y} format.
-  * @param {number}    EPSILON   Error tolerance for almostEqual test.
+  * @param {x, y} p1          Point in {x, y} format.
+  * @param {x, y} p2          Point in {x, y} format.
+  * @param {x, y} p3          Point in {x, y} format.
+  * @param {boolean} robust   Whether to use robust version of orient2d
   * @return {Number}  Positive if CCW, Negative if CW, 0 if in line
   */
   static orient2d(p1, p2, p3, { robust = game.modules.get(MODULE_ID).api.use_robust_ccw } = {}) {
@@ -52,9 +52,11 @@ export class CCWPoint extends PIXI.Point {
   
  /**
   * Same as orient2d but checks for 0 and returns -1, 0, or 1
-  * @param {x, y} p1   Point in {x, y} format.
-  * @param {x, y} p2   Point in {x, y} format.
-  * @param {x, y} p3   Point in {x, y} format.
+  * @param {x, y} p1          Point in {x, y} format.
+  * @param {x, y} p2          Point in {x, y} format.
+  * @param {x, y} p3          Point in {x, y} format.
+  * @param {number} EPSILON   Error tolerance for almostEqual
+  * @param {boolean} robust   Whether to use robust version of orient2d
   * @return {-1|0|1}   1 if CCW, -1 if CW, 0 if in line
   */
   static ccw(p1, p2, p3, { EPSILON = PRESET_EPSILON, 
@@ -90,10 +92,11 @@ export class CCWPoint extends PIXI.Point {
   
  /**
   * Comparable to ccw for inCirclePoints.
-  * @param {x, y} p1   Point in {x, y} format.
-  * @param {x, y} p2   Point in {x, y} format.
-  * @param {x, y} p3   Point in {x, y} format.
-  * @param {x, y} p4   Point in {x, y} format.
+  * @param {x, y} p1          Point in {x, y} format.
+  * @param {x, y} p2          Point in {x, y} format.
+  * @param {x, y} p3          Point in {x, y} format.
+  * @param {x, y} p4          Point in {x, y} format.
+  * @param {number} EPSILON   Error tolerance for almostEqual
   * @return {1|0|-1}   1 if outside circle, -1 if inside, 0 if on circle
   */
   static outsideCircle(p1, p2, p3, p4, { EPSILON = PRESET_EPSILON } = {}) {
@@ -122,7 +125,7 @@ export class CCWPoint extends PIXI.Point {
  /**
   * Test if this point is almost equal to some other {x, y} point.
   * @param {PIXI.Point} p       Point to compare
-  * @param {number}     EPSILON Tolerate distance between. Passed to almostEqual.
+  * @param {number} EPSILON     Error tolerance for almostEqual
   * @return {boolean}
   */
   almostEqual(p, { EPSILON = PRESET_EPSILON } = {}) {

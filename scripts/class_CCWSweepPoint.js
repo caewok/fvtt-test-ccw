@@ -20,8 +20,8 @@ export class CCWSweepPoint extends CCWPixelPoint {
     /* -------------------------------------------- */
  
     /**
-     * Record the set of walls which connect to this Endpoint
-     * @type {Set<CCWSweepWall>}
+     * Record the walls that connect to this SweepPoint
+     * @type {Map<CCWSweepWall>}
      */
     this.walls = new Map();
         
@@ -32,9 +32,9 @@ export class CCWSweepPoint extends CCWPixelPoint {
   /* -------------------------------------------- */
   
  /**
-  * Construct a CCWPoint from any object that contains x and y.
+  * Construct a CCWSweepPoint from any object that contains x and y.
   * @param {x: number, y: number} p
-  * @return CCWPoint
+  * @return CCWSweepPoint
   */ 
   static fromPoint(p) {
     return new this(p.x, p.y);
@@ -50,18 +50,15 @@ export class CCWSweepPoint extends CCWPixelPoint {
   /*  Methods                                     */
   /* -------------------------------------------- */
   
-  // TO-DO: Cache isTerrainExcluded and hasTerrainWalls
-  // Would need to set the "type" as a cached property, 
-  //   and monitor wall additions/deletions
-  /**
-   * Check if this endpoint counts as terrain and so might be excluded. 
-   * Hypothesis: 
-   * - If any wall is not terrain, endpoint must count as collision
-   * - If more than two terrain walls, endpoint must count as collision
-   * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
-   *   - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
-   * @return {boolean} True if a single terrain wall is present in the set
-   */
+ /**
+  * Check if this endpoint counts as terrain and so might be excluded. 
+  * Hypothesis: 
+  * - If any wall is not terrain, endpoint must count as collision
+  * - If more than two terrain walls, endpoint must count as collision
+  * - If 2 walls, endpoint may or may not count, depending on orientation to vision point.
+  * - If wall 1 is in front of wall 2 and vice-versa, then it is a terrain point.
+  * @return {boolean} True if a single terrain wall is present in the set
+  */
   isTerrainExcluded() {
     const ln = this.walls.size
     

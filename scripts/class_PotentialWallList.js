@@ -1,10 +1,10 @@
 // Class to store list of potential walls.
 // Assumptions:
-// - ordered from furtherest to closest walls.
+// - only need to know the closest and potentially second-closest wall
 // - sweeping clockwise
 // - walls can be ignored && removed if CCW of current sweep sight ray
 // - walls should be added if CW of current sweep sight ray. 
-// - in line walls? Add?
+
 import { PriorityQueueMap } from "./class_PriorityQueueMap.js";
 import { CCWPoint }         from "./class_CCWPoint.js";
 
