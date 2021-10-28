@@ -5,7 +5,7 @@
 // - walls can be ignored && removed if CCW of current sweep sight ray
 // - walls should be added if CW of current sweep sight ray. 
 // - in line walls? Add?
-import { PriorityQueueMap } from "./class_PriorityQueueMap.js";
+import { PriorityQueueSet } from "./class_PriorityQueueSet.js";
 import { CCWPoint }         from "./class_CCWPoint.js";
 
 /**
@@ -15,7 +15,7 @@ import { CCWPoint }         from "./class_CCWPoint.js";
  * @property {Set}        walls_encountered   Cache of wall ids checked when adding 
  *                                              or removing walls 
  */  
-export class PotentialWallList extends PriorityQueueMap {
+export class PotentialWallList extends PriorityQueueSet {
   constructor() {
     super(PotentialWallList.inFrontOf);
   }
@@ -32,7 +32,7 @@ export class PotentialWallList extends PriorityQueueMap {
   */ 
   addWalls(walls) {  
     walls.forEach(w => {
-      if(!this.has(w.id)) {
+      if(!this.has(w)) {
         this.insert(w);      
       }
     });
@@ -45,9 +45,9 @@ export class PotentialWallList extends PriorityQueueMap {
   removeWalls(walls) {  
     //log(`Checking to remove ${walls?.length}|${walls?.size}`, walls);
     walls.forEach(w => {
-      if(this.has(w.id)) {
+      if(this.has(w)) {
         //log(`Removing ${w?.id}`, w, this);
-        this.remove(w.id);
+        this.remove(w);
       }  
     });
   } 
