@@ -1,5 +1,3 @@
-/* globals foundry */
-
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 /**
@@ -23,9 +21,10 @@ export class PriorityQueueBST {
   */
   constructor(comparefn = (a, b) => { return a.data === b.data ? 0 : a.data < b.data ? -1 : 1 }) {
     this.queue = new BinarySearchTree(comparefn);
-    this.first = undefined;
+    this._first = undefined;
     this._second = undefined;
     this.comparefn = comparefn;
+    this.idsInQueue = new Set();
   }
   
  /**
@@ -33,18 +32,20 @@ export class PriorityQueueBST {
   * @param {string} id
   * @return {boolean}
   */
-  has(obj) {
-    if(Object.is(this.first, obj)) return true;
-    if(Object.is(this._second, obj)) return true;
-    return Boolean(this.queue.find(obj));
-  } 
+  has(obj) { return this.idsInQueue.has(obj.id); } 
   
  /**
   * Count how many objects are in the queue
   * @return {number}
   */
   get size() {
-    return this.queue.size + (this.first ? 1 : 0) + (this._second ? 1 : 0);
+    return this.queue.size;
+  } 
+  
+  get first() {
+    if(this.size === 0) return undefined;
+    if(!this._first) { this._first = this.queue.findMinNode().data; }
+    return this._first;
   } 
   
  /**
@@ -53,10 +54,8 @@ export class PriorityQueueBST {
   * @return {Object}
   */  
   get second() {
-    if(!this.first) return undefined;
-    if(!this._second) {
-      this._second = this._pullSmallestFromQueue();
-    } 
+    if(this.size < 2) return undefined;
+    if(!this._second) { this._second = this.queue.nthInOrder(2); }
     return this._second;
   }
   
@@ -64,11 +63,14 @@ export class PriorityQueueBST {
   * Pull the first object, meaning delete it from the queue and return it.
   * @return {undefined|Object}
   */
-  pullFirst() {
-    const res = this.first;
-    if(!res) { return undefined; }
-    this.remove(res);
-    return res;
+  pullFirst() {    
+    const out = this.first;
+    this.queue.remove(out);
+    this._first = this._second ? this._second : undefined;
+    this._second = undefined;
+    this.idsInQueue.delete(out.id);
+    
+    return out;
   } 
   
  /**
@@ -76,52 +78,22 @@ export class PriorityQueueBST {
   * @return {undefined|Object}
   */
   pullSecond() {
-    const res = this.second;
-    if(!res) { return undefined; }
-    this.remove(res);
-    return res;
+    const out = this.second;
+    this.queue.remove(out);
+    this._second = undefined;
+    this.idsInQueue.delete(out.id);
+    return out;
   } 
-  
-  
- /**
-  * Internal method to search queue for smallest entry.
-  * Removes the object from the queue and returns it.
-  * @return {undefined|Object}
-  * @private
-  */
-  _pullSmallestFromQueue() { return this.queue.pullMinNode(); }
-    
+      
  /**
   * Add an object to the queue.
-  * Runs in O(1). May do 1 or 2 comparisons to the existing first and second position
-  * objects, if any. 
   * @param {Object} obj
   */
-  insert(obj) {  
-    if(!this.first) {
-      this.first = obj;
-    } else {
-      // check if obj should be first
-      // then check if larger should be second
-      // then put larger in the queue
-      // only set a second if it has already been set (accessed)
-      
-      const first_cmp = this.comparefn(this.first, obj) === 1;
-      const smaller = first_cmp ? obj : this.first;
-      const larger = first_cmp ? this.first : obj; 
-      this.first = smaller;
-      
-      if(!this._second) {
-        this.queue.insert(larger);
-      } else {
-        const second_cmp = this.comparefn(this._second, larger) === 1;
-        const second_smaller = second_cmp ? larger : this._second;
-        const second_larger = second_cmp ? this._second : larger;
-        this._second = second_smaller;
-        this.queue.insert(second_larger);
-      }
-    }  
-    
+  insert(obj) { 
+    this.queue.insert(obj);
+    this.idsInQueue.add(obj.id);
+    this._first = undefined;
+    this._second = undefined;
   }
   
  /**
@@ -131,21 +103,18 @@ export class PriorityQueueBST {
   * @param {string} id    Id of object to remove
   */
   remove(obj) {  
-    if(Object.is(this.first, obj)) {
-      // This is the smallest object; clear first and second positions.
-      // use private this._second to access to not trigger the search-and-cache
-      this.first = this._second;
-      this._second = undefined;
-      
-      if(!this.first) { this.first = this._pullSmallestFromQueue(); }
-      
-    } else if(Object.is(this._second, obj)) {
-      // This is the second-smallest object; clear second position.
-      this._second = undefined;
-    } else {
-      // Object is somewhere in the queue; remove
-      this.queue.remove(obj);
+    if(this._first && this.first.id === obj.id) { 
+      this.pullFirst();
+      return;
     }
-  }
+    
+    if(this._second && this.second.id === obj.id) {
+      this.pullSecond();
+      return;
+    }
+  
+    this.queue.remove(obj);
+    this.idsInQueue.delete(obj.id);
+  }  
 
 }
