@@ -4,9 +4,29 @@ Module framework for testing a new vision/lighting algorithm for [Foundry VTT](h
 
 Add this [Manifest URL](https://github.com/caewok/fvtt-test-ccw/releases/latest/download/module.json) in Foundry to install.
 
+## Basic Use
+To enable:
+```js
+old_backend = CONFIG.Canvas.losBackend;
+CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
+```
+
+To revert:
+```js
+CONFIG.Canvas.losBackend = old_backend;
+``` 
+
+## Visualization of the Algorithm
+To see a visualization of the sweep in real-time:
+```js
+CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
+game.modules.get('testccw').api.debug = true;
+```
+
+## Benchmarking
 To benchmark from console when you have a single token selected:
 ```js
-t = canvas.tokens.controlled[0]
+t = canvas.tokens.controlled[0];
 await game.modules.get('testccw').api.benchmark(10000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation, type: "sight", debug: false});
 ```
 
@@ -16,7 +36,21 @@ l = [...canvas.lighting.sources][0];
 await game.modules.get('testccw').api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"});
 ```
 
-To enable:
+Benchmark without overlapping wall detection:
+```js
+game.modules.get('testccw').api.detect_intersections = false;
+t = canvas.tokens.controlled[0];
+await game.modules.get('testccw').api.benchmark(10000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation, type: "sight", debug: false});
+```
+
+```js
+game.modules.get('testccw').api.detect_intersections = false;
+l = [...canvas.lighting.sources][0];
+await game.modules.get('testccw').api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"});
+```
+
+## All options
+
 ```js
 old_backend = CONFIG.Canvas.losBackend;
 CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
@@ -35,6 +69,9 @@ game.modules.get('testccw').api.light_shape = "circle";
 // Optionally, turn off the pre-processing check for overlapping walls. 
 // This will improve speed but light_shape must be "circle"
 game.modules.get('testccw').api.detect_intersections = false;
+
+// Visualization of sweep algorithm
+game.modules.get('testccw').api.debug = true;
 
 // To revert to Foundry version:
 CONFIG.Canvas.losBackend = old_backend;
