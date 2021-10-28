@@ -1,5 +1,3 @@
-/* globals foundry */
-
 import { BinarySearchTree } from "./class_BinarySearchTree.js";
 
 /**
@@ -34,7 +32,7 @@ export class PriorityQueueBST {
   * @param {string} id
   * @return {boolean}
   */
-  has(id) { return this.idsInQueue.has(id); } 
+  has(obj) { return this.idsInQueue.has(obj.id); } 
   
  /**
   * Count how many objects are in the queue
