@@ -45,7 +45,7 @@ export class PotentialWallList extends PriorityQueueMap {
   removeWalls(walls) {  
     //log(`Checking to remove ${walls?.length}|${walls?.size}`, walls);
     walls.forEach(w => {
-      if(this.has(w)) {
+      if(this.has(w.id)) {
         //log(`Removing ${w?.id}`, w, this);
         this.remove(w.id);
       }  
