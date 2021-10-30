@@ -52,6 +52,10 @@ export class Bezier {
   static bezierPointForQuadrant(t, quadrant) {  
     // recall that y is reversed: -y is at the top, +y is at the bottom
     // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
+    const Q1 = 1;
+    const Q2 = 2;
+    const Q3 = 3;
+    const Q4 = 4;
     let pt;
     switch(quadrant) {
       case Q1:
@@ -109,7 +113,7 @@ export class Bezier {
     let large_arc = false;
     let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       orient2dFast(origin, r0.B, r1.B) > 0) { large_arc = true; }
+       CCWPoint.orient2d(origin, r0.B, r1.B, { robust: false }) > 0) { large_arc = true; }
     
     while(!done) {
       let check_start = quadrant === start_quadrant;
