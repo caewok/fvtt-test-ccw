@@ -28,26 +28,21 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const x3 = r2.A.x;
     const y3 = r2.A.y;
     
-    if(!(r1 instanceof Ray)) {
-      r1.dx = r1.B.x - r1.A.x;
-      r1.dy = r1.B.y - r1.A.y;
-    }
+    const dx1 = r1?.dx || (r1.B.x - r1.A.x);
+    const dy1 = r1?.dy || (r1.B.y - r1.A.y);
     
-    if(!(r2 instanceof Ray)) {
-      r2.dx = r2.B.x - r2.A.x;
-      r2.dy = r2.B.y - r2.A.y;
-    }
-    
-    
+    const dx2 = r2?.dx || (r2.B.x - r2.A.x);
+    const dy2 = r2?.dx || (r2.dy = r2.B.y - r2.A.y);
+      
     // Check denominator - avoid parallel lines where d = 0
-    const d = r2.dy * r1.dx - r2.dx * r1.dy;
+    const d = dy2 * dx1 - dx2 * dy1;
     if(d === 0) return null;
     
     // get vector distance for the intersection point
-    const t0 = (r2.dx * (y1 - y2) - r2.dy * (x1 - x3)) / d;
+    const t0 = (dx2 * (y1 - y2) - dy2 * (x1 - x3)) / d;
     return { 
-      x: x1 + t0 * r1.dx,
-      y: y1 + t0 * r1.dy,
+      x: x1 + t0 * dx1,
+      y: y1 + t0 * dy1,
       t0: t0
     }
   }   
