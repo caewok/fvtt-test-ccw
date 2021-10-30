@@ -17,6 +17,15 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   }
   
  /**
+  * Quickly test whether two segments intersect. 
+  * Does not calculate the intersection point. (See lineLineIntersection for that.)
+  */
+ static intersects(a, b, c, d) {
+   return foundry.utils.orient2dFast(a, b, c) !== foundry.utils.orient2dFast(a, b, d) &&
+          foundry.utils.orient2dFast(c, d, a) !== foundry.utils.orient2dFast(c, d, b)
+ } 
+  
+ /**
   * Intersection between this Ray and another assuming both are infinite lengths.
   * @param {Ray}   r1         First ray
   * @param {Ray}   r2         Second ray 
@@ -54,7 +63,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @return {LineIntersection|null} 
   */
   static lineLineIntersection(r1, r2) {
-    if(!foundry.utils.lineLineIntersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
+    if(!MyClockwiseSweepPolygon.intersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
         
     const res = MyClockwiseSweepPolygon.potentialIntersection(r1.A, r1.B, r2.A, r2.B);
     if(!res) return null;
