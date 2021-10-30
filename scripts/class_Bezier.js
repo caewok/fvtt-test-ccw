@@ -82,11 +82,11 @@ export class Bezier {
    * Get padding using a bezier approximation to a circle
    * @param {SightRay} r0       SightRay where A is the origin of the circle, B is start point for arc.
    * @param {SightRay} r1       SightRay where A is the origin of the circle, B is end point for arc.
-   * @param {Number} padding    The size of padding in radians to fill between r0.B and r1.B.
-   * @param {Array} pts         Array to which to add points. Optional.
+   * @param {Number} numQuadrantPoints    Number of points to create in a given quadrant,
+   *                                      assuming the entire quadrant was used.
    * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
    */
-  static bezierPadding(r0, r1, padding) {  
+  static bezierPadding(r0, r1, numQuadrantPoints) {  
     const radius = r0.distance;
     const origin = r0.A;
     const PRECISION = 10; // number of digits to round
@@ -100,10 +100,7 @@ export class Bezier {
                            //y: round((r0.B.y - origin.y) / radius, PRECISION) };
     const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
                          //y: round((r1.B.y - origin.y) / radius, PRECISION) };
-    
-  
-    const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
-  
+      
     let quadrant = start_quadrant;
     let done = false;
     
