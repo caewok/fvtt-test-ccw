@@ -27,7 +27,11 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   
-  if(ClockwiseSweepPolygon) await ClockwiseSweepPolygon.benchmark(n, ...args);
+  if(ClockwiseSweepPolygon) {
+    await ClockwiseSweepPolygon.benchmark(n, ...args);
+    await MyClockwiseSweepPolygon.benchmark(n, ...args);  
+  }
+  
   
   // game.modules.get(MODULE_ID).api.use_bezier = false;
 //   game.modules.get(MODULE_ID).api.use_robust_ccw = true;
