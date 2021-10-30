@@ -22,7 +22,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @param {Ray}   r2         Second ray 
   * @return {LineIntersection|null}  Point of intersection or null.
   */ 
-  potentialIntersection(r1, r2) {
+  static potentialIntersection(r1, r2) {
     const x1 = r1.A.x;
     const y1 = r1.A.y;
     const x3 = r2.A.x;
@@ -53,7 +53,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @param {Ray} r2   Second ray
   * @return {LineIntersection|null} 
   */
-  lineLineIntersection(r1, r2) {
+  static lineLineIntersection(r1, r2) {
     if(!foundry.utils.lineLineIntersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
         
     const res = MyClockwiseSweepPolygon.potentialIntersection(r1, r2);
