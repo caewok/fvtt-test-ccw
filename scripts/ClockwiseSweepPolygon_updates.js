@@ -15,46 +15,37 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
     return padding;     
   }
-  
- /**
-  * Quickly test whether two segments intersect. 
-  * Does not calculate the intersection point. (See lineLineIntersection for that.)
-  */
- static intersects(a, b, c, d) {
-   return foundry.utils.orient2dFast(a, b, c) !== foundry.utils.orient2dFast(a, b, d) &&
-          foundry.utils.orient2dFast(c, d, a) !== foundry.utils.orient2dFast(c, d, b)
- } 
-  
+
  /**
   * Intersection between this Ray and another assuming both are infinite lengths.
   * @param {Ray}   r1         First ray
   * @param {Ray}   r2         Second ray 
   * @return {LineIntersection|null}  Point of intersection or null.
   */ 
-  static potentialIntersection(a, b, c, d) {
-    const x1 = a.x;
-    const y1 = a.y;
-    const x3 = c.x;
-    const y3 = c.y;
-    
-    const dx1 = b.x - a.x;
-    const dy1 = b.y - a.y;
-    
-    const dx2 = d.x - c.x;
-    const dy2 = d.y - c.y;
-      
-    // Check denominator - avoid parallel lines where denom = 0
-    const denom = dy2 * dx1 - dx2 * dy1;
-    if(denom === 0) return null;
-    
-    // get vector distance for the intersection point
-    const t0 = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / denom;
-    return { 
-      x: x1 + t0 * dx1,
-      y: y1 + t0 * dy1,
-      t0: t0
-    }
-  }   
+//   static potentialIntersection(a, b, c, d) {
+//     const x1 = a.x;
+//     const y1 = a.y;
+//     const x3 = c.x;
+//     const y3 = c.y;
+//     
+//     const dx1 = b.x - a.x;
+//     const dy1 = b.y - a.y;
+//     
+//     const dx2 = d.x - c.x;
+//     const dy2 = d.y - c.y;
+//       
+//     // Check denominator - avoid parallel lines where denom = 0
+//     const denom = dy2 * dx1 - dx2 * dy1;
+//     if(denom === 0) return null;
+//     
+//     // get vector distance for the intersection point
+//     const t0 = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / denom;
+//     return { 
+//       x: x1 + t0 * dx1,
+//       y: y1 + t0 * dy1,
+//       t0: t0
+//     }
+//   }   
   
  /**
   * Intersection between two rays
@@ -62,14 +53,14 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @param {Ray} r2   Second ray
   * @return {LineIntersection|null} 
   */
-  static lineLineIntersection(r1, r2) {
-    if(!MyClockwiseSweepPolygon.intersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
-        
-    const res = MyClockwiseSweepPolygon.potentialIntersection(r1.A, r1.B, r2.A, r2.B);
-    if(!res) return null;
-    res.t0 = Math.clamped(res.t0, 0, 1); // just in case t0 is very near 0 or 1    
-    return res;
-  }
+//   static lineLineIntersection(r1, r2) {
+//     if(!foundry.utils.intersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
+//         
+//     const res = MyClockwiseSweepPolygon.potentialIntersection(r1.A, r1.B, r2.A, r2.B);
+//     if(!res) return null;
+//     res.t0 = Math.clamped(res.t0, 0, 1); // just in case t0 is very near 0 or 1    
+//     return res;
+//   }
   
   
  /**
@@ -79,33 +70,33 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @returns {PolygonVertex[]}         A sorted array of collision points
   * @private
   */
-  _getRayCollisions(ray, activeEdges) {
-    const collisions = [];
-    const keys = new Set();
-
-    // Identify unique collision points
-    for ( let edge of activeEdges ) {
-      const x = MyClockwiseSweepPolygon.lineLineIntersection(ray, edge);
-      if ( !x || (x.t0 === 0) ) continue;
-      let c = PolygonVertex.fromPoint(x, {distance: x.t0});
-      if ( keys.has(c.key) ) {
-        c = keys.get(c.key);
-        c.attachEdge(edge);
-        continue;
-      }
-      keys.add(c.key);
-      c.attachEdge(edge);
-      collisions.push(c);
-    }
-
-    // Sort collisions on proximity to the origin
-    collisions.sort((a, b) => a.distance - b.distance);
-
-    // Add the ray termination
-    const t = PolygonVertex.fromPoint(ray.B, {distance: 1.0});
-    if ( !keys.has(t.key) ) collisions.push(t);
-    return collisions;
-  }
+//   _getRayCollisions(ray, activeEdges) {
+//     const collisions = [];
+//     const keys = new Set();
+// 
+//     // Identify unique collision points
+//     for ( let edge of activeEdges ) {
+//       const x = MyClockwiseSweepPolygon.lineLineIntersection(ray, edge);
+//       if ( !x || (x.t0 === 0) ) continue;
+//       let c = PolygonVertex.fromPoint(x, {distance: x.t0});
+//       if ( keys.has(c.key) ) {
+//         c = keys.get(c.key);
+//         c.attachEdge(edge);
+//         continue;
+//       }
+//       keys.add(c.key);
+//       c.attachEdge(edge);
+//       collisions.push(c);
+//     }
+// 
+//     // Sort collisions on proximity to the origin
+//     collisions.sort((a, b) => a.distance - b.distance);
+// 
+//     // Add the ray termination
+//     const t = PolygonVertex.fromPoint(ray.B, {distance: 1.0});
+//     if ( !keys.has(t.key) ) collisions.push(t);
+//     return collisions;
+//   }
 
 
 }
