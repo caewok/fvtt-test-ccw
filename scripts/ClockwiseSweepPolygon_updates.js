@@ -1,4 +1,4 @@
-/* globals ClockwiseSweepPolygon, PolygonVertex */
+/* globals ClockwiseSweepPolygon, PolygonVertex, foundry */
 import { Bezier } from "./class_Bezier.js";
 
 export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
@@ -39,7 +39,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     if(d === 0) return null;
     
     // get vector distance for the intersection point
-    const t0 = (dx2 * (y1 - y2) - dy2 * (x1 - x3)) / d;
+    const t0 = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / d;
     return { 
       x: x1 + t0 * dx1,
       y: y1 + t0 * dy1,
