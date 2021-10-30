@@ -34,7 +34,7 @@ export class Bezier {
    * @param {Number} t  Value between 0 and 1
    * @return {PIXI.point} {x, y} Point corresponding to that t
    */
-  static bezierCircle(t) {
+  static bezierPoint(t) {
     const paren = 1 - t;
     const paren2 = paren * paren;
     const paren3 = paren2 * paren;
@@ -55,24 +55,24 @@ export class Bezier {
    * @return {PIXI.point} {x, y} Point corresponding to t, adjusted for quadrant.
    *   t = 0 to t = 1 moves points clockwise through quadrants
    */
-  static bezierCircleForQuadrant(t, quadrant) {  
+  static bezierPointForQuadrant(t, quadrant) {  
     // recall that y is reversed: -y is at the top, +y is at the bottom
     // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
     let pt;
     switch(quadrant) {
       case Q1:
-        pt = Bezier.bezierCircle(1 - t);
+        pt = Bezier.bezierPoint(1 - t);
         pt.x = -pt.x;
         pt.y = -pt.y;
         return pt;
       case Q2:
-        pt = Bezier.bezierCircle(t);
+        pt = Bezier.bezierPoint(t);
         pt.y = -pt.y;
         return pt;
       case Q3:
-        return Bezier.bezierCircle(1 - t);
+        return Bezier.bezierPoint(1 - t);
       case Q4: 
-        pt = Bezier.bezierCircle(t)
+        pt = Bezier.bezierPoint(t)
         pt.x = -pt.x;
         return pt;
     } 
@@ -124,7 +124,7 @@ export class Bezier {
       first_iteration = false;
 
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
-        const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
+        const pt = Bezier.bezierPointForQuadrant(t, quadrant);
         pt.x = round(pt.x, PRECISION);
         pt.y = round(pt.y, PRECISION);
         let add_pt = true
