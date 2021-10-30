@@ -93,13 +93,12 @@ export class Bezier {
     const start_quadrant = Bezier.getQuadrant(r0.B, origin);
     const end_quadrant = Bezier.getQuadrant(r1.B, origin);
     const pts = [];
+    const t_increment = 1 / numQuadrantPoints;
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
     const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION) };
-                           //y: round((r0.B.y - origin.y) / radius, PRECISION) };
-    const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
-                         //y: round((r1.B.y - origin.y) / radius, PRECISION) };
+    const end_scaled   = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
       
     let quadrant = start_quadrant;
     let done = false;
@@ -123,10 +122,9 @@ export class Bezier {
       if((!large_arc || !first_iteration) && quadrant === end_quadrant) done = true;
       first_iteration = false;
 
-      for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
+      for(let t = 0; t <= 1; t += t_increment) {
         const pt = Bezier.bezierPointForQuadrant(t, quadrant);
         pt.x = round(pt.x, PRECISION);
-        //pt.y = round(pt.y, PRECISION);
         let add_pt = true
       
         // compare to start and end. if within, then keep
