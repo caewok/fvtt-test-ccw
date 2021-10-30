@@ -86,12 +86,13 @@ export class Bezier {
    * @param {Array} pts         Array to which to add points. Optional.
    * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
    */
-  static bezierPadding(r0, r1, padding, pts = []) {  
+  static bezierPadding(r0, r1, padding) {  
     const radius = r0.distance;
     const origin = r0.A;
     const PRECISION = 10; // number of digits to round
     const start_quadrant = Bezier.getQuadrant(r0.B, origin);
     const end_quadrant = Bezier.getQuadrant(r1.B, origin);
+    const pts = [];
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
@@ -179,7 +180,7 @@ export class Bezier {
           pt.x = (pt.x * radius) + origin.x;
           pt.y = (pt.y * radius) + origin.y;
       
-          pts.push(pt.x, pt.y);
+          pts.push(pt);
         }
 
       } // end for loop
