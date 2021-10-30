@@ -7,12 +7,6 @@ import { CCWPoint } from "./class_CCWPoint.js";
 // Used for padding limited-radius polygons.
 // Main method: Bezier.bezierPadding
 
-// quadrants clockwise from northwest
-const Q1 = 1;
-const Q2 = 2;
-const Q3 = 3;
-const Q4 = 4;
-
 /**
  * Utility class to create a bezier approximation of a circle.
  * Currently just holds static methods, but that may change.
@@ -34,7 +28,7 @@ export class Bezier {
    * @param {Number} t  Value between 0 and 1
    * @return {PIXI.point} {x, y} Point corresponding to that t
    */
-  static bezierCircle(t) {
+  static bezierPoint(t) {
     const paren = 1 - t;
     const paren2 = paren * paren;
     const paren3 = paren2 * paren;
@@ -55,24 +49,24 @@ export class Bezier {
    * @return {PIXI.point} {x, y} Point corresponding to t, adjusted for quadrant.
    *   t = 0 to t = 1 moves points clockwise through quadrants
    */
-  static bezierCircleForQuadrant(t, quadrant) {  
+  static bezierPointForQuadrant(t, quadrant) {  
     // recall that y is reversed: -y is at the top, +y is at the bottom
     // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
     let pt;
     switch(quadrant) {
       case Q1:
-        pt = Bezier.bezierCircle(1 - t);
+        pt = Bezier.bezierPoint(1 - t);
         pt.x = -pt.x;
         pt.y = -pt.y;
         return pt;
       case Q2:
-        pt = Bezier.bezierCircle(t);
+        pt = Bezier.bezierPoint(t);
         pt.y = -pt.y;
         return pt;
       case Q3:
-        return Bezier.bezierCircle(1 - t);
+        return Bezier.bezierPoint(1 - t);
       case Q4: 
-        pt = Bezier.bezierCircle(t)
+        pt = Bezier.bezierPoint(t)
         pt.x = -pt.x;
         return pt;
     } 
@@ -86,23 +80,25 @@ export class Bezier {
    * @param {Array} pts         Array to which to add points. Optional.
    * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
    */
-  static bezierPadding(r0, r1, padding, pts = []) {  
+  static bezierPadding(r0, r1, numQuadrantPoints) {  
     const radius = r0.distance;
     const origin = r0.A;
     const PRECISION = 10; // number of digits to round
     const start_quadrant = Bezier.getQuadrant(r0.B, origin);
     const end_quadrant = Bezier.getQuadrant(r1.B, origin);
+    const Q1 = 1;
+    const Q2 = 2;
+    const Q3 = 3;
+    const Q4 = 4;
+    const pts = [];
+    const t_increment = 1 / numQuadrantPoints;
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
-    const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION) };
-                           //y: round((r0.B.y - origin.y) / radius, PRECISION) };
-    const end_scaled = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
-                         //y: round((r1.B.y - origin.y) / radius, PRECISION) };
+    const start_scaled_x = { x: round((r0.B.x - origin.x) / radius, PRECISION) };
+    const end_scaled_x = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
     
-  
-    const numQuadrantPoints = Math.floor(Math.PI / (2 * padding)); 
-  
+    
     let quadrant = start_quadrant;
     let done = false;
     
@@ -113,7 +109,7 @@ export class Bezier {
     let large_arc = false;
     let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       CCWPoint.ccw(origin, r0.B, r1.B) === 1) { large_arc = true; }
+       orient2dFast(origin, r0.B, r1.B) > 0) { large_arc = true; }
     
     while(!done) {
       let check_start = quadrant === start_quadrant;
@@ -125,10 +121,10 @@ export class Bezier {
       if((!large_arc || !first_iteration) && quadrant === end_quadrant) done = true;
       first_iteration = false;
 
-      for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
-        const pt = Bezier.bezierCircleForQuadrant(t, quadrant);
+
+      for(let t = 0; t <= 1; t += t_increment) {
+        const pt = Bezier.bezierPointForQuadrant(t, quadrant);
         pt.x = round(pt.x, PRECISION);
-        pt.y = round(pt.y, PRECISION);
         let add_pt = true
       
         // compare to start and end. if within, then keep
@@ -136,19 +132,16 @@ export class Bezier {
           switch(quadrant) {
             case Q1:
               // x goes from -1 to 0
-              if(pt.x <= start_scaled.x) { add_pt = false; }
-              break;
             case Q2:
-              // x goes from 0 to 1
-              if(pt.x <= start_scaled.x) { add_pt = false; }
+              // x goes from -1 to 0
+              if(pt.x <= start_scaled_x) { add_pt = false; }
               break;
+           
             case Q3:
               // x goes from 1 to 0
-              if(pt.x >= start_scaled.x) { add_pt = false; }
-              break;
             case Q4:
               // x goes from 0 to -1
-              if(pt.x >= start_scaled.x) { add_pt = false; }
+              if(pt.x >= start_scaled_x) { add_pt = false; }
               break;
           }
         } 
@@ -157,19 +150,15 @@ export class Bezier {
           switch(quadrant) {
             case Q1:
               // x goes from -1 to 0
-              if(pt.x >= end_scaled.x) { add_pt = false; }
-              break;
             case Q2:
               // x goes from 0 to 1
-              if(pt.x >= end_scaled.x) { add_pt = false; }
+              if(pt.x >= end_scaled_x) { add_pt = false; }
               break;
             case Q3:
               // x goes from 1 to 0
-              if(pt.x <= end_scaled.x) { add_pt = false; }
-              break;
             case Q4:
               // x goes from 0 to -1
-              if(pt.x <= end_scaled.x) { add_pt = false; }
+              if(pt.x <= end_scaled_x) { add_pt = false; }
               break;
           }
         } 
@@ -179,7 +168,7 @@ export class Bezier {
           pt.x = (pt.x * radius) + origin.x;
           pt.y = (pt.y * radius) + origin.y;
       
-          pts.push(pt.x, pt.y);
+          pts.push(pt);
         }
 
       } // end for loop
@@ -191,21 +180,18 @@ export class Bezier {
   }
   
   static getQuadrant(pt, origin = {x: 0, y: 0}) {
+    const Q1 = 1;
+    const Q2 = 2;
+    const Q3 = 3;
+    const Q4 = 4;
+  
     if(pt.y <= origin.y) {
       // top hemisphere
-      if(pt.x <= origin.x) {
-        // left
-        return Q1;
-      } else {
-        return Q2;
-      }
+      return origin.x > pt.x ? Q2 : Q1; 
+    
     } else {
       // bottom hemisphere
-      if(pt.x <= origin.x) {
-        return Q4; 
-      } else {
-        return Q3;
-      }
+      return origin.x > pt.x ? Q3 : Q4; 
     }
   }
 
