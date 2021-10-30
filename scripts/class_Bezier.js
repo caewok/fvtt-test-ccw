@@ -126,7 +126,7 @@ export class Bezier {
       for(let t = 0; t <= 1; t += (1 / numQuadrantPoints)) {
         const pt = Bezier.bezierPointForQuadrant(t, quadrant);
         pt.x = round(pt.x, PRECISION);
-        pt.y = round(pt.y, PRECISION);
+        //pt.y = round(pt.y, PRECISION);
         let add_pt = true
       
         // compare to start and end. if within, then keep
