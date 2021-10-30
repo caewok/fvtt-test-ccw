@@ -1,5 +1,5 @@
-/* globals ClockwiseSweepPolygon */
-import Bezier from "class_Bezier.js";
+/* globals ClockwiseSweepPolygon, PolygonVertex */
+import { Bezier } from "class_Bezier.js";
 
 export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   
@@ -11,8 +11,8 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   */
   _getPaddingPoints(r0, r1) {
     const numQuadrantPoints = this.config.density / 2;
-    let padding = Bezier.bezierPadding(r0, r1, numQuadrantPoints);
-    padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
+    const pts = Bezier.bezierPadding(r0, r1, numQuadrantPoints);
+    const padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
     return padding;     
   }
 
