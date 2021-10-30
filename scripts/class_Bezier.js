@@ -110,7 +110,7 @@ export class Bezier {
     let large_arc = false;
     let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       CCWPoint.ccw(origin, r0.B, r1.B) === 1) { large_arc = true; }
+       CCWPoint.orient2d(origin, r0.B, r1.B) > 0) { large_arc = true; }
     
     while(!done) {
       let check_start = quadrant === start_quadrant;
