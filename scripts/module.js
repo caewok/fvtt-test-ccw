@@ -14,6 +14,8 @@ import { Bezier }                 from "./class_Bezier.js";
 import { CCWSweepWall }           from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }          from "./class_CCWSweepPoint.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon_updates.js";
+
 import { CCWPoint }               from "./class_CCWPoint.js";
 import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
 import { CCWRay }                 from "./class_CCWRay.js";
@@ -87,6 +89,7 @@ Hooks.once('init', async function() {
     CCWSweepPoint: CCWSweepPoint,
     CCWSweepWall: CCWSweepWall,
     CCWSweepPolygon: CCWSweepPolygon,
+    MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
     
     CCWPoint: CCWPoint,
     CCWPixelPoint: CCWPixelPoint,
