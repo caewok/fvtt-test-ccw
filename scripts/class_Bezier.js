@@ -115,9 +115,14 @@ export class Bezier {
     while(!done) {
       let check_start = quadrant === start_quadrant;
       let check_end   = quadrant === end_quadrant;
-
-      if(large_arc && !first_iteration) check_start = false;
-      if(large_arc && first_iteration) check_end = false;
+      
+      if(large_arc) {
+        if(first_iteration) {
+          check_end = false;
+        } else {
+          check_start = false;
+        }
+      } 
 
       if((!large_arc || !first_iteration) && quadrant === end_quadrant) done = true;
       first_iteration = false;
