@@ -62,14 +62,11 @@ export class CCWSweepPolygon extends PointSourcePolygon {
   }
   
   /** @inheritdoc */
-  compute() {
+  _compute() {
     //console.log(`testccw|Computing polygon`); 
   
     this._preprocessWalls();
-  
-    // Same as RadialSweepPolygon up to this._initializeEndpoints
-    let t0 = performance.now();
-           
+          
     // Construct endpoints for each wall
     this._initializeEndpoints();
     
@@ -81,13 +78,6 @@ export class CCWSweepPolygon extends PointSourcePolygon {
     // Iterate over endpoints and construct the Polygon geometry
     this._sweepEndpoints();
     
-    // Debug sight visualization
-    if(this.config.debug) {
-      let t1 = performance.now();
-      console.log(`Created polygon in ${Math.round(t1 - t0)}ms`);
-      this.visualize();
-    }  
-
     //console.log(`testccw|${this.points.length} points`, this.points);
     
     // Clean up
