@@ -1,5 +1,5 @@
 /* globals ClockwiseSweepPolygon, PolygonVertex */
-import { Bezier } from "class_Bezier.js";
+import { Bezier } from "./class_Bezier.js";
 
 export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   
