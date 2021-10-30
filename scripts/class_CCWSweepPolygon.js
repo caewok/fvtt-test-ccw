@@ -1070,9 +1070,15 @@ Handling terrain walls is just applying versions of (1), (2), or (3)
    * @return {[number]} The updated collisions array
    */
   _addPadding(r0, r1, collisions) {
-    const padding = Math.PI / Math.max(this.config.density, 6);
     
-    if(game.modules.get(MODULE_ID).api.use_bezier) return Bezier.bezierPadding(r0, r1, padding, collisions);
+    
+    if(game.modules.get(MODULE_ID).api.use_bezier) {
+      const numQuadrantPoints = this.config.density / 2;
+      const pts = Bezier.bezierPadding(r0, r1, numQuadrantPoints);
+      pts.forEach(pt => collisions.push(pt.x, pt.y));
+      return collisions;      
+    }
+    const padding = Math.PI / Math.max(this.config.density, 6);
     
     // Determine padding delta
     // This part is from RadialSweepPolygon._addPadding
