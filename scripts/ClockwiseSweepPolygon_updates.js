@@ -34,12 +34,12 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const dx2 = d.x - c.x;
     const dy2 = d.y - c.y;
       
-    // Check denominator - avoid parallel lines where d = 0
-    const d = dy2 * dx1 - dx2 * dy1;
-    if(d === 0) return null;
+    // Check denominator - avoid parallel lines where denom = 0
+    const denom = dy2 * dx1 - dx2 * dy1;
+    if(denom === 0) return null;
     
     // get vector distance for the intersection point
-    const t0 = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / d;
+    const t0 = (dx2 * (y1 - y3) - dy2 * (x1 - x3)) / denom;
     return { 
       x: x1 + t0 * dx1,
       y: y1 + t0 * dy1,
