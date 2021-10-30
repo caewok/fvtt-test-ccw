@@ -1,8 +1,5 @@
 'use strict';
 
-import { round } from "./util.js";
-import { CCWPoint } from "./class_CCWPoint.js";
-
 // Bezier approximation of Circle
 // Used for padding limited-radius polygons.
 // Main method: Bezier.bezierPadding
@@ -27,6 +24,20 @@ export class Bezier {
   /*  Methods                                     */
   /* -------------------------------------------- */
 
+
+ /*
+  * Round number to specific precision
+  * e.g. round(Math.PI);
+  * from: https://stackoverflow.com/questions/7342957/how-do-you-round-to-1-decimal-place-in-javascript
+  * @param {Number} value      Number to round
+  * @param {Number} precision  Number of decimal places to use. Can be negative.
+  * @return {Number} The rounded number
+  */
+  static round(value, precision = 0) {
+    const multiplier = Math.pow(10, precision || 0);
+    return Math.round(value * multiplier) / multiplier;
+  } 
+  
   /**
    * Bezier approximation of a circle arc in the northeast quadrant.
    * See https://spencermortensen.com/articles/bezier-circle/
@@ -97,8 +108,8 @@ export class Bezier {
     
     // center and scale 
     // round to avoid errors near 1, 0, -1       
-    const start_scaled = { x: round((r0.B.x - origin.x) / radius, PRECISION) };
-    const end_scaled   = { x: round((r1.B.x - origin.x) / radius, PRECISION) };
+    const start_scaled = { x: Bezier.round((r0.B.x - origin.x) / radius, PRECISION) };
+    const end_scaled   = { x: Bezier.round((r1.B.x - origin.x) / radius, PRECISION) };
       
     let quadrant = start_quadrant;
     let done = false;
@@ -110,7 +121,7 @@ export class Bezier {
     let large_arc = false;
     let first_iteration = true;
     if(end_quadrant === start_quadrant && 
-       CCWPoint.orient2d(origin, r0.B, r1.B) > 0) { large_arc = true; }
+       orient2dFast(origin, r0.B, r1.B) > 0) { large_arc = true; }
     
     while(!done) {
       let check_start = quadrant === start_quadrant;
@@ -129,7 +140,7 @@ export class Bezier {
 
       for(let t = 0; t <= 1; t += t_increment) {
         const pt = Bezier.bezierPointForQuadrant(t, quadrant);
-        pt.x = round(pt.x, PRECISION);
+        pt.x = Bezier.round(pt.x, PRECISION);
         let add_pt = true
       
         // compare to start and end. if within, then keep
