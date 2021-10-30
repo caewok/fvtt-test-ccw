@@ -22,17 +22,17 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @param {Ray}   r2         Second ray 
   * @return {LineIntersection|null}  Point of intersection or null.
   */ 
-  static potentialIntersection(r1, r2) {
-    const x1 = r1.A.x;
-    const y1 = r1.A.y;
-    const x3 = r2.A.x;
-    const y3 = r2.A.y;
+  static potentialIntersection(a, b, c, d) {
+    const x1 = a.x;
+    const y1 = a.y;
+    const x3 = c.x;
+    const y3 = c.y;
     
-    const dx1 = r1?.dx || (r1.B.x - r1.A.x);
-    const dy1 = r1?.dy || (r1.B.y - r1.A.y);
+    const dx1 = b.x - a.x;
+    const dy1 = b.y - a.y;
     
-    const dx2 = r2?.dx || (r2.B.x - r2.A.x);
-    const dy2 = r2?.dx || (r2.dy = r2.B.y - r2.A.y);
+    const dx2 = d.x - c.x;
+    const dy2 = d.y - c.y;
       
     // Check denominator - avoid parallel lines where d = 0
     const d = dy2 * dx1 - dx2 * dy1;
@@ -56,8 +56,9 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   static lineLineIntersection(r1, r2) {
     if(!foundry.utils.lineLineIntersects(r1.A, r1.B, r2.A, r2.B)) { return null; }
         
-    const res = MyClockwiseSweepPolygon.potentialIntersection(r1, r2);
-    if(res?.t0) res.t0 = Math.clamped(res.t0, 0, 1); // just in case t0 is very near 0 or 1
+    const res = MyClockwiseSweepPolygon.potentialIntersection(r1.A, r1.B, r2.A, r2.B);
+    if(!res) return null;
+    res.t0 = Math.clamped(res.t0, 0, 1); // just in case t0 is very near 0 or 1    
     return res;
   }
   
