@@ -1,8 +1,9 @@
-/* globals game, canvas, WallEndpoint, QuadtreeExpansionPolygon, RadialSweepPolygon */
+/* globals game, canvas, WallEndpoint, QuadtreeExpansionPolygon, RadialSweepPolygon, ClockwiseSweepPolygon */
 'use strict';
 
 import { MODULE_ID } from "./module.js";
 import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
+import { MyClockwiseSweepPolygon } from "./ClockwiseSweepPolygon_updates.js";
 
 /* 
  * Compare sight performance between different algorithms

@@ -1,7 +1,7 @@
 /* globals ClockwiseSweepPolygon */
 import Bezier from "class_Bezier.js";
 
-export MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
+export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   
  /**
   * Add additional points to limited-radius polygons to approximate the curvature of a circle

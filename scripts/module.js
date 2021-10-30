@@ -14,7 +14,7 @@ import { Bezier }                 from "./class_Bezier.js";
 import { CCWSweepWall }           from "./class_CCWSweepWall.js";
 import { CCWSweepPoint }          from "./class_CCWSweepPoint.js";
 import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
-import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon_updates.js";
+import { MyClockwiseSweepPolygon } from "./ClockwiseSweepPolygon_updates.js";
 
 import { CCWPoint }               from "./class_CCWPoint.js";
 import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
