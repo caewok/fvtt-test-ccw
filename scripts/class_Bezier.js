@@ -181,21 +181,12 @@ export class Bezier {
   }
   
   static getQuadrant(pt, origin = {x: 0, y: 0}) {
-    if(pt.y <= origin.y) {
-      // top hemisphere
-      if(pt.x <= origin.x) {
-        // left
-        return Q1;
-      } else {
-        return Q2;
-      }
-    } else {
+    if(pt.y > origin.y) {
       // bottom hemisphere
-      if(pt.x <= origin.x) {
-        return Q4; 
-      } else {
-        return Q3;
-      }
+      return pt.x > origin.x ? Q3 : Q4;
+    } else {
+      // top hemisphere
+      return pt.x > origin.x ? Q2 : Q1;
     }
   }
 
