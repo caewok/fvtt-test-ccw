@@ -27,15 +27,17 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   
-  game.modules.get(MODULE_ID).api.use_bezier = false;
-  game.modules.get(MODULE_ID).api.use_robust_ccw = true;
-  console.log("Testing CCW version");
-  await CCWSweepPolygon.benchmark(n, ...args);
+  if(ClockwiseSweepPolygon) await ClockwiseSweepPolygon.benchmark(n, ...args);
   
-  game.modules.get(MODULE_ID).api.use_bezier = true;
-  game.modules.get(MODULE_ID).api.use_robust_ccw = true;
-  console.log("Testing CCW using bezier");
-  await CCWSweepPolygon.benchmark(n, ...args);
+  // game.modules.get(MODULE_ID).api.use_bezier = false;
+//   game.modules.get(MODULE_ID).api.use_robust_ccw = true;
+//   console.log("Testing CCW version");
+//   await CCWSweepPolygon.benchmark(n, ...args);
+  
+  // game.modules.get(MODULE_ID).api.use_bezier = true;
+//   game.modules.get(MODULE_ID).api.use_robust_ccw = true;
+//   console.log("Testing CCW using bezier");
+//   await CCWSweepPolygon.benchmark(n, ...args);
   
   game.modules.get(MODULE_ID).api.use_bezier = true;
   game.modules.get(MODULE_ID).api.use_robust_ccw = false;
