@@ -6,8 +6,8 @@ class MyPolygonEdge {
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
     
-    this._origin = undefined;
-    this._endpointOrientation = undefined;
+//     this._origin = undefined;
+//     this._endpointOrientation = undefined;
   }
   
   
@@ -16,10 +16,10 @@ class MyPolygonEdge {
   * When setting origin, un-cache measurements that depend on it.
   * @param { x: number, y: number } value
   */
-  set origin(value) {
-    this._origin = value;
-    this._endpointOrientation = undefined;
-  } 
+ //  set origin(value) {
+//     this._origin = value;
+//     this._endpointOrientation = undefined;
+//   } 
   
  /**
   * Get the point counterclockwise (left/start) in relation to the origin.
@@ -28,16 +28,16 @@ class MyPolygonEdge {
   * Named 'left' and 'right' to avoid confusion with ccw/cw or start/end endpoint.
   * @return {PolygonVertex}
   */
-  get leftEndpoint() {
-    if(this._endpointOrientation === undefined && this._origin) {
-      const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
-      this._endpointOrientation = ccw ? 
-        { left: this.B, right: this.A } :
-        { left: this.A, right: this.B };
-    }
-  
-    return this._endpointOrientation.left;
-  }
+  // get leftEndpoint() {
+//     if(this._endpointOrientation === undefined && this._origin) {
+//       const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
+//       this._endpointOrientation = ccw ? 
+//         { left: this.B, right: this.A } :
+//         { left: this.A, right: this.B };
+//     }
+//   
+//     return this._endpointOrientation.left;
+//   }
   
  /**
   * Get the point clockwise (right/end) in relation to the origin.
@@ -46,16 +46,16 @@ class MyPolygonEdge {
   * Named 'left' and 'right' to avoid confusion with ccw/cw or start/end endpoint.
   * @return {PolygonVertex}
   */ 
-  get rightEndpoint() {
-    if(this._endpointOrientation === undefined && this._origin) {
-      const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
-      this._endpointOrientation = ccw ? 
-        { left: this.B, right: this.A } :
-        { left: this.A, right: this.B };
-    }
-  
-    return this._endpointOrientation.right;
-  }
+  // get rightEndpoint() {
+//     if(this._endpointOrientation === undefined && this._origin) {
+//       const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
+//       this._endpointOrientation = ccw ? 
+//         { left: this.B, right: this.A } :
+//         { left: this.A, right: this.B };
+//     }
+//   
+//     return this._endpointOrientation.right;
+//   }
 }
 
 
@@ -308,7 +308,7 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
 
     // Register vertices for all edges
     for ( let edge of this.edges ) {
-      edge.origin = this.origin;
+      //edge.origin = this.origin;
       const ak = edge.A.key;
       if ( this.vertices.has(ak) ) edge.A = this.vertices.get(ak);
       else this.vertices.set(ak, edge.A);
@@ -640,7 +640,8 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     const cwEdges = new Set();
     const ccwEdges = new Set();
     for ( let edge of vertex.edges ) {
-      if(vertex.equals(edge.leftEndpoint)) cwEdges.add(edge);
+      if (this._testEdgeContinuation(ray, edge)) cwEdges.add(edge);
+      //if(vertex.equals(edge.leftEndpoint)) cwEdges.add(edge);
       else ccwEdges.add(edge);
     }
     return [cwEdges, ccwEdges];
