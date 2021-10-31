@@ -7,7 +7,7 @@ class MyPolygonEdge {
     this.type = type;
     
     this._origin = undefined;
-    this._endpointOrientation = { left: undefined, right: undefined };
+    this._endpointOrientation = undefined;
   }
   
   
@@ -18,6 +18,7 @@ class MyPolygonEdge {
   */
   set origin(value) {
     this._origin = value;
+    this._endpointOrientation = undefined;
   } 
   
  /**
