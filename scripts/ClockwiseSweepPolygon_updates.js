@@ -32,7 +32,8 @@ class MyPolygonEdge extends PolygonEdge {
   */
   set origin(value) {
     this._origin = value;
-    this._endpointOrientation = undefined;
+    this._endpointOrientation = foundry.utils.orient2dFast(this.A, this.B, value) > 0 ? 
+          { left: this.B, right: this.A } : { left: this.A, right: this.B }
   } 
   
  /**
@@ -43,16 +44,6 @@ class MyPolygonEdge extends PolygonEdge {
   * @return {PolygonVertex}
   */
   get leftEndpoint() {
-    if(this._endpointOrientation === undefined) {
-      if(this.origin) {
-        // assuming here walls colinear to the origin have been removed. 
-        // if not, probably want to sort so the left endpoint is the one further
-        // from origin
-              
-        this._endpointOrientation = foundry.utils.orient2dFast(this.A, this.B, this.origin) > 0 ? 
-          { left: this.B, right: this.A } : { left: this.A, right: this.B }
-      }
-    }
     return this._endpointOrientation?.left;
   }
   
@@ -64,10 +55,6 @@ class MyPolygonEdge extends PolygonEdge {
   * @return {PolygonVertex}
   */ 
   get rightEndpoint() {
-    if(this._endpointOrientation === undefined) {
-      // just run the left endpoint again to set both.
-      this.leftEndpoint;
-    }
     return this._endpointOrientation?.right;
   }
 }
