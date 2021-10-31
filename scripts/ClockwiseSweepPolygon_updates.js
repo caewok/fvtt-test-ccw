@@ -9,12 +9,141 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   * @param {Ray} r1        The next ray that collides with some vertex
   * @private
   */
-  _getPaddingPoints(r0, r1) {
-    const numQuadrantPoints = this.config.density / 2;
-    const pts = Bezier.bezierPadding(r0, r1, numQuadrantPoints);
-    const padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
-    return padding;     
+//   _getPaddingPoints(r0, r1) {
+//     const numQuadrantPoints = this.config.density / 2;
+//     const pts = Bezier.bezierPadding(r0, r1, numQuadrantPoints);
+//     const padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
+//     return padding;     
+//   }
+  
+  _identifyVertices() {
+    const {hasLimitedAngle, rMin, rMax} = this.config;
+
+    // Register vertices for all edges
+    for ( let edge of this.edges ) {
+      const ak = edge.A.key;
+      if ( this.vertices.has(ak) ) edge.A = this.vertices.get(ak);
+      else this.vertices.set(ak, edge.A);
+      edge.A.attachEdge(edge);
+
+      const bk = edge.B.key;
+      if ( this.vertices.has(bk) ) edge.B = this.vertices.get(bk);
+      else this.vertices.set(bk, edge.B);
+      edge.B.attachEdge(edge);
+    }
+
+    // For limited angle polygons, restrict vertices
+    if ( hasLimitedAngle ) {
+      for ( let vertex of this.vertices.values() ) {
+        if ( !vertex._inLimitedAngle ) this.vertices.delete(vertex.key);
+      }
+
+     //  // Add vertices for the endpoints of bounding rays
+     // handled in _executeSweep
+//       const vMin = PolygonVertex.fromPoint(rMin.B);
+//       this.vertices.set(vMin.key, vMin);
+//       const vMax = PolygonVertex.fromPoint(rMax.B);
+//       this.vertices.set(vMax.key, vMax);
+    }
   }
+ 
+  
+  
+   /**
+   * Execute the sweep over wall vertices
+   * @private
+   */
+  _executeSweep() {
+    const origin = this.origin;
+    const { radius, hasLimitedAngle, rMin, rMax } = this.config;
+
+    // Initialize the set of active walls
+    let activeEdges = this._initializeActiveEdges();
+    
+    // add collision for limited angle endpoint
+    if(hasLimitedAngle) {
+      const vertex = PolygonVertex.fromPoint(rMin.B)
+      this.rays.push(rMin);
+    
+      if ( !activeEdges.size ) {
+        rMin.result = this._beginNewEdge(rMin, vertex, activeEdges);
+      }
+
+      // Case 2 - Identify required collisions for boundary rays
+      else {
+        rMin.result = this._getRequiredCollision(rMin, vertex, activeEdges);
+      }
+      
+      // don't need to call _updateActiveEdges b/c 
+      // we have not moved anywhere in the sweep yet, right?
+    }
+
+    // Sort vertices from clockwise to counter-clockwise and begin the sweep
+    const vertices = this._sortVertices();
+    for ( const [i, vertex] of vertices.entries() ) {
+
+      // Construct a ray towards the target vertex
+      vertex._index = i+1;
+      const ray = Ray.towardsPoint(origin, vertex, radius);
+      this.rays.push(ray);
+//       const isRequired = hasLimitedAngle && ((i === 0) || (i === vertices.length-1));
+
+      // Determine whether the target vertex is behind some other active edge
+      let isBehind = false;
+      for (let edge of activeEdges) {
+        if (vertex.edges.has(edge)) continue;
+        const x = foundry.utils.lineLineIntersects(this.origin, vertex, edge.A, edge.B);
+        if (x) {
+          isBehind = true;
+          break;
+        }
+      }
+
+      // Case 1 - If there are no active edges we must be beginning traversal down a new clockwise edge
+      if ( !activeEdges.size ) {
+        ray.result = this._beginNewEdge(ray, vertex, activeEdges);
+      }
+
+      // Case 2 - Identify required collisions for boundary rays
+     //  else if ( isRequired ) {
+//         ray.result = this._getRequiredCollision(ray, vertex, activeEdges);
+//       }
+
+      // Case 3 - Ignore a vertex which is behind some other active edge
+      else if ( isBehind ) {
+        ray.result = this._skipBlockedVertex(ray, vertex, activeEdges);
+      }
+
+      // Case 4 - Complete an active edge
+      else if ( vertex.edges.intersects(activeEdges) ) {
+        ray.result = this._completeCurrentEdge(ray, vertex, activeEdges);
+      }
+
+      // Case 5 - Jumping to a new closer wall
+      else {
+        ray.result = this._beginNewEdge(ray, vertex, activeEdges);
+      }
+
+      // Update active edges for the next iteration
+      this._updateActiveEdges(ray, ray.result, activeEdges);
+    }
+    
+    // add collision for limited angle endpoint
+    if(hasLimitedAngle) {
+      const vertex = PolygonVertex.fromPoint(rMax.B)
+      this.rays.push(rMax);
+    
+      if ( !activeEdges.size ) {
+        rMax.result = this._beginNewEdge(rMax, vertex, activeEdges);
+      }
+
+      // Case 2 - Identify required collisions for boundary rays
+      else {
+        rMax.result = this._getRequiredCollision(rMax, vertex, activeEdges);
+      }
+    }
+  }
+ 
 
  /**
   * Intersection between this Ray and another assuming both are infinite lengths.
