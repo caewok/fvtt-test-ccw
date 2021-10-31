@@ -18,9 +18,6 @@ class MyPolygonEdge {
   */
   set origin(value) {
     this._origin = value;
-    const ccw = foundry.utils.orient2dFast(this.A, this.B, value) > 0;
-    this._endpointOrientation.left = ccw ? this.B : this.A;
-    this._endpointOrientation.right = ccw ? this.A : this.B;
   } 
   
  /**
@@ -31,6 +28,12 @@ class MyPolygonEdge {
   * @return {PolygonVertex}
   */
   get leftEndpoint() {
+    if(this._endpointOrientation === undefined && this._origin) {
+      const ccw = foundry.utils.orient2dFast(this.A, this.B, value) > 0;
+      this._endpointOrientation.left = ccw ? this.B : this.A;
+      this._endpointOrientation.right = ccw ? this.A : this.B;
+    }
+  
     return this._endpointOrientation.left;
   }
   
@@ -42,6 +45,12 @@ class MyPolygonEdge {
   * @return {PolygonVertex}
   */ 
   get rightEndpoint() {
+    if(this._endpointOrientation === undefined && this._origin) {
+      const ccw = foundry.utils.orient2dFast(this.A, this.B, value) > 0;
+      this._endpointOrientation.left = ccw ? this.B : this.A;
+      this._endpointOrientation.right = ccw ? this.A : this.B;
+    }
+  
     return this._endpointOrientation.right;
   }
 }
