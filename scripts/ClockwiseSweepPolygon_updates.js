@@ -30,7 +30,7 @@ class MyPolygonEdge {
   */
   get leftEndpoint() {
     if(this._endpointOrientation === undefined && this._origin) {
-      const ccw = foundry.utils.orient2dFast(this.A, this.B, value) > 0;
+      const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
       this._endpointOrientation.left = ccw ? this.B : this.A;
       this._endpointOrientation.right = ccw ? this.A : this.B;
     }
@@ -47,7 +47,7 @@ class MyPolygonEdge {
   */ 
   get rightEndpoint() {
     if(this._endpointOrientation === undefined && this._origin) {
-      const ccw = foundry.utils.orient2dFast(this.A, this.B, value) > 0;
+      const ccw = foundry.utils.orient2dFast(this.A, this.B, this._origin) > 0;
       this._endpointOrientation.left = ccw ? this.B : this.A;
       this._endpointOrientation.right = ccw ? this.A : this.B;
     }
