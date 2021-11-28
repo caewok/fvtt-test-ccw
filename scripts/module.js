@@ -27,6 +27,8 @@ import { IdentifyIntersections,
 
 export const MODULE_ID = 'testccw';
 
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
+
 
 /**
  * Basic log to console function for debugging.
@@ -107,7 +109,9 @@ Hooks.once('init', async function() {
     SimpleSweepIntersections: SimpleSweepIntersections,
     BentleyOttomanSweepIntersections: BentleyOttomanSweepIntersections,
     IntersectionSweepWallEvent: IntersectionSweepWallEvent,
-    IntersectionSweepEvent: IntersectionSweepEvent }
+    IntersectionSweepEvent: IntersectionSweepEvent,
+    
+    MyClockwiseSweepPolygon: MyClockwiseSweepPolygon }
 });
 
 // modules ready
