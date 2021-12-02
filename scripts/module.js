@@ -18,6 +18,7 @@ import { CCWPoint }               from "./class_CCWPoint.js";
 import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
 import { CCWRay }                 from "./class_CCWRay.js";
 import { CCWPixelRay }            from "./class_CCWPixelRay.js";
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { IdentifyIntersections, 
          BruteForceIntersections,
          SimpleSweepIntersections,
@@ -99,6 +100,7 @@ Hooks.once('init', async function() {
     PriorityQueueMap: PriorityQueueMap,
     PriorityQueueSet: PriorityQueueSet,
     PriorityQueueBST: PriorityQueueBST,
+    MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
     
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,
