@@ -18,7 +18,8 @@ import { CCWPoint }               from "./class_CCWPoint.js";
 import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
 import { CCWRay }                 from "./class_CCWRay.js";
 import { CCWPixelRay }            from "./class_CCWPixelRay.js";
-import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
+import { MyClockwiseSweepPolygon, FastBezier } from "./MyClockwiseSweepPolygon.js";
+import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { IdentifyIntersections, 
          BruteForceIntersections,
          SimpleSweepIntersections,
@@ -101,6 +102,8 @@ Hooks.once('init', async function() {
     PriorityQueueSet: PriorityQueueSet,
     PriorityQueueBST: PriorityQueueBST,
     MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
+    MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
+    FastBezier: FastBezier,
     
     PotentialWallList: PotentialWallList,
     Bezier: Bezier,
@@ -116,7 +119,7 @@ Hooks.once('init', async function() {
 // ready is called once everything is loaded up and ready to go.
 // Hooks.once('ready', async function() {
 // 
-//   if(game?.user?.isGM === undefined || game.user.isGM) {
+//   if(typeof game?.user?.isGM === "undefined" || game.user.isGM) {
 //     if(!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
 // 
 //   }
