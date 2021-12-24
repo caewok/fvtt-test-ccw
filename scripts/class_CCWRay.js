@@ -49,7 +49,7 @@ export class CCWRay extends Ray {
   * @param {number}
   */
   get distanceSquared() {
-    if( this._distanceSquared === undefined) {
+    if( typeof this._distanceSquared === "undefined") {
       this._distanceSquared = this.dx * this.dx + this.dy * this.dy;
     }
     return this._distanceSquared;
@@ -898,7 +898,7 @@ export class CCWRay extends Ray {
     const Dy = this.dy / LAB;
     const t = Dx * (center.x - this.A.x) + Dy * (center.y - this.A.y);
   
-    if(LEC2 === undefined) {
+    if(typeof LEC2 === "undefined") {
       LEC2 = this.potentiallyIntersectsCircleGeometry(center, 
                                                       radius, 
                                                       { returnLEC2: true });

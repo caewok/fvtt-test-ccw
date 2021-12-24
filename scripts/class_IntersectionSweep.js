@@ -779,7 +779,7 @@ export class IntersectionSweepWallEvent extends CCWSweepWall {
    get sweepPosition() {
      if(this.event === "right") return this.right;
    
-     if(this._sweepPosition === undefined) {
+     if(typeof this._sweepPosition === "undefined") {
        // test for vertical
        const y = almostEqual(this.dx, 0) ? this.left.y : 
                    this.slope * this._sweep_x + this.y_intercept;

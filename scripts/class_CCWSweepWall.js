@@ -130,7 +130,7 @@ export class CCWSweepWall extends CCWPixelRay {
   * Cache the ccw measurement for this line to the origin.
   */
   get ccwOrigin() { 
-    if(this._ccwOrigin === undefined) { this._ccwOrigin = this.ccw(this.origin); }
+    if(typeof this._ccwOrigin === "undefined") { this._ccwOrigin = this.ccw(this.origin); }
     return this._ccwOrigin;
   }
   
@@ -139,7 +139,7 @@ export class CCWSweepWall extends CCWPixelRay {
   * Every use case seems to check both A and B, so just cache together.
   */
   get distanceSquaredOrigin() {
-    if(this._distanceSquaredOrigin === undefined) {
+    if(typeof this._distanceSquaredOrigin === "undefined") {
       this._distanceSquaredOrigin = { A: this.A.distanceSquared(this.origin),
                                       B: this.B.distanceSquared(this.origin) }
     }
@@ -150,7 +150,7 @@ export class CCWSweepWall extends CCWPixelRay {
   * Cache whether this is a terrain wall.
   */
   get isTerrain() {
-    if(this._isTerrain === undefined) { this._isTerrain = this.data?.[this.type] === 2; }
+    if(typeof this._isTerrain === "undefined") { this._isTerrain = this.data?.[this.type] === 2; }
     return this._isTerrain;
   } 
   
@@ -182,7 +182,7 @@ export class CCWSweepWall extends CCWPixelRay {
   * @return {CCWSweepPoint}
   */
   get leftEndpoint() {
-    if(this._endpointOrientation === undefined) {
+    if(typeof this._endpointOrientation === "undefined") {
       if(this.ccwOrigin === 0) {
         this._endpointOrientation = 
           this._distanceSquaredOrigin.A > this._distanceSquaredOrigin.B ?
@@ -204,7 +204,7 @@ export class CCWSweepWall extends CCWPixelRay {
   * @return {CCWSweepPoint}
   */ 
   get rightEndpoint() {
-    if(this._endpointOrientation === undefined) {
+    if(typeof this._endpointOrientation === "undefined") {
       // just run the left endpoint again to set both.
       this.leftEndpoint;
     }
