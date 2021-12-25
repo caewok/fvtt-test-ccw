@@ -2,8 +2,7 @@
 'use strict';
 
 import { MODULE_ID } from "./module.js";
-import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
-
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 /* 
  * Compare sight performance between different algorithms
  * Tests w/ and w/o CCW switches: use_bezier, use_robust_ccw
@@ -20,8 +19,10 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
 //   });
 // 
 //   console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
+  game.modules.get('testccw').api.debug = false;
+
   
-  await QuadtreeExpansionPolygon.benchmark(n, ...args);
+  //await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
   await game.modules.get('testccw').api.MyClockwiseSweepPolygon.benchmark(n, ...args);

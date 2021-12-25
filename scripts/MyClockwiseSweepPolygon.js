@@ -57,7 +57,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     
     // construct the boundary polygon if needed
     if(cfg.hasBoundary && !cfg.boundaryPolygon) {
-      if(cfg.hasRadius) {
+      if(cfg.hasLimitedRadius) {
         const circle = new PIXI.Circle(this.origin.x, this.origin.y, cfg.radius);
         cfg.boundaryPolygon = circle.toPolygon(cfg.density);
       }
@@ -65,7 +65,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       if(cfg.hasLimitedAngle) {
         const ltd_angle_poly = this._limitedAnglePolygon();
         // if necessary, find the intersection of the radius and limited angle polygons
-        cfg.boundaryPolygon = cfg.hasRadius ? 
+        cfg.boundaryPolygon = cfg.hasLimitedRadius ? 
           LinkedPolygon.intersect(cfg.boundaryPolygon, ltd_angle_poly) : 
           ltd_angle_poly;
       }
@@ -156,7 +156,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
    * Add a Step 5 to intersect the boundary with the calculated polygon
    */
    _compute() {
-     super.compute();
+     super._compute();
      
      if(this.config.hasBoundary) {
        const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);

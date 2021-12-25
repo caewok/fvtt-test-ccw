@@ -63,9 +63,10 @@ function getPaddingPoints(r0 = new Ray( {x: 0, y: 0}, {x:-1, y: 0} ), density = 
     }
 
 // ----------------  ADD METHODS TO THE PIXI.CIRCLE PROTOTYPE ------------------------
-
-Object.defineProperty(PIXI.Circle.prototype, "toPolygon", {
-  value: toPolygon,
-  writable: true,
-  configurable: true
-});
+export function registerPIXICircleMethods() {
+  Object.defineProperty(PIXI.Circle.prototype, "toPolygon", {
+    value: toPolygon,
+    writable: true,
+    configurable: true
+  });
+}

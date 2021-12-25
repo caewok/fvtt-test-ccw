@@ -5,6 +5,8 @@ foundry,
 
 'use strict';
 
+import { log } from "./module.js";
+
 /*
 Linked Polygon used for finding simple polygon intersections and unions.
 Given a PIXIjs polygon (array of coordinates), create a linked polygon. 
@@ -74,7 +76,7 @@ export class LinkedPolygonVertex {
   
 }
 
-class LinkedPolygonEdge {
+export class LinkedPolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
@@ -240,7 +242,7 @@ class LinkedPolygonEdge {
 }
 
 
-class LinkedPolygon extends PIXI.Polygon {
+export class LinkedPolygon extends PIXI.Polygon {
   constructor(...points) {
     super(...points)
     
@@ -250,7 +252,7 @@ class LinkedPolygon extends PIXI.Polygon {
     // ensure points are closed
     const ln = this.points.length;
     if(this.points[0] !== this.points[ln - 2] || this.points[1] !== this.points[ln - 1]) {
-      console.warn(`LinkedPolygon expects a closed set of points.`, this.points);
+      log(`LinkedPolygon expects a closed set of points.`, this.points);
       this.points.push(this.points[0], this.points[1]);
     }
     
@@ -545,7 +547,7 @@ class LinkedPolygon extends PIXI.Polygon {
   static _combine(poly1, poly2, { union = true, split = true, num_intersections = 0 } = {}) {
     if(split) {
       num_intersections = this.splitAtIntersections(poly1, poly2);
-      console.log(`LinkedPolygon._combine ${num_intersections} intersections found.`);
+      log(`LinkedPolygon._combine ${num_intersections} intersections found.`);
     }
     
     if(!num_intersections) {
@@ -570,7 +572,7 @@ class LinkedPolygon extends PIXI.Polygon {
     //return pts;
   } 
       
-  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 100 } = {}) {
+  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 1e05 } = {}) {
     const pts = []; // to track the points found as we trace the polygon
     let current_poly = poly1; // which polygon are we currently tracing?
     let other_poly = poly2;
@@ -586,7 +588,7 @@ class LinkedPolygon extends PIXI.Polygon {
       
       
       
-      console.log(`LinkedPolygon.tracePolygon: point ${v.x}, ${v.y} added.`);
+      log(`LinkedPolygon.tracePolygon: point ${v.x}, ${v.y} added.`);
       pts.push(v.x, v.y);
       
       // test after the pts.push b/c we want a closed polygon

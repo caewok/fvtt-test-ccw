@@ -19,7 +19,7 @@ PIXI,
  * @return {Point}
  */
 function getCenter() {
-  return PIXI.Point(this.right / 2, this.bottom / 2);
+  return new PIXI.Point(this.x + (this.width / 2), this.y + (this.height / 2));
 }
 
 /**
@@ -61,21 +61,23 @@ function containsPoint(p, e = 1e-8) {
 } 
 
 // ----------------  ADD METHODS TO THE PIXI.RECTANGLE PROTOTYPE ------------------------
+export function registerPIXIRectangleMethods() {
 
-Object.defineProperty(PIXI.Rectangle.prototype, "getCenter", {
-  value: getCenter,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Rectangle.prototype, "getCenter", {
+    value: getCenter,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Rectangle.prototype, "toPolygon", {
-  value: toPolygon,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Rectangle.prototype, "toPolygon", {
+    value: toPolygon,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Rectangle.prototype, "containsPoint", {
-  value: containsPoint,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Rectangle.prototype, "containsPoint", {
+    value: containsPoint,
+    writable: true,
+    configurable: true
+  });
+}

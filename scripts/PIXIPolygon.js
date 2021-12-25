@@ -79,8 +79,8 @@ function getBounds() {
       max_x: Math.max(pt.x, prev.max_x),
       max_y: Math.max(pt.y, prev.max_y) };
   
-  }, { min_x: Number.NEGATIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY, 
-       min_y: Number.NEGATIVE_INFINITY, max_y: Number.NEGATIVE_INFINITY });
+  }, { min_x: Number.POSITIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY, 
+       min_y: Number.POSITIVE_INFINITY, max_y: Number.NEGATIVE_INFINITY });
   
   return new PIXI.Rectangle(bounds.min_x, bounds.min_y, 
                             bounds.max_x - bounds.min_x,
@@ -147,51 +147,53 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
 }
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
+export function registerPIXIPolygonMethods() {
 
-Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
-  value: iteratePoints,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
+    value: iteratePoints,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "signedArea", {
-  value: signedArea,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "signedArea", {
+    value: signedArea,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-  value: isClockwise,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
+    value: isClockwise,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
-  value: reverse,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
+    value: reverse,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "getBounds", {
-  value: getBounds,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "getBounds", {
+    value: getBounds,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "getCenter", {
-  value: getCenter,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "getCenter", {
+    value: getCenter,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "scale", {
-  value: scale,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "scale", {
+    value: scale,
+    writable: true,
+    configurable: true
+  });
 
-Object.defineProperty(PIXI.Polygon.prototype, "unscale", {
-  value: unscale,
-  writable: true,
-  configurable: true
-});
+  Object.defineProperty(PIXI.Polygon.prototype, "unscale", {
+    value: unscale,
+    writable: true,
+    configurable: true
+  });
+}
