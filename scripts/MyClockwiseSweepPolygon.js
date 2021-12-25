@@ -1,274 +1,685 @@
 /* globals 
 
 PolygonVertex, 
-ClockwiseSweepPolygon
+PolygonEdge,
+ClockwiseSweepPolygon,
+CONST,
+foundry,
+PIXI,
+canvas,
+
 
 */
 
 'use strict';
 
-const QUADRANTS = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+import { LinkedPolygon } from "./LinkedPolygon.js";
+import { log } from "./module.js";
 
-export class FastBezier {
-  constructor() {
-    this.cachedPointSets = new Map();
-  }
+
+/*
+Basic concept: 
+Create limited radius or limited angle by intersecting a shape with the basic
+ClockwiseSweep computed polygon.
+
+Changes to ClockwiseSweep:
+- Walls are trimmed only by an encompassing rectangle. Radius is converted to rectangle.
+- All limited radius or limited angle calculations are removed.
+- After points are computed, use LinkedPolygon.intersect to trim the fov to the desired  shape.
+- User can specify a boundaryPolygon in config. If not specified, one will be calculated as needed for limited radius or limited angle.
+- Optional: user can specify custom edges to add to the sweep. Used to cache walls for unique shapes (e.g., river boundary or road boundary) that affect only certain light or sound objects. Could also be used to limit token vision in unique, custom ways.
+
+Changes to PolygonEdge:
+- Need to handle edges that are not associated with a wall
+- Need to be able to quickly identify intersections for a given edge
+  (Use the left/right endpoint sort algorithm comparable to walls intersection)
   
-  /* -------------------------------------------- */
-  /*  Static Methods                              */
-  /* -------------------------------------------- */  
-  
+
+*/
+
+export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
+
   /**
-   * Bezier approximation of a circle arc in the northeast quadrant.
-   * See https://spencermortensen.com/articles/bezier-circle/
-   * Points returned will be for arc in southwest quadrant (Q4): (0, 1) to (1, 0)
-   * @param {Number} t  Value between 0 and 1
-   * @return {PIXI.point} {x, y} Point corresponding to that t
+   * Additional config options:
+   * - boundaryPolygon (user or calculated) 
+   * - customEdges  (user)
+   * - hasBoundary (calculated)
    */
-  static bezierPoint(t) {
-    const paren = 1 - t;
-    const paren2 = Math.pow(paren, 2);
-    const paren3 = Math.pow(paren, 3);
-    const t2 = Math.pow(t, 2);
-    const t3 = Math.pow(t, 3);
-    const c_times_3 = 3 * 0.551915024494;
-  
-    const x = c_times_3 * paren2 * t + 3 * paren * t2 + t3;
-    const y = c_times_3 * t2 * paren + 3 * t * paren2 + paren3;  
-        
-    return { x: x, y: y };
-  }
-  
-  /*
-   * Approximate bezier circle for each quadrant.
-   * @param {Number} t          Value between 0 and 1
-   * @param {1|2|3|4} quadrant  Which quadrant the arc is in (northwest to southwest clockwise)
-   * @return {PIXI.point} {x, y} Point corresponding to t, adjusted for quadrant.
-   *   t = 0 to t = 1 moves points clockwise through quadrants
-   */
-  static bezierPointForQuadrant(t, quadrant) {  
-    // recall that y is reversed: -y is at the top, +y is at the bottom
-    // bezierCircle: for t 0 -> 1, returns {0,1} to {1, 0}
-    let pt;
-    switch(quadrant) {
-      case QUADRANTS.Q1:
-        pt = FastBezier.bezierPoint(1 - t);
-        pt.x = -pt.x;
-        pt.y = -pt.y;
-        return pt;
-      case QUADRANTS.Q2:
-        pt = FastBezier.bezierPoint(t);
-        pt.y = -pt.y;
-        return pt;
-      case QUADRANTS.Q3:
-        return FastBezier.bezierPoint(1 - t);
-      case QUADRANTS.Q4: 
-        pt = FastBezier.bezierPoint(t)
-        pt.x = -pt.x;
-        return pt;
-    } 
-  }
-  
- /**
-  * Create an array of bezier points for each of the 4 quadrants given a specified
-  * density in number of points per quadrant.
-  * These are unscaled points, so origin 0,0 and radius 1.
-  * @param {Number} numQuadrantPoints    Number of points to create in a given quadrant.
-  * @return {Object} Object containing the point set for each quadrant and, for 
-  *   convenience, the entire 360º point set.
-  */
-  static bezierPointSet(numQuadrantPoints) {
-    const BezierQ1 = [];
-    const BezierQ2 = [];
-    const BezierQ3 = [];
-    const BezierQ4 = [];
-    const t_increment = 1 / numQuadrantPoints;
-    for(let t = 0; t < .9999; t += t_increment) {
-      BezierQ1.push(FastBezier.bezierPointForQuadrant(t, QUADRANTS.Q1));
-      BezierQ2.push(FastBezier.bezierPointForQuadrant(t, QUADRANTS.Q2));
-      BezierQ3.push(FastBezier.bezierPointForQuadrant(t, QUADRANTS.Q3));
-      BezierQ4.push(FastBezier.bezierPointForQuadrant(t, QUADRANTS.Q4));
-    }
-    const Bezier360 = []
-    Bezier360.push(...BezierQ1);
-    Bezier360.push(...BezierQ2);
-    Bezier360.push(...BezierQ3);
-    Bezier360.push(...BezierQ4);
+  initialize(origin, config) {
+    super.initialize(origin, config);
+    const cfg = this.config;   
     
-    return {
-      Q1: BezierQ1,
-      Q2: BezierQ2,
-      Q3: BezierQ3,
-      Q4: BezierQ4,
-      Full: Bezier360,
-      numQuadrantPoints: numQuadrantPoints
+    // determine if a boundary is necessary
+    // assume if the user provided one, it is not necessary
+    // TO-DO: Should this still intersect the radius and limited angle boundaries
+    //        against a user-provided boundary polygon?
+    cfg.hasBoundary = cfg.boundaryPolygon || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
+    
+    // construct the boundary polygon if needed
+    if(cfg.hasBoundary && !cfg.boundaryPolygon) {
+      if(cfg.hasRadius) {
+        const circle = new PIXI.Circle(this.origin.x, this.origin.y, cfg.radius);
+        cfg.boundaryPolygon = circle.toPolygon(cfg.density);
+      }
+      
+      if(cfg.hasLimitedAngle) {
+        const ltd_angle_poly = this._limitedAnglePolygon();
+        // if necessary, find the intersection of the radius and limited angle polygons
+        cfg.boundaryPolygon = cfg.hasRadius ? 
+          LinkedPolygon.intersect(cfg.boundaryPolygon, ltd_angle_poly) : 
+          ltd_angle_poly;
+      }
     }
   }
   
  /**
-  * Relative to an origin point, in what quadrant does a point lie?
-  * Q1 would be top left, Q2 top right, etc.
-  * @param {PIXI.Point} pt
-  * @param {PIXI.Point} origin
-  * @return {1|2|3|4} Quadrant
+  * Construct a boundary polygon for a limited angle.
+  * It should go from origin --> canvas edge intersection --> canvas corners, if any -->
+  *   canvas edge intersection --> origin.
+  * Warning: Does not check for whether this.config.hasLimitedAngle is true.
+  * @return {PIXI.Polygon}
+  * @private
   */
-  static getQuadrant(pt, origin = {x: 0, y: 0}) {
-    if(pt.y > origin.y) {
-      // bottom hemisphere
-      return pt.x < origin.x ? QUADRANTS.Q4 : QUADRANTS.Q3;
-    } else {
-      // top hemisphere
-      return pt.x < origin.x ? QUADRANTS.Q1 : QUADRANTS.Q2;
+  _limitedAnglePolygon() {
+    const { rMin, rMax } = this.config;
+    const pts = [this.origin.x, this.origin.y];
+    
+    // two parts:
+    // 1. get the rMin -- canvas intersection
+    // 2. follow the boundaries in order, adding corners as necessary, until 
+    //    rMax -- canvas intersection
+    // Note: (2) depends on:
+    //  (a) rMin is ccw to rMax and 
+    //  (b) canvas.walls.boundaries are ordered clockwise
+    
+    const boundaries = [...canvas.walls.boundaries];
+    
+    // debug: confirm boundaries are ordered as expected
+    if(boundaries[0]._nw.key !== 6553500 ||
+       boundaries[0]._se.key !== -399769700 ||
+       boundaries[1]._nw.key !== -399769700 ||
+       boundaries[1]._se.key !== 399774300 ||
+       boundaries[2]._nw.key !== -6548900 ||
+       boundaries[2]._se.key !== 399774300 ||
+       boundaries[3]._nw.key !== 6553500 || 
+       boundaries[3]._se.key !== -6548900) {
+       
+       log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
+       
+       }
+       
+    // debug: confirm angles are arranged as expected   
+    if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0) {
+      log(`_limitedAnglePolygon: angles not arranged as expected.`);
     }
+    
+    // Find the boundary that intersects rMin and add intersection point.
+    // Store i, representing the boundary index.
+    let i;
+    const ln = boundaries.length;
+    for(i = 0; i < ln; i += 1) {
+      const boundary = boundaries[i];
+      if(foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, boundary.A, boundary.B)) {
+        // lineLineIntersection should be slightly faster and we already confirmed
+        // the segments intersect
+        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+                                                     boundary.A, boundary.B);
+        pts.push(x.x, x.y);
+        break;
+      }
+    }
+    
+    // "walk" around the canvas edges 
+    // starting with the rMin canvas intersection, check for rMax.
+    // if not intersected, than add the corner point
+    for(let j = 0; j < ln; j += 1) {
+      i = (i + j) % 4;
+      const boundary = boundaries[i];
+      if(foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, boundary.A, boundary.B)) {
+        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+                                                     boundary.A, boundary.B);
+        pts.push(x.x, x.y);
+        break;
+        
+      } else {
+        pts.push(boundary.B.x, boundary.B.y);
+      }
+    }
+    
+    pts.push(this.origin.x, this.origin.y);
+
+    return new PIXI.Polygon(pts);
   }
   
-  /* -------------------------------------------- */
-  /*  Methods                                     */
-  /* -------------------------------------------- */
 
   /**
-   * Store a point set for repeated use.
-   * @param {Number} numQuadrantPoints    Number of points to create in a given quadrant.
+   * Add a Step 5 to intersect the boundary with the calculated polygon
    */
-  cachePointSet(numQuadrantPoints) {
-    this.cachedPointSets.set(numQuadrantPoints, 
-      FastBezier.bezierPointSet(numQuadrantPoints));
-  }
-  
- /**
-  * Retrieve index corresponding to where a given scaled x falls on the 
-  * bezierPointSet.
-  * @param {number}  x          Number between -1 and 1.
-  * @param {1|2|3|4} quadrant   Which set of quadrant points to search.
-  * @param {Object}  pointSet   Output from bezierPointSet method.
-  * @return {number} Index
-  */
-  bezierPointIndex(x, quadrant, pointSet) {
-    let idx;
-    switch(quadrant) {
-      case QUADRANTS.Q1: 
-        // x goes from -1 to 0
-        idx = pointSet.Q1.findIndex(pt => pt.x >= x);
-        break;
-      case QUADRANTS.Q2:
-        // x goes from 0 to 1
-        idx = pointSet.Q2.findIndex(pt => pt.x >= x);
-        idx += pointSet.numQuadrantPoints;
-        break;
-      case QUADRANTS.Q3:
-        // x goes from 1 to 0
-        idx = pointSet.Q3.findIndex(pt => pt.x <= x); 
-        idx += pointSet.numQuadrantPoints * 2;
-        break;
-      case QUADRANTS.Q4:
-        // x goes from 0 to -1
-        idx = pointSet.Q4.findIndex(pt => pt.x <= x);
-        idx += pointSet.numQuadrantPoints * 3; 
-        break;    
+   _compute() {
+     super.compute();
+     
+     if(this.config.hasBoundary) {
+       const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
+       this.points = poly.points;
+     }
+   }
+   
+  /**
+   * Changes to _identifyEdges:
+   * 1. no longer constrain by limited angle or radius
+   * 2. if cfg.boundaryPolygon:
+   *    - add bounding rectangle as edges
+   *    - restrict edges based on bounding rectangle
+   * Why not just add the boundary Polygon?
+   * a. It could be complicated with a lot of additional vertices (think circle)
+   * b. Would have more edges requiring intersection tests.
+   * c. Boundary Polygon may go through origin or (rarely) not include it at all.
+   *    This would mess up the sweep algorithm, so we adjust the bounding box accordingly.
+   */
+   _identifyEdges() {
+     const {type, hasBoundary} = this.config;
+     
+    // Add edges for placed Wall objects
+    const walls = this._getWalls();
+    for ( let wall of walls ) {
+      if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
+      const edge = MyPolygonEdge.fromWall(wall, type);
+      this.edges.add(edge);
     }
-    return idx;
+    
+
+    // needs to happen before _restrictEdgesByBoundingBox and later processing. 
+    this._addCustomEdges();
+    
+    if(hasBoundary) {
+      // Add bounding box as edges
+      const bbox = this._getBoundingBox();
+      const bbox_edges = this._getBoundingBoxEdges(bbox);
+      
+      // need to identify intersections with other edges
+      // don't need to compare against each other b/c we know these boundaries
+      // don't need canvas boundary because the bounding box will block
+      const edges_array = Array.from(this.edges);
+      bbox_edges.forEach(e => e.identifyIntersections(edges_array));
+      bbox_edges.forEach(e => this.edges.add(e));  
+      
+      // remove edges not going through or in the bounding box
+      this._restrictEdgesByBoundingBox(bbox);
+    
+    } else {
+      // Add edges for the canvas boundary
+      // technically, could treat canvas walls as polygon boundaries, 
+      // but that would likely be slower
+      for ( const boundary of canvas.walls.boundaries ) {
+        this.edges.add(MyPolygonEdge.fromWall(boundary, type));
+      }
+    }
   }
   
  /**
-  * Scale a number to be between -1 and 1, based on a given "center" and "radius",
-  * where (x - center) / radius = scaled_x.
-  * @param {number} x
-  * @param {number} center
-  * @param {number} radius
-  * @return {number} Scaled x
+  * Add walls identified by the user.
+  * Optional, but used by Light Mask module to allow arbitrary cached walls.
+  * May be useful in default Foundry for caching walls that outline, for example,
+  * river borders where you want to play river sounds but not otherwise have 
+  * the river walled off on the canvas.
+  *
+  * In config.customEdges, my proposal is that the user provide an array
+  * of objects that have:
+  * - A and B points, as in Walls, Rays, etc.
+  * - Optional type names as used in wall.data.
   */
-  scale(x, center = 0, radius = 1) {
-    const scaled_x = (x - center) / radius;
-    return Math.clamped(scaled_x, -1, 1);
+  _addCustomEdges() {
+    const { customEdges, type } = this.config;
+    
+    if(!customEdges || customEdges.length === 0) return;
+    
+    // Need to track intersections for each edge.
+    // Cannot guarantee the customEdges have intersections set up, so 
+    // process each in turn
+    for( const data of customEdges ) {
+      const edge = new MyPolygonEdge(data.A, data.B, data[type]);
+      
+      // to track intersections
+      // there is probably a better way to do this so not always converting 
+      // this.edges to an Array
+      const edges_array = Array.from(this.edges);
+      edge.identifyIntersections(edges_array);                              
+      this.edges.add(edge);
+    }
+  }
+   
+  /**
+   * Get bounding box for the boundary polygon
+   * Expand so that it definitely includes origin.
+   * Warning: Does not check for this.config.hasBoundary
+   * @private
+   */
+   _getBoundingBox() {
+     const { boundaryPolygon } = this.config;
+     
+     const bbox = boundaryPolygon.getBounds();
+     bbox.ceil(); // force the box to integer coordinates.
+     
+     if(!bbox.containsPoint(this.origin)) {
+       // pad from the relevant corner to origin + 1.
+     
+       const horizontal_padding = 1 + this.origin.x > bbox.x ?
+         this.origin.x - (bbox.right) :
+         bbox.x - this.origin.x;
+       
+       const vertical_padding = 1 + this.origin.y > bbox.y ? 
+         this.origin.y - (bbox.bottom) :
+         bbox.y - this.origin.y;
+         
+       // debug  
+       if(horizontal_padding < 1 || vertical_padding < 1) {
+         log(`_getBoundingBox: padding less than 1: ${horizontal_padding}, ${vertical_padding}`)
+       }  
+         
+       bbox.pad(horizontal_padding, vertical_padding);  
+     }
+     
+     // Expand out by 1 to ensure origin is contained 
+     bbox.pad(1);
+     
+     return bbox;   
+   } 
+   
+  /**
+   * Construct array of edges from a bounding box.
+   * @param {PIXI.Rectangle} bbox
+   * @private
+   */
+   _getBoundingBoxEdges(bbox) {
+     return [
+       new MyPolygonEdge({ x: bbox.x, y: bbox.y }, 
+                         { x: bbox.x + bbox.width, y: bbox.y }),
+       new MyPolygonEdge({ x: bbox.x + bbox.width, y: bbox.y }, 
+                         { x: bbox.x + bbox.width, y: bbox.y + bbox.height }),
+       new MyPolygonEdge({ x: bbox.x + bbox.width, y: bbox.y + bbox.height }, 
+                         { x: bbox.x, y: bbox.y + bbox.height }),
+       new MyPolygonEdge({ x: bbox.x, y: bbox.y + bbox.height }, 
+                         { x: bbox.x, y: bbox.y })          
+     ];    
+   }
+   
+  /**
+   * Restrict edges by bounding box of the boundary polygon.
+   * If completely outside, drop.
+   * (if one vertex inside, keep, but outside vertex will be dropped by _identifyVertices)
+   * @private
+   */ 
+   _restrictEdgesByBoundingBox(bbox) {
+     for( let edge of this.edges ) {
+       // containsPoint should find anywhere an edge endpoint is in the bbox
+       if(bbox.containsPoint(edge.A)) continue;
+       if(bbox.containsPoint(edge.B)) continue;
+       
+       // want to keep edges that go through the bbox
+       // so check intersections as necessary
+       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
+                                              { x: bbox.x, y: bbox.y },
+                                              { x: bbox.x + bbox.width, })) continue;
+       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
+                                              { x: bbox.x + bbox.width, y: bbox.y })) continue;
+       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
+                                              { x: bbox.x + bbox.width, y: bbox.y })) continue;
+       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
+                                              { x: bbox.x, y: bbox.y })) continue;                                                                                                                     
+     }
+   }
+   
+  /**
+   * Changes to _identifyVertices:
+   * 1. No limited angles
+   * 2. Always record the wall->edge mapping
+   */
+   _identifyVertices() {
+    const wallEdgeMap = new Map();
+
+    // Register vertices for all edges
+    for ( let edge of this.edges ) {
+
+      // Get unique vertices A and B
+      const ak = edge.A.key;
+      if ( this.vertices.has(ak) ) edge.A = this.vertices.get(ak);
+      else this.vertices.set(ak, edge.A);
+      const bk = edge.B.key;
+      if ( this.vertices.has(bk) ) edge.B = this.vertices.get(bk);
+      else this.vertices.set(bk, edge.B);
+
+      // Learn edge orientation with respect to the origin
+      const o = foundry.utils.orient2dFast(this.origin, edge.A, edge.B);
+
+      // Ensure B is clockwise of A
+      if ( o > 0 ) {
+        let a = edge.A;
+        edge.A = edge.B;
+        edge.B = a;
+      }
+
+      // Attach edges to each vertex
+      edge.A.attachEdge(edge, -1);
+      edge.B.attachEdge(edge, 1);
+
+      // Record the wall->edge mapping
+      //if ( edge.wall ) wallEdgeMap.set(edge.id, edge);
+      wallEdgeMap.set(edge.id, edge);
+    }
+
+    // Add edge intersections
+    this._identifyIntersections(wallEdgeMap);
   } 
   
  /**
-  * Reverse scale method for a given value.
-  * @param {number} scaled_x
-  * @param {number} center
-  * @param {number} radius
-  * @return {number} Unscaled x
+  * Changes to _identifyIntersections:
+  * - No limited angle processing
+  * - Using MyPolygonEdge, so edge.intersectsWith, not edge.wall.intersectsWith
   */
-  unscale(scaled_x, center = 0, radius = 1) { return (scaled_x * radius) + center; }
+  _identifyIntersections(wallEdgeMap) {     
+    const processed = new Set();
+    for ( let edge of this.edges ) {
+
+      // If the edge has no intersections, skip it
+      if ( !edge.intersectsWith.size ) continue;
+
+      // Check each intersecting wall
+      for ( let [id, i] of edge.intersectsWith.entries() ) {
+
+        // Some other walls may not be included in this polygon
+        const other = wallEdgeMap.get(id);
+        if ( !other || processed.has(other) ) continue;
+
+        // Verify that the intersection point is still contained within the radius
+        // I don't think this is necessary anymore:
+        // const r2 = Math.pow(i.x - o.x, 2) + Math.pow(i.y - o.y, 2);
+        // if ( r2 > this.config.radius2 ) continue;
+
+        // Register the intersection point as a vertex
+        let v = PolygonVertex.fromPoint(i);
+        if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
+        else {      
+          this.vertices.set(v.key, v);
+        }
+        if ( !v.edges.has(edge) ) v.attachEdge(edge, 0);
+        if ( !v.edges.has(other) ) v.attachEdge(other, 0);
+      }
+      processed.add(edge);
+    }
+  }
+  
+ /** 
+  * Changes to _executeSweep:
+  * No isRequired in the result
+  * Not replicating _executeSweep for now, as that shouldn't affect anything
+  */
   
  /**
-  * Get padding using a bezier approximation to a circle
-  * @param {Ray} r0                     Ray where A is the origin of the circle, 
-  *                                     B is start point for arc.
-  * @param {Ray} r1                     Ray where A is the origin of the circle, 
-  *                                     B is end point for arc.
-  * @param {Number} numQuadrantPoints   Number of points to create in a given quadrant,
-  *                                     assuming the entire quadrant was used.
-  * @return [{PIXI.point}] Array of {x, y} points, inclusive of start and end
-  */ 
-  bezierPadding(r0, r1, numQuadrantPoints, radius = r0.distance) {
-    const origin = r0.A;
-    const start_scaled_x = this.scale(r0.B.x, origin.x, radius);
-    const end_scaled_x   = this.scale(r1.B.x, origin.x, radius);
-    
-    // could catch this every time a new numQuadrantPoints
-    // is encountered, if preferred
-    const bezierPoints = this.cachedPointSets.has(numQuadrantPoints) ? 
-                         this.cachedPointSets.get(numQuadrantPoints) :
-                         FastBezier.bezierPointSet(numQuadrantPoints);
-    
-    let scaled_pts = undefined;
-    if(r0.B.x === r1.B.x && r0.B.y === r1.B.y) { 
-      // we are being asked to return a full circle set of points, which is easy
-      scaled_pts = bezierPoints.Full;
+  * Changes to _sortVertices:
+  * - Reference point is no longer relevant. 
+  */
+  _sortVertices() {
+    if ( !this.vertices.size ) return [];
+    let vertices = Array.from(this.vertices.values());
+    const o = this.origin;
+
+    // Sort vertices
+    vertices.sort((a, b) => {
+
+      // Sort by hemisphere
+      const ya = a.y > o.y ? 1 : -1;
+      const yb = b.y > o.y ? 1 : -1;
+      if ( ya !== yb ) return ya;       // Sort N, S
+
+      // Sort by quadrant
+      const qa = a.x < o.x ? -1 : 1;
+      const qb = b.x < o.x ? -1 : 1;
+      if ( qa !== qb ) {                // Sort NW, NE, SE, SW
+        if ( ya === -1 ) return qa;
+        else return -qa;
+      }
+
+      // Sort clockwise within quadrant
+      const orientation = foundry.utils.orient2dFast(o, a, b);
+      if ( orientation !== 0 ) return orientation;
+
       
-    } else {
-      const start_quadrant = FastBezier.getQuadrant(r0.B, origin);
-      const end_quadrant = FastBezier.getQuadrant(r1.B, origin);
-      
-      // for end index, don't include the last point
-      const start_idx = this.bezierPointIndex(start_scaled_x, start_quadrant, 
-                          bezierPoints);
-      const end_idx  = this.bezierPointIndex(end_scaled_x, end_quadrant, 
-                          bezierPoints) - 1;
-      
-      // Construct the point set for the arc from start index to end index
-      // Currently assumes that the user always wants an arc moving 
-      // clockwise from r0.B to r1.B
-      if(start_idx < end_idx) {
-        scaled_pts = bezierPoints.Full.slice(start_idx, end_idx)
-      } else {
-        // end is smaller, indicating we should loop back around.
-        // start_idx --> end of array + start of array --> end_idx
-        scaled_pts = bezierPoints.Full.slice(start_idx, bezierPoints.Full.length);
-        scaled_pts.push(...bezierPoints.Full.slice(0, end_idx));
+      // If points are collinear, first prioritize ones which have no CCW edges over ones that do
+      if ( !a.ccwEdges.size && b.ccwEdges.size ) return -1;
+      if ( !b.ccwEdges.size && a.ccwEdges.size ) return 1;
+
+      // Otherwise, sort closer points first
+      if ( !a._d2 ) a._d2 = Math.pow(a.x - o.x, 2) + Math.pow(a.y - o.y, 2);
+      if ( !b._d2 ) b._d2 = Math.pow(b.x - o.x, 2) + Math.pow(b.y - o.y, 2);
+      return a._d2 - b._d2;
+    });
+
+    return vertices;
+  } 
+  
+ /**
+  * Changes to _determineRayResult:
+  * - Drop case 1 (result.isRequired)
+  */
+  _determineRayResult(ray, vertex, result, activeEdges) {
+
+    // Case 2 - Some vertices can be ignored because they are behind other active edges
+    if ( result.isBehind ) return;
+
+    // Determine whether this vertex is a binding point
+    const nccw = vertex.ccwEdges.size;
+    const ncw = vertex.cwEdges.size;
+    let isBinding = true;
+    if ( result.isLimited ) {
+      // Limited points can still be binding if there are two or more connected edges on the same side.
+      if ( !result.wasLimited && (ncw < 2) && (nccw < 2) ) isBinding = false;
+    }
+
+    // Case 3 - If there are no counter-clockwise edges we must be beginning traversal down a new edge
+    // empty -> edge
+    // empty -> limited
+    if ( !activeEdges.size || !nccw ) {
+      return this._beginNewEdge(ray, result, activeEdges, isBinding);
+    }
+
+    // Case 4 - Limited edges in both directions
+    // limited -> limited
+    const ccwLimited = !result.wasLimited && (nccw === 1) && vertex.ccwEdges.first().isLimited;
+    const cwLimited = !result.wasLimited && (ncw === 1) && vertex.cwEdges.first().isLimited;
+    if ( cwLimited && ccwLimited ) return;
+
+    // Case 5 - Non-limited edges in both directions
+    // edge -> edge
+    if ( !ccwLimited && !cwLimited && ncw && nccw ) {
+      return result.collisions.push(result.target);
+    }
+
+    // Case 6 - Complete edges which do not extend in both directions
+    // edge -> limited
+    // edge -> empty
+    // limited -> empty
+    if ( !ncw || (nccw && !ccwLimited) ) {
+      return this._completeCurrentEdge(ray, result, activeEdges, isBinding);
+    }
+
+    // Case 7 - Otherwise we must be jumping to a new closest edge
+    // limited -> edge
+    else return this._beginNewEdge(ray, result, activeEdges, isBinding);
+  }
+  
+ /**
+  * Changes to _constructPolygonPoints:
+  * - No limited radius padding
+  * - No special handling for limited angle
+  */
+  _constructPolygonPoints() {
+    this.points = [];
+
+    // Add points for rays in the sweep
+    for ( let ray of this.rays ) {
+      if ( !ray.result.collisions.length ) continue;
+
+      // Add collision points for the ray
+      for ( let c of ray.result.collisions ) {
+        this.points.push(c.x, c.y);
       }
     }
+  }
     
-    // Unscale the points to match the size of the requested radius and origin.
-    return scaled_pts.map(pt => {
-      return {
-        x: this.unscale(pt.x, origin.x, radius),
-        y: this.unscale(pt.y, origin.y, radius)
-      }
-    });
+}
+
+/**
+ * Compare function to sort point by x, then y coordinates
+ * @param {Point} a
+ * @param {Point} b
+ * @return {-1|0|1} 
+ */
+function compareXY(a, b) {
+  if(a.x === b.x) {
+    if(a.y === b.y) { return 0; }
+    return a.y < b.y ? -1 : 1;
+  } else {
+    return a.x < b.x ? -1 : 1; 
   }
+}
 
-}  
+class MyPolygonEdge extends PolygonEdge {
+  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+    super(a, b, type, wall);
+    
 
-
-// Create a Bezier object to cache point sets.
-export const BEZIER = new FastBezier();
-BEZIER.cachePointSet(30); // density / 2 to get numQuadrantPoints to cache
-
-
-export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
-   /**
-  * Add additional points to limited-radius polygons to approximate the curvature of a circle
-  * @param {Ray} r0        The prior ray that collided with some vertex
-  * @param {Ray} r1        The next ray that collides with some vertex
-  * @private
+    this._A = this.A;
+    this._B = this.B;
+    
+    this._leftEndpoint = undefined;
+    this._rightEndpoint = undefined; 
+    
+    // Need to copy the existing wall intersections in an efficient manner
+    // Temporary walls may add more intersections, and we don't want those 
+    // polluting the existing set.
+    this.intersectsWith = new Map();
+    
+    if(this.wall) {
+      this.id = this.wall.id; // copy the id so intersectsWith will match for all walls.
+      this.wall.intersectsWith.forEach((x, key) => {
+        // key was the entire wall; just make it the id for our purposes
+        this.intersectsWith.set(key.id, x);
+      });
+      
+    } else {
+      this.id = foundry.utils.randomID();
+    }
+  }
+  
+ /**
+  * Identify which endpoint is further west, or if vertical, further north.
+  * @type {Point}
   */
-  _getPaddingPoints(r0, r1) {
-    const numQuadrantPoints = Math.floor(this.config.density / 2);
-    const pts = BEZIER.bezierPadding(r0, r1, 
-                  numQuadrantPoints, this.config.radius);
-    const padding = pts.map(pt => PolygonVertex.fromPoint(pt));    
-    return padding;     
+  get leftEndpoint() {
+    if(typeof this._leftEndpoint === "undefined") {
+      const is_left = compareXY(this.A, this.B) === -1;
+      this._leftEndpoint = is_left ? this.A : this.B;
+      this._rightEndpoint = is_left ? this.B : this.A;
+    }
+    return this._leftEndpoint;
   }
+  
+ /**
+  * Identify which endpoint is further east, or if vertical, further south.
+  * @type {Point}
+  */
+  get rightEndpoint() {
+    if(typeof this._rightEndpoint === "undefined") {
+      this._leftEndpoint = undefined;
+      this.leftEndpoint; // trigger endpoint identification
+    }
+    return this._rightEndpoint;
+  }
+  
+  // We need to use setters for A and B so we can reset the left/right endpoints
+  // if A and B are changed
+  
+ /**
+  * @type {Point}
+  */ 
+  get A() {
+    return this._A;    
+  }
+  
+ /**
+  * @type {Point}
+  */  
+  set A(value) {
+    if(!(value instanceof PolygonVertex)) { value = new PolygonVertex(value.x, value.y); }
+    this._A = value;
+    this._leftEndpoint = undefined;
+    this._rightEndpoint = undefined;
+  }
+
+ /**
+  * @type {Point}
+  */ 
+  get B() {
+    return this._B;
+  }
+
+ /**
+  * @type {Point}
+  */ 
+  set B(value) {
+    if(!(value instanceof PolygonVertex)) { value = new PolygonVertex(value.x, value.y); }
+    this._B = value;
+    this._leftEndpoint = undefined;
+    this._rightEndpoint = undefined;
+  }
+  
+ /**
+  * Compare function to sort by leftEndpoint.x, then leftEndpoint.y coordinates
+  * @param {MyPolygonEdge} a
+  * @param {MyPolygonEdge} b
+  * @return {-1|0|1}
+  */
+  static compareXY_LeftEndpoints(a, b) {
+    return compareXY(a.leftEndpoint, b.leftEndpoint);
+  }
+
+ /** 
+  * Given an array of MyPolygonEdges, identify intersections with this edge.
+  * Update this intersectsWith Map and their respective intersectsWith Map accordingly.
+  * Comparable to identifyWallIntersections method from WallsLayer Class
+  * @param {MyPolygonEdges[]} edges
+  */
+  identifyIntersections(edges) {
+    edges.sort(MyPolygonEdge.compareXY_LeftEndpoints);
+  
+    const ln = edges.length;
+    // Record endpoints of this wall
+    // Edges already have PolygonVertex endpoints, so pull the key
+    const wallKeys = new Set([this.A.key, this.B.key]);
+  
+    // iterate over the other edge.walls
+    for(let j = 0; j < ln; j += 1) {
+      const other = edges[j];
+    
+      // if we have not yet reached the left end of this edge, we can skip
+      if(other.rightEndpoint.x < this.leftEndpoint.x) continue;
+    
+      // if we reach the right end of this edge, we can skip the rest
+      if(other.leftEndpoint.x > this.rightEndpoint.x) break;
+    
+      // Ignore edges that share an endpoint
+      const otherKeys = new Set([other.A.key, other.B.key]);
+      if ( wallKeys.intersects(otherKeys) ) continue;
+    
+      // Record any intersections
+      if ( !foundry.utils.lineSegmentIntersects(this.A, this.B, other.A, other.B) ) continue;
+    
+      const x = foundry.utils.lineLineIntersection(this.A, this.B, other.A, other.B);
+      if(!x) continue; // This eliminates co-linear lines
+  
+      this.intersectsWith.set(other.id, x);
+      other.intersectsWith.set(this.id, x);
+    }
+  }
+  
 }

@@ -6,84 +6,6 @@ foundry,
 'use strict';
 
 /*
-Additions to the PIXI.Polygon class.
-*/
-
-/**
- * Iterate over the polygon's {x, y} points in order.
- * Note: last two this.points (n-1, n) equal the first (0, 1)
- * @return {x, y} PIXI.Point
- */ 
-function* iteratePoints(close = true) {
-  const dropped = close ? 0 : 2;
-  for(let i = 0; i < (this.points.length - dropped); i += 2) {
-    yield new PIXI.Point(this.points[i], this.points[i + 1]);
-  }
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
-  value: iteratePoints,
-  writable: true,
-  configurable: true
-});
-
-/**
- * Test if the points are in clockwise or counterclockwise order.
- * https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
- * @return {boolean} True if the points are in clockwise order
- */ 
-function signedArea() {
-  let the_sum = 0;
-  const pts = this.points;
-  const ln = pts.length - 2;
-  
-  let prev_pt = { x: pts[0], y: pts[1] };
-  for(let i = 2; i < ln; i += 2) {
-    const pt = { x: pts[i], y: pts[i + 1]}
-    the_sum += (prev_pt.x * pt.y - pt.x * prev_pt.y);
-    prev_pt = pt;
-  }
-  return the_sum / 2;
-}
-
-function isClockwise() {
-  return this.signedArea() > 0;
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "signedArea", {
-  value: signedArea,
-  writable: true,
-  configurable: true
-});
-
-Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-  value: isClockwise,
-  writable: true,
-  configurable: true
-});
-
-
-/**
- * Reverse the order of the polygon points.
- */
-function reverse() {
-  const reversed_pts = [];
-  const pts = this.points;
-  const ln = pts.length - 2;
-  for(let i = ln; i >= 0; i -= 2) {
-    reversed_pts.push(pts[i], pts[i + 1]);
-  }
-  this.points = reversed_pts;
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
-  value: reverse,
-  writable: true,
-  configurable: true
-});
-
-
-/*
 Linked Polygon used for finding simple polygon intersections and unions.
 Given a PIXIjs polygon (array of coordinates), create a linked polygon. 
 - Each edge vertex linked to another edge vertex so you can traverse the polygon
@@ -95,7 +17,7 @@ points into a given polygon.
 
 */
 
-class LinkedPolygonVertex {
+export class LinkedPolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
     this.y = Math.round(y);
