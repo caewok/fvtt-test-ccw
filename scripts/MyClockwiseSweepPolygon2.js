@@ -536,36 +536,62 @@ function compareXY(a, b) {
 
 class MyPolygonEdge2 {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall=undefined) {
-    this.A = new PolygonVertex(a.x, a.y);
-    this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
     
-    const c = compareXY(a, b);
-    this._nw = c < 0 ? a : b;
-    this._se = c < 0 ? b : a;
-        
-    if(this.wall) {
+    if(wall) {
+      this.wall = wall;
+      
+      this.A = wall.vertices.a;
+      this.B = wall.vertices.b;      
+      this._nw = wall._nw;
+      this._se = wall._se;
+      
       // Need to copy the existing wall intersections in an efficient manner
       // Temporary walls may add more intersections, and we don't want those 
       // polluting the existing set.
-      this.wall = wall;
-      this.intersectsWith = new Map(this.wall.intersectsWith);
-      this.id = this.wall.id; 
-      this.edgeKeys = this.wall.wallKeys;
+      
+      this.intersectsWith = new Map(wall.intersectsWith);
+      this.id = wall.id; 
+      this.edgeKeys = wall.wallKeys;
       
     } else {
       this.wall = this;
+      this.A = new PolygonVertex(a.x, a.y);
+      this.B = new PolygonVertex(b.x, b.y);
+      
       this.id = foundry.utils.randomID();
       this.intersectsWith = new Map();
       this.edgeKeys = new Set([this.A.key, this.B.key]);
     }
+    
+  }
+
+ /**
+  * Calculate and cache the _nw, _se comparison
+  */
+  get nw() {
+    if(!this._nw) {
+      const c = compareXY(this.A, this.B);
+      this._nw = c < 0 ? this.A : this.B;
+      this._se = c < 0 ? this.B : this.A;
+    }
+    return this._nw;
   }
   
-  /**
-   * (Unchanged from Foundry 9.238)
-   * Is this edge limited in type?
-   * @returns {boolean}
-   */
+  get se() {
+    if(!this._se) {
+      const c = compareXY(this.A, this.B);
+      this._nw = c < 0 ? this.A : this.B;
+      this._se = c < 0 ? this.B : this.A;
+    }
+    return this._se;
+  }
+  
+ /**
+  * (Unchanged from Foundry 9.238)
+  * Is this edge limited in type?
+  * @returns {boolean}
+  */
   get isLimited() {
     return this.type === CONST.WALL_SENSE_TYPES.LIMITED;
   }
@@ -589,7 +615,7 @@ class MyPolygonEdge2 {
   * @param {MyPolygonEdge2[]} edges
   */
   identifyIntersections(edges) {
-    edges.sort((a, b) => compareXY(a._nw, b._nw));
+    edges.sort((a, b) => compareXY(a.nw, b.nw));
       
     const ln = edges.length;
    
@@ -598,10 +624,10 @@ class MyPolygonEdge2 {
       const other = edges[j];
       
       // if we have not yet reached the left end of this edge, we can skip
-      if(other._se.x < this._nw.x) continue;
+      if(other.se.x < this.nw.x) continue;
     
       // if we reach the right end of this edge, we can skip the rest
-      if(other._nw.x > this._se.x) break;
+      if(other.nw.x > this.se.x) break;
     
       this._identifyIntersectionsWith(other);
     }
