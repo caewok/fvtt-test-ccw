@@ -14,7 +14,7 @@ canvas,
 'use strict';
 
 import { LinkedPolygon } from "./LinkedPolygon.js";
-import { log } from "./module.js";
+import { log, MODULE_ID } from "./module.js";
 
 
 /*
@@ -95,22 +95,24 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const boundaries = [...canvas.walls.boundaries];
     
     // debug: confirm boundaries are ordered as expected
-    if(boundaries[0]._nw.key !== 6553500 ||
-       boundaries[0]._se.key !== -399769700 ||
-       boundaries[1]._nw.key !== -399769700 ||
-       boundaries[1]._se.key !== 399774300 ||
-       boundaries[2]._nw.key !== -6548900 ||
-       boundaries[2]._se.key !== 399774300 ||
-       boundaries[3]._nw.key !== 6553500 || 
-       boundaries[3]._se.key !== -6548900) {
+    if(game.modules.get(MODULE_ID).api.debug) {
+      if(boundaries[0]._nw.key !== 6553500 ||
+         boundaries[0]._se.key !== -399769700 ||
+         boundaries[1]._nw.key !== -399769700 ||
+         boundaries[1]._se.key !== 399774300 ||
+         boundaries[2]._nw.key !== -6548900 ||
+         boundaries[2]._se.key !== 399774300 ||
+         boundaries[3]._nw.key !== 6553500 || 
+         boundaries[3]._se.key !== -6548900) {
        
-       log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
+         log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
        
-       }
+         }
        
-    // debug: confirm angles are arranged as expected   
-    if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0) {
-      log(`_limitedAnglePolygon: angles not arranged as expected.`);
+      // debug: confirm angles are arranged as expected   
+      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0) {
+        log(`_limitedAnglePolygon: angles not arranged as expected.`);
+      }
     }
     
     // Find the boundary that intersects rMin and add intersection point.
