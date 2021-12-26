@@ -519,12 +519,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
  * @return {-1|0|1} 
  */
 function compareXY(a, b) {
-  if(a.x === b.x) {
-    if(a.y === b.y) { return 0; }
-    return a.y < b.y ? -1 : 1;
-  } else {
-    return a.x < b.x ? -1 : 1; 
-  }
+  if ( a.x === b.x ) return a.y - b.y;
+  else return a.x - b.x;
 }
 
 class MyPolygonEdge2 {
