@@ -14,7 +14,6 @@ foundry,
 PIXI,
 canvas,
 game,
-Wall,
 
 */
 
@@ -64,6 +63,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     
     // construct the boundary polygon if needed
     if(cfg.hasBoundary && !cfg.boundaryPolygon) {
+      log(`MyClockwiseSweepPolygon2: Constructing boundary polygon.`);
       if(cfg.hasLimitedRadius) {
         const circle = new PIXI.Circle(this.origin.x, this.origin.y, cfg.radius);
         cfg.boundaryPolygon = circle.toPolygon(cfg.density);
@@ -165,7 +165,17 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * Add a Step 5 to intersect the boundary with the calculated polygon
    */
    _compute() {
-     super._compute();
+     // Step 1 - Identify candidate edges
+    this._identifyEdges();
+
+    // Step 2 - Construct vertex mapping
+    this._identifyVertices();
+
+    // Step 3 - Radial sweep over endpoints
+    this._executeSweep();
+
+    // Step 4 - Build polygon points
+    this._constructPolygonPoints();
      
      if(this.config.hasBoundary) {
        const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
@@ -535,45 +545,35 @@ function compareXY(a, b) {
 }
 
 class MyPolygonEdge2 {
-  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall=undefined) {
+  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+    this.A = new PolygonVertex(a.x, a.y);
+    this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
+    this.wall = wall;
+    this._nw = undefined;
+    this._se = undefined;
+        
+    // Need to copy the existing wall intersections in an efficient manner
+    // Temporary walls may add more intersections, and we don't want those 
+    // polluting the existing set.
     this.intersectsWith = new Map();
     
-    if(wall) {
-      this.wall = wall;
-      
-      this.A = wall.vertices.a;
-      this.B = wall.vertices.b;      
-      this._nw = wall._nw;
-      this._se = wall._se;
-      
-      // Need to copy the existing wall intersections in an efficient manner
-      // Temporary walls may add more intersections, and we don't want those 
-      // polluting the existing set.      
-      this.id = wall.id; 
-      this.edgeKeys = wall.wallKeys;
-      
+    if(this.wall) {
+      this._nw = this.wall._nw;
+      this._se = this.wall._se;
+      this.id = this.wall.id; // copy the id so intersectsWith will match for all walls.
       this.wall.intersectsWith.forEach((x, key) => {
         // key was the entire wall; just make it the id for our purposes
         this.intersectsWith.set(key.id, x);
       });
       
     } else {
-      this.wall = this;
-      this.A = new PolygonVertex(a.x, a.y);
-      this.B = new PolygonVertex(b.x, b.y);
-      
-      this.id = foundry.utils.randomID();
-      
-      this.edgeKeys = new Set([this.A.key, this.B.key]);
       this.id = foundry.utils.randomID();
     }
     
-
-  
-    
+    this.edgeKeys = new Set([this.A.key, this.B.key]);
   }
-
+  
  /**
   * Calculate and cache the _nw, _se comparison
   */
@@ -595,25 +595,17 @@ class MyPolygonEdge2 {
     return this._se;
   }
   
- /**
-  * Calculate and cache the intersectsWith map
-  */
-//   get intersectsWith() {
-//     return this._intersectsWith || 
-//            (this._intersectsWith = new Map(this.wall.intersectsWith));
-//   } 
-  
- /**
-  * (Unchanged from Foundry 9.238)
-  * Is this edge limited in type?
-  * @returns {boolean}
-  */
+  /**
+   * (Unchanged from v9.238)
+   * Is this edge limited in type?
+   * @returns {boolean}
+   */
   get isLimited() {
     return this.type === CONST.WALL_SENSE_TYPES.LIMITED;
   }
 
   /**
-   * (Unchanged from Foundry 9.238)
+   * (Unchanged from v9.238)
    * Construct a PolygonEdge instance from a Wall placeable object.
    * @param {Wall|WallDocument} wall  The Wall from which to construct an edge
    * @param {string} type             The type of polygon being constructed
@@ -622,8 +614,9 @@ class MyPolygonEdge2 {
   static fromWall(wall, type) {
     const c = wall.data.c;
     return new this({x: c[0], y: c[1]}, {x: c[2], y: c[3]}, wall.data[type], wall);
-  }
+  }  
   
+
  /** 
   * Sort and compare pairs of walls progressively from NW to SE
   * Comparable to inside loop of Wall.prototype.identifyWallIntersections.
@@ -661,7 +654,7 @@ class MyPolygonEdge2 {
     const wb = this.B;
     const oa = other.A;
     const ob = other.B;
-
+    
     // Ignore walls which share an endpoint
     if ( this.edgeKeys.intersects(other.edgeKeys) ) return;
 
@@ -669,7 +662,8 @@ class MyPolygonEdge2 {
     if ( !foundry.utils.lineSegmentIntersects(wa, wb, oa, ob) ) return;
     const x = foundry.utils.lineLineIntersection(wa, wb, oa, ob);
     if ( !x ) return;  // This eliminates co-linear lines
-    this.intersectsWith.set(other.wall, x);
-    other.intersectsWith.set(this.wall, x);
+    this.intersectsWith.set(other.id, x);
+    other.intersectsWith.set(this.id, x);
   }
+  
 }
