@@ -7,7 +7,7 @@ CONST,
 foundry,
 PIXI,
 canvas,
-
+game,
 
 */
 

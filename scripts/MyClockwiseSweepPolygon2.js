@@ -537,6 +537,7 @@ function compareXY(a, b) {
 class MyPolygonEdge2 {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall=undefined) {
     this.type = type;
+    this.intersectsWith = new Map();
     
     if(wall) {
       this.wall = wall;
@@ -548,11 +549,14 @@ class MyPolygonEdge2 {
       
       // Need to copy the existing wall intersections in an efficient manner
       // Temporary walls may add more intersections, and we don't want those 
-      // polluting the existing set.
-      
-      this.intersectsWith = new Map(wall.intersectsWith);
+      // polluting the existing set.      
       this.id = wall.id; 
       this.edgeKeys = wall.wallKeys;
+      
+      this.wall.intersectsWith.forEach((x, key) => {
+        // key was the entire wall; just make it the id for our purposes
+        this.intersectsWith.set(key.id, x);
+      });
       
     } else {
       this.wall = this;
@@ -560,9 +564,13 @@ class MyPolygonEdge2 {
       this.B = new PolygonVertex(b.x, b.y);
       
       this.id = foundry.utils.randomID();
-      this.intersectsWith = new Map();
+      
       this.edgeKeys = new Set([this.A.key, this.B.key]);
+      this.id = foundry.utils.randomID();
     }
+    
+
+  
     
   }
 
@@ -586,6 +594,14 @@ class MyPolygonEdge2 {
     }
     return this._se;
   }
+  
+ /**
+  * Calculate and cache the intersectsWith map
+  */
+//   get intersectsWith() {
+//     return this._intersectsWith || 
+//            (this._intersectsWith = new Map(this.wall.intersectsWith));
+//   } 
   
  /**
   * (Unchanged from Foundry 9.238)
