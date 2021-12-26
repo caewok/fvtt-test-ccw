@@ -61,6 +61,19 @@ function containsPoint(p, e = 1e-8) {
   return false;
 } 
 
+/**
+ * Pad rectangle to contain given point
+ * @param {Point} p
+ */
+function padToPoint(p) {
+  const horiz = Math.max(0, p.x > this.x ? (p.x - this.right) : (this.x - p.x));
+  const vert =  Math.max(0, p.y > this.y ? (p.y - this.bottom) : (this.y - p.y));
+  this.pad(horiz, vert);
+}
+
+//   const horiz = Math.max(0, p.x > rect.x ? (p.x - rect.right) : (rect.x - p.x));
+//   const vert =  Math.max(0, p.y > rect.y ? (p.y - rect.bottom) : (rect.y - p.y));
+//   this.pad(horiz, vert);
 
 /**
  * Helper methods to track whether a segment intersects an edge.
@@ -166,6 +179,8 @@ function lineSegmentIntersects(a, b) {
 }
 
 
+
+
 // ----------------  ADD METHODS TO THE PIXI.RECTANGLE PROTOTYPE ------------------------
 export function registerPIXIRectangleMethods() {
 
@@ -183,6 +198,12 @@ export function registerPIXIRectangleMethods() {
 
   Object.defineProperty(PIXI.Rectangle.prototype, "containsPoint", {
     value: containsPoint,
+    writable: true,
+    configurable: true
+  });
+  
+  Object.defineProperty(PIXI.Rectangle.prototype, "padToPoint", {
+    value: padToPoint,
     writable: true,
     configurable: true
   });
