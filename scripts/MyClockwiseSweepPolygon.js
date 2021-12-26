@@ -261,25 +261,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
      
      const bbox = boundaryPolygon.getBounds();
      bbox.ceil(); // force the box to integer coordinates.
-     
-     if(!bbox.containsPoint(this.origin)) {
-       // pad from the relevant corner to origin + 1.
-     
-       const horizontal_padding = 1 + this.origin.x > bbox.x ?
-         this.origin.x - (bbox.right) :
-         bbox.x - this.origin.x;
-       
-       const vertical_padding = 1 + this.origin.y > bbox.y ? 
-         this.origin.y - (bbox.bottom) :
-         bbox.y - this.origin.y;
-         
-       // debug  
-       if(horizontal_padding < 1 || vertical_padding < 1) {
-         log(`_getBoundingBox: padding less than 1: ${horizontal_padding}, ${vertical_padding}`)
-       }  
-         
-       bbox.pad(horizontal_padding, vertical_padding);  
-     }
+     bbox.padToPoint(this.origin);
      
      // Expand out by 1 to ensure origin is contained 
      bbox.pad(1);
@@ -317,22 +299,10 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
        if(bbox.containsPoint(edge.A)) continue;
        if(bbox.containsPoint(edge.B)) continue;
        
-       // want to keep edges that go through the bbox
-       // so check intersections as necessary
-       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.x, y: bbox.y },
-                                              { x: bbox.right, y: bbox.y })) continue;
-                                              
-       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.right, y: bbox.y },
-                                              { x: bbox.right, y: bbox.bottom })) continue;
-       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.right, y: bbox.bottom },
-                                              { x: bbox.x, y: bbox.bottom })) continue;
-                                              
-       if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.x, y: bbox.bottom },
-                                              { x: bbox.x, y: bbox.y })) continue;                                                                                                                     
+       // keep edges that go through the bbox
+       if(bbox.lineSegmentIntersects(edge.A, edge.B)) continue;
+       
+       this.edges.delete(edge);                                                                                                                   
      }
    }
    
