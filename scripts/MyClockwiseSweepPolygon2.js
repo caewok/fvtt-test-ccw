@@ -8,13 +8,13 @@
 /* globals 
 
 PolygonVertex, 
-PolygonEdge,
 ClockwiseSweepPolygon,
 CONST,
 foundry,
 PIXI,
 canvas,
-
+game,
+Wall,
 
 */
 
@@ -512,6 +512,17 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     
 }
 
+
+/* PolygonEdge
+Needs:
+- fromWall method (wall, type)
+- A, B
+- ._nw, ._se
+- intersectsWith map 
+- id
+
+
+
 /**
  * Compare function to sort point by x, then y coordinates
  * @param {Point} a
@@ -524,37 +535,31 @@ function compareXY(a, b) {
 }
 
 class MyPolygonEdge2 {
-  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall=undefined) {
     this.A = new PolygonVertex(a.x, a.y);
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
-    this.wall = wall;
     
-
-    this._A = this.A;
-    this._B = this.B;
-    
-    this._leftEndpoint = undefined;
-    this._rightEndpoint = undefined; 
-    
-    // Need to copy the existing wall intersections in an efficient manner
-    // Temporary walls may add more intersections, and we don't want those 
-    // polluting the existing set.
-    this.intersectsWith = new Map();
-    
+    const c = compareXY(a, b);
+    this._nw = c < 0 ? a : b;
+    this._se = c < 0 ? b : a;
+        
     if(this.wall) {
-      this.id = this.wall.id; // copy the id so intersectsWith will match for all walls.
-      this.wall.intersectsWith.forEach((x, key) => {
-        // key was the entire wall; just make it the id for our purposes
-        this.intersectsWith.set(key.id, x);
-      });
+      // Need to copy the existing wall intersections in an efficient manner
+      // Temporary walls may add more intersections, and we don't want those 
+      // polluting the existing set.
+      this.wall = wall;
+      this.intersectsWith = new Map(this.wall.intersectsWith);
+      this.id = this.wall.id; 
+      this.edgeKeys = this.wall.wallKeys;
       
     } else {
+      this.wall = this;
       this.id = foundry.utils.randomID();
+      this.intersectsWith = new Map();
+      this.edgeKeys = new Set([this.A.key, this.B.key]);
     }
   }
-  
-  
   
   /**
    * (Unchanged from Foundry 9.238)
@@ -577,115 +582,52 @@ class MyPolygonEdge2 {
     return new this({x: c[0], y: c[1]}, {x: c[2], y: c[3]}, wall.data[type], wall);
   }
   
- /**
-  * Identify which endpoint is further west, or if vertical, further north.
-  * @type {Point}
-  */
-  get leftEndpoint() {
-    if(typeof this._leftEndpoint === "undefined") {
-      const is_left = compareXY(this.A, this.B) === -1;
-      this._leftEndpoint = is_left ? this.A : this.B;
-      this._rightEndpoint = is_left ? this.B : this.A;
-    }
-    return this._leftEndpoint;
-  }
-  
- /**
-  * Identify which endpoint is further east, or if vertical, further south.
-  * @type {Point}
-  */
-  get rightEndpoint() {
-    if(typeof this._rightEndpoint === "undefined") {
-      this._leftEndpoint = undefined;
-      this.leftEndpoint; // trigger endpoint identification
-    }
-    return this._rightEndpoint;
-  }
-  
-  // We need to use setters for A and B so we can reset the left/right endpoints
-  // if A and B are changed
-  
- /**
-  * @type {Point}
-  */ 
-  get A() {
-    return this._A;    
-  }
-  
- /**
-  * @type {Point}
-  */  
-  set A(value) {
-    if(!(value instanceof PolygonVertex)) { value = new PolygonVertex(value.x, value.y); }
-    this._A = value;
-    this._leftEndpoint = undefined;
-    this._rightEndpoint = undefined;
-  }
-
- /**
-  * @type {Point}
-  */ 
-  get B() {
-    return this._B;
-  }
-
- /**
-  * @type {Point}
-  */ 
-  set B(value) {
-    if(!(value instanceof PolygonVertex)) { value = new PolygonVertex(value.x, value.y); }
-    this._B = value;
-    this._leftEndpoint = undefined;
-    this._rightEndpoint = undefined;
-  }
-  
- /**
-  * Compare function to sort by leftEndpoint.x, then leftEndpoint.y coordinates
-  * @param {MyPolygonEdge2} a
-  * @param {MyPolygonEdge2} b
-  * @return {-1|0|1}
-  */
-  static compareXY_LeftEndpoints(a, b) {
-    return compareXY(a.leftEndpoint, b.leftEndpoint);
-  }
-
  /** 
-  * Given an array of MyPolygonEdge2s, identify intersections with this edge.
+  * Sort and compare pairs of walls progressively from NW to SE
+  * Comparable to inside loop of Wall.prototype.identifyWallIntersections.
   * Update this intersectsWith Map and their respective intersectsWith Map accordingly.
-  * Comparable to identifyWallIntersections method from WallsLayer Class
-  * @param {MyPolygonEdge2s[]} edges
+  * @param {MyPolygonEdge2[]} edges
   */
   identifyIntersections(edges) {
-    edges.sort(MyPolygonEdge2.compareXY_LeftEndpoints);
-  
+    edges.sort((a, b) => compareXY(a._nw, b._nw));
+      
     const ln = edges.length;
-    // Record endpoints of this wall
-    // Edges already have PolygonVertex endpoints, so pull the key
-    const wallKeys = new Set([this.A.key, this.B.key]);
-  
+   
     // iterate over the other edge.walls
     for(let j = 0; j < ln; j += 1) {
       const other = edges[j];
-    
+      
       // if we have not yet reached the left end of this edge, we can skip
-      if(other.rightEndpoint.x < this.leftEndpoint.x) continue;
+      if(other._se.x < this._nw.x) continue;
     
       // if we reach the right end of this edge, we can skip the rest
-      if(other.leftEndpoint.x > this.rightEndpoint.x) break;
+      if(other._nw.x > this._se.x) break;
     
-      // Ignore edges that share an endpoint
-      const otherKeys = new Set([other.A.key, other.B.key]);
-      if ( wallKeys.intersects(otherKeys) ) continue;
-    
-      // Record any intersections
-      if ( !foundry.utils.lineSegmentIntersects(this.A, this.B, other.A, other.B) ) continue;
-    
-      const x = foundry.utils.lineLineIntersection(this.A, this.B, other.A, other.B);
-      if(!x) continue; // This eliminates co-linear lines
-  
-      this.intersectsWith.set(other.id, x);
-      other.intersectsWith.set(this.id, x);
+      this._identifyIntersectionsWith(other);
     }
   }
   
+ /**
+  * Record the intersection points between this wall and another, if any.
+  * Comparable to Wall.prototype._identifyIntersectionsWith
+  * @param {PolygonEdge2} other   The other edge.
+  */
+  _identifyIntersectionsWith(other) {
+    if ( this === other ) return;
+    
+    const wa = this.A;
+    const wb = this.B;
+    const oa = other.A;
+    const ob = other.B;
+
+    // Ignore walls which share an endpoint
+    if ( this.edgeKeys.intersects(other.edgeKeys) ) return;
+
+    // Record any intersections
+    if ( !foundry.utils.lineSegmentIntersects(wa, wb, oa, ob) ) return;
+    const x = foundry.utils.lineLineIntersection(wa, wb, oa, ob);
+    if ( !x ) return;  // This eliminates co-linear lines
+    this.intersectsWith.set(other.wall, x);
+    other.intersectsWith.set(this.wall, x);
+  }
 }
