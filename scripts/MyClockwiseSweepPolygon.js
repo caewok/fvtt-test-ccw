@@ -293,12 +293,12 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
    _getBoundingBoxEdges(bbox) {
      return [
        new MyPolygonEdge({ x: bbox.x, y: bbox.y }, 
-                         { x: bbox.x + bbox.width, y: bbox.y }),
-       new MyPolygonEdge({ x: bbox.x + bbox.width, y: bbox.y }, 
-                         { x: bbox.x + bbox.width, y: bbox.y + bbox.height }),
-       new MyPolygonEdge({ x: bbox.x + bbox.width, y: bbox.y + bbox.height }, 
-                         { x: bbox.x, y: bbox.y + bbox.height }),
-       new MyPolygonEdge({ x: bbox.x, y: bbox.y + bbox.height }, 
+                         { x: bbox.right, y: bbox.y }),
+       new MyPolygonEdge({ x: bbox.right, y: bbox.y }, 
+                         { x: bbox.right, y: bbox.bottom }),
+       new MyPolygonEdge({ x: bbox.right, y: bbox.bottom }, 
+                         { x: bbox.x, y: bbox.bottom }),
+       new MyPolygonEdge({ x: bbox.x, y: bbox.bottom }, 
                          { x: bbox.x, y: bbox.y })          
      ];    
    }
@@ -319,12 +319,17 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
        // so check intersections as necessary
        if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
                                               { x: bbox.x, y: bbox.y },
-                                              { x: bbox.x + bbox.width, })) continue;
+                                              { x: bbox.right, y: bbox.y })) continue;
+                                              
        if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.x + bbox.width, y: bbox.y })) continue;
+                                              { x: bbox.right, y: bbox.y },
+                                              { x: bbox.right, y: bbox.bottom })) continue;
        if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
-                                              { x: bbox.x + bbox.width, y: bbox.y })) continue;
+                                              { x: bbox.right, y: bbox.bottom },
+                                              { x: bbox.x, y: bbox.bottom })) continue;
+                                              
        if(foundry.utils.lineSegmentIntersects(edge.A, edge.B,
+                                              { x: bbox.x, y: bbox.bottom },
                                               { x: bbox.x, y: bbox.y })) continue;                                                                                                                     
      }
    }
