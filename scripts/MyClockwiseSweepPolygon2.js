@@ -162,6 +162,10 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       
       // Run the original and compare points
       const og_poly = ClockwiseSweepPolygon.create(this.origin, this.config);
+      
+      // round to nearest integer coordinates
+      og_poly.points = og_poly.points.map(x => Math.round(x));
+      
       if(!og_poly.points.equals(this.points)) {
         console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
       }
