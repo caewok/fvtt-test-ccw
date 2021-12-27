@@ -1,9 +1,8 @@
-/* globals game, canvas, WallEndpoint, QuadtreeExpansionPolygon, RadialSweepPolygon */
+/* globals game, RadialSweepPolygon, ClockwiseSweepPolygon */
 'use strict';
 
 import { MODULE_ID } from "./module.js";
-import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
+
 /* 
  * Compare sight performance between different algorithms
  * Tests w/ and w/o CCW switches: use_bezier, use_robust_ccw
@@ -26,14 +25,7 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   //await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get('testccw').api.MyClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get('testccw').api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  await TestSweep.benchmark(n, ...args);
-
-}
-
-// test if there is much overhead on the class extension
-
-class TestSweep extends ClockwiseSweepPolygon {
+  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
 
 }
