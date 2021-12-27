@@ -12,7 +12,7 @@ CONST,
 foundry,
 canvas,
 PointSourcePolygon,
-ClockwisePolygon,
+ClockwiseSweepPolygon,
 Ray,
 NormalizedRectangle,
 CollisionResult,
@@ -176,7 +176,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _identifyEdges() {
-    const {type, hasLimitedAngle, hasLimitedRadius} = this.config;
+    const {type} = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
@@ -191,15 +191,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       this.edges.add(MyPolygonEdge.fromWall(boundary, type));
     }
 
-    // Restrict edges to a limited angle
-    if ( hasLimitedAngle ) {
-      this._restrictEdgesByAngle();
-    }
-
-    // Constrain edges to a limited radius
-    if ( hasLimitedRadius ) {
-      this._constrainEdgesByRadius();
-    }
   }
 
   /* -------------------------------------------- */
@@ -217,79 +208,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     return Array.from(canvas.walls.quadtree.getObjects(rect).values());
   }
 
-  /* -------------------------------------------- */
-
-  /**
-   * Restrict the set of candidate edges to those which appear within the limited angle of emission.
-   * @private
-   */
-  _restrictEdgesByAngle() {
-    const {rMin, rMax, angle} = this.config;
-    for ( let edge of this.edges ) {
-
-      // If either vertex is inside, keep the edge
-      edge.A._inLimitedAngle = this.constructor.pointBetweenRays(edge.A, rMin, rMax, angle);
-      edge.B._inLimitedAngle = this.constructor.pointBetweenRays(edge.B, rMin, rMax, angle);
-      if ( edge.A._inLimitedAngle || edge.B._inLimitedAngle ) {
-        continue;
-      }
-
-      // If both vertices are outside, test whether the edge collides with one (either) of the limiting rays
-      if ( !(foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, edge.A, edge.B) ||
-        foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, edge.A, edge.B)) ) {
-        this.edges.delete(edge);
-      }
-    }
-  }
-
-  /* -------------------------------------------- */
-
-  /**
-   * Process the candidate edges to further constrain them using a circular radius of effect.
-   * @private
-   */
-  _constrainEdgesByRadius() {
-    const {angle, hasLimitedAngle, radius, rMin, rMax} = this.config;
-    const constrained = [];
-    for ( let edge of this.edges ) {
-      const x = foundry.utils.lineCircleIntersection(edge.A, edge.B, this.origin, radius);
-
-      // Fully outside - remove this edge
-      if ( x.outside ) {
-        this.edges.delete(edge);
-        continue
-      }
-
-      // Fully contained - include this edge directly
-      if ( x.contained ) continue;
-
-      // Partially contained - partition the edge into the constrained segment
-      const points = x.intersections;
-      if ( x.aInside ) points.unshift(edge.A);
-      if ( x.bInside ) points.push(edge.B);
-
-      // Create a partitioned segment
-      this.edges.delete(edge);
-      const c = new MyPolygonEdge(points.shift(), points.pop(), edge.type, edge.wall);
-      if ( c.A.equals(c.B) ) continue;  // Skip partitioned edges with length zero
-      constrained.push(c);
-
-      // Flag partitioned points which reached the maximum radius
-      if ( !x.aInside ) c.A._distance = 1;
-      if ( !x.bInside ) c.B._distance = 1;
-    }
-
-    // Add new edges back to the set
-    for ( let e of constrained ) {
-      this.edges.add(e);
-
-      // If we have a limited angle, we need to re-check whether the constrained points are inside
-      if ( hasLimitedAngle ) {
-        e.A._inLimitedAngle = this.constructor.pointBetweenRays(e.A, rMin, rMax, angle);
-        e.B._inLimitedAngle = this.constructor.pointBetweenRays(e.B, rMin, rMax, angle);
-      }
-    }
-  }
 
   /* -------------------------------------------- */
   /*  Vertex Identification                       */
@@ -300,7 +218,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _identifyVertices() {
-    const {hasLimitedAngle, rMin, rMax} = this.config;
     const wallEdgeMap = new Map();
 
     // Register vertices for all edges
@@ -335,18 +252,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     // Add edge intersections
     this._identifyIntersections(wallEdgeMap);
 
-    // For limited angle polygons, restrict vertices
-    if ( hasLimitedAngle ) {
-      for ( let vertex of this.vertices.values() ) {
-        if ( !vertex._inLimitedAngle ) this.vertices.delete(vertex.key);
-      }
-
-      // Add vertices for the endpoints of bounding rays
-      const vMin = PolygonVertex.fromPoint(rMin.B);
-      this.vertices.set(vMin.key, vMin);
-      const vMax = PolygonVertex.fromPoint(rMax.B);
-      this.vertices.set(vMax.key, vMax);
-    }
   }
 
   /* -------------------------------------------- */
@@ -358,8 +263,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    */
   _identifyIntersections(wallEdgeMap) {
     const processed = new Set();
-    const o = this.origin;
-    const { angle, hasLimitedAngle, radius2, rMin, rMax } = this.config;
     for ( let edge of this.edges ) {
 
       // If the edge has no intersections, skip it
@@ -373,15 +276,14 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
         if ( !other || processed.has(other) ) continue;
 
         // Verify that the intersection point is still contained within the radius
-        const r2 = Math.pow(i.x - o.x, 2) + Math.pow(i.y - o.y, 2);
-        if ( r2 > radius2 ) continue;
+
 
         // Register the intersection point as a vertex
         let v = PolygonVertex.fromPoint(i);
         if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
         else {
           // Ensure the intersection is still inside our limited angle
-          if ( hasLimitedAngle && !this.constructor.pointBetweenRays(v, rMin, rMax, angle) ) continue;
+
           this.vertices.set(v.key, v);
         }
 
@@ -427,7 +329,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
         cwEdges: vertex.cwEdges,
         ccwEdges: vertex.ccwEdges,
         isLimited: vertex.isLimited,
-        isRequired: hasLimitedAngle && ((i === 0) || (i === vertices.length-1)),
         isBehind,
         wasLimited
       });
@@ -469,14 +370,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     let vertices = Array.from(this.vertices.values());
     const o = this.origin;
 
-    // Identify a reference point which should appear first in the sort order
-    let reference = null;
-    let referenceInline = false;
-    if ( this.config.hasLimitedAngle ) {
-      const rb = PolygonVertex.fromPoint(this.config.rMin.B);
-      reference = this.vertices.get(rb.key);
-    }
-
     // Sort vertices
     vertices.sort((a, b) => {
 
@@ -497,17 +390,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       const orientation = foundry.utils.orient2dFast(o, a, b);
       if ( orientation !== 0 ) return orientation;
 
-      // Special case, sort the reference point before other collinear points
-      if ( reference ) {
-        if ( a === reference ) {
-          referenceInline = true;
-          return -1;
-        }
-        if ( b === reference ) {
-          referenceInline = true;
-          return 1;
-        }
-      }
 
       // If points are collinear, first prioritize ones which have no CCW edges over ones that do
       if ( !a.ccwEdges.size && b.ccwEdges.size ) return -1;
@@ -519,12 +401,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       return a._d2 - b._d2;
     });
 
-    // Re-partition the sorted array relative to the reference point
-    if ( reference ) {
-      const idx = vertices.findIndex(v => v === reference);
-      if ( idx !== 0 ) vertices = vertices.slice(idx, vertices.length).concat(vertices.slice(0, idx));
-      if ( referenceInline ) vertices.shift(); // The reference is no longer needed
-    }
     return vertices;
   }
 
@@ -562,9 +438,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _determineRayResult(ray, vertex, result, activeEdges) {
-
-    // Case 1 - Boundary rays are strictly required
-    if ( result.isRequired ) return this._findRequiredCollision(ray, result, activeEdges);
 
     // Case 2 - Some vertices can be ignored because they are behind other active edges
     if ( result.isBehind ) return;
@@ -781,105 +654,19 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _constructPolygonPoints() {
-    const {hasLimitedAngle, hasLimitedRadius} = this.config;
     this.points = [];
 
-    // Open a limited shape
-    if ( hasLimitedAngle ) {
-      this.points.push(this.origin.x, this.origin.y);
-    }
-
-    // We must have at least 2 rays with collision points, otherwise supplementary rays are needed
-    if ( hasLimitedRadius ) {
-
-      // Determine whether supplementary rays are required
-      let n = 0;
-      for ( let r of this.rays ) {
-        if ( r.result.collisions.length ) n++;
-        if ( n > 1 ) break;
-      }
-
-      // Add minimum and maximum rays
-      if ( n < 2 ) {
-        const rMin = this.config.rMin;
-        const vMin = PolygonVertex.fromPoint(rMin.B, {distance: 1});
-        rMin.result = new CollisionResult({target: vMin, collisions: [vMin]});
-        this.rays.unshift(rMin);
-
-        const rMax = Ray.fromAngle(this.origin.x, this.origin.y, this.config.aMax, this.config.radius);
-        const vMax = PolygonVertex.fromPoint(rMax.B, {distance: 1});
-        rMax.result = new CollisionResult({target: vMax, collisions: [vMax]});
-        this.rays.push(rMax);
-      }
-    }
-
-    // We need padding points before a ray if the prior ray reached its termination and has no clockwise edges
-    const needsPadding = lastRay => {
-      if ( !hasLimitedRadius || !lastRay ) return false;
-      const r = lastRay.result;
-      const c = r.collisions[r.collisions.length-1];
-      return c.isTerminal && !c.cwEdges.size;
-    }
-
     // Add points for rays in the sweep
-    let lastRay = null;
     for ( let ray of this.rays ) {
       if ( !ray.result.collisions.length ) continue;
-
-      // Add padding points
-      if ( needsPadding(lastRay) ) {
-        for ( let p of this._getPaddingPoints(lastRay, ray) ) {
-          this.points.push(p.x, p.y);
-        }
-      }
 
       // Add collision points for the ray
       for ( let c of ray.result.collisions ) {
         this.points.push(c.x, c.y);
       }
-      lastRay = ray;
-    }
-
-    // Close the limited shape
-    if ( hasLimitedAngle ) {
-      this.points.push(this.origin.x, this.origin.y);
-    }
-
-    // Final padding rays, if necessary
-    else if ( needsPadding(lastRay) ) {
-      const firstRay = this.rays.find(r => r.result.collisions.length);
-      for ( let p of this._getPaddingPoints(lastRay, firstRay) ) {
-        this.points.push(p.x, p.y);
-      }
     }
   }
 
-  /* -------------------------------------------- */
-
-  /**
-   * Add additional points to limited-radius polygons to approximate the curvature of a circle
-   * @param {Ray} r0        The prior ray that collided with some vertex
-   * @param {Ray} r1        The next ray that collides with some vertex
-   * @private
-   */
-  _getPaddingPoints(r0, r1) {
-    const density = Math.PI / this.config.density;
-    const padding = [];
-
-    // Determine padding delta
-    let d = r1.angle - r0.angle;
-    if ( d < 0 ) d += (2*Math.PI); // Handle cycling past pi
-    const nPad = Math.round(d / density);
-    if ( nPad === 0 ) return [];
-
-    // Construct padding rays
-    const delta = d / nPad;
-    for ( let i=1; i<nPad; i++ ) {
-      const p = r0.shiftAngle(i * delta);
-      padding.push(p.B);
-    }
-    return padding;
-  }
 
   /* -------------------------------------------- */
   /*  Class Helpers                               */
