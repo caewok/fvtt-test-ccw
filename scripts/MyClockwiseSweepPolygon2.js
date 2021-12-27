@@ -266,10 +266,10 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     for ( let edge of this.edges.values() ) {
 
       // If the edge has no intersections, skip it
-      if ( !edge.wall?.intersectsWith.size ) continue;
+      if ( !edge.intersectsWith.size ) continue;
 
       // Check each intersecting wall
-      for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
+      for ( let [wall, i] of edge.intersectsWith.entries() ) {
 
         // Some other walls may not be included in this polygon
         const other = this.edges.get(wall.id);
@@ -902,8 +902,37 @@ class MyPolygonEdge {
     this.A = new PolygonVertex(a.x, a.y);
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
-    this.wall = wall;
+    this.wall = wall || this;
     this.id = wall.id || foundry.utils.randomID();
+    
+/*
+intersectsWith: three options when temp edges are used.
+1. Always use the wall.intersectsWith map. 
+   Create wall.intersectsWith if wall is undefined. 
+   Track and remove temp edges from intersectsWith 
+     by replicating Wall.prototype._removeIntersections.
+   Tracking and deletion could be slow. 
+
+2. Copy the wall.intersectsWith map to edge.intersectsWith. 
+   Copy such that the original map is not disturbed; i.e., new Map(wall.intersectsWith).
+   Likely slower but faster than 1.
+
+3. Create another intersectsWith map at edge.intersectsWith. 
+   Check both in code.
+   Complicated; possibly faster. 
+   
+(1) seems problematic b/c deletion means looping through all the intersectsWith entries.
+   
+*/
+
+    // version (2) of intersectsWith options.
+    this.intersectsWith = wall ? new Map(wall.intersectsWith) : new Map();
+    
+    // version (3) of intersectsWith options.
+    //this.intersectsWith = new Map();
+
+  
+
   }
 
   /**
