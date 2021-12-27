@@ -392,7 +392,34 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
      return true;                                                                                                            
    } 
    
-
+ /**
+  * Add walls identified by the user.
+  * Optional, but used by Light Mask module to allow arbitrary cached walls.
+  * May be useful in default Foundry for caching walls that outline, for example,
+  * river borders where you want to play river sounds but not otherwise have 
+  * the river walled off on the canvas.
+  *
+  * In config.customEdges, my proposal is that the user provide an array
+  * of objects that have:
+  * - A and B points, as in Walls, Rays, etc.
+  * - Optional type names as used in wall.data.
+  */
+  _addCustomEdges() {
+    const { customEdges, type } = this.config;
+    
+    if(!customEdges || customEdges.length === 0) return;
+    
+    // Need to track intersections for each edge.
+    // Cannot guarantee the customEdges have intersections set up, so 
+    // process each in turn
+    const edges_array = Array.from(this.edges.values());
+    for( const data of customEdges ) {
+      const edge = new MyPolygonEdge(data.A, data.B, data[type]);
+      edge.identifyIntersections(edges_array);                              
+      this.edges.set(edge.id, edge);
+      edges_array.push(edge);
+    }
+  }
 
   /* -------------------------------------------- */
 
