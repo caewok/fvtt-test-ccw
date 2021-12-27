@@ -159,7 +159,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
       
       // Run the original and compare points
-      const og_poly = ClockwisePolygon.create(this.origin, this.config);
+      const og_poly = ClockwiseSweepPolygon.create(this.origin, this.config);
       if(!og_poly.points.equals(this.points)) {
         console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
       }
