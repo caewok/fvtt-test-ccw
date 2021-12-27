@@ -163,13 +163,13 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     const walls = this._getWalls();
     for ( let wall of walls ) {
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
-      const edge = PolygonEdge.fromWall(wall, type);
+      const edge = MyPolygonEdge.fromWall(wall, type);
       this.edges.add(edge);
     }
 
     // Add edges for the canvas boundary
     for ( let boundary of canvas.walls.boundaries ) {
-      this.edges.add(PolygonEdge.fromWall(boundary, type));
+      this.edges.add(MyPolygonEdge.fromWall(boundary, type));
     }
 
     // Restrict edges to a limited angle
@@ -251,7 +251,7 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
 
       // Create a partitioned segment
       this.edges.delete(edge);
-      const c = new PolygonEdge(points.shift(), points.pop(), edge.type, edge.wall);
+      const c = new MyPolygonEdge(points.shift(), points.pop(), edge.type, edge.wall);
       if ( c.A.equals(c.B) ) continue;  // Skip partitioned edges with length zero
       constrained.push(c);
 
@@ -334,7 +334,7 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
 
   /**
    * Add additional vertices for intersections between edges.
-   * @param {Map<string,PolygonEdge>} wallEdgeMap    A mapping of wall IDs to PolygonEdge instances
+   * @param {Map<string,MyPolygonEdge>} wallEdgeMap    A mapping of wall IDs to MyPolygonEdge instances
    * @private
    */
   _identifyIntersections(wallEdgeMap) {
@@ -375,7 +375,7 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   }
   
 
-/* PolygonEdge
+/* MyPolygonEdge
 Needs:
 - fromWall method (wall, type)
 - A, B
