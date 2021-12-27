@@ -97,6 +97,8 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     cfg.radius = cfg.radius ?? canvas.dimensions.maxR;
     cfg.radius2 = Math.pow(cfg.radius, 2);
     cfg.radiusE = 0.5 / cfg.radius;
+    
+    cfg.radiusMax = Math.pow(canvas.dimensions.maxR, 2); // for drawing rays b/c radius may not be enough to hit the bounding box
 
     // Configure limited angle
     cfg.aMin = -Math.PI;
@@ -306,7 +308,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    */
   _executeSweep() {
     const origin = this.origin;
-    const { radius2, hasLimitedAngle } = this.config;
+    const { radiusMax } = this.config;
 
     // Initialize the set of active walls
     let activeEdges = this._initializeActiveEdges();
@@ -317,7 +319,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
 
       // Construct a ray towards the target vertex
       vertex._index = i+1;
-      const ray = Ray.towardsPointSquared(origin, vertex, radius2);
+      const ray = Ray.towardsPointSquared(origin, vertex, radiusMax);
       this.rays.push(ray);
 
       // Determine whether the target vertex is behind some other active edge
