@@ -266,33 +266,52 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     for ( let edge of this.edges.values() ) {
 
       // If the edge has no intersections, skip it
-      if ( !edge.intersectsWith.size ) continue;
+      if ( !edge.wall.intersectsWith.size && !edge.tempIntersectsWith.size ) continue;
 
       // Check each intersecting wall
-      for ( let [wall, i] of edge.intersectsWith.entries() ) {
+      for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
 
         // Some other walls may not be included in this polygon
         const other = this.edges.get(wall.id);
         if ( !other || processed.has(other) ) continue;
 
-        // Verify that the intersection point is still contained within the radius
-
-
-        // Register the intersection point as a vertex
-        let v = PolygonVertex.fromPoint(i);
-        if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
-        else {
-          // Ensure the intersection is still inside our limited angle
-
-          this.vertices.set(v.key, v);
-        }
-
-        // Attach edges to the intersection vertex
-        if ( !v.edges.has(edge) ) v.attachEdge(edge, 0);
-        if ( !v.edges.has(other) ) v.attachEdge(other, 0);
+        // Verify that the intersection point is still contained within the radius?
+        // test against bbox.contains?
+        
+        this._registerIntersection(edge, other, i);
       }
+      
+      for( let [wall, i] of edge.tempIntersectsWith.entries() ) {
+        const other = this.edges.get(wall.id);
+        if ( !other || processed.has(other) ) continue;
+        
+        // Verify that the intersection point is still contained within the radius?
+        // test against bbox.contains?
+        
+        this._registerIntersection(edge, other, i);
+      }
+      
       processed.add(edge);
     }
+  }
+  
+ /**
+  * Moved from Foundry 9.236 _identifyIntersections to allow easy processing of
+  * temporary edge intersections using separate loop.
+  */
+  _registerIntersection(edge, other, intersection) {
+    // Register the intersection point as a vertex
+    let v = PolygonVertex.fromPoint(intersection);
+    if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
+    else {
+      // Ensure the intersection is still inside our limited angle
+
+      this.vertices.set(v.key, v);
+    }
+
+    // Attach edges to the intersection vertex
+    if ( !v.edges.has(edge) ) v.attachEdge(edge, 0);
+    if ( !v.edges.has(other) ) v.attachEdge(other, 0);
   }
   
   
@@ -902,8 +921,11 @@ class MyPolygonEdge {
     this.A = new PolygonVertex(a.x, a.y);
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
-    this.wall = wall || this;
+    this.wall = wall; // || this;
     this.id = wall.id || foundry.utils.randomID();
+    
+    this._nw = undefined;
+    this._se = undefined;
     
 /*
 intersectsWith: three options when temp edges are used.
@@ -926,11 +948,11 @@ intersectsWith: three options when temp edges are used.
 */
 
     // version (2) of intersectsWith options.
-    this.intersectsWith = wall ? new Map(wall.intersectsWith) : new Map();
+    //this.intersectsWith = wall ? new Map(wall.intersectsWith) : new Map();
     
     // version (3) of intersectsWith options.
-    //this.intersectsWith = new Map();
-
+    this.tempIntersectsWith = new Map();
+  }
   
 
   }
