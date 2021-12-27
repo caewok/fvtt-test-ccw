@@ -891,26 +891,16 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
 }  
   
 
-/* MyPolygonEdge
-Needs:
-- fromWall method (wall, type)
-- A, B
-- ._nw, ._se
-- intersectsWith map 
-- id
-
-
-
 /**
  * Compare function to sort point by x, then y coordinates
  * @param {Point} a
  * @param {Point} b
  * @return {-1|0|1} 
  */
-// function compareXY(a, b) {
-//   if ( a.x === b.x ) return a.y - b.y;
-//   else return a.x - b.x;
-// }
+function compareXY(a, b) {
+  if ( a.x === b.x ) return a.y - b.y;
+  else return a.x - b.x;
+}
 
 class MyPolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
@@ -954,8 +944,23 @@ intersectsWith: three options when temp edges are used.
     this.tempIntersectsWith = new Map();
   }
   
-
-  }
+ get nw() {
+   if(!this._nw) {
+     const c = compareXY(this.A, this.B);
+     this._nw = c < 0 ? this.A : this.B;
+     this._se = c < 0 ? this.B : this.A;
+   }
+   return this._nw;
+ } 
+ 
+ get se() {
+   if(!this._se) {
+     const c = compareXY(this.A, this.B);
+     this._nw = c < 0 ? this.A : this.B;
+     this._se = c < 0 ? this.B : this.A;
+   }
+   return this._se;
+ }
 
   /**
    * Is this edge limited in type?
