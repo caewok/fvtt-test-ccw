@@ -270,8 +270,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   /** @inheritdoc */
   _compute() {
 
-    
-    
     // Step 1 - Identify candidate edges
     let t0 = performance.now();
     this._identifyEdges();
@@ -304,6 +302,20 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     t0 = performance.now();
     this._constructPolygonPoints();
     t1 = performance.now();
+    
+    
+    // Step 5 - Intersect boundary
+   
+    if(this.config.hasBoundary) {
+       t0 = performance.now();
+       const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
+       this.points = poly.points;
+       t1 = performance.now();
+       if(this.config.debug) {
+         console.log(`Clockwise intersect Boundary Polygon in ${(t1 - t0).toPrecision(2)}ms`);
+       }
+    }
+    
     
     if(this.config.debug) {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
@@ -477,6 +489,13 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     // Add edge intersections
     this._identifyIntersections();
 
+    if(this.config.hasBoundary) {
+      // Restrict vertices outside the bounding box
+      const bbox = this.config.bbox;
+      for(let vertex of this.vertices.values()) {
+        if(!bbox.containsPoint(vertex)) this.vertices.delete(vertex.key);
+      }
+    }
   }
 
   /* -------------------------------------------- */
