@@ -246,7 +246,25 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
      
      return bbox;   
    }   
-
+   
+  /**
+   * Construct array of edges from a bounding box.
+   * @param {PIXI.Rectangle} bbox
+   * @private
+   */
+   _getBoundingBoxEdges(bbox) {
+     return [
+       new MyPolygonEdge({ x: bbox.x, y: bbox.y }, 
+                         { x: bbox.right, y: bbox.y }),
+       new MyPolygonEdge({ x: bbox.right, y: bbox.y }, 
+                         { x: bbox.right, y: bbox.bottom }),
+       new MyPolygonEdge({ x: bbox.right, y: bbox.bottom }, 
+                         { x: bbox.x, y: bbox.bottom }),
+       new MyPolygonEdge({ x: bbox.x, y: bbox.bottom }, 
+                         { x: bbox.x, y: bbox.y })          
+     ];    
+   }
+ 
   /* -------------------------------------------- */
 
   /** @inheritdoc */
@@ -312,23 +330,69 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _identifyEdges() {
-    const {type} = this.config;
+    const { type, hasBoundary, bbox } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
     for ( let wall of walls ) {
+      // ignore edges not going through or in the boundary box
+      if( hasBoundary && this._edgeOutsideBoundary(wall, bbox) ) continue;
+
+      // ignore edges that are of a type that should be ignored
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
+       
       const edge = MyPolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
     }
 
-    // Add edges for the canvas boundary
-    for ( let boundary of canvas.walls.boundaries ) {
-      const edge = MyPolygonEdge.fromWall(boundary, type);
-      this.edges.set(edge.id, edge);
+    // Add edges for the boundary
+    if(hasBoundary) {
+      // Add bounding box as edges
+      const bbox_edges = this._getBoundingBoxEdges(bbox);
+      
+      // need to identify intersections with other edges
+      // don't need to compare against each other b/c we know these boundaries
+      // don't need canvas boundary because the bounding box will block
+      const edges_array = Array.from(this.edges.values());
+      bbox_edges.forEach(e => e.identifyIntersections(edges_array));
+      bbox_edges.forEach(e => this.edges.set(e.id, e));  
+    
+    } else {
+      // Add edges for the canvas boundary
+      // technically, could treat canvas walls as polygon boundaries, 
+      // but that would likely be slower
+      for ( let boundary of canvas.walls.boundaries ) {
+        const edge = MyPolygonEdge.fromWall(boundary, type);
+        this.edges.set(edge.id, edge);
+      }
     }
+    
+    // add custom edges
+    // this._addCustomEdges();
 
   }
+  
+  /**
+   * Restrict edges by bounding box of the boundary polygon.
+   * If completely outside, drop.
+   * (if one vertex inside, keep, but outside vertex will be dropped by _identifyVertices)
+   * @param {PolygonEdge} edge      Edge to test
+   * @param {PIXI.Rectangle} bbox   Boundary box to test for inclusion
+   * @return {boolean} True if edge can be dropped, false otherwise
+   * @private
+   */ 
+   _edgeOutsideBoundary(edge, bbox) {
+     // containsPoint should find anywhere an edge endpoint is in the bbox
+     if(bbox.containsPoint(edge.A)) return false;
+     if(bbox.containsPoint(edge.B)) return false;
+       
+     // keep edges that go through the bbox
+     if(bbox.lineSegmentIntersects(edge.A, edge.B)) return false;
+       
+     return true;                                                                                                            
+   } 
+   
+
 
   /* -------------------------------------------- */
 
@@ -399,32 +463,32 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     const processed = new Set();
     for ( let edge of this.edges.values() ) {
 
-      // If the edge has no intersections, skip it
-      if ( !edge.wall.intersectsWith.size && !edge.tempIntersectsWith.size ) continue;
-
       // Check each intersecting wall
-      for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
+      if(edge.wall && edge.wall.intersectsWith.size) { 
+        for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
 
-        // Some other walls may not be included in this polygon
-        const other = this.edges.get(wall.id);
-        if ( !other || processed.has(other) ) continue;
+          // Some other walls may not be included in this polygon
+          const other = this.edges.get(wall.id);
+          if ( !other || processed.has(other) ) continue;
 
-        // Verify that the intersection point is still contained within the radius?
-        // test against bbox.contains?
+          // Verify that the intersection point is still contained within the radius?
+          // test against bbox.contains?
         
-        this._registerIntersection(edge, other, i);
+          this._registerIntersection(edge, other, i);
+        }
       }
       
-      for( let [wall, i] of edge.tempIntersectsWith.entries() ) {
-        const other = this.edges.get(wall.id);
-        if ( !other || processed.has(other) ) continue;
+      if(edge.tempIntersectsWith.size) {
+        for( let [wall, i] of edge.tempIntersectsWith.entries() ) {
+          const other = this.edges.get(wall.id);
+          if ( !other || processed.has(other) ) continue;
         
-        // Verify that the intersection point is still contained within the radius?
-        // test against bbox.contains?
+          // Verify that the intersection point is still contained within the radius?
+          // test against bbox.contains?
         
-        this._registerIntersection(edge, other, i);
+          this._registerIntersection(edge, other, i);
+        }
       }
-      
       processed.add(edge);
     }
   }
@@ -1046,10 +1110,11 @@ class MyPolygonEdge {
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
     this.wall = wall; // || this;
-    this.id = wall.id || foundry.utils.randomID();
+    this.id = wall?.id || foundry.utils.randomID();
     
     this._nw = undefined;
     this._se = undefined;
+    this._edgeKeys = undefined;
     
 /*
 intersectsWith: three options when temp edges are used.
@@ -1078,23 +1143,41 @@ intersectsWith: three options when temp edges are used.
     this.tempIntersectsWith = new Map();
   }
   
- get nw() {
-   if(!this._nw) {
-     const c = compareXY(this.A, this.B);
-     this._nw = c < 0 ? this.A : this.B;
+ /**
+  * Locate the "northwest" vertex of this edge
+  * Used for locating intersections.
+  * @type {PolygonVertex}
+  */ 
+  get nw() {
+    if(!this._nw) {
+      const c = compareXY(this.A, this.B);
+      this._nw = c < 0 ? this.A : this.B;
+      this._se = c < 0 ? this.B : this.A;
+    }
+    return this._nw;
+  } 
+
+ /**
+  * Locate the "southeast" vertex of this edge
+  * Used for locating intersections.
+  * @type {PolygonVertex}
+  */ 
+  get se() {
+    if(!this._se) {
+      const c = compareXY(this.A, this.B);
+      this._nw = c < 0 ? this.A : this.B;
      this._se = c < 0 ? this.B : this.A;
-   }
-   return this._nw;
- } 
+    }
+    return this._se;
+  }
  
- get se() {
-   if(!this._se) {
-     const c = compareXY(this.A, this.B);
-     this._nw = c < 0 ? this.A : this.B;
-     this._se = c < 0 ? this.B : this.A;
-   }
-   return this._se;
- }
+ /**
+  * Get the set of keys corresponding to this edge's vertices.
+  * @type {Set[integer]}
+  */
+  get edgeKeys() {
+    return this._edgeKeys || (this._edgeKeys = new Set([this.A.key, this.B.key]));
+  }
 
   /**
    * Is this edge limited in type?
@@ -1113,6 +1196,54 @@ intersectsWith: three options when temp edges are used.
   static fromWall(wall, type) {
     const c = wall.data.c;
     return new this({x: c[0], y: c[1]}, {x: c[2], y: c[3]}, wall.data[type], wall);
+  }
+  
+ /** 
+  * Sort and compare pairs of walls progressively from NW to SE
+  * Comparable to inside loop of Wall.prototype.identifyWallIntersections.
+  * Update this intersectsWith Map and their respective intersectsWith Map accordingly.
+  * @param {MyPolygonEdge2[]} edges
+  */
+  identifyIntersections(edges) {
+    edges.sort((a, b) => compareXY(a.nw, b.nw));
+      
+    // iterate over the other edge.walls
+    const ln = edges.length;
+    for(let j = 0; j < ln; j += 1) {
+      const other = edges[j];
+      
+      // if we have not yet reached the left end of this edge, we can skip
+      if(other.se.x < this.nw.x) continue;
+    
+      // if we reach the right end of this edge, we can skip the rest
+      if(other.nw.x > this.se.x) break;
+    
+      this._identifyIntersectionsWith(other);
+    }
+  }
+  
+ /**
+  * Record the intersection points between this wall and another, if any.
+  * Comparable to Wall.prototype._identifyIntersectionsWith
+  * @param {PolygonEdge2} other   The other edge.
+  */
+  _identifyIntersectionsWith(other) {
+    // if ( this === other ) return;
+    
+    // Ignore walls which share an endpoint
+    if ( this.edgeKeys.intersects(other.edgeKeys) ) return;
+    
+    const wa = this.A;
+    const wb = this.B;
+    const oa = other.A;
+    const ob = other.B;
+
+    // Record any intersections
+    if ( !foundry.utils.lineSegmentIntersects(wa, wb, oa, ob) ) return;
+    const x = foundry.utils.lineLineIntersection(wa, wb, oa, ob);
+    if ( !x ) return;  // This eliminates co-linear lines
+    this.tempIntersectsWith.set(other, x);
+    other.tempIntersectsWith.set(this, x);
   }
 }
 
