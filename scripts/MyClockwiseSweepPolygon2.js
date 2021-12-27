@@ -112,9 +112,9 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     if ( cfg.hasLimitedAngle ) {
       cfg.aMin = Math.normalizeRadians(Math.toRadians(cfg.rotation + 90 - (cfg.angle / 2)));
       cfg.aMax = cfg.aMin + Math.toRadians(cfg.angle);
-      cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius);
+      cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radiusMax);
     }
-    cfg.rMin = Ray.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius);
+    cfg.rMin = Ray.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radiusMax);
     
     // check if we need a boundary polygon
     // Needed if: user-provided or limited angle or limited radius
@@ -781,22 +781,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     return this._getRayCollisions(ray, edges, {minimumDistance: v._distance});
   }
 
-  /* -------------------------------------------- */
-
-  /**
-   * Identify collision points for a required terminal ray.
-   * @private
-   *
-   * @param {Ray} ray                   The ray being emitted
-   * @param {CollisionResult} result    The pending collision result
-   * @param {EdgeSet} activeEdges       The set of currently active edges
-   */
-  _findRequiredCollision(ray, result, activeEdges) {
-    const xs = this._getRayCollisions(ray, activeEdges);
-    const x = xs[xs[0]?.type === CONST.WALL_SENSE_TYPES.LIMITED ? 1 : 0];
-    if ( !x ) return;
-    result.collisions.push(x);
-  }
 
   /* -------------------------------------------- */
 
@@ -838,10 +822,11 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     collisions.sort((a, b) => a._distance - b._distance);
 
     // Add the ray termination
-    if ( minimumDistance < 1 ) {
-      const t = PolygonVertex.fromPoint(ray.B, {distance: 1});
-      if ( !points.has(t.key) ) collisions.push(t);
-    }
+    // not needed b/c canvas is always bound and not using limited radius rays
+//     if ( minimumDistance < 1 ) {
+//       const t = PolygonVertex.fromPoint(ray.B, {distance: 1});
+//       if ( !points.has(t.key) ) collisions.push(t);
+//     }
     return collisions;
   }
 
