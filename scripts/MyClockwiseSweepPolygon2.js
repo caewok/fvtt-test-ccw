@@ -573,10 +573,8 @@ function compareXY(a, b) {
 
 class MyPolygonEdge2 {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
-    this.A = new PolygonVertex(a.x, a.y);
-    this.B = new PolygonVertex(b.x, b.y);
+   
     this.type = type;
-    this.wall = wall;
     this._nw = undefined;
     this._se = undefined;
         
@@ -585,16 +583,26 @@ class MyPolygonEdge2 {
     // polluting the existing set.
     this.intersectsWith = new Map();
     
-    if(this.wall) {
-      this._nw = this.wall._nw;
-      this._se = this.wall._se;
-      this.id = this.wall.id; // copy the id so intersectsWith will match for all walls.
-      this.wall.intersectsWith.forEach((x, key) => {
+    if(wall) {
+      const vertices = wall.vertices;
+      this.A = vertices.a;
+      this.B = vertices.b;
+      
+      if(!this.A || !this.B) {
+        console.error(`MyPolygonEdge2 no wall vertices found.`, wall.vertices);
+      }
+      
+      this._nw = wall._nw;
+      this._se = wall._se;
+      this.id = wall.id; // copy the id so intersectsWith will match for all walls.
+      wall.intersectsWith.forEach((x, key) => {
         // key was the entire wall; just make it the id for our purposes
         this.intersectsWith.set(key.id, x);
       });
       
     } else {
+      this.A = new PolygonVertex(a.x, a.y);
+      this.B = new PolygonVertex(b.x, b.y);
       this.id = foundry.utils.randomID();
     }
     
@@ -675,15 +683,15 @@ class MyPolygonEdge2 {
   * @param {PolygonEdge2} other   The other edge.
   */
   _identifyIntersectionsWith(other) {
-    if ( this === other ) return;
+    // if ( this === other ) return;
+    
+    // Ignore walls which share an endpoint
+    if ( this.edgeKeys.intersects(other.edgeKeys) ) return;
     
     const wa = this.A;
     const wb = this.B;
     const oa = other.A;
     const ob = other.B;
-    
-    // Ignore walls which share an endpoint
-    if ( this.edgeKeys.intersects(other.edgeKeys) ) return;
 
     // Record any intersections
     if ( !foundry.utils.lineSegmentIntersects(wa, wb, oa, ob) ) return;
