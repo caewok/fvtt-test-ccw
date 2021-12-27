@@ -8,19 +8,20 @@
 /* globals 
 
 PolygonVertex, 
-ClockwiseSweepPolygon,
 CONST,
 foundry,
-PIXI,
 canvas,
-game,
+PointSourcePolygon,
+ClockwisePolygon,
+Ray,
+NormalizedRectangle
 
 */
 
 'use strict';
 
-import { LinkedPolygon } from "./LinkedPolygon.js";
-import { log, MODULE_ID } from "./module.js";
+//import { LinkedPolygon } from "./LinkedPolygon.js";
+//import { log, MODULE_ID } from "./module.js";
 
 
 /*
@@ -43,31 +44,38 @@ Changes to PolygonEdge:
 
 */
 
-class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
+export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
 
-  /**
-   * The configuration of this polygon.
-   * @type {ClockwiseSweepPolygonConfig}
-   */
-  config = {};
+  // to make JSlint parser happy, move these inside the constructor
+  constructor(...args) {
+    super(...args);
+    
+    /**
+     * The configuration of this polygon.
+     * @type {ClockwiseSweepPolygonConfig}
+     */
+    this.config = {};
 
-  /**
-   * A mapping of vertices which define potential collision points
-   * @type {VertexMap}
-   */
-  vertices = new Map();
+    /**
+     * A mapping of vertices which define potential collision points
+     * @type {VertexMap}
+     */
+    this.vertices = new Map();
 
-  /**
-   * The set of edges which define potential boundaries of the polygon
-   * @type {EdgeSet}
-   */
-  edges = new Set();
+    /**
+     * The set of edges which define potential boundaries of the polygon
+     * @type {EdgeSet}
+     */
+    this.edges = new Set();
 
-  /**
-   * A collection of rays which are fired at vertices
-   * @type {Ray[]}
-   */
-  rays = [];
+    /**
+     * A collection of rays which are fired at vertices
+     * @type {Ray[]}
+     */
+    this.rays = [];
+  }
+ 
+
 
   /* -------------------------------------------- */
 
@@ -147,7 +155,7 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
       
       // Run the original and compare points
-      og_poly = ClockwisePolygon.create(this.origin, this.config);
+      const og_poly = ClockwisePolygon.create(this.origin, this.config);
       if(!og_poly.points.equals(this.points)) {
         console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
       }
@@ -380,6 +388,7 @@ class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       processed.add(edge);
     }
   }
+}  
   
 
 /* MyPolygonEdge
@@ -398,10 +407,10 @@ Needs:
  * @param {Point} b
  * @return {-1|0|1} 
  */
-function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
-}
+// function compareXY(a, b) {
+//   if ( a.x === b.x ) return a.y - b.y;
+//   else return a.x - b.x;
+// }
 
 class MyPolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
