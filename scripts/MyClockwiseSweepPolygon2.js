@@ -24,8 +24,8 @@ PolygonEdge
 
 'use strict';
 
-//import { LinkedPolygon } from "./LinkedPolygon.js";
-//import { log, MODULE_ID } from "./module.js";
+import { LinkedPolygon } from "./LinkedPolygon.js";
+import { log } from "./module.js";
 
 
 /*
@@ -115,7 +115,137 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radius);
     }
     cfg.rMin = Ray.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radius);
+    
+    // check if we need a boundary polygon
+    // Needed if: user-provided or limited angle or limited radius
+    cfg.hasBoundary = cfg.boundaryPolygon || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
+    if(cfg.hasBoundary && !cfg.boundaryPoygon) {
+      this._constructBoundaryPolygon();
+      cfg.bbox = this._getBoundingBox();
+    } 
   }
+  
+ /**
+  * Construct the boundary polygon.
+  * Approximate a circle if limited radius. 
+  * Draw angles from origin to canvas edges if limited angle. 
+  * @private
+  */
+  _constructBoundaryPolygon() {
+    const cfg = this.config;
+  
+    if(cfg.hasLimitedRadius) {
+      const circle = new PIXI.Circle(this.origin.x, this.origin.y, cfg.radius);
+      cfg.boundaryPolygon = circle.toPolygon(cfg.density);
+    }
+    
+    if(cfg.hasLimitedAngle) {
+      const ltd_angle_poly = this._limitedAnglePolygon();
+      // if necessary, find the intersection of the radius and limited angle polygons
+      cfg.boundaryPolygon = cfg.hasLimitedRadius ? 
+        LinkedPolygon.intersect(cfg.boundaryPolygon, ltd_angle_poly) : 
+        ltd_angle_poly;
+    }
+  } 
+  
+ /**
+  * Construct a boundary polygon for a limited angle.
+  * It should go from origin --> canvas edge intersection --> canvas corners, if any -->
+  *   canvas edge intersection --> origin.
+  * Warning: Does not check for whether this.config.hasLimitedAngle is true.
+  * @return {PIXI.Polygon}
+  * @private
+  */
+  _limitedAnglePolygon() {
+    const { rMin, rMax } = this.config;
+    const pts = [this.origin.x, this.origin.y];
+    
+    // two parts:
+    // 1. get the rMin -- canvas intersection
+    // 2. follow the boundaries in order, adding corners as necessary, until 
+    //    rMax -- canvas intersection
+    // Note: (2) depends on:
+    //  (a) rMin is ccw to rMax and 
+    //  (b) canvas.walls.boundaries are ordered clockwise
+    
+    const boundaries = [...canvas.walls.boundaries];
+    
+    
+    if(this.config.debug) {
+      // debug: confirm boundaries are ordered as expected
+      if(boundaries[0]._nw.key !== 6553500 ||
+         boundaries[0]._se.key !== -399769700 ||
+         boundaries[1]._nw.key !== -399769700 ||
+         boundaries[1]._se.key !== 399774300 ||
+         boundaries[2]._nw.key !== -6548900 ||
+         boundaries[2]._se.key !== 399774300 ||
+         boundaries[3]._nw.key !== 6553500 || 
+         boundaries[3]._se.key !== -6548900) {
+       
+         log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
+       
+         }
+       
+      // debug: confirm angles are arranged as expected   
+      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0) {
+        log(`_limitedAnglePolygon: angles not arranged as expected.`);
+      }
+    }
+    
+    // Find the boundary that intersects rMin and add intersection point.
+    // Store i, representing the boundary index.
+    let i;
+    const ln = boundaries.length;
+    for(i = 0; i < ln; i += 1) {
+      const boundary = boundaries[i];
+      if(foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, boundary.A, boundary.B)) {
+        // lineLineIntersection should be slightly faster and we already confirmed
+        // the segments intersect
+        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+                                                     boundary.A, boundary.B);
+        pts.push(x.x, x.y);
+        break;
+      }
+    }
+    
+    // "walk" around the canvas edges 
+    // starting with the rMin canvas intersection, check for rMax.
+    // if not intersected, than add the corner point
+    for(let j = 0; j < ln; j += 1) {
+      i = (i + j) % 4;
+      const boundary = boundaries[i];
+      if(foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, boundary.A, boundary.B)) {
+        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+                                                     boundary.A, boundary.B);
+        pts.push(x.x, x.y);
+        break;
+        
+      } else {
+        pts.push(boundary.B.x, boundary.B.y);
+      }
+    }
+    
+    pts.push(this.origin.x, this.origin.y);
+
+    return new PIXI.Polygon(pts);
+  }  
+  
+  /**
+   * Get bounding box for the boundary polygon
+   * Expand so that it definitely includes origin.
+   * Warning: Does not check for this.config.hasBoundary
+   * @private
+   */
+   _getBoundingBox() {     
+     const bbox = this.config.boundaryPolygon.getBounds();
+     bbox.ceil(); // force the box to integer coordinates.
+     bbox.padToPoint(this.origin);
+     
+     // Expand out by 1 to ensure origin is contained 
+     bbox.pad(1);
+     
+     return bbox;   
+   }   
 
   /* -------------------------------------------- */
 
