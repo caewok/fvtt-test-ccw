@@ -70,7 +70,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
      * The set of edges which define potential boundaries of the polygon
      * @type {EdgeSet}
      */
-    this.edges = new Set();
+    this.edges = new Map();
 
     /**
      * A collection of rays which are fired at vertices
@@ -185,12 +185,13 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     for ( let wall of walls ) {
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
       const edge = MyPolygonEdge.fromWall(wall, type);
-      this.edges.add(edge);
+      this.edges.set(edge.id, edge);
     }
 
     // Add edges for the canvas boundary
     for ( let boundary of canvas.walls.boundaries ) {
-      this.edges.add(MyPolygonEdge.fromWall(boundary, type));
+      const edge = MyPolygonEdge.fromWall(boundary, type);
+      this.edges.set(edge.id, edge);
     }
 
   }
@@ -220,10 +221,9 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _identifyVertices() {
-    const wallEdgeMap = new Map();
 
     // Register vertices for all edges
-    for ( let edge of this.edges ) {
+    for ( let edge of this.edges.values() ) {
 
       // Get unique vertices A and B
       const ak = edge.A.key;
@@ -247,12 +247,10 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       edge.A.attachEdge(edge, -1);
       edge.B.attachEdge(edge, 1);
 
-      // Record the wall->edge mapping
-      if ( edge.wall ) wallEdgeMap.set(edge.wall.id, edge);
     }
 
     // Add edge intersections
-    this._identifyIntersections(wallEdgeMap);
+    this._identifyIntersections();
 
   }
 
@@ -263,9 +261,9 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @param {Map<string,MyPolygonEdge>} wallEdgeMap    A mapping of wall IDs to MyPolygonEdge instances
    * @private
    */
-  _identifyIntersections(wallEdgeMap) {
+  _identifyIntersections() {
     const processed = new Set();
-    for ( let edge of this.edges ) {
+    for ( let edge of this.edges.values() ) {
 
       // If the edge has no intersections, skip it
       if ( !edge.wall?.intersectsWith.size ) continue;
@@ -274,7 +272,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
 
         // Some other walls may not be included in this polygon
-        const other = wallEdgeMap.get(wall.id);
+        const other = this.edges.get(wall.id);
         if ( !other || processed.has(other) ) continue;
 
         // Verify that the intersection point is still contained within the radius
@@ -353,7 +351,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   _initializeActiveEdges() {
     const rMin = this.config.rMin;
     const edges = new Set();
-    for ( let edge of this.edges ) {
+    for ( let edge of this.edges.values() ) {
       const x = foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, edge.A, edge.B);
       if ( x ) edges.add(edge);
     }
@@ -758,7 +756,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     }
 
     // Draw candidate edges
-    for ( let edge of this.edges ) {
+    for ( let edge of this.edges.values() ) {
       dg.lineStyle(4, limitColors[edge.type]).moveTo(edge.A.x, edge.A.y).lineTo(edge.B.x, edge.B.y);
     }
 
@@ -897,10 +895,15 @@ Needs:
 
 class MyPolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+    // NOTE: A and B must be changeable
+    // _identifyVertices sets A ccw to B. This is so activeEdges can test for end vertices.
+    
+  
     this.A = new PolygonVertex(a.x, a.y);
     this.B = new PolygonVertex(b.x, b.y);
     this.type = type;
     this.wall = wall;
+    this.id = wall.id || foundry.utils.randomID();
   }
 
   /**
