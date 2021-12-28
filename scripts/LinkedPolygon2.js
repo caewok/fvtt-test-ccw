@@ -19,6 +19,17 @@ points into a given polygon.
 
 */
 
+/**
+ * Compare function to sort point by x, then y coordinates
+ * @param {Point} a
+ * @param {Point} b
+ * @return {-1|0|1} 
+ */
+function compareXY(a, b) {
+  if ( a.x === b.x ) return a.y - b.y;
+  else return a.x - b.x;
+}
+
 class LinkedPolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
@@ -49,21 +60,6 @@ class LinkedPolygonVertex {
   static keyFromPoint(p) {
     return p?.key || (Math.round(p.x) << 16) ^ Math.round(p.y);
   } 
-  
- /**
-  * Compare function to sort point by x, then y coordinates
-  * @param {Point} a
-  * @param {Point} b
-  * @return {-1|0|1} 
-  */
-  static compareXY(a, b) {
-    if(a.x === b.x) {
-      if(a.y === b.y) { return 0; }
-      return a.y < b.y ? -1 : 1;
-    } else {
-      return a.x < b.x ? -1 : 1; 
-    }
-  }   
   
  /**
   * Does this vertex share the same coordinates as another?
@@ -137,7 +133,7 @@ class LinkedPolygonEdge {
   */
   get leftVertex() {
     if(typeof this._leftVertex === "undefined") {
-      const is_left = LinkedPolygonVertex.compareXY(this.A, this.B) === -1;
+      const is_left = compareXY(this.A, this.B) < 0;
       this._leftVertex = is_left ? this.A : this.B;
       this._rightVertex = is_left ? this.B : this.A;
     }
@@ -155,17 +151,7 @@ class LinkedPolygonEdge {
     }
     return this._rightVertex;
   }
-  
- /**
-  * Compare function to sort by leftEndpoint.x, then leftEndpoint.y coordinates
-  * @param {LinkedPolygonEdge} a
-  * @param {LinkedPolygonEdge} b
-  * @return {-1|0|1}
-  */
-  static compareXY_LeftVertices(a, b) {
-    return LinkedPolygonVertex.compareXY(a.leftVertex, b.leftVertex);
-  }  
-  
+    
  /**
   * Given two arrays of edges with left/right vertices, find their intersections.
   * Mark the intersections using the _intersectsAt set property.
@@ -175,8 +161,8 @@ class LinkedPolygonEdge {
   * @return {number} Number of intersections found
   */
   static findIntersections(edges1, edges2) {
-    edges1.sort(this.compareXY_LeftVertices);
-    edges2.sort(this.compareXY_LeftVertices);
+    edges1.sort((a, b) => compareXY(a.leftVertex, b.leftVertex));
+    edges2.sort((a, b) => compareXY(a.leftVertex, b.leftVertex));
     
     const ln1 = edges1.length;
     const ln2 = edges2.length;
@@ -464,7 +450,7 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     // A|p1|p2|...|B
     // That way, new_edge will be p1|B, then p2|B, etc.
     
-    xs.sort(LinkedPolygonVertex.compareXY);
+    xs.sort(compareXY);
     
     // if B is left, reverse the sort
     if(edge.B === edge.leftVertex) { xs.reverse(); }
