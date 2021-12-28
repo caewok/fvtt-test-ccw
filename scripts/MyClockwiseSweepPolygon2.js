@@ -118,9 +118,9 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     
     // check if we need a boundary polygon
     // Needed if: user-provided or limited angle or limited radius
-    cfg.hasBoundary = cfg.boundaryPolygon || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
-    if(cfg.hasBoundary && !cfg.boundaryPoygon) {
-      this._constructBoundaryPolygon();
+    cfg.hasBoundary = Boolean(cfg.boundaryPolygon) || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
+    if(cfg.hasBoundary && !cfg.boundaryPolygon) {
+      cfg.boundaryPolygon = this._getBoundaryPolygon();
       cfg.bbox = this._getBoundingBox();
     } 
   }
@@ -131,21 +131,22 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   * Draw angles from origin to canvas edges if limited angle. 
   * @private
   */
-  _constructBoundaryPolygon() {
-    const cfg = this.config;
-  
-    if(cfg.hasLimitedRadius) {
-      const circle = new PIXI.Circle(this.origin.x, this.origin.y, cfg.radius);
-      cfg.boundaryPolygon = circle.toPolygon(cfg.density);
+  _getBoundaryPolygon() {
+    let boundaryPolygon;  
+    if(this.config.hasLimitedRadius) {
+      const circle = new PIXI.Circle(this.origin.x, this.origin.y, this.config.radius);
+      boundaryPolygon = circle.toPolygon(this.config.density);
     }
     
-    if(cfg.hasLimitedAngle) {
+    if(this.config.hasLimitedAngle) {
       const ltd_angle_poly = this._limitedAnglePolygon();
       // if necessary, find the intersection of the radius and limited angle polygons
-      cfg.boundaryPolygon = cfg.hasLimitedRadius ? 
-        LinkedPolygon.intersect(cfg.boundaryPolygon, ltd_angle_poly) : 
+      boundaryPolygon = this.config.hasLimitedRadius ? 
+        LinkedPolygon.intersect(boundaryPolygon, ltd_angle_poly) : 
         ltd_angle_poly;
     }
+    
+    return boundaryPolygon;
   } 
   
  /**
