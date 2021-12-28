@@ -53,7 +53,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // assume if the user provided one, it is not necessary
     // TO-DO: Should this still intersect the radius and limited angle boundaries
     //        against a user-provided boundary polygon?
-    cfg.hasBoundary = cfg.boundaryPolygon || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
+    cfg.hasBoundary = Boolean(cfg.boundaryPolygon) || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
     
     // construct the boundary polygon if needed
     if(cfg.hasBoundary && !cfg.boundaryPolygon) {
@@ -195,12 +195,15 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
     }
      
-     if(this.config.hasBoundary) {
+    if(this.config.hasBoundary) {
        t0 = performance.now();
        const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
        this.points = poly.points;
        t1 = performance.now();
-     }
+       if(this.config.debug) {
+         console.log(`Clockwise intersect Boundary Polygon in ${(t1 - t0).toPrecision(2)}ms`);
+       }
+    }  
    }
    
   /**
