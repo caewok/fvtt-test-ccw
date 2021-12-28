@@ -5,83 +5,7 @@ foundry,
 
 'use strict';
 
-/*
-Additions to the PIXI.Polygon class.
-*/
-
-/**
- * Iterate over the polygon's {x, y} points in order.
- * Note: last two this.points (n-1, n) equal the first (0, 1)
- * @return {x, y} PIXI.Point
- */ 
-function* iteratePoints(close = true) {
-  const dropped = close ? 0 : 2;
-  for(let i = 0; i < (this.points.length - dropped); i += 2) {
-    yield new PIXI.Point(this.points[i], this.points[i + 1]);
-  }
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
-  value: iteratePoints,
-  writable: true,
-  configurable: true
-});
-
-/**
- * Test if the points are in clockwise or counterclockwise order.
- * https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
- * @return {boolean} True if the points are in clockwise order
- */ 
-function signedArea() {
-  let the_sum = 0;
-  const pts = this.points;
-  const ln = pts.length - 2;
-  
-  let prev_pt = { x: pts[0], y: pts[1] };
-  for(let i = 2; i < ln; i += 2) {
-    const pt = { x: pts[i], y: pts[i + 1]}
-    the_sum += (prev_pt.x * pt.y - pt.x * prev_pt.y);
-    prev_pt = pt;
-  }
-  return the_sum / 2;
-}
-
-function isClockwise() {
-  return this.signedArea() > 0;
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "signedArea", {
-  value: signedArea,
-  writable: true,
-  configurable: true
-});
-
-Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-  value: isClockwise,
-  writable: true,
-  configurable: true
-});
-
-
-/**
- * Reverse the order of the polygon points.
- */
-function reverse() {
-  const reversed_pts = [];
-  const pts = this.points;
-  const ln = pts.length - 2;
-  for(let i = ln; i >= 0; i -= 2) {
-    reversed_pts.push(pts[i], pts[i + 1]);
-  }
-  this.points = reversed_pts;
-}
-
-Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
-  value: reverse,
-  writable: true,
-  configurable: true
-});
-
+import { log } from "./module.js";
 
 /*
 Linked Polygon used for finding simple polygon intersections and unions.
@@ -93,7 +17,22 @@ Given a PIXIjs polygon (array of coordinates), create a linked polygon.
 We need to get intersections between edges and add those as points, basically inserting
 points into a given polygon.
 
+Basically a version of the 
+https://en.wikipedia.org/wiki/Weiler%E2%80%93Atherton_clipping_algorithm
+
+Does not attempt to handle holes. 
 */
+
+/**
+ * Compare function to sort point by x, then y coordinates
+ * @param {Point} a
+ * @param {Point} b
+ * @return {-1|0|1} 
+ */
+function compareXY(a, b) {
+  if ( a.x === b.x ) return a.y - b.y;
+  else return a.x - b.x;
+}
 
 class LinkedPolygonVertex {
   constructor(x, y) {
@@ -127,21 +66,6 @@ class LinkedPolygonVertex {
   } 
   
  /**
-  * Compare function to sort point by x, then y coordinates
-  * @param {Point} a
-  * @param {Point} b
-  * @return {-1|0|1} 
-  */
-  static compareXY(a, b) {
-    if(a.x === b.x) {
-      if(a.y === b.y) { return 0; }
-      return a.y < b.y ? -1 : 1;
-    } else {
-      return a.x < b.x ? -1 : 1; 
-    }
-  }   
-  
- /**
   * Does this vertex share the same coordinates as another?
   * @param {LinkedPolygonVertex|Point} p  Point or vertex
   * @return {boolean} True if they share the same integer coordinates.
@@ -160,88 +84,57 @@ class LinkedPolygonEdge {
   * @param b {Point|LinkedPolygonVertex}
   */
   constructor(a, b) {
-    this._A = a instanceof LinkedPolygonVertex ? 
+    this.A = a instanceof LinkedPolygonVertex ? 
                 a : LinkedPolygonVertex.fromPoint(a);
-    this._B = b instanceof LinkedPolygonVertex ? 
+  
+    this.B = b instanceof LinkedPolygonVertex ? 
                 b : LinkedPolygonVertex.fromPoint(b);
+                
+    // add self to the set of edges at A and B
+    this.A.edges.add(this);
+    this.B.edges.add(this);            
     
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
-    
-    this.keys = new Set(); // used in finding intersections
-    this._intersectsAt = new Set(); // used in finding intersections
-    
-    this.A = this._A; 
-    this.B = this._B;   
+    // following used in finding intersections
+    this._nw = undefined;
+    this._se = undefined;
+    this._keys = undefined; 
+    this._intersectsAt = new Set();
   }
   
  /**
-  * Getters/setters for A and B so left/right vertices can be re-set
-  * @type {LinkedPolygonVertex}
+  * Get the set of keys corresponding to this edge's vertices
   */
-  get A() { return this._A; }
-  get B() { return this._B; }
-  
-  set A(value) {
-    this.keys.delete(this._A.key)
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
-  
-    this._A = value instanceof LinkedPolygonVertex ? 
-      value : LinkedPolygonVertex.fromPoint(value);
-    
-    this._A.edges.add(this);
-    this.keys.add(this._A.key);
-  }
-  
-  set B(value) {
-    this.keys.delete(this._B.key)
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
-      
-    this._B = value instanceof LinkedPolygonVertex ? 
-      value : LinkedPolygonVertex.fromPoint(value);
-      
-    this._B.edges.add(this);  
-    this.keys.add(this._B.key);
-  }
+  get keys() {
+    return this._keys || (this._keys = new Set([this.A.key, this.B.key]));
+  } 
   
  /**
   * Identify which endpoint is further west, or if vertical, further north.
   * Required for quick intersection processing.
   * @type {LinkedPolygonVertex}
   */
-  get leftVertex() {
-    if(typeof this._leftVertex === "undefined") {
-      const is_left = LinkedPolygonVertex.compareXY(this.A, this.B) === -1;
-      this._leftVertex = is_left ? this.A : this.B;
-      this._rightVertex = is_left ? this.B : this.A;
+  get nw() {
+    if(!this._nw) {
+       const is_nw = compareXY(this.A, this.B) < 0;
+       this._nw = is_nw ? this.A : this.B;
+       this._se = is_nw ? this.B : this.A;
     }
-    return this._leftVertex;
+    return this._nw;
   }
   
  /**
   * Identify which endpoint is further east, or if vertical, further south.
   * @type {LinkedPolygonVertex}
   */
-  get rightVertex() {
-    if(typeof this._rightVertex === "undefined") {
-      this._leftVertex = undefined;
-      this.leftVertex; // trigger endpoint identification
+  get se() {
+    if(!this._se) {
+      const is_nw = compareXY(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
     }
-    return this._rightVertex;
+    return this._se;
   }
-  
- /**
-  * Compare function to sort by leftEndpoint.x, then leftEndpoint.y coordinates
-  * @param {LinkedPolygonEdge} a
-  * @param {LinkedPolygonEdge} b
-  * @return {-1|0|1}
-  */
-  static compareXY_LeftVertices(a, b) {
-    return LinkedPolygonVertex.compareXY(a.leftVertex, b.leftVertex);
-  }  
-  
+    
  /**
   * Given two arrays of edges with left/right vertices, find their intersections.
   * Mark the intersections using the _intersectsAt set property.
@@ -251,8 +144,8 @@ class LinkedPolygonEdge {
   * @return {number} Number of intersections found
   */
   static findIntersections(edges1, edges2) {
-    edges1.sort(this.compareXY_LeftVertices);
-    edges2.sort(this.compareXY_LeftVertices);
+    edges1.sort((a, b) => compareXY(a.nw, b.nw));
+    edges2.sort((a, b) => compareXY(a.nw, b.nw));
     
     const ln1 = edges1.length;
     const ln2 = edges2.length;
@@ -268,10 +161,10 @@ class LinkedPolygonEdge {
         const edge2 = edges2[j];
         
          // if we have not yet reached the left end of this edge, we can skip
-         if(edge2.rightVertex.x < edge1.leftVertex.x) continue;
+         if(edge2.se.x < edge1.nw.x) continue;
          
          // if we reach the right end of this edge, we can skip the rest
-         if(edge2.leftVertex.x > edge1.rightVertex.x) break;
+         if(edge2.nw.x > edge1.se.x) break;
          
          // ignore edges that share an endpoint but increment the intersection count
          if( edge1.keys.intersects(edge2.keys) ) {
@@ -296,80 +189,107 @@ class LinkedPolygonEdge {
   
  /**
   * Split edge at point.
-  * Make this edge A --> point
-  * Return a new edge point -->
-  * Fix links
-  * (or even between the vertices)
+  * Disconnects this from the A and B vertices.
+  * Creates two new edges:
+  * A <--> point
+  * point <--> B
   * @param {Point} p
   * @param {Array[2]{LinkedPolygonEdge}}
   */
   splitAt(p) {
-    const new_edge = new this.constructor(p, this.B);
-    new_edge.B = this.B;
-    new_edge.B.edges.delete(this);
-    this.B = new_edge.A;
+    // disconnect self from A and B
+    this.A.edges.delete(this);
+    this.B.edges.delete(this);
+  
+    const a_edge = new this.constructor(this.A, p);
+    const b_edge = new this.constructor(a_edge.B, this.B);
     
-     // TO-DO: Should left/right or cw/ccw be copied?
+    // TO-DO: Should nw/se be transferred to new edges?
     
-    return new_edge;
+    return [a_edge, b_edge];
   }
   
 
 }
 
 
-class LinkedPolygon extends PIXI.Polygon {
+export class LinkedPolygon extends PIXI.Polygon {
   constructor(...points) {
     super(...points)
     
-    this._points = this.points;
-    this._resetPoints = false; // flag if we should re-create points from edges
-    
-    // ensure points are closed
-    const ln = this.points.length;
-    if(this.points[0] !== this.points[ln - 2] || this.points[1] !== this.points[ln - 1]) {
-      console.warn(`LinkedPolygon expects a closed set of points.`, this.points);
+    this._resetPoints = false; // flag if we should re-create points from edges 
+    this._points = this.points; // we need to catch if the points need to be rebuilt   
+
+    // ensure polygon is closed
+    if(!this.isClosed) {
+      log(`LinkedPolygon expects a closed set of points.`);
       this.points.push(this.points[0], this.points[1]);
+      this._isClosed = true;
     }
+  
+    this._edges = new Set();
+    this._vertices = new Map(); // organize by Vertex keys
+    this.firstVertex = undefined;
     
-    if(!this.isClockwise()) {
-      this.reverse();
-    }
-    
-    this._constructLinkedEdgesVertices(); 
   } 
+  
+ /**
+  * Getters/setters for edges and vertices
+  * Avoids a complex constructor and allows the user to set certain 
+  * properties, such as _isConvex or _isClockwise.
+  */
+  get edges() {
+    if(!this._edges.size) {
+      this._constructLinkedEdgesVertices();
+    }
+    return this._edges;
+  }
+  
+  get vertices() {
+    if(!this._vertices.size) {
+      this._constructLinkedEdgesVertices();
+    }
+    return this._vertices;
+  }
+  
   
  /** 
   * Helper to build the linked edges and vertices
   * @private
   */
   _constructLinkedEdgesVertices() {
-    this.edges = new Set();
-    this.vertices = new Map(); // organize by Vertex keys
-
+    this._edges.clear();
+    this._vertices.clear();
+  
+    // ensure polygon is clockwise
+    if(!this.isClockwise) {
+      log(`LinkedPolygon: Reversing points.`)
+      this.reverse();
+    }
+  
     // Note: Initially, vertices will be in order. That may change when splitting 
     // edges to do the polygon intersection. Likely not worth re-inserting the entire
     // map set, so walking a polygon done by linked vertices/edges, not by the Map order.
     
     // construct edges and vertices   
     // A will be ccw, B cw
-    const ptsIter = this.iteratePoints(false);
+    const ptsIter = this.iteratePoints({ close: false });
     
     // cache the first vertex and mark it
     let prev_pt = ptsIter.next().value;
     this.firstVertex = LinkedPolygonVertex.fromPoint(prev_pt);
-    this.vertices.set(this.firstVertex.key, this.firstVertex);
+    this._vertices.set(this.firstVertex.key, this.firstVertex);
     this.firstVertex.isFirst = true;
     let prev_v = this.firstVertex;
     
     for(let pt of ptsIter) {
       const curr_v = LinkedPolygonVertex.fromPoint(pt);
-      this.vertices.set(curr_v.key, curr_v);
+      this._vertices.set(curr_v.key, curr_v);
       const edge = new LinkedPolygonEdge(prev_v, curr_v);
       prev_v.cwEdge = edge;
       curr_v.ccwEdge = edge;
       
-      this.edges.add(edge);
+      this._edges.add(edge);
       
       prev_v = curr_v;
     }
@@ -377,7 +297,7 @@ class LinkedPolygon extends PIXI.Polygon {
     const edge = new LinkedPolygonEdge(prev_v, this.firstVertex);
     prev_v.cwEdge = edge;
     this.firstVertex.ccwEdge = edge;
-    this.edges.add(edge);       
+    this._edges.add(edge);       
   } 
   
  /**
@@ -388,7 +308,7 @@ class LinkedPolygon extends PIXI.Polygon {
     this._points = [];
     const vIter = this.iterateVertices()
     for(const v of vIter) {
-      this._points.push(v.x, v.y);
+      this.points.push(v.x, v.y);
     }
     // close the points
     this._points.push(this._points[0], this._points[1]);
@@ -407,11 +327,8 @@ class LinkedPolygon extends PIXI.Polygon {
     return this._points;
   }
   
-  set points(value) {
-    this._points = value;
-    this._constructLinkedEdgesVertices();
-  }
- 
+  set points(value) { this._points = value; }
+   
  /**
   * Helper to check if this polygon has a given vertex.
   * @param {LinkedPolygonVertex|Point} v
@@ -442,24 +359,44 @@ class LinkedPolygon extends PIXI.Polygon {
     // from this point on, we are committed to splitting.
     // mark that the points are now out-of-date
     this._resetPoints = true;
+
+    // correct stored values. 
+    // convexity not guaranteed after splitting points
+    // but still clockwise and still closed
+    this._isConvex = undefined;
     
-    const new_edge = edge.splitAt(p);
-    this.edges.add(new_edge);
+    const [a_edge, b_edge] = edge.splitAt(p);
+    this.edges.delete(edge);
     
-    // edges always split A|p|B, where new_edge is p|B
-    this.vertices.set(new_edge.A.key, new_edge.A);
+    this.edges.add(a_edge);
+    this.edges.add(b_edge);
     
-    // need to fix linking for edge, new_edge, possibly p, A, B
-    // was ccwEdge -- A -- cwEdge (edge) / ccwEdge -- B -- cwEdge
-    // now ccwEdge -- A -- cwEdge (edge) / ccwEdge -- p -- cwEdge (newEdge) / ccwEdge -- B -- cwEdge
+    // edges always split A|p|B
+    // A and B will be same as the old A|B edge
+    // p is a new vertex at a_edge.B and b_edge.A.
     
+    this.vertices.set(a_edge.B.key, a_edge.B);
     
-    new_edge.A.ccwEdge = edge;
-    new_edge.A.cwEdge = new_edge;
-    new_edge.B.ccwEdge = new_edge;
-    edge.B.ccwEdge = edge;
+    // need to fix linking for the new edges; removing edge entirely
+    // was ccwEdge (prevEdge) -- A -- cwEdge / ccwEdge (edge) -- B -- cwEdge (nextEdge)
+    // now ccwEdge (prevEdge) -- A -- cwEdge / ccwEdge (a_edge) -- p -- cwEdge / ccwEdge (b_edge) -- B -- cwEdge (nextEdge)
     
-    return new_edge;
+    // link previous and next edges to a_edge and b_edge, respectively
+    const prevEdge = edge.A.ccwEdge;
+    const nextEdge = edge.B.cwEdge;
+    prevEdge.B.cwEdge = a_edge;
+    nextEdge.A.ccwEdge = b_edge;
+    
+    // link a_edge and b_edge to each other (and themselves)
+    a_edge.B.cwEdge = b_edge;
+    a_edge.B.ccwEdge = a_edge;
+    
+    b_edge.A.cwEdge = b_edge;
+    b_edge.A.ccwEdge = a_edge;
+    
+   
+      
+    return [a_edge, b_edge];
   }
   
  /**
@@ -540,14 +477,18 @@ class LinkedPolygon extends PIXI.Polygon {
     // A|p1|p2|...|B
     // That way, new_edge will be p1|B, then p2|B, etc.
     
-    xs.sort(LinkedPolygonVertex.compareXY);
+    xs.sort(compareXY);
     
-    // if B is left, reverse the sort
-    if(edge.B === edge.leftVertex) { xs.reverse(); }
+    // if B is nw, reverse the sort
+    if(edge.B === edge.nw) { xs.reverse(); }
     
     xs.forEach(x => {
-      const new_edge = this.splitAtEdge(edge, x);
-      if(new_edge) edge = new_edge; // only split if x is not at a vertex; undefined otherwise
+      const new_edges = this.splitAtEdge(edge, x);
+      
+      // if new_edge is undefined, no split likely b/c we are at a vertex already.
+      // otherwise, splitAtEdge returns [A|p, p|B] edges.
+      // we want p|B edge to process any additional intersections going forward.
+      if(new_edges) edge = new_edges[1]; 
     });
   }
   
@@ -610,20 +551,36 @@ class LinkedPolygon extends PIXI.Polygon {
     if(!(poly1 instanceof LinkedPolygon)) poly1 = LinkedPolygon.fromPolygon(poly1);
     if(!(poly2 instanceof LinkedPolygon)) poly2 = LinkedPolygon.fromPolygon(poly2);
   
-    return this._combine(poly1, poly2, { split, num_intersections, union: true });
+    const out = this._combine(poly1, poly2, { split, num_intersections, union: true })
+    if(!out) return null;
+    
+    // algorithm always outputs a clockwise polygon
+    out._isClockwise = true;
+  
+    return out;
   } 
   
   static intersect(poly1, poly2, { split = true, num_intersections = 0 } = {}) {
     if(!(poly1 instanceof LinkedPolygon)) poly1 = LinkedPolygon.fromPolygon(poly1);
     if(!(poly2 instanceof LinkedPolygon)) poly2 = LinkedPolygon.fromPolygon(poly2);
 
-    return this._combine(poly1, poly2, { split, num_intersections, union: false });
+    const out = this._combine(poly1, poly2, { split, num_intersections, union: false });
+    if(!out) return null;
+    
+    // intersection of two convex polygons is convex
+    // don't re-run convexity but add parameter if available
+    if(poly1._isConvex && poly2._isConvex) { out._isConvex = true; }
+    
+    // algorithm always outputs a clockwise polygon
+    out._isClockwise = true;
+
+    return out;
   }  
    
   static _combine(poly1, poly2, { union = true, split = true, num_intersections = 0 } = {}) {
     if(split) {
       num_intersections = this.splitAtIntersections(poly1, poly2);
-      console.log(`LinkedPolygon._combine ${num_intersections} intersections found.`);
+      log(`LinkedPolygon._combine ${num_intersections} intersections found.`);
     }
     
     if(!num_intersections) {
@@ -648,7 +605,7 @@ class LinkedPolygon extends PIXI.Polygon {
     //return pts;
   } 
       
-  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 100 } = {}) {
+  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 1e06 } = {}) {
     const pts = []; // to track the points found as we trace the polygon
     let current_poly = poly1; // which polygon are we currently tracing?
     let other_poly = poly2;
@@ -664,7 +621,7 @@ class LinkedPolygon extends PIXI.Polygon {
       
       
       
-      console.log(`LinkedPolygon.tracePolygon: point ${v.x}, ${v.y} added.`);
+      log(`LinkedPolygon.tracePolygon: point ${v.x}, ${v.y} added.`);
       pts.push(v.x, v.y);
       
       // test after the pts.push b/c we want a closed polygon

@@ -1,8 +1,7 @@
-/* globals game, canvas, WallEndpoint, QuadtreeExpansionPolygon, RadialSweepPolygon */
+/* globals game, RadialSweepPolygon, ClockwiseSweepPolygon */
 'use strict';
 
 import { MODULE_ID } from "./module.js";
-import { CCWSweepPolygon } from "./class_CCWSweepPolygon.js";
 
 /* 
  * Compare sight performance between different algorithms
@@ -20,11 +19,23 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
 //   });
 // 
 //   console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
-  
-  await QuadtreeExpansionPolygon.benchmark(n, ...args);
-  await RadialSweepPolygon.benchmark(n, ...args);
-  await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get('testccw').api.MyClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get('testccw').api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
+  game.modules.get('testccw').api.debug = false;
 
+  
+  //await QuadtreeExpansionPolygon.benchmark(n, ...args);
+  await RadialSweepPolygon.benchmark(n, ...args);
+  
+  console.log(`ClockwiseSweep iteration 1`);
+  await ClockwiseSweepPolygon.benchmark(n, ...args);
+  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  
+  // Run ClockwiseSweep repeatedly and in different orders
+  // To avoid caching and other timing issues
+  console.log(`ClockwiseSweep iteration 2`);
+  await ClockwiseSweepPolygon.benchmark(n, ...args);
+  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  
+  console.log(`ClockwiseSweep iteration 3`);
+  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  await ClockwiseSweepPolygon.benchmark(n, ...args);
 }

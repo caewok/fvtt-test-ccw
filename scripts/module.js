@@ -3,30 +3,13 @@
 
 // import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight }  from "./benchmark.js";
-import { orient2d }               from "./lib/orient2d.min.js";
-import { incircle }               from "./lib/incircle.min.js";
-import { BinarySearchTree }       from "./class_BinarySearchTree.js";
-import { PriorityQueueMap }       from "./class_PriorityQueueMap.js";
-import { PriorityQueueSet }       from "./class_PriorityQueueSet.js";
-import { PriorityQueueBST }       from "./class_PriorityQueueBST.js";
-import { PotentialWallList }      from "./class_PotentialWallList.js";
-import { Bezier }                 from "./class_Bezier.js";
-import { CCWSweepWall }           from "./class_CCWSweepWall.js";
-import { CCWSweepPoint }          from "./class_CCWSweepPoint.js";
-import { CCWSweepPolygon }        from "./class_CCWSweepPolygon.js";
-import { CCWPoint }               from "./class_CCWPoint.js";
-import { CCWPixelPoint }          from "./class_CCWPixelPoint.js";
-import { CCWRay }                 from "./class_CCWRay.js";
-import { CCWPixelRay }            from "./class_CCWPixelRay.js";
-import { MyClockwiseSweepPolygon, FastBezier } from "./MyClockwiseSweepPolygon.js";
-import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
-import { IdentifyIntersections, 
-         BruteForceIntersections,
-         SimpleSweepIntersections,
-         BentleyOttomanSweepIntersections,
-         IntersectionSweepWallEvent,
-         IntersectionSweepEvent } from "./class_IntersectionSweep.js";     
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
+import { LinkedPolygon } from "./LinkedPolygon.js";
 
+import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
+import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
+import { registerPIXICircleMethods } from "./PIXICircle.js";
+ 
 export const MODULE_ID = 'testccw';
 
 
@@ -56,63 +39,29 @@ export function log(...args) {
 // });
 
 Hooks.once('init', async function() {
-//  registerCCW();
+  registerPIXIPolygonMethods();
+  registerPIXIRectangleMethods();
+  registerPIXICircleMethods();
   
  /**
   * API switches 
-  * {Boolean}   debug           Toggles certain debug logging
-  * {Boolean}   use_bezier      Use Bezier approximation of Circle (faster)
-  * {Boolean}   use_robust_ccw  Use orient2d with checks for approximations and 
-  *                               numerical overrides or if false, a faster version 
-  *                               without such checks.
-  * {Boolean}   detect_intersections Pre-process to detect and fix overlapping walls.
-  * {"circle"|"triangle"|"square"}    light_shape       Shape of light. 
+  * {Boolean}   debug             Toggles certain debug logging
+  *
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
-  * {Class}     CCWSweepPoint     Sweep point class, extends PIXI.Point
-  * {Class}     CCWSweepWall      Sweep wall class, extends CCWSightRay
-  * {Class}     CCWSightRay       Extension to the Ray class
-  * {Class}     CCWSweepPolygon   Class for the sweep method
-  * {Function}  orient2d          Method to check for CCW or CW relationship of 3 points
-  * {Class}     PotentialWallList BST for storing sorted wall list
-  * {Class}     Bezier            Class for approximating circle arcs using bezier curves
+  * 
+  * API classes
+  * {Class}     MyClockwiseSweepPolygon   Extends ClockwiseSweepPolygon
+  * {Class}     LinkedPolygon             Used to intersect/union polygons
   */
   
   game.modules.get(MODULE_ID).api = { 
     debug: false, 
-    use_bezier: false, 
-    use_robust_ccw: true, 
-    detect_intersections: true,
-    light_shape: "circle",
     
     benchmark: testCCWBenchmarkSight,
-    CCWSweepPoint: CCWSweepPoint,
-    CCWSweepWall: CCWSweepWall,
-    CCWSweepPolygon: CCWSweepPolygon,
-    
-    CCWPoint: CCWPoint,
-    CCWPixelPoint: CCWPixelPoint,
-    CCWRay: CCWRay,
-    CCWPixelRay: CCWPixelRay,
-    
-    orient2d: orient2d,
-    incircle: incircle,
-    BinarySearchTree: BinarySearchTree,
-    PriorityQueueMap: PriorityQueueMap,
-    PriorityQueueSet: PriorityQueueSet,
-    PriorityQueueBST: PriorityQueueBST,
     MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
-    MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
-    FastBezier: FastBezier,
     
-    PotentialWallList: PotentialWallList,
-    Bezier: Bezier,
-    IdentifyIntersections: IdentifyIntersections,
-    BruteForceIntersections: BruteForceIntersections,
-    SimpleSweepIntersections: SimpleSweepIntersections,
-    BentleyOttomanSweepIntersections: BentleyOttomanSweepIntersections,
-    IntersectionSweepWallEvent: IntersectionSweepWallEvent,
-    IntersectionSweepEvent: IntersectionSweepEvent }
+    LinkedPolygon: LinkedPolygon }
 });
 
 // modules ready
