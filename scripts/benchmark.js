@@ -27,7 +27,7 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   
   console.log(`ClockwiseSweep iteration 1`);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  //await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
   
   // Run ClockwiseSweep repeatedly and in different orders
@@ -35,10 +35,10 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   console.log(`ClockwiseSweep iteration 2`);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  //await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
   
   console.log(`ClockwiseSweep iteration 3`);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
+  //await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
 }

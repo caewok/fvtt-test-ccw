@@ -17,6 +17,10 @@ Given a PIXIjs polygon (array of coordinates), create a linked polygon.
 We need to get intersections between edges and add those as points, basically inserting
 points into a given polygon.
 
+Basically a version of the 
+https://en.wikipedia.org/wiki/Weiler%E2%80%93Atherton_clipping_algorithm
+
+Does not attempt to handle holes. 
 */
 
 /**
@@ -213,54 +217,80 @@ export class LinkedPolygon2 extends PIXI.Polygon {
   constructor(...points) {
     super(...points)
     
-    this._points = this.points;
-    this._resetPoints = false; // flag if we should re-create points from edges
-    
-    // ensure points are closed
+    this._resetPoints = false; // flag if we should re-create points from edges 
+    this._points = this.points; // we need to catch if the points need to be rebuilt   
+
+    // ensure polygon is closed
     const ln = this.points.length;
-    if(this.points[0] !== this.points[ln - 2] || this.points[1] !== this.points[ln - 1]) {
-      log(`LinkedPolygon2 expects a closed set of points.`, this.points);
+    if(!this.isClosed) {
+      log(`LinkedPolygon2 expects a closed set of points.`);
       this.points.push(this.points[0], this.points[1]);
+      this._isClosed = true;
     }
+  
+    this._edges = new Set();
+    this._vertices = new Map(); // organize by Vertex keys
+    this.firstVertex = undefined;
     
-    if(!this.isClockwise()) {
-      this.reverse();
-    }
-    
-    this._constructLinkedEdgesVertices(); 
   } 
+  
+ /**
+  * Getters/setters for edges and vertices
+  * Avoids a complex constructor and allows the user to set certain 
+  * properties, such as _isConvex or _isClockwise.
+  */
+  get edges() {
+    if(!this._edges.size) {
+      this._constructLinkedEdgesVertices();
+    }
+    return this._edges;
+  }
+  
+  get vertices() {
+    if(!this._vertices.size) {
+      this._constructLinkedEdgesVertices();
+    }
+    return this._vertices;
+  }
+  
   
  /** 
   * Helper to build the linked edges and vertices
   * @private
   */
   _constructLinkedEdgesVertices() {
-    this.edges = new Set();
-    this.vertices = new Map(); // organize by Vertex keys
-
+    this._edges.clear();
+    this._vertices.clear();
+  
+    // ensure polygon is clockwise
+    if(!this.isClockwise) {
+      log(`LinkedPolygon2: Reversing points.`)
+      this.reverse();
+    }
+  
     // Note: Initially, vertices will be in order. That may change when splitting 
     // edges to do the polygon intersection. Likely not worth re-inserting the entire
     // map set, so walking a polygon done by linked vertices/edges, not by the Map order.
     
     // construct edges and vertices   
     // A will be ccw, B cw
-    const ptsIter = this.iteratePoints(false);
+    const ptsIter = this.iteratePoints({ close: false });
     
     // cache the first vertex and mark it
     let prev_pt = ptsIter.next().value;
     this.firstVertex = LinkedPolygonVertex.fromPoint(prev_pt);
-    this.vertices.set(this.firstVertex.key, this.firstVertex);
+    this._vertices.set(this.firstVertex.key, this.firstVertex);
     this.firstVertex.isFirst = true;
     let prev_v = this.firstVertex;
     
     for(let pt of ptsIter) {
       const curr_v = LinkedPolygonVertex.fromPoint(pt);
-      this.vertices.set(curr_v.key, curr_v);
+      this._vertices.set(curr_v.key, curr_v);
       const edge = new LinkedPolygonEdge(prev_v, curr_v);
       prev_v.cwEdge = edge;
       curr_v.ccwEdge = edge;
       
-      this.edges.add(edge);
+      this._edges.add(edge);
       
       prev_v = curr_v;
     }
@@ -268,7 +298,7 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     const edge = new LinkedPolygonEdge(prev_v, this.firstVertex);
     prev_v.cwEdge = edge;
     this.firstVertex.ccwEdge = edge;
-    this.edges.add(edge);       
+    this._edges.add(edge);       
   } 
   
  /**
@@ -279,7 +309,7 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     this._points = [];
     const vIter = this.iterateVertices()
     for(const v of vIter) {
-      this._points.push(v.x, v.y);
+      this.points.push(v.x, v.y);
     }
     // close the points
     this._points.push(this._points[0], this._points[1]);
@@ -298,11 +328,8 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     return this._points;
   }
   
-  set points(value) {
-    this._points = value;
-    this._constructLinkedEdgesVertices();
-  }
- 
+  set points(value) { this._points = value; }
+   
  /**
   * Helper to check if this polygon has a given vertex.
   * @param {LinkedPolygonVertex|Point} v
@@ -333,6 +360,11 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     // from this point on, we are committed to splitting.
     // mark that the points are now out-of-date
     this._resetPoints = true;
+
+    // correct stored values. 
+    // convexity not guaranteed after splitting points
+    // but still clockwise and still closed
+    this._isConvex = undefined;
     
     const [a_edge, b_edge] = edge.splitAt(p);
     this.edges.delete(edge);
@@ -520,14 +552,30 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     if(!(poly1 instanceof LinkedPolygon2)) poly1 = LinkedPolygon2.fromPolygon(poly1);
     if(!(poly2 instanceof LinkedPolygon2)) poly2 = LinkedPolygon2.fromPolygon(poly2);
   
-    return this._combine(poly1, poly2, { split, num_intersections, union: true });
+    const out = this._combine(poly1, poly2, { split, num_intersections, union: true })
+    if(!out) return null;
+    
+    // algorithm always outputs a clockwise polygon
+    out._isClockwise = true;
+  
+    return out;
   } 
   
   static intersect(poly1, poly2, { split = true, num_intersections = 0 } = {}) {
     if(!(poly1 instanceof LinkedPolygon2)) poly1 = LinkedPolygon2.fromPolygon(poly1);
     if(!(poly2 instanceof LinkedPolygon2)) poly2 = LinkedPolygon2.fromPolygon(poly2);
 
-    return this._combine(poly1, poly2, { split, num_intersections, union: false });
+    const out = this._combine(poly1, poly2, { split, num_intersections, union: false });
+    if(!out) return null;
+    
+    // intersection of two convex polygons is convex
+    // don't re-run convexity but add parameter if available
+    if(poly1._isConvex && poly2._isConvex) { out._isConvex = true; }
+    
+    // algorithm always outputs a clockwise polygon
+    out._isClockwise = true;
+
+    return out;
   }  
    
   static _combine(poly1, poly2, { union = true, split = true, num_intersections = 0 } = {}) {

@@ -5,14 +5,24 @@ PIXI,
 'use strict';
 
 /* Additions to the PIXI.Polygon class:
-- iteratePoints: iterator for the polygon points.
-- signedArea: Area of the polygon
+Getters:
+- isClosed: Are the points closed (first and last points are same)?
+- isConvex: Is the polygon convex?
 - isClockwise: Are the points in clockwise or counterclockwise order?
+
+Generators:
+- iteratePoints: iterator for the polygon points.
+
+Methods:
 - reverse: Reverse point order
 - getBounds: Bounding rectangle for the polygon
-- getCenter: Center of the rectangle, based on its bounding rectangle center.
-- scale: change each point by (pt - position) / size
-- unscale: change each point by (pt * size) + position
+- getCenter: Center of the polygon, based on its bounding rectangle center.
+- scale: change each point by (pt - position) / size and return new polygon
+- unscale: change each point by (pt * size) + position and return new polygon
+
+Helper methods:
+- determineConvexity: Measure if the polygon is convex.
+- determineOrientation: Measure the orientation of the polygon
 */
 
 /**
@@ -20,7 +30,7 @@ PIXI,
  * Note: last two this.points (n-1, n) equal the first (0, 1)
  * @return {x, y} PIXI.Point
  */ 
-function* iteratePoints(close = true) {
+function* iteratePoints({close = true} = {}) {
   const dropped = close ? 0 : 2;
   for(let i = 0; i < (this.points.length - dropped); i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
@@ -28,28 +38,121 @@ function* iteratePoints(close = true) {
 }
 
 
+/**
+ * Is the polygon open or closed?
+ * @return {boolean}  True if closed.
+ */
+function isClosed() {
+  if(typeof this._isClosed === "undefined") {
+    const ln = this.points.length;
+    this._isClosed = this.points[0] === this.points[ln - 2] && 
+                     this.points[1] === this.points[ln - 1]
+  }
+  return this._isClosed;
+}
 
 /**
- * Test if the points are in clockwise or counterclockwise order.
- * https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
- * @return {boolean} True if the points are in clockwise order
- */ 
-function signedArea() {
-  let the_sum = 0;
-  const pts = this.points;
-  const ln = pts.length - 2;
-  
-  let prev_pt = { x: pts[0], y: pts[1] };
-  for(let i = 2; i < ln; i += 2) {
-    const pt = { x: pts[i], y: pts[i + 1]}
-    the_sum += (prev_pt.x * pt.y - pt.x * prev_pt.y);
-    prev_pt = pt;
+ * Is the polygon convex?
+ * https://stackoverflow.com/questions/40738013/how-to-determine-the-type-of-polygon
+ * If you already know the polygon convexity, you should set this._isConvex manually.
+ */
+function isConvex() {
+  if(typeof this._isConvex === "undefined") {
+    this._isConvex = this.determineConvexity()
   }
-  return the_sum / 2;
+  return this._isConvex;
+}
+
+
+/**
+ * Measure the polygon convexity
+ * https://stackoverflow.com/questions/40738013/how-to-determine-the-type-of-polygon
+ * Check sign of the cross product for triplet points. 
+ * Must all be +  or all - to be convex.
+ * WARNING: Will not work if the polygon is complex 
+ * (meaning it intersects itself, forming 2+ smaller polygons)
+ */
+function determineConvexity() {
+  if(!this.isClosed) {
+    console.warn(`Convexity is not defined for open polygons.`);
+    return false;
+  }
+  
+  // if a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)
+  if(this.points.length === 8) return true;
+
+  const iter = this.iteratePoints();
+  let prev_pt = iter.next().value;
+  let curr_pt = iter.next().value;
+  let next_pt = iter.next().value;
+  let new_pt;
+  
+  const sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
+  
+  // if polygon is a triangle, while loop should be skipped and will always return true
+  while(new_pt = iter.next().value) {
+    prev_pt = curr_pt;
+    curr_pt = next_pt;
+    next_pt = new_pt;
+    const new_sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
+    
+    if(sign !== new_sign) return false;
+  }
+  return true; 
 }
 
 function isClockwise() {
-  return this.signedArea() > 0;
+  if(typeof this._isClockwise === "undefined") {
+    // recall that orient2dFast returns positive value if points are ccw
+    this._isClockwise = this.determineOrientation() < 0;
+  }
+  return this._isClockwise;
+}
+
+/**
+ * Determine if the polygon points are oriented clockwise or counter-clockwise
+ * https://en.wikipedia.org/wiki/Curve_orientation#Orientation_of_a_simple_polygon
+ * Locate a point on the convex hull, and find its orientation in relation to the
+ * prior point and next point.
+ */
+function determineOrientation() {
+  if(this.isConvex) {
+    // can use any point to determine orientation
+    const iter = this.iteratePoints();
+    const prev_pt = iter.next().value;
+    const curr_pt = iter.next().value;
+    const next_pt = iter.next().value;
+    return foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt);
+  } 
+  
+  // locate the index of the vertex with the smallest x coordinate. 
+  // Break ties with smallest y
+  const pts = this.points;
+  const ln = this.isClosed ? pts.length - 2 : pts.length; // don't repeat the first point
+  let min_x = Number.POSITIVE_INFINITY;
+  let min_y = Number.POSITIVE_INFINITY;
+  let min_i = 0;
+  for(let i = 0; i < ln; i += 2) {
+    const curr_x = pts[i];
+    const curr_y = pts[i+1];
+    
+    if(curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
+      min_x = curr_x;
+      min_y = curr_y;
+      min_i = i;    
+    } 
+  }
+  
+  // min_x, min_y are the B (the point on the convex hull)
+  const curr_pt = { x: min_x, y: min_y };
+  
+  const prev_i = min_i > 1 ? (min_i - 2) : (ln - 2);
+  const prev_pt = { x: pts[prev_i], y: pts[prev_i + 1] };
+  
+  const next_i = min_i < (ln - 2) ? (min_i + 2) : 0;
+  const next_pt = { x: pts[next_i], y: pts[next_i + 1] };
+  
+  return foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt);
 }
 
 /**
@@ -63,6 +166,9 @@ function reverse() {
     reversed_pts.push(pts[i], pts[i + 1]);
   }
   this.points = reversed_pts;
+  if(typeof this._isClockwise !== "undefined") {
+    this._isClockwise = !this._isClockwise;
+  }
 }
 
 /**
@@ -71,7 +177,7 @@ function reverse() {
  * @return {PIXI.Rectangle}
  */
 function getBounds() {
-  const iter = this.iteratePoints(false);
+  const iter = this.iteratePoints({ close: false });
   const bounds = [...iter].reduce((prev, pt) => {
     return {
       min_x: Math.min(pt.x, prev.min_x),
@@ -111,14 +217,22 @@ function getCenter() {
  * @param {number} position_dy
  * @param {number} size_dx
  * @param {number} size_dy
+ * @return {Array[number]} The scaled points
  */
 function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {}) {
-  const pts = this.points;
+  const pts = [...this.points];
   const ln = pts.length;
   for(let i = 0; i < ln; i += 2) {
     pts[i]   = (pts[i] - position_dx) / size_dx;
     pts[i+1] = (pts[i+1] - position_dy) / size_dy;
   }
+  
+  const out = new this.constructor(pts);
+  out._isClockwise = this._isClockwise;
+  out._isConvex = this._isConvex;
+  out._isClosed = this._isClosed;
+  
+  return out;
 }
 
 /**
@@ -136,14 +250,22 @@ function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {
  * @param {number} position_dy
  * @param {number} size_dx
  * @param {number} size_dy
+ * @return {PIXI.Polygon} A new PIXI.Polygon
  */
 function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } = {}) {
-  const pts = this.points;
+  const pts = [...this.points];
   const ln = pts.length;
   for(let i = 0; i < ln; i += 2) {
     pts[i]   = (pts[i] * size_dx) + position_dx;
     pts[i+1] = (pts[i+1] * size_dy) + position_dy;
   }
+  
+  const out = new this.constructor(pts);
+  out._isClockwise = this._isClockwise;
+  out._isConvex = this._isConvex;
+  out._isClosed = this._isClosed;
+  
+  return out;
 }
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
@@ -154,18 +276,31 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
+    get: isClosed,
+  });
+  
 
-  Object.defineProperty(PIXI.Polygon.prototype, "signedArea", {
-    value: signedArea,
-    writable: true,
-    configurable: true
+  Object.defineProperty(PIXI.Polygon.prototype, "isConvex", {
+    get: isConvex,
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-    value: isClockwise,
+    get: isClockwise,
+  });
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "determineConvexity", {
+    value: determineConvexity,
     writable: true,
     configurable: true
-  });
+  }); 
+
+  Object.defineProperty(PIXI.Polygon.prototype, "determineOrientation", {
+    value: determineOrientation,
+    writable: true,
+    configurable: true
+  });   
 
   Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
     value: reverse,

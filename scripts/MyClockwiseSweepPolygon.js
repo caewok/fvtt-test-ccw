@@ -135,10 +135,10 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // starting with the rMin canvas intersection, check for rMax.
     // if not intersected, than add the corner point
     for(let j = 0; j < ln; j += 1) {
-      i = (i + j) % 4;
-      const boundary = boundaries[i];
+      const new_i = (i + j) % 4;
+      const boundary = boundaries[new_i];
       if(foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, boundary.A, boundary.B)) {
-        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+        const x = foundry.utils.lineLineIntersection(rMax.A, rMax.B, 
                                                      boundary.A, boundary.B);
         pts.push(x.x, x.y);
         break;
@@ -193,6 +193,10 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     
     if(this.config.debug) {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
+      
+      // store the points array for debugging; make sure to use a shallow copy, not ref.
+      this._sweepPoints = [...this.points];
+    
     }
      
     if(this.config.hasBoundary) {

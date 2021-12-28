@@ -256,7 +256,7 @@ export class LinkedPolygon extends PIXI.Polygon {
       this.points.push(this.points[0], this.points[1]);
     }
     
-    if(!this.isClockwise()) {
+    if(!this.isClockwise) {
       this.reverse();
     }
     

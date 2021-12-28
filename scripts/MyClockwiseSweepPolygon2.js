@@ -97,26 +97,26 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     cfg.radius = cfg.radius ?? canvas.dimensions.maxR;
     cfg.radius2 = Math.pow(cfg.radius, 2);
     cfg.radiusE = 0.5 / cfg.radius;
+    cfg.density = cfg.density ?? 12;
     
     cfg.radiusMax = Math.pow(canvas.dimensions.maxR, 2); // for drawing rays b/c radius may not be enough to hit the bounding box
+    
+    // configure starting ray
+    // (aMin still )
+    
 
     // Configure limited angle
-    cfg.aMin = -Math.PI;
-    cfg.aMax = Math.PI;
     cfg.angle = cfg.angle ?? 360;
     cfg.rotation = cfg.rotation ?? 0;
     cfg.hasLimitedAngle = cfg.angle !== 360;
-    cfg.density = cfg.density ?? 12;
-
-    // Configure bounding rays
-    if ( cfg.hasLimitedAngle ) {
-      cfg.aMin = Math.normalizeRadians(Math.toRadians(cfg.rotation + 90 - (cfg.angle / 2)));
-      cfg.aMax = cfg.aMin + Math.toRadians(cfg.angle);
-      cfg.rMax = Ray.fromAngle(origin.x, origin.y, cfg.aMax, cfg.radiusMax);
-    }
-    cfg.rMin = Ray.fromAngle(origin.x, origin.y, cfg.aMin, cfg.radiusMax);
     
-    // check if we need a boundary polygon
+    
+    // configure starting ray
+    // (always due west; limited angle now handled by
+    //  _getBoundaryPolygon and _limitedAnglePolygon)
+    cfg.rStart = new Ray(origin, { x: origin.x - cfg.radiusMax, y: origin.y });
+    
+    // configure boundary polygon
     // Needed if: user-provided or limited angle or limited radius
     cfg.hasBoundary = Boolean(cfg.boundaryPolygon) || cfg.hasLimitedRadius || cfg.hasLimitedAngle; 
     if(cfg.hasBoundary && !cfg.boundaryPolygon) {
@@ -158,8 +158,20 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   * @private
   */
   _limitedAnglePolygon() {
-    const { rMin, rMax } = this.config;
-    const pts = [this.origin.x, this.origin.y];
+    const origin = this.origin;
+    const { angle, rotation, radiusMax } = this.config;
+    
+    const aMin = Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2)));
+    const aMax = aMin + Math.toRadians(angle);
+    
+    const rMin = Ray.fromAngle(origin.x, origin.y, aMin, radiusMax);
+    const rMax = Ray.fromAngle(origin.x, origin.y, aMax, radiusMax);
+    
+    // store rMin and rMax for visualization
+    this.config.rMin = rMin;
+    this.config.rMax = rMax;
+    
+    const pts = [origin.x, origin.y];
     
     // two parts:
     // 1. get the rMin -- canvas intersection
@@ -188,12 +200,23 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
          }
        
       // debug: confirm angles are arranged as expected   
-      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0) {
+      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0 && angle < 180 ||
+         foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) > 0 && angle > 180) {
         log(`_limitedAnglePolygon: angles not arranged as expected.`);
-      }
+      } 
     }
     
-    // Find the boundary that intersects rMin and add intersection point.
+    // token rotation: 
+    // north is 180º (3.1415 or π radians)
+    // west is 90º (1.5707 or π/2 radians)
+    // south is 0º (0 radians)
+    // east is 270º (-1.5707 or -π/2 radians)
+    // aMin, aMax could be used to guess the starting boundary
+    // Example: if aMin is due north, it must intersect the due north boundary
+    //          if aMin is north/north-east, it could intersect due north or due east
+    
+    
+    // Find the boundary that intersects rMin and add intersection point.    
     // Store i, representing the boundary index.
     let i;
     const ln = boundaries.length;
@@ -212,11 +235,19 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     // "walk" around the canvas edges 
     // starting with the rMin canvas intersection, check for rMax.
     // if not intersected, than add the corner point
-    for(let j = 0; j < ln; j += 1) {
-      i = (i + j) % 4;
+    // if greater than 180º angle, don't start with rMin intersection b/c we need to 
+    // circle around
+    if(angle > 180) {
       const boundary = boundaries[i];
+      pts.push(boundary.B.x, boundary.B.y);
+      i = i + 1; 
+    }
+    
+    for(let j = 0; j < ln; j += 1) {
+      const new_i = (i + j) % 4;
+      const boundary = boundaries[new_i];
       if(foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, boundary.A, boundary.B)) {
-        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B, 
+        const x = foundry.utils.lineLineIntersection(rMax.A, rMax.B, 
                                                      boundary.A, boundary.B);
         pts.push(x.x, x.y);
         break;
@@ -226,7 +257,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       }
     }
     
-    pts.push(this.origin.x, this.origin.y);
+    pts.push(origin.x, origin.y);
 
     return new PIXI.Polygon(pts);
   }  
@@ -305,12 +336,24 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     t1 = performance.now();
     
     
+    if(this.config.debug) {
+     console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
+     // store the points array for debugging; make sure to use a shallow copy, not ref.
+     this._sweepPoints = [...this.points];
+    }
+    
+    
     // Step 5 - Intersect boundary
    
     if(this.config.hasBoundary) {
        t0 = performance.now();
        const poly = LinkedPolygon2.intersect(this, this.config.boundaryPolygon);
-       this.points = poly.points;
+       if(poly) { this.points = poly.points; }
+       // if poly is null (or undefined) something has gone wrong: no intersection found.
+       // return the points or return empty points?
+       // currently returning points
+       
+       
        t1 = performance.now();
        if(this.config.debug) {
          console.log(`Clockwise intersect Boundary Polygon in ${(t1 - t0).toPrecision(2)}ms`);
@@ -321,6 +364,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     if(this.config.debug) {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
       
+      
       // Run the original and compare points
       const og_poly = ClockwiseSweepPolygon.create(this.origin, this.config);
       
@@ -328,7 +372,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       og_poly.points = og_poly.points.map(x => Math.round(x));
       
       if(!og_poly.points.equals(this.points)) {
-        //console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
+        console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
       }
       
     }
@@ -613,10 +657,10 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _initializeActiveEdges() {
-    const rMin = this.config.rMin;
+    const rStart = this.config.rStart;
     const edges = new Set();
     for ( let edge of this.edges.values() ) {
-      const x = foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, edge.A, edge.B);
+      const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);
       if ( x ) edges.add(edge);
     }
     return edges;
