@@ -85,8 +85,8 @@ class LinkedPolygonEdge {
     this._B = b instanceof LinkedPolygonVertex ? 
                 b : LinkedPolygonVertex.fromPoint(b);
     
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
+    this._nw = undefined;
+    this._se = undefined;
     
     this.keys = new Set(); // used in finding intersections
     this._intersectsAt = new Set(); // used in finding intersections
@@ -96,7 +96,7 @@ class LinkedPolygonEdge {
   }
   
  /**
-  * Getters/setters for A and B so left/right vertices can be re-set
+  * Getters/setters for A and B so nw/se vertices can be re-set
   * @type {LinkedPolygonVertex}
   */
   get A() { return this._A; }
@@ -104,8 +104,8 @@ class LinkedPolygonEdge {
   
   set A(value) {
     this.keys.delete(this._A.key)
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
+    this._nw = undefined;
+    this._se = undefined;
   
     this._A = value instanceof LinkedPolygonVertex ? 
       value : LinkedPolygonVertex.fromPoint(value);
@@ -116,8 +116,8 @@ class LinkedPolygonEdge {
   
   set B(value) {
     this.keys.delete(this._B.key)
-    this._leftVertex = undefined;
-    this._rightVertex = undefined;
+    this._nw = undefined;
+    this._se = undefined;
       
     this._B = value instanceof LinkedPolygonVertex ? 
       value : LinkedPolygonVertex.fromPoint(value);
@@ -131,25 +131,26 @@ class LinkedPolygonEdge {
   * Required for quick intersection processing.
   * @type {LinkedPolygonVertex}
   */
-  get leftVertex() {
-    if(typeof this._leftVertex === "undefined") {
-      const is_left = compareXY(this.A, this.B) < 0;
-      this._leftVertex = is_left ? this.A : this.B;
-      this._rightVertex = is_left ? this.B : this.A;
+  get nw() {
+    if(!this._nw) {
+       const is_nw = compareXY(this.A, this.B) < 0;
+       this._nw = is_nw ? this.A : this.B;
+       this._se = is_nw ? this.B : this.A;
     }
-    return this._leftVertex;
+    return this._nw;
   }
   
  /**
   * Identify which endpoint is further east, or if vertical, further south.
   * @type {LinkedPolygonVertex}
   */
-  get rightVertex() {
-    if(typeof this._rightVertex === "undefined") {
-      this._leftVertex = undefined;
-      this.leftVertex; // trigger endpoint identification
+  get se() {
+    if(!this._se) {
+      const is_nw = compareXY(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
     }
-    return this._rightVertex;
+    return this._se;
   }
     
  /**
@@ -161,8 +162,8 @@ class LinkedPolygonEdge {
   * @return {number} Number of intersections found
   */
   static findIntersections(edges1, edges2) {
-    edges1.sort((a, b) => compareXY(a.leftVertex, b.leftVertex));
-    edges2.sort((a, b) => compareXY(a.leftVertex, b.leftVertex));
+    edges1.sort((a, b) => compareXY(a.nw, b.nw));
+    edges2.sort((a, b) => compareXY(a.nw, b.nw));
     
     const ln1 = edges1.length;
     const ln2 = edges2.length;
@@ -178,10 +179,10 @@ class LinkedPolygonEdge {
         const edge2 = edges2[j];
         
          // if we have not yet reached the left end of this edge, we can skip
-         if(edge2.rightVertex.x < edge1.leftVertex.x) continue;
+         if(edge2.se.x < edge1.nw.x) continue;
          
          // if we reach the right end of this edge, we can skip the rest
-         if(edge2.leftVertex.x > edge1.rightVertex.x) break;
+         if(edge2.nw.x > edge1.se.x) break;
          
          // ignore edges that share an endpoint but increment the intersection count
          if( edge1.keys.intersects(edge2.keys) ) {
@@ -453,7 +454,7 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     xs.sort(compareXY);
     
     // if B is left, reverse the sort
-    if(edge.B === edge.leftVertex) { xs.reverse(); }
+    if(edge.B === edge.nw) { xs.reverse(); }
     
     xs.forEach(x => {
       const new_edge = this.splitAtEdge(edge, x);
