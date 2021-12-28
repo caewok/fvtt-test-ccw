@@ -29,11 +29,10 @@ function toPolygon(density = 60) {
                                           { x: this.x - this.radius, y: this.y }), 
                                           density);
 
-  const poly = new PIXI.Polygon(pts);
-  
+  let poly = new PIXI.Polygon(pts);
   if(density === 60 || density === 12) {
     // re-scale normalized circle to desired center and radius
-    poly.unscale({ position_dx: this.x, 
+    poly = poly.unscale({ position_dx: this.x, 
                    position_dy: this.y,
                    size_dx: this.radius,
                    size_dy: this.radius });
