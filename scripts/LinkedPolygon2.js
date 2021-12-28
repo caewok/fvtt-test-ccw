@@ -80,51 +80,29 @@ class LinkedPolygonEdge {
   * @param b {Point|LinkedPolygonVertex}
   */
   constructor(a, b) {
-    this._A = a instanceof LinkedPolygonVertex ? 
+    this.A = a instanceof LinkedPolygonVertex ? 
                 a : LinkedPolygonVertex.fromPoint(a);
-    this._B = b instanceof LinkedPolygonVertex ? 
+  
+    this.B = b instanceof LinkedPolygonVertex ? 
                 b : LinkedPolygonVertex.fromPoint(b);
+                
+    // add self to the set of edges at A and B
+    this.A.edges.add(this);
+    this.B.edges.add(this);            
     
+    // following used in finding intersections
     this._nw = undefined;
     this._se = undefined;
-    
-    this.keys = new Set(); // used in finding intersections
-    this._intersectsAt = new Set(); // used in finding intersections
-    
-    this.A = this._A; 
-    this.B = this._B;   
+    this._keys = undefined; 
+    this._intersectsAt = new Set();
   }
   
  /**
-  * Getters/setters for A and B so nw/se vertices can be re-set
-  * @type {LinkedPolygonVertex}
+  * Get the set of keys corresponding to this edge's vertices
   */
-  get A() { return this._A; }
-  get B() { return this._B; }
-  
-  set A(value) {
-    this.keys.delete(this._A.key)
-    this._nw = undefined;
-    this._se = undefined;
-  
-    this._A = value instanceof LinkedPolygonVertex ? 
-      value : LinkedPolygonVertex.fromPoint(value);
-    
-    this._A.edges.add(this);
-    this.keys.add(this._A.key);
-  }
-  
-  set B(value) {
-    this.keys.delete(this._B.key)
-    this._nw = undefined;
-    this._se = undefined;
-      
-    this._B = value instanceof LinkedPolygonVertex ? 
-      value : LinkedPolygonVertex.fromPoint(value);
-      
-    this._B.edges.add(this);  
-    this.keys.add(this._B.key);
-  }
+  get keys() {
+    return this._keys || (this._keys = new Set([this.A.key, this.B.key]));
+  } 
   
  /**
   * Identify which endpoint is further west, or if vertical, further north.
@@ -207,22 +185,24 @@ class LinkedPolygonEdge {
   
  /**
   * Split edge at point.
-  * Make this edge A --> point
-  * Return a new edge point -->
-  * Fix links
-  * (or even between the vertices)
+  * Disconnects this from the A and B vertices.
+  * Creates two new edges:
+  * A <--> point
+  * point <--> B
   * @param {Point} p
   * @param {Array[2]{LinkedPolygonEdge}}
   */
   splitAt(p) {
-    const new_edge = new this.constructor(p, this.B);
-    new_edge.B = this.B;
-    new_edge.B.edges.delete(this);
-    this.B = new_edge.A;
+    // disconnect self from A and B
+    this.A.edges.delete(this);
+    this.B.edges.delete(this);
+  
+    const a_edge = new this.constructor(this.A, p);
+    const b_edge = new this.constructor(a_edge.B, this.B);
     
-     // TO-DO: Should left/right or cw/ccw be copied?
+    // TO-DO: Should nw/se be transferred to new edges?
     
-    return new_edge;
+    return [a_edge, b_edge];
   }
   
 
@@ -354,23 +334,38 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     // mark that the points are now out-of-date
     this._resetPoints = true;
     
-    const new_edge = edge.splitAt(p);
-    this.edges.add(new_edge);
+    const [a_edge, b_edge] = edge.splitAt(p);
+    this.edges.delete(edge);
     
-    // edges always split A|p|B, where new_edge is p|B
-    this.vertices.set(new_edge.A.key, new_edge.A);
+    this.edges.add(a_edge);
+    this.edges.add(b_edge);
     
-    // need to fix linking for edge, new_edge, possibly p, A, B
-    // was ccwEdge -- A -- cwEdge (edge) / ccwEdge -- B -- cwEdge
-    // now ccwEdge -- A -- cwEdge (edge) / ccwEdge -- p -- cwEdge (newEdge) / ccwEdge -- B -- cwEdge
+    // edges always split A|p|B
+    // A and B will be same as the old A|B edge
+    // p is a new vertex at a_edge.B and b_edge.A.
     
+    this.vertices.set(a_edge.B.key, a_edge.B);
     
-    new_edge.A.ccwEdge = edge;
-    new_edge.A.cwEdge = new_edge;
-    new_edge.B.ccwEdge = new_edge;
-    edge.B.ccwEdge = edge;
+    // need to fix linking for the new edges; removing edge entirely
+    // was ccwEdge (prevEdge) -- A -- cwEdge / ccwEdge (edge) -- B -- cwEdge (nextEdge)
+    // now ccwEdge (prevEdge) -- A -- cwEdge / ccwEdge (a_edge) -- p -- cwEdge / ccwEdge (b_edge) -- B -- cwEdge (nextEdge)
     
-    return new_edge;
+    // link previous and next edges to a_edge and b_edge, respectively
+    const prevEdge = edge.A.ccwEdge;
+    const nextEdge = edge.B.cwEdge;
+    prevEdge.B.cwEdge = a_edge;
+    nextEdge.A.ccwEdge = b_edge;
+    
+    // link a_edge and b_edge to each other (and themselves)
+    a_edge.B.cwEdge = b_edge;
+    a_edge.B.ccwEdge = a_edge;
+    
+    b_edge.A.cwEdge = b_edge;
+    b_edge.A.ccwEdge = a_edge;
+    
+   
+      
+    return [a_edge, b_edge];
   }
   
  /**
@@ -453,12 +448,16 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     
     xs.sort(compareXY);
     
-    // if B is left, reverse the sort
+    // if B is nw, reverse the sort
     if(edge.B === edge.nw) { xs.reverse(); }
     
     xs.forEach(x => {
-      const new_edge = this.splitAtEdge(edge, x);
-      if(new_edge) edge = new_edge; // only split if x is not at a vertex; undefined otherwise
+      const new_edges = this.splitAtEdge(edge, x);
+      
+      // if new_edge is undefined, no split likely b/c we are at a vertex already.
+      // otherwise, splitAtEdge returns [A|p, p|B] edges.
+      // we want p|B edge to process any additional intersections going forward.
+      if(new_edges) edge = new_edges[1]; 
     });
   }
   
@@ -559,7 +558,7 @@ export class LinkedPolygon2 extends PIXI.Polygon {
     //return pts;
   } 
       
-  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 1e05 } = {}) {
+  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 1e06 } = {}) {
     const pts = []; // to track the points found as we trace the polygon
     let current_poly = poly1; // which polygon are we currently tracing?
     let other_poly = poly2;
