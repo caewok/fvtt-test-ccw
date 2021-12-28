@@ -24,7 +24,7 @@ PolygonEdge
 
 'use strict';
 
-import { LinkedPolygon } from "./LinkedPolygon.js";
+import { LinkedPolygon2 } from "./LinkedPolygon2.js";
 import { log } from "./module.js";
 
 
@@ -142,7 +142,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       const ltd_angle_poly = this._limitedAnglePolygon();
       // if necessary, find the intersection of the radius and limited angle polygons
       boundaryPolygon = this.config.hasLimitedRadius ? 
-        LinkedPolygon.intersect(boundaryPolygon, ltd_angle_poly) : 
+        LinkedPolygon2.intersect(boundaryPolygon, ltd_angle_poly) : 
         ltd_angle_poly;
     }
     
@@ -309,7 +309,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    
     if(this.config.hasBoundary) {
        t0 = performance.now();
-       const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
+       const poly = LinkedPolygon2.intersect(this, this.config.boundaryPolygon);
        this.points = poly.points;
        t1 = performance.now();
        if(this.config.debug) {
