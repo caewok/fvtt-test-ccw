@@ -135,7 +135,7 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     let boundaryPolygon;  
     if(this.config.hasLimitedRadius) {
       const circle = new PIXI.Circle(this.origin.x, this.origin.y, this.config.radius);
-      boundaryPolygon = circle.toPolygon(this.config.density);
+      boundaryPolygon = circle.toPolygon({ density: this.config.density });
     }
     
     if(this.config.hasLimitedAngle) {

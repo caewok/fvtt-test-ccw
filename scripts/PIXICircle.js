@@ -22,13 +22,11 @@ import { NORMALIZED_CIRCLE_POINTS_60,
  * @param {number} density  The desired density of padding rays, a number per PI.
  * @return {PIXI.Polygon}
  */
-function toPolygon(density = 60) {
+function toPolygon({ density = 60 } = {}) {
   const pts = density === 60 ? NORMALIZED_CIRCLE_POINTS_60 : 
               density === 12 ? NORMALIZED_CIRCLE_POINTS_12 : 
-                getPaddingPoints(new Ray( { x: this.x, y: this.y },
-                                          { x: this.x - this.radius, y: this.y }), 
-                                          density);
-
+                get360PaddingPoints(this.x, this.y, this.radius, { density });
+                
   let poly = new PIXI.Polygon(pts);
   if(density === 60 || density === 12) {
     // re-scale normalized circle to desired center and radius
@@ -55,19 +53,13 @@ function toPolygon(density = 60) {
  * @param {Ray} r0
  * @param {number} density  The desired density of padding rays, a number per PI
  */
-function getPaddingPoints(r0 = new Ray( {x: 0, y: 0}, {x:-1, y: 0} ), density = 60) {
-      density = Math.PI / density;
-      const padding = [];
-      const d = 2 * Math.PI;
-      const nPad = Math.round(d / density);
-      
-      const delta = d / nPad;
-      for ( let i=1; i<nPad; i++ ) {
-        const p = r0.shiftAngle(i * delta);
-        padding.push(p.B);
-      }
-      return padding;
-    }
+function get360PaddingPoints(x, y, radius, { density = 60 } = {}) {
+  const r0 = Ray.fromAngle(x, y, 0, radius);
+  // trick padding method to return 360º of padding
+  const r1 = Ray.fromAngle(x, y, -1e-06, radius)
+  const obj = { config: { density }};
+  return ClockwiseSweepPolygon.prototype._getPaddingPoints.call(obj, r0, r1);
+}
 
 // ----------------  ADD METHODS TO THE PIXI.CIRCLE PROTOTYPE ------------------------
 export function registerPIXICircleMethods() {
