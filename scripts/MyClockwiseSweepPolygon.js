@@ -411,7 +411,9 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
       // don't need to compare against each other b/c we know these boundaries
       // don't need canvas boundary because the bounding box will block
       const edges_array = Array.from(this.edges.values());
-      bbox_edges.forEach(e => e.identifyIntersections(edges_array));
+      edges_array.sort((a, b) => compareXY(a.nw, b.nw));
+      
+      bbox_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
       bbox_edges.forEach(e => this.edges.set(e.id, e));  
     
     } else {
@@ -468,11 +470,13 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     
     // Need to track intersections for each edge.
     // Cannot guarantee the customEdges have intersections set up, so 
-    // process each in turn
+    // process each in turn.
+    // Thus, cannot sort edges_array in advance; must let identifyIntersections
+    // re-sort at each addition.
     const edges_array = Array.from(this.edges.values());
     for( const data of customEdges ) {
       const edge = new MyPolygonEdge(data.A, data.B, data[type]);
-      edge.identifyIntersections(edges_array);                              
+      edge.identifyIntersections(edges_array);                             
       this.edges.set(edge.id, edge);
       edges_array.push(edge);
     }
@@ -1176,7 +1180,7 @@ function compareXY(a, b) {
   else return a.x - b.x;
 }
 
-class MyPolygonEdge {
+export class MyPolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
     // NOTE: A and B must be changeable
     // _identifyVertices sets A ccw to B. This is so activeEdges can test for end vertices.
@@ -1278,10 +1282,13 @@ intersectsWith: three options when temp edges are used.
   * Sort and compare pairs of walls progressively from NW to SE
   * Comparable to inside loop of Wall.prototype.identifyWallIntersections.
   * Update this intersectsWith Map and their respective intersectsWith Map accordingly.
-  * @param {MyPolygonEdge2[]} edges
+  * @param {MyPolygonEdge[]} edges   Array of edges
+  * Options:
+  * @param {boolean} sort   Does the edge array need to be sorted? If false, edges must
+  *                         be sorted beforehand.
   */
-  identifyIntersections(edges) {
-    edges.sort((a, b) => compareXY(a.nw, b.nw));
+  identifyIntersections(edges, { sort = true } = {}) {
+    if(sort) { edges.sort((a, b) => compareXY(a.nw, b.nw)); }
       
     // iterate over the other edge.walls
     const ln = edges.length;

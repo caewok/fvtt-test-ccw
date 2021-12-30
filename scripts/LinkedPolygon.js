@@ -605,10 +605,12 @@ export class LinkedPolygon extends PIXI.Polygon {
     //return pts;
   } 
       
-  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true, max_iterations = 1e06 } = {}) {
+  static tracePolygon(starting_vertex, poly1, poly2, { clockwise = true } = {}) {
     const pts = []; // to track the points found as we trace the polygon
     let current_poly = poly1; // which polygon are we currently tracing?
     let other_poly = poly2;
+    
+    const max_iterations = poly1.vertices.size + poly2.vertices.size + 1;
     
     let vIter = current_poly.iterateVertices(starting_vertex);
     let finished = false;
