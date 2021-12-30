@@ -135,20 +135,35 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   _getBoundaryPolygon() {
     let boundaryPolygon;  
     if(this.config.hasLimitedRadius) {
-      const circle = new PIXI.Circle(this.origin.x, this.origin.y, this.config.radius);
-      boundaryPolygon = circle.toPolygon({ density: this.config.density });
+      boundaryPolygon = new PIXI.Circle(this.origin.x, this.origin.y, this.config.radius);
     }
     
     if(this.config.hasLimitedAngle) {
       const ltd_angle_poly = this._limitedAnglePolygon();
       // if necessary, find the intersection of the radius and limited angle polygons
       boundaryPolygon = this.config.hasLimitedRadius ? 
-        SimplePolygon.intersect(boundaryPolygon, ltd_angle_poly) : 
+        this._intersectPolygons(boundaryPolygon, ltd_angle_poly) : 
         ltd_angle_poly;
     }
     
     return boundaryPolygon;
   } 
+  
+ /**
+  * Helper to select best method to intersect two polygons
+  * @param {PIXI.Polygon|PIXI.Circle} poly1
+  * @param {PIXI.Polygon|PIXI.Circle} poly2
+  */ 
+  _intersectPolygons(poly1, poly2) {
+    // use circle method to process intersection if we have a circle
+    if(poly1 instanceof PIXI.Circle) 
+      return poly1.polygonIntersect(poly2, { density: this.config.density });
+      
+    if(poly2 instanceof PIXI.Circle) 
+      return poly2.polygonIntersect(poly1, { density: this.config.density });  
+       
+    return SimplePolygon.intersect(poly1, poly2);  
+  }
   
  /**
   * Construct a boundary polygon for a limited angle.
@@ -356,7 +371,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    
     if(this.config.hasBoundary) {
        t0 = performance.now();
-       const poly = SimplePolygon.intersect(this, this.config.boundaryPolygon);
+       const poly = this._intersectPolygons(this, this.config.boundaryPolygon);
        if(poly) { this.points = poly.points; }
        // if poly is null (or undefined) something has gone wrong: no intersection found.
        // return the points or return empty points?
