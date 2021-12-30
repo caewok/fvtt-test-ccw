@@ -212,16 +212,20 @@ have an intersection
     //tracing_segment = !clockwise; 
     // I think we can ignore tangents
     
+  // two intersections
+  } else if(circle_x.intersections.length === 2) {
+    // we must have a outside --> i0 ---> i1 ---> b outside
+    if(x_i) { // second intersection
+      tracing_segment = !clockwise
+    } else { // first intersection
+      tracing_segment = clockwise
+    }
+    
+  // one intersection  
   } else if(circle_x.bInside) { 
     tracing_segment = clockwise; // on circle if we want CCW direction
   } else if(circle_x.aInside) { // b outside
     tracing_segment = !clockwise;
-    
-  // a outside, b outside: must be two intersections for this edge 
-  } else if(x_i) {  // second intersection
-    tracing_segment = !clockwise;  
-  } else { // first intersection
-    tracing_segment = clockwise
   }
   
   // if we have moved from circle to segment:
