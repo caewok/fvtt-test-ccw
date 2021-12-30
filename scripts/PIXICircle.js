@@ -1,6 +1,7 @@
 /* globals
 PIXI,
 Ray,
+ClockwiseSweepPolygon
 */
 
 'use strict';
@@ -8,8 +9,12 @@ Ray,
 import { NORMALIZED_CIRCLE_POINTS_60, 
          NORMALIZED_CIRCLE_POINTS_12 } from "./NormalizedCirclePoints.js";
 
+import { circle_union, circle_intersect } from "./CirclePolygonCombine.js";
+
 /* Additions to the PIXI.Circle class:
 - toPolygon: convert to an (approximate) PIXI.Polygon
+- polygonUnion: Union this circle with a polygon
+- polygonIntersect: Intersect this circle with a polygon 
 */
 
 /**
@@ -69,4 +74,16 @@ export function registerPIXICircleMethods() {
     writable: true,
     configurable: true
   });
+
+  Object.defineProperty(PIXI.Circle.prototype, "polygonUnion", {
+    value: circle_union,
+    writable: true,
+    configurable: true
+  });
+  
+  Object.defineProperty(PIXI.Circle.prototype, "polygonIntersect", {
+    value: circle_intersect,
+    writable: true,
+    configurable: true
+  });    
 }
