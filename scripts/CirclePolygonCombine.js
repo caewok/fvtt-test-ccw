@@ -243,7 +243,10 @@ have an intersection
   
   // convert padding {x, y} to points array
   padding = padding.flatMap(pt => [pt.x, pt.y]);
-  padding.push(x.x, x.y); // add intersection point
+  
+  // if we were tracing the segment or are now tracing the segment, add intersection
+  // (skip if we are just continuing the circle)
+  if(was_tracing_segment || tracing_segment) { padding.push(x.x, x.y); }
   
   return { pts: padding,
            tracing_segment: tracing_segment,
