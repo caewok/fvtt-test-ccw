@@ -271,9 +271,16 @@ export class SimplePolygon extends PIXI.Polygon {
   }
   
  /**
-  * Factory function to change PIXI.Polygon into a SimplePolygon
+  * Factory function to change PIXI objects into a SimplePolygon
+  * @param {PIXI.Polygon|PIXI.Circle|PIXI.Rectangle} poly
+  * Options:
+  * @param {number} density   For circle, how dense to make the polygon edges?
+  * @return {SimplePolygon}
   */
-  static fromPolygon(poly) {
+  static fromPolygon(poly, { density = 60 } = {}) {
+    if(poly instanceof PIXI.Circle) return poly.toPolygon({ density });
+    if(poly instanceof PIXI.Rectangle) return poly.toPolygon();
+  
     const s_poly = new this(poly.points);
     s_poly._isClockwise = poly._isClockwise;
     s_poly._isClosed = poly._isClosed;

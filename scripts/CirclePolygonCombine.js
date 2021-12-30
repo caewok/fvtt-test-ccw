@@ -1,7 +1,6 @@
 /* globals
 PIXI,
 foundry,
-game,
 Ray,
 ClockwiseSweepPolygon
 */
@@ -9,23 +8,21 @@ ClockwiseSweepPolygon
 'use strict';
 
 //import { log } from "./module.js";
+import { SimplePolygon, SimplePolygonVertex } from "./SimplePolygon.js";
 
 /*
 Intersect or union a polygon with a circle without immediately converting circle to a polygon. Similar method to that of SimplePolygon._combine. Start at intersection point, tracing polygon or circle. At each intersection point, pick the clockwise (intersect) or counterclockwise (union) direction. Use padding to fill the circle to the next intersection. 
 */
 
-const SimplePolygon = game.modules.get('testccw').api.SimplePolygon;
-const SimplePolygonVertex = game.modules.get('testccw').api.SimplePolygonVertex;
-//const SimplePolygonEdge = game.modules.get('testccw').api.SimplePolygonEdge;
+export function circle_union(poly, { density = 60 } = {}) {
+  // for simplicity, if poly is also a circle, just convert to a polygon
+  poly = SimplePolygon.fromPolygon(poly, { density });
 
-function union(poly, circle, { density = 60 } = {}) {
-    poly = SimplePolygon.fromPolygon(poly);
-  
-    // when tracing a polygon in the clockwise direction:
-    // union: pick the counter-clockwise choice at intersections
-    // intersect: pick the clockwise choice at intersections
-    return _combine(poly, circle, { clockwise: false, density });
-  }
+  // when tracing a polygon in the clockwise direction:
+  // union: pick the counter-clockwise choice at intersections
+  // intersect: pick the clockwise choice at intersections
+  return _combine(poly, this, { clockwise: false, density });
+}
 
  /**
   * Find the polygon representing the intersection of two polygons.
@@ -34,17 +31,17 @@ function union(poly, circle, { density = 60 } = {}) {
   * @param {PIXI.Polygon} poly2
   * @return {PIXI.Polygon}
   */  
-function intersect(poly, circle, { density = 60 } = {}) {
-    poly = SimplePolygon.fromPolygon(poly);
-    const out = _combine(poly, circle, { clockwise: true, density });
-    
-    // intersection of two convex polygons is convex
-    // circle is always convex
-    // don't re-run convexity but add parameter if available
-    if(poly._isConvex) { out._isConvex = true; }
-    
-    return out;
-  }
+export function circle_intersect(poly, { density = 60 } = {}) {
+  poly = SimplePolygon.fromPolygon(poly, { density });
+  const out = _combine(poly, this, { clockwise: true, density });
+  
+  // intersection of two convex polygons is convex
+  // circle is always convex
+  // don't re-run convexity but add parameter if available
+  if(poly._isConvex) { out._isConvex = true; }
+  
+  return out;
+}
   
  /**
   * Combine two polygons. Helper for union and intersect methods.
