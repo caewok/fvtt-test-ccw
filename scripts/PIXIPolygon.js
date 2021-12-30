@@ -20,10 +20,17 @@ Methods:
 - scale: change each point by (pt - position) / size and return new polygon
 - unscale: change each point by (pt * size) + position and return new polygon
 
+Static methods:
+- fromPoints: Construct from array of {x, y} points.
+
 Helper methods:
 - determineConvexity: Measure if the polygon is convex.
 - determineOrientation: Measure the orientation of the polygon
 */
+
+function fromPoints(points) {
+  return new this(points.flatMap(pt => [pt.x, pt.y]));
+}
 
 /**
  * Iterate over the polygon's {x, y} points in order.
@@ -270,6 +277,11 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
 export function registerPIXIPolygonMethods() {
+  Object.defineProperty(PIXI.Polygon, "fromPoints", {
+    value: fromPoints,
+    writable: true,
+    configurable: true
+  });  
 
   Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
     value: iteratePoints,

@@ -4,7 +4,9 @@
 // import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight }  from "./benchmark.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
+import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { LinkedPolygon } from "./LinkedPolygon.js";
+import { SimplePolygon, SimplePolygonVertex, SimplePolygonEdge } from "./SimplePolygon.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -60,8 +62,12 @@ Hooks.once('init', async function() {
     
     benchmark: testCCWBenchmarkSight,
     MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
+    MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
     
-    LinkedPolygon: LinkedPolygon }
+    LinkedPolygon: LinkedPolygon,
+    SimplePolygon: SimplePolygon,
+    SimplePolygonVertex: SimplePolygonVertex,
+    SimplePolygonEdge: SimplePolygonEdge }
 });
 
 // modules ready
