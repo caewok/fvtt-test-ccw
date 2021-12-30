@@ -61,7 +61,7 @@ function _combine(poly, circle, { clockwise = true, density = 60 } = {}) {
     // if no intersections, then either the polygons do not overlap (return null)
     // or one encompasses the other (return the one that encompasses the other)
     const union = !clockwise;
-    if(_circleEncompassesPolygon(poly)) 
+    if(_circleEncompassesPolygon(circle, poly)) 
       return union ? circle.toPolygon({ density }) : poly; 
     
     // already know that the circle does not contain any polygon points
