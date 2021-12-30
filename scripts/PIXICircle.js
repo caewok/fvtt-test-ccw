@@ -23,11 +23,12 @@ import { NORMALIZED_CIRCLE_POINTS_60,
  * @return {PIXI.Polygon}
  */
 function toPolygon({ density = 60 } = {}) {
-  const pts = density === 60 ? NORMALIZED_CIRCLE_POINTS_60 : 
+  const padding = density === 60 ? NORMALIZED_CIRCLE_POINTS_60 : 
               density === 12 ? NORMALIZED_CIRCLE_POINTS_12 : 
-                get360PaddingPoints(this.x, this.y, this.radius, { density });
-                
-  let poly = new PIXI.Polygon(pts);
+              get360PaddingPoints(this.x, this.y, this.radius, { density });
+  
+  // padding is in {x, y} format; convert to polygon                
+  let poly = PIXI.Polygon.fromPoints(padding);
   if(density === 60 || density === 12) {
     // re-scale normalized circle to desired center and radius
     poly = poly.unscale({ position_dx: this.x, 

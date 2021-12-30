@@ -31,7 +31,7 @@ function compareXY(a, b) {
   else return a.x - b.x;
 }
 
-class SimplePolygonVertex {
+export class SimplePolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
     this.y = Math.round(y);
@@ -67,7 +67,7 @@ class SimplePolygonVertex {
   
 }
 
-class SimplePolygonEdge {
+export class SimplePolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
