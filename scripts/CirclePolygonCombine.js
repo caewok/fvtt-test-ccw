@@ -208,7 +208,7 @@ have an intersection
   // recall cannot have aInside and bInside with intersections
   const was_tracing_segment = tracing_segment
   if(circle_x.tangent) {
-    log(`At circle tangent ${x.x}, ${x.y}.`)
+    console.warn(`Found circle tangent ${x.x}, ${x.y} with center ${center.x}, ${center.y}.`)
     //tracing_segment = !clockwise; 
     // I think we can ignore tangents
     
