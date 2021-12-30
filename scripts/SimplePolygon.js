@@ -344,8 +344,17 @@ export class SimplePolygon extends PIXI.Polygon {
   * @private
   */
   static _combine(poly1, poly2, { clockwise = true } = {}) {
-    const pts = SimplePolygon._tracePolygon(poly1, poly2, { clockwise });
-
+    // Might be faster to start with the smaller polygon.
+    // Because first we must locate the first intersection, so less of a walk
+    // from the smaller polygon.
+    
+    let pts;
+    if(poly1.points.length > poly2.points.length) {
+      pts = SimplePolygon._tracePolygon(poly2, poly1, { clockwise });
+    } else {
+      pts = SimplePolygon._tracePolygon(poly1, poly2, { clockwise });
+    }
+  
     if(pts.length === 0) {
       // if no intersections, then either the polygons do not overlap (return null)
       // or one encompasses the other (return the one that encompasses the other)
