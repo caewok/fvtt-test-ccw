@@ -188,7 +188,11 @@ function _processIntersection(circle_x, i, center, { clockwise = true,
 (1) If segment A --> B moves inside the circle, segment is the CW/intersect choice.
 (2) If segment A --> B moves outside the circle, segment is the CCW/union choice.
 
-If circle is otherwise tangent to the segment, segment is the CCW/union choice.
+(3) If circle is tangent to the segment, segment is the CCW/union choice.
+
+(4) If segment A --> B intersects the circle twice, it must start outside and end outside.
+    For first intersection, circle is the CCW/union choice.
+    For second intersection, segment is the CCW/union choice.
 
 lineCircleIntersection would return no intersections if A and B both contained in the circle, so not really possible for A or B to be on the circle. But if A or B inside the circle, and only 1 intersection:
 If A is on the circle (tangent), B inside: segment is the CW/intersect choice (1 above)
@@ -199,11 +203,16 @@ have an intersection
   // recall cannot have aInside and bInside with intersections
   const was_tracing_segment = tracing_segment
   if(circle_x.tangent) {
+    log(`At circle tangent ${x.x}, ${x.y}.`)
     tracing_segment = !clockwise; // on circle if we want clockwise direction
   } else if(circle_x.bInside) { 
     tracing_segment = clockwise; // on circle if we want CCW direction
-  } else { // b outside
+  } else if(circle_x.aInside) { // b outside
     tracing_segment = !clockwise;
+  } else if(i) {  // a outside, b outside, second intersection
+    tracing_segment = clockwise;  
+  } else { // a outside, b outside, first intersection
+    tracing_segment = !clockwise
   }
   
   // if we have moved from circle to segment:
