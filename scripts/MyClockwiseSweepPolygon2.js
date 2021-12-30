@@ -24,7 +24,8 @@ PolygonEdge
 
 'use strict';
 
-import { LinkedPolygon } from "./LinkedPolygon.js";
+//import { LinkedPolygon } from "./LinkedPolygon.js";
+import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
 
 
@@ -36,7 +37,7 @@ ClockwiseSweep computed polygon.
 Changes to ClockwiseSweep:
 - Walls are trimmed only by an encompassing rectangle. Radius is converted to rectangle.
 - All limited radius or limited angle calculations are removed.
-- After points are computed, use LinkedPolygon.intersect to trim the fov to the desired  shape.
+- After points are computed, use SimplePolygon.intersect to trim the fov to the desired  shape.
 - User can specify a boundaryPolygon in config. If not specified, one will be calculated as needed for limited radius or limited angle.
 - Optional: user can specify custom edges to add to the sweep. Used to cache walls for unique shapes (e.g., river boundary or road boundary) that affect only certain light or sound objects. Could also be used to limit token vision in unique, custom ways.
 
@@ -142,7 +143,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
       const ltd_angle_poly = this._limitedAnglePolygon();
       // if necessary, find the intersection of the radius and limited angle polygons
       boundaryPolygon = this.config.hasLimitedRadius ? 
-        LinkedPolygon.intersect(boundaryPolygon, ltd_angle_poly) : 
+        SimplePolygon.intersect(boundaryPolygon, ltd_angle_poly) : 
         ltd_angle_poly;
     }
     
@@ -258,8 +259,16 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
     }
     
     pts.push(origin.x, origin.y);
+    
+    const new_poly = new PIXI.Polygon(pts);
+    // set known qualities
+    new_poly._isClosed = true;
+    new_poly._isClockwise = true;
+    // may or may not be convex. Should be if the angle is less than 180º, but probably
+    // not critical either way. Convexity mainly used at the moment to speed up the 
+    // clockwise determination.
 
-    return new PIXI.Polygon(pts);
+    return new_poly;
   }  
   
   /**
@@ -347,7 +356,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    
     if(this.config.hasBoundary) {
        t0 = performance.now();
-       const poly = LinkedPolygon.intersect(this, this.config.boundaryPolygon);
+       const poly = SimplePolygon.intersect(this, this.config.boundaryPolygon);
        if(poly) { this.points = poly.points; }
        // if poly is null (or undefined) something has gone wrong: no intersection found.
        // return the points or return empty points?

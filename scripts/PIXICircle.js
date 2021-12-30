@@ -38,6 +38,14 @@ function toPolygon(density = 60) {
                    size_dy: this.radius });
   }
   
+  // close the polygon
+  poly.points.push(poly.points[0], poly.points[1])
+  
+  // circle polygons have certain qualities
+  poly._isClosed = true;
+  poly._isConvex = true;
+  poly._isClockwise = true;
+  
   return poly;
 }
 
