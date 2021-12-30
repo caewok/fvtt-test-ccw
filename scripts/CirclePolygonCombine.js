@@ -7,7 +7,7 @@ ClockwiseSweepPolygon
 
 'use strict';
 
-//import { log } from "./module.js";
+import { log } from "./module.js";
 import { SimplePolygon, SimplePolygonVertex } from "./SimplePolygon.js";
 
 /*
@@ -133,6 +133,9 @@ function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
       circle_start = res0.circle_start;
       if(res0.pts.length > 0) { pts.push(...res0.pts); }
       
+      // we started at the first intersection, so stop once we get back to it
+      if(curr_edge === first_edge && i > 0) break; 
+      
       // process second intersection, if any
       if(circle_x.intersections.length > 1) {
         const res1 = _processIntersection(circle_x, 1, center, { clockwise, 
@@ -141,18 +144,20 @@ function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
                                                                  density});
         tracing_segment = res1.tracing_segment;
         circle_start = res1.circle_start;
-        if(res1.pts.length > 0) { pts.push(...res0.pts); }
+        if(res1.pts.length > 0) { pts.push(...res1.pts); }
       }
     } // done with intersection processing
     
-    if(curr_edge === first_edge && i > 0) break;
+    // shouldn't ever hit this test, b/c we always return to an intersection
+    // break in the intersection processing test instead.
+    // if(curr_edge === first_edge && i > 0) break;
     
     
     if(tracing_segment) {
       // add the edge B vertex to points array unless we already did 
       // (if it was an intersection, would have been added above)
-      if(circle_x && circle_x.intersections.every(i => i.key !== curr_edge.B.key)) {
-        pts.push(curr_edge.B.x, curr_edge.B.y);
+      if(!circle_x || circle_x.intersections.every(i => i.key !== curr_edge.B.key)) {
+         pts.push(curr_edge.B.x, curr_edge.B.y);
       }
     }
   
@@ -175,11 +180,11 @@ function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
  * @param {Point} circle_start  Prior intersection used to connect circle
  * @param {number} density      How much padding (polygon points) to use?
  */
-function _processIntersection(circle_x, i, center, { clockwise = true, 
+function _processIntersection(circle_x, x_i, center, { clockwise = true, 
                                             tracing_segment = true, 
                                             circle_start = undefined,
                                             density = 60 } = {}) {
-  const x = circle_x.intersections[i];
+  const x = circle_x.intersections[x_i];
   if(!x) return;
   
   let padding = [];
@@ -204,21 +209,26 @@ have an intersection
   const was_tracing_segment = tracing_segment
   if(circle_x.tangent) {
     log(`At circle tangent ${x.x}, ${x.y}.`)
-    tracing_segment = !clockwise; // on circle if we want clockwise direction
+    //tracing_segment = !clockwise; 
+    // I think we can ignore tangents
+    
   } else if(circle_x.bInside) { 
     tracing_segment = clockwise; // on circle if we want CCW direction
   } else if(circle_x.aInside) { // b outside
     tracing_segment = !clockwise;
-  } else if(i) {  // a outside, b outside, second intersection
-    tracing_segment = clockwise;  
-  } else { // a outside, b outside, first intersection
-    tracing_segment = !clockwise
+    
+  // a outside, b outside: must be two intersections for this edge 
+  } else if(x_i) {  // second intersection
+    tracing_segment = !clockwise;  
+  } else { // first intersection
+    tracing_segment = clockwise
   }
   
   // if we have moved from circle to segment:
   // pad from previous intersection to here
   if(!was_tracing_segment && tracing_segment) {
     padding = paddingPoints(circle_start, x, center, { density });
+    circle_start = undefined;
   }
   
   // if we have moved from segment to circle:
