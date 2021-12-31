@@ -48,7 +48,7 @@ Changes to PolygonEdge:
 
 */
 
-export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
+export class MyClockwiseSweepPolygon extends PointSourcePolygon {
 
   // to make JSlint parser happy, move these inside the constructor
   constructor(...args) {
