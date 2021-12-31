@@ -5,7 +5,7 @@ foundry,
 
 'use strict';
 
-import { log } from "./module.js";
+//import { log } from "./module.js";
 
 /*
 Given two PIXI.Polygon, find intersect or union using only the points array without
@@ -31,7 +31,7 @@ function compareXY(a, b) {
   else return a.x - b.x;
 }
 
-export class SimplePolygonVertex {
+class SimplePolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
     this.y = Math.round(y);
@@ -67,7 +67,7 @@ export class SimplePolygonVertex {
   
 }
 
-export class SimplePolygonEdge {
+class SimplePolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
@@ -290,7 +290,7 @@ export class SimplePolygonEdge {
 }
 
 
-export class SimplePolygon extends PIXI.Polygon {
+export class SimplePolygon2 extends PIXI.Polygon {
   constructor(...points) {
     super(...points)
     
