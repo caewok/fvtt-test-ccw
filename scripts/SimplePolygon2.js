@@ -234,7 +234,7 @@ class SimplePolygonEdge {
     // for each edge in poly1, iterate over poly2's edges.
     // can skip if poly2 edge is completely left of poly1 edge.
     // can skip to next poly1 edge if poly2 edge is completely right of poly1 edge
-    let num_intersections = 0;
+    let first_intersection;
     for(let i = 0; i < ln1; i += 1) {
       const edge1 = edges1[i];
     
@@ -246,23 +246,24 @@ class SimplePolygonEdge {
          
          // if we reach the right end of this edge, we can skip the rest
          if(edge2.nw.x > edge1.se.x) break;
-         
-         // ignore edges that share an endpoint but increment the intersection count
-//          if( edge1.keys.intersects(edge2.keys) ) {
-//            num_intersections += 1;
-//            continue;
-//          }
-//          
+                   
         // if edges share 1 or 2 endpoints, include their endpoints as intersections
         if ( edge1.keys.intersects(edge2.keys) ) {
           if(edge1.keys.has(edge2.A.key)) { 
+            if(!first_intersection) 
+              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.A}
             edge1._addIntersectionPoint(edge2, edge2.A); 
             edge2._addIntersectionPoint(edge1, edge2.A); 
           }
           if(edge1.keys.has(edge2.B.key)) { 
+            if(!first_intersection) 
+              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.B}
             edge1._addIntersectionPoint(edge2, edge2.B); 
             edge2._addIntersectionPoint(edge1, edge2.B); 
           }
+          
+          
+          
           return;
         }
          
@@ -272,16 +273,18 @@ class SimplePolygonEdge {
          // mark the intersection
          const x = foundry.utils.lineLineIntersection(edge1.A, edge1.B, edge2.A, edge2.B);
          if(x) {
-           num_intersections += 1;
 //            edge1._intersectsAt.add(x);
 //            edge2._intersectsAt.add(x);
            
            edge1._addIntersectionPoint(edge2, x);
            edge2._addIntersectionPoint(edge1, x);
+           
+           if(!first_intersection) 
+              first_intersection = {edge1: edge1, edge2: edge2, x: x}
          }       
       }
     }
-    return num_intersections;
+    return first_intersection;
   } 
 
 }
@@ -454,12 +457,12 @@ export class SimplePolygon2 extends PIXI.Polygon {
   */ 
   static _tracePolygon(poly1, poly2, { clockwise = true }) {
   
-    const num_intersections = SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
+    const first_ix = SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
     
-    if(!num_intersections) return [];
+    if(!first_ix) return [];
     
-    const first_edge = poly1.edges.find(e => e._intersectsAt.size > 0);
-
+    const first_edge = first_ix.edge1;
+    
     const pts = [];
         
     let curr_edge = first_edge;
