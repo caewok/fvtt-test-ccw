@@ -1,5 +1,6 @@
 /* globals
 PIXI,
+foundry
 */
 
 'use strict';
@@ -14,6 +15,7 @@ Generators:
 - iteratePoints: iterator for the polygon points.
 
 Methods:
+- close: Close the polygon (if not already)
 - reverse: Reverse point order
 - getBounds: Bounding rectangle for the polygon
 - getCenter: Center of the polygon, based on its bounding rectangle center.
@@ -59,6 +61,15 @@ function isClosed() {
 }
 
 /**
+ * Close the polygon by adding the first point to the end
+ */
+function close() {
+  if(this.isClosed) return;
+  this.points.push(this.points[0], this.points[1]);
+  this._isClosed = true;
+}
+
+/**
  * Is the polygon convex?
  * https://stackoverflow.com/questions/40738013/how-to-determine-the-type-of-polygon
  * If you already know the polygon convexity, you should set this._isConvex manually.
@@ -97,7 +108,7 @@ function determineConvexity() {
   const sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
   
   // if polygon is a triangle, while loop should be skipped and will always return true
-  while(new_pt = iter.next().value) {
+  while( (new_pt = iter.next().value) ) {
     prev_pt = curr_pt;
     curr_pt = next_pt;
     next_pt = new_pt;
@@ -275,6 +286,109 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
   return out;
 }
 
+
+/**
+ * From https://rosettacode.org/wiki/Sutherland-Hodgman_polygon_clipping#JavaScript
+ * Sutherland-Hodgman polygon clipping
+ * Finds the polygon that is the intersection between this (arbitrary) polygon 
+ * (the “subject polygon”) and a convex polygon (the “clip polygon”).
+ * @param {PIXI.Polygon} clipPolygon      Convex polygon used to clip. Must be convex.
+ * @return {PIXI.Polygon} New polygon, intersection of subject with clipped.
+ */
+function clip(clipPolygon) {
+  if(!clipPolygon.isConvex) { 
+    console.error(`PIXI.Polygon.prototype.clip called with a non-convex polygon.`);
+  }
+  
+//  subjectPolygon = [[50, 150], [200, 50], [350, 150], [350, 300], [250, 300], [200, 250], [150, 350], [100, 250], [100, 200]];
+//  clipPolygon = [[100, 100], [300, 100], [300, 300], [100, 300]];
+ 
+  //  subjectPolygon = new PIXI.Polygon(subjectPolygon.flat());
+//    clipPolygon = new PIXI.Polygon(clipPolygon.flat());
+    
+  const subjectPolygon = this;
+  subjectPolygon.close();
+  clipPolygon.close();
+
+  const inside = function(a, b, c) { return foundry.utils.orient2dFast(a, b, c) < 0; }
+  const intersection = function(a, b, c, d) { 
+    const x = foundry.utils.lineLineIntersection(a, b, c, d);
+    return {x: x.x, y: x.y}
+  }
+  
+  let outputList = [...subjectPolygon.iteratePoints({ close: false })];
+  const clip_ln = clipPolygon.points.length;
+  let cp1 = { x: clipPolygon.points[clip_ln - 4],
+              y: clipPolygon.points[clip_ln - 3] };
+  const clipIter = clipPolygon.iteratePoints({ close: false });
+  for (const cp2 of clipIter) {
+      const inputList = outputList;
+      outputList = [];
+      let s = inputList[inputList.length - 1]; //last on the input list
+      for (const e of inputList) {
+    
+          if (inside(cp2, e, cp1)) {
+              if (!inside(cp2, s, cp1)) {
+                  outputList.push(intersection(cp2, cp1, e, s));
+              }
+              outputList.push(e);
+          }
+          else if (inside(cp2, s, cp1)) {
+              outputList.push(intersection(cp2, cp1, e, s));
+          }
+          s = e;
+      }
+      cp1 = cp2;
+  }
+  
+  const out = PIXI.Polygon.fromPoints(outputList);
+  out.close();
+  
+  return out;
+}
+
+
+
+
+  // var cp1, cp2, s, e;
+//   var inside = function (p) {
+//       return (cp2[0]-cp1[0])*(p[1]-cp1[1]) > (cp2[1]-cp1[1])*(p[0]-cp1[0]);
+//   };
+//   var intersection = function () {
+//       var dc = [ cp1[0] - cp2[0], cp1[1] - cp2[1] ],
+//           dp = [ s[0] - e[0], s[1] - e[1] ],
+//           n1 = cp1[0] * cp2[1] - cp1[1] * cp2[0],
+//           n2 = s[0] * e[1] - s[1] * e[0], 
+//           n3 = 1.0 / (dc[0] * dp[1] - dc[1] * dp[0]);
+//       return [(n1*dp[0] - n2*dc[0]) * n3, (n1*dp[1] - n2*dc[1]) * n3];
+//   };
+//   var outputList = subjectPolygon;
+//   cp1 = clipPolygon[clipPolygon.length-1];
+//   for (var j in clipPolygon) {
+//       cp2 = clipPolygon[j];
+//       var inputList = outputList;
+//       outputList = [];
+//       s = inputList[inputList.length - 1]; //last on the input list
+//       for (var i in inputList) {
+//           e = inputList[i];
+//           if (inside(e)) {
+//               if (!inside(s)) {
+//                   outputList.push(intersection());
+//               }
+//               outputList.push(e);
+//           }
+//           else if (inside(s)) {
+//               outputList.push(intersection());
+//           }
+//           s = e;
+//       }
+//       cp1 = cp2;
+//   }
+//   return outputList
+
+
+
+
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
 export function registerPIXIPolygonMethods() {
   Object.defineProperty(PIXI.Polygon, "fromPoints", {
@@ -314,6 +428,12 @@ export function registerPIXIPolygonMethods() {
     configurable: true
   });   
 
+  Object.defineProperty(PIXI.Polygon.prototype, "close", {
+    value: close,
+    writable: true,
+    configurable: true
+  });
+  
   Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
     value: reverse,
     writable: true,
@@ -340,6 +460,12 @@ export function registerPIXIPolygonMethods() {
 
   Object.defineProperty(PIXI.Polygon.prototype, "unscale", {
     value: unscale,
+    writable: true,
+    configurable: true
+  });
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "clip", {
+    value: clip,
     writable: true,
     configurable: true
   });
