@@ -7,6 +7,7 @@ import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { LinkedPolygon } from "./LinkedPolygon.js";
 import { SimplePolygon, SimplePolygonVertex, SimplePolygonEdge } from "./SimplePolygon.js";
+import { SimplePolygon2 } from "./SimplePolygon2.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -67,7 +68,8 @@ Hooks.once('init', async function() {
     LinkedPolygon: LinkedPolygon,
     SimplePolygon: SimplePolygon,
     SimplePolygonVertex: SimplePolygonVertex,
-    SimplePolygonEdge: SimplePolygonEdge }
+    SimplePolygonEdge: SimplePolygonEdge,
+    SimplePolygon2: SimplePolygon2, }
 });
 
 // modules ready

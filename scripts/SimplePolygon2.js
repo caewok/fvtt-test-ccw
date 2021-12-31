@@ -5,7 +5,7 @@ foundry,
 
 'use strict';
 
-import { log } from "./module.js";
+//import { log } from "./module.js";
 
 /*
 Given two PIXI.Polygon, find intersect or union using only the points array without
@@ -31,7 +31,7 @@ function compareXY(a, b) {
   else return a.x - b.x;
 }
 
-export class SimplePolygonVertex {
+class SimplePolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
     this.y = Math.round(y);
@@ -67,7 +67,7 @@ export class SimplePolygonVertex {
   
 }
 
-export class SimplePolygonEdge {
+class SimplePolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
@@ -216,12 +216,78 @@ export class SimplePolygonEdge {
     other._intersectsAt.set(v.key, v);
   }
 
-  
+  /**
+  * Given two arrays of edges with left/right vertices, find their intersections.
+  * Mark the intersections using the _intersectsAt set property.
+  * comparable to identifyWallIntersections method from WallsLayer Class 
+  * @param {LinkedPolygonEdge[]} edges1
+  * @param {LinkedPolygonEdge[]} edges2
+  * @return {number} Number of intersections found
+  */
+  static findIntersections(edges1, edges2) {
+    edges1.sort((a, b) => compareXY(a.nw, b.nw));
+    edges2.sort((a, b) => compareXY(a.nw, b.nw));
+    
+    const ln1 = edges1.length;
+    const ln2 = edges2.length;
+    
+    // for each edge in poly1, iterate over poly2's edges.
+    // can skip if poly2 edge is completely left of poly1 edge.
+    // can skip to next poly1 edge if poly2 edge is completely right of poly1 edge
+    let num_intersections = 0;
+    for(let i = 0; i < ln1; i += 1) {
+      const edge1 = edges1[i];
+    
+      for(let j = 0; j < ln2; j += 1) {
+        const edge2 = edges2[j];
+        
+         // if we have not yet reached the left end of this edge, we can skip
+         if(edge2.se.x < edge1.nw.x) continue;
+         
+         // if we reach the right end of this edge, we can skip the rest
+         if(edge2.nw.x > edge1.se.x) break;
+         
+         // ignore edges that share an endpoint but increment the intersection count
+//          if( edge1.keys.intersects(edge2.keys) ) {
+//            num_intersections += 1;
+//            continue;
+//          }
+//          
+        // if edges share 1 or 2 endpoints, include their endpoints as intersections
+        if ( edge1.keys.intersects(edge2.keys) ) {
+          if(edge1.keys.has(edge2.A.key)) { 
+            edge1._addIntersectionPoint(edge2, edge2.A); 
+            edge2._addIntersectionPoint(edge1, edge2.A); 
+          }
+          if(edge1.keys.has(edge2.B.key)) { 
+            edge1._addIntersectionPoint(edge2, edge2.B); 
+            edge2._addIntersectionPoint(edge1, edge2.B); 
+          }
+          return;
+        }
+         
+         // skip if no intersections
+         if( !foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B) ) continue;
+         
+         // mark the intersection
+         const x = foundry.utils.lineLineIntersection(edge1.A, edge1.B, edge2.A, edge2.B);
+         if(x) {
+           num_intersections += 1;
+//            edge1._intersectsAt.add(x);
+//            edge2._intersectsAt.add(x);
+           
+           edge1._addIntersectionPoint(edge2, x);
+           edge2._addIntersectionPoint(edge1, x);
+         }       
+      }
+    }
+    return num_intersections;
+  } 
 
 }
 
 
-export class SimplePolygon extends PIXI.Polygon {
+export class SimplePolygon2 extends PIXI.Polygon {
   constructor(...points) {
     super(...points)
     
@@ -388,48 +454,15 @@ export class SimplePolygon extends PIXI.Polygon {
   */ 
   static _tracePolygon(poly1, poly2, { clockwise = true }) {
   
-    // shallow copies so as not to mess up the order of the original
-    const edges1 = [...poly1.edges]; 
-    const edges2 = [...poly2.edges]; 
+    const num_intersections = SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
     
-    // TO-DO: Should the search start with the poly with less edges?
-    // For intersect in particular, might be faster.
+    if(!num_intersections) return [];
     
-    
-    // Start with edges1. At each edge, test for intersections with other edge.
-    // Find the first intersection and track points from there on.
-    // If intersection(s) found, at each intersection, go in the clockwise or 
-    // counterclockwise direction, switching to edges2 or back as necessary.
-    // Stop when encountering the starting point again.
-    
-    // technically don't need to sort edges1 until after the first "for" loop
-    edges1.sort((a, b) => compareXY(a.nw, b.nw));
-    edges2.sort((a, b) => compareXY(a.nw, b.nw));
-    
-    // shouldn't really matter for locating the first intersection, 
-    // but walk the polygon in order clockwise
-    let first_edge = undefined;
-    for(const edge of poly1.edges) {
-      // locate first intersection
-      edge._identifyIntersections(edges2);
-      edge._intersectionsIdentified = true;
-      if(edge._intersectsAt.size > 0) {
-        first_edge = edge;
-        break;
-      }  
-    }
-    
-    if(!first_edge) return [];
-    
-    const edges_map = new Map();
-    edges_map.set(edges1, edges2);
-    edges_map.set(edges2, edges1);
-    
-    
+    const first_edge = poly1.edges.find(e => e._intersectsAt.size > 0);
+
     const pts = [];
         
     let curr_edge = first_edge;
-    let other_edges = edges2;
         
     let next_x_i = 1;
     let curr_pt = first_edge.orderedIntersections[0];
@@ -467,15 +500,7 @@ export class SimplePolygon extends PIXI.Polygon {
         if(orientation > 0 && !clockwise || 
            orientation < 0 && clockwise) {
           // jump to other polygon  
-          curr_edge = curr_pt.edges.get(curr_edge); // Map is curr_edge --> other_edge
-          other_edges = edges_map.get(other_edges);
-          
-          // if we switch edges, we may need to find intersections
-          // flag once we do so we don't repeat
-          if(!curr_edge._intersectionsIdentified) {
-            curr_edge._identifyIntersections(other_edges);
-            curr_edge._intersectionsIdentified = true;
-          }     
+          curr_edge = curr_pt.edges.get(curr_edge); // Map is curr_edge --> other_edge          
           
           // figure out which intersection index we are on
           next_x_i = curr_edge.orderedIntersections.findIndex(x => x.key === curr_pt.key) + 1;
@@ -506,14 +531,7 @@ export class SimplePolygon extends PIXI.Polygon {
             
       // go to next edge
       curr_edge = curr_edge.next;
-            
-      // if we move to the next edge, we may need to find intersections
-      // flag once we do so we don't repeat
-      if(!curr_edge._intersectionsIdentified) {
-        curr_edge._identifyIntersections(other_edges);
-        curr_edge._intersectionsIdentified = true;
-      }          
-      
+                  
       // at next edge, A is the previous edge's B. 
       // so don't add A, skip if it is an intersection
       if(curr_edge._intersectsAt.size > 0) {
