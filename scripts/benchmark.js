@@ -25,7 +25,7 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   //await QuadtreeExpansionPolygon.benchmark(n, ...args);
   await RadialSweepPolygon.benchmark(n, ...args);
   
-  console.log(`ClockwiseSweep iteration 1`);
+  console.log(`ClockwiseSweep iteration 1`, args);  
   await ClockwiseSweepPolygon.benchmark(n, ...args);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
@@ -41,4 +41,5 @@ export async function testCCWBenchmarkSight(n=1000, ...args) {
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
   await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
+  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`)
 }
