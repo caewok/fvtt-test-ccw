@@ -32,7 +32,9 @@ Helper methods:
 */
 
 function fromPoints(points) {
-  return new this(points.flatMap(pt => [pt.x, pt.y]));
+  const out = new this(points.flatMap(pt => [pt.x, pt.y]));
+  out.close()
+  return out;
 }
 
 /**
@@ -41,7 +43,7 @@ function fromPoints(points) {
  * @return {x, y} PIXI.Point
  */ 
 function* iteratePoints({close = true} = {}) {
-  const dropped = close ? 0 : 2;
+  const dropped = (!this.isClosed || close) ? 0 : 2;
   for(let i = 0; i < (this.points.length - dropped); i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
   }
@@ -54,8 +56,8 @@ function* iteratePoints({close = true} = {}) {
 function isClosed() {
   if(typeof this._isClosed === "undefined") {
     const ln = this.points.length;
-    this._isClosed = this.points[0] === this.points[ln - 2] && 
-                     this.points[1] === this.points[ln - 1]
+    this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) && 
+                     this.points[1].almostEqual(this.points[ln - 1])
   }
   return this._isClosed;
 }
@@ -298,7 +300,9 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
  * Transform array of X, Y points to a PIXI.Polygon
  */
 function fromClipperPoints(points) {
-  return new this(points.flatMap(pt => [pt.X, pt.Y]));
+  const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
+  out.close();
+  return out;
 }
 
 /**
@@ -307,7 +311,7 @@ function fromClipperPoints(points) {
  * @return {x, y} PIXI.Point
  */
 function* iterateClipperLibPoints({close = true} = {}) {
-  const dropped = close ? 0 : 2;
+  const dropped = (!this.isClosed || close) ? 0 : 2;
   for(let i = 0; i < (this.points.length - dropped); i += 2) {
     yield {X: this.points[i], Y: this.points[i + 1]};
   }
