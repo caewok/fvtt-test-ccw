@@ -37,8 +37,8 @@ ClockwiseSweep computed polygon.
 Changes to ClockwiseSweep:
 - Walls are trimmed only by an encompassing rectangle. Radius is converted to rectangle.
 - All limited radius or limited angle calculations are removed.
-- After points are computed, use LinkedPolygon.intersect to trim the fov to the desired  shape.
-- User can specify a boundaryPolygon in config. If not specified, one will be calculated as needed for limited radius or limited angle.
+- After points are computed, use SimplePolygon.intersect to trim the fov to the desired  shape.
+- User can specify a boundaryPolygon in config. If specified, it will override limited radius and limited angle shapes. If not specified, one will be calculated as needed for limited radius or limited angle.
 - Optional: user can specify custom edges to add to the sweep. Used to cache walls for unique shapes (e.g., river boundary or road boundary) that affect only certain light or sound objects. Could also be used to limit token vision in unique, custom ways.
 
 Changes to PolygonEdge:
@@ -90,7 +90,6 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
    * @param {ClockwiseSweepPolygonConfig} config  The provided configuration object
    */
   initialize(origin, config) {
-    
     super.initialize(origin, config);
     const cfg = this.config;
 
