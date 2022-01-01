@@ -1,6 +1,7 @@
 /* globals
 PIXI,
-foundry
+foundry,
+ClipperLib,
 */
 
 'use strict';
@@ -31,7 +32,9 @@ Helper methods:
 */
 
 function fromPoints(points) {
-  return new this(points.flatMap(pt => [pt.x, pt.y]));
+  const out = new this(points.flatMap(pt => [pt.x, pt.y]));
+  out.close()
+  return out;
 }
 
 /**
@@ -40,12 +43,11 @@ function fromPoints(points) {
  * @return {x, y} PIXI.Point
  */ 
 function* iteratePoints({close = true} = {}) {
-  const dropped = close ? 0 : 2;
+  const dropped = (!this.isClosed || close) ? 0 : 2;
   for(let i = 0; i < (this.points.length - dropped); i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
   }
 }
-
 
 /**
  * Is the polygon open or closed?
@@ -54,8 +56,8 @@ function* iteratePoints({close = true} = {}) {
 function isClosed() {
   if(typeof this._isClosed === "undefined") {
     const ln = this.points.length;
-    this._isClosed = this.points[0] === this.points[ln - 2] && 
-                     this.points[1] === this.points[ln - 1]
+    this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) && 
+                     this.points[1].almostEqual(this.points[ln - 1])
   }
   return this._isClosed;
 }
@@ -286,12 +288,91 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
   return out;
 }
 
+// 
+
+
+
+
+// ---------------- Clipper JS library ---------------------------------------------------
+
+
+/**
+ * Transform array of X, Y points to a PIXI.Polygon
+ */
+function fromClipperPoints(points) {
+  const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
+  out.close();
+  return out;
+}
+
+/**
+ * Iterate over the polygon's {x, y} points in order.
+ * Return in ClipperLib format: {X, Y}
+ * @return {x, y} PIXI.Point
+ */
+function* iterateClipperLibPoints({close = true} = {}) {
+  const dropped = (!this.isClosed || close) ? 0 : 2;
+  for(let i = 0; i < (this.points.length - dropped); i += 2) {
+    yield {X: this.points[i], Y: this.points[i + 1]};
+  }
+} 
+
+/**
+ * Point contained in polygon
+ */
+function clipperContains(pt) {
+  const path = [...this.iterateClipperLibPoints({close: false})];
+  return ClipperLib.Clipper.PointInPolygon(new ClipperLib.FPoint(pt.x, pt.y), path);
+}
+
+/**
+ * Are the polygon points oriented clockwise?
+ */
+function clipperIsClockwise() {
+  const path = [...this.iterateClipperLibPoints({close: false})];
+  return ClipperLib.Clipper.Orientation(path); 
+}
+
+/**
+ * Get bounding box
+ */
+function clipperBounds() {
+  const path = [...this.iterateClipperLibPoints({close: false})];
+  const bounds = ClipperLib.JS.BoundsOfPath(path); // returns ClipperLib.FRect
+  
+  return new PIXI.Rectangle(bounds.left, 
+                              bounds.top, 
+                              bounds.right - bounds.left, 
+                              bounds.bottom - bounds.top);
+}
+
+/**
+ * Clip a polygon with another.
+ * Union, Intersect, diff, x-or
+ */
+function clipperClip(poly, { cliptype = ClipperLib.ClipType.ctUnion } = {}) {
+  const subj = [...this.iterateClipperLibPoints({close: false})];
+  const clip = [...poly.iterateClipperLibPoints({close: false})];
+
+  const solution = new ClipperLib.Paths();
+  const c = new ClipperLib.Clipper();
+  c.AddPath(subj, ClipperLib.PolyType.ptSubject, true) // true to be considered closed
+  c.AddPath(clip, ClipperLib.PolyType.ptClip, true)
+  c.Execute(cliptype, solution);
+  
+  return PIXI.Polygon.fromClipperPoints(solution[0]);
+}
+
+
+
+// ---------------- Sutherland-Hodgman polygon clipping ----------------------------------
 
 /**
  * From https://rosettacode.org/wiki/Sutherland-Hodgman_polygon_clipping#JavaScript
- * Sutherland-Hodgman polygon clipping
+ * 
  * Finds the polygon that is the intersection between this (arbitrary) polygon 
  * (the “subject polygon”) and a convex polygon (the “clip polygon”).
+ * Turns out, it is slow
  * @param {PIXI.Polygon} clipPolygon      Convex polygon used to clip. Must be convex.
  * @return {PIXI.Polygon} New polygon, intersection of subject with clipped.
  */
@@ -469,4 +550,42 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "iterateClipperLibPoints", {
+    value: iterateClipperLibPoints,
+    writable: true,
+    configurable: true
+  });  
+  
+  Object.defineProperty(PIXI.Polygon, "fromClipperPoints", {
+    value: fromClipperPoints,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperIsClockwise", {
+    value: clipperIsClockwise,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperBounds", {
+    value: clipperBounds,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperClip", {
+    value: clipperClip,
+    writable: true,
+    configurable: true
+  });
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperContains", {
+    value: clipperContains,
+    writable: true,
+    configurable: true
+  });
+  
+  
 }

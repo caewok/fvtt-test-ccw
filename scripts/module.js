@@ -12,6 +12,8 @@ import { SimplePolygon2 } from "./SimplePolygon2.js";
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
+
+import * as ClipperLib from "./lib/clipper_unminified.js";
  
 export const MODULE_ID = 'testccw';
 
@@ -69,7 +71,7 @@ Hooks.once('init', async function() {
     SimplePolygon: SimplePolygon,
     SimplePolygonVertex: SimplePolygonVertex,
     SimplePolygonEdge: SimplePolygonEdge,
-    SimplePolygon2: SimplePolygon2, }
+    SimplePolygon2: SimplePolygon2}
 });
 
 // modules ready

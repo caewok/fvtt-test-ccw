@@ -24,7 +24,8 @@ PolygonEdge
 
 'use strict';
 
-import { LinkedPolygon } from "./LinkedPolygon.js";
+// import { LinkedPolygon } from "./LinkedPolygon.js";
+import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
 
 
@@ -89,8 +90,13 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
    * @param {ClockwiseSweepPolygonConfig} config  The provided configuration object
    */
   initialize(origin, config) {
+    
     super.initialize(origin, config);
     const cfg = this.config;
+
+    if(cfg.debug) 
+      cfg.original = {...config};
+
 
     // Configure limited radius
     cfg.hasLimitedRadius = cfg.radius > 0;
@@ -400,8 +406,13 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
        // return the points or return empty points?
        // currently returning points
        
-       if(poly) { this.points = poly.points; }
-       
+       if(poly) { 
+         this.points = poly.points; 
+         this._isClosed = poly._isClosed;
+         this._isConvex = poly._isConvex;
+         this._isClockwise = poly._isClockwise;  
+       }
+              
        if(!poly) {
          console.warn(`MyClockwiseSweep2|Intersection failed for polygon`, poly);
        }
@@ -417,17 +428,28 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     if(this.config.debug) {
       console.log(`Clockwise _constructPolygonPoints in ${(t1 - t0).toPrecision(2)}ms`);
       
-      
       // Run the original and compare points
-      const og_poly = ClockwiseSweepPolygon.create(this.origin, this.config);
+      // re-order as necessary
+      const og_poly = ClockwiseSweepPolygon.create(this.origin, this.config.original);
       
-      // round to nearest integer coordinates
-      og_poly.points = og_poly.points.map(x => Math.round(x));
+      const pts_orig = [...og_poly.iteratePoints({close: false})];
+      const pts_new =  [...this.iteratePoints({close: false})];
       
-      if(!og_poly.points.equals(this.points)) {
-        console.warn(`Differences detected in points of ClockwiseSweep2 vs original.`, this.points, og_poly.points);
+      const start_pt = pts_new[0];
+      const i = pts_orig.findIndex(pt => pt.x.almostEqual(start_pt.x, 1.1) && pt.y.almostEqual(start_pt.y, 1.1));
+      
+      if(i) {
+        const tmp = pts_orig.splice(0,i);
+        pts_orig.push(...tmp)
       }
       
+      const is_equal = pts_orig.length === pts_new.length && pts_orig.every((pt, idx) => pts_new[idx].x.almostEqual(pt.x, 1.1) && pts_new[idx].y.almostEqual(pt.y, 1.1));
+      
+      // pts_orig.map((pt, idx) => pts_new[idx].x.almostEqual(pt.x, 1.1) && pts_new[idx].y.almostEqual(pt.y, 1.1));
+      
+      if(!is_equal) {
+       console.warn(`Differences detected in points of original (1st entry) vs MyCWSweep (2nd entry).`, pts_orig, pts_new, og_poly, this);
+      }
     }
   }
   
@@ -444,7 +466,7 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     if(poly2 instanceof PIXI.Circle) 
       return poly2.polygonIntersect(poly1, { density: this.config.density });  
        
-    return LinkedPolygon.intersect(poly1, poly2);  
+    return SimplePolygon.intersect(poly1, poly2);  
   }
 
   /* -------------------------------------------- */
