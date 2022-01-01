@@ -50,6 +50,14 @@ function* iteratePoints({close = true} = {}) {
 }
 
 /**
+ * Getter to store the coordinate point set.
+ */
+function coordinates() {
+  return this._coordinates || 
+         (this._coordinates = [...this.iteratePoints({close: false})]);
+}
+
+/**
  * Is the polygon open or closed?
  * @return {boolean}  True if closed.
  */
@@ -295,6 +303,9 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
 
 // ---------------- Clipper JS library ---------------------------------------------------
 
+/**
+ * getter to store clipper points
+
 
 /**
  * Transform array of X, Y points to a PIXI.Polygon
@@ -318,10 +329,19 @@ function* iterateClipperLibPoints({close = true} = {}) {
 } 
 
 /**
+ * Getter to store the clipper coordinate point set.
+ */
+function clipperCoordinates() {
+  return this._clipperCoordinates || 
+         (this._clipperCoordinates = [...this.iterateClipperLibPoints({close: false})]);
+}
+
+/**
  * Point contained in polygon
  */
 function clipperContains(pt) {
-  const path = [...this.iterateClipperLibPoints({close: false})];
+  const path = this.clipperCoordinates;
+  
   return ClipperLib.Clipper.PointInPolygon(new ClipperLib.FPoint(pt.x, pt.y), path);
 }
 
@@ -329,7 +349,7 @@ function clipperContains(pt) {
  * Are the polygon points oriented clockwise?
  */
 function clipperIsClockwise() {
-  const path = [...this.iterateClipperLibPoints({close: false})];
+  const path = this.clipperCoordinates;
   return ClipperLib.Clipper.Orientation(path); 
 }
 
@@ -337,7 +357,7 @@ function clipperIsClockwise() {
  * Get bounding box
  */
 function clipperBounds() {
-  const path = [...this.iterateClipperLibPoints({close: false})];
+  const path = this.clipperCoordinates;
   const bounds = ClipperLib.JS.BoundsOfPath(path); // returns ClipperLib.FRect
   
   return new PIXI.Rectangle(bounds.left, 
@@ -351,8 +371,8 @@ function clipperBounds() {
  * Union, Intersect, diff, x-or
  */
 function clipperClip(poly, { cliptype = ClipperLib.ClipType.ctUnion } = {}) {
-  const subj = [...this.iterateClipperLibPoints({close: false})];
-  const clip = [...poly.iterateClipperLibPoints({close: false})];
+  const subj = this.clipperCoordinates;
+  const clip = poly.clipperCoordinates;
 
   const solution = new ClipperLib.Paths();
   const c = new ClipperLib.Clipper();
@@ -397,7 +417,7 @@ function clip(clipPolygon) {
     return {x: x.x, y: x.y}
   }
   
-  let outputList = [...subjectPolygon.iteratePoints({ close: false })];
+  let outputList = subjectPolygon.coordinates;
   const clip_ln = clipPolygon.points.length;
   let cp1 = { x: clipPolygon.points[clip_ln - 4],
               y: clipPolygon.points[clip_ln - 3] };
@@ -484,6 +504,10 @@ export function registerPIXIPolygonMethods() {
     configurable: true
   });
   
+  Object.defineProperty(PIXI.Polygon.prototype, "coordinates", {
+    get: coordinates,
+  });
+  
   Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
     get: isClosed,
   });
@@ -556,6 +580,10 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });  
+  
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperCoordinates", {
+    get: clipperCoordinates,
+  });
   
   Object.defineProperty(PIXI.Polygon, "fromClipperPoints", {
     value: fromClipperPoints,
