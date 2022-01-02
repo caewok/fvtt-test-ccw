@@ -28,7 +28,7 @@ ClipperLib
 //import { LinkedPolygon } from "./LinkedPolygon.js";
 //import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
-import { pixelLineContainsPoint } from "./utilities.js";
+import { pixelLineContainsPoint, compareXY } from "./utilities.js";
 
 /*
 Basic concept: 
@@ -1338,17 +1338,6 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
   }
 }  
   
-
-/**
- * Compare function to sort point by x, then y coordinates
- * @param {Point} a
- * @param {Point} b
- * @return {-1|0|1} 
- */
-function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
-}
 
 export class MyPolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {

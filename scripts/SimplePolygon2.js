@@ -7,6 +7,8 @@ foundry,
 
 //import { log } from "./module.js";
 
+import { compareXY } from "./utilities.js";
+
 /*
 Given two PIXI.Polygon, find intersect or union using only the points array without
 creating linked polygon. Hopefully faster than LinkedPolygon version.
@@ -19,17 +21,6 @@ Add points accordingly, in order.
 Get intersection or union by clockwise walk along points.
 Use integer keys to determine shared coordinates.
 */
-
-/**
- * Compare function to sort point by x, then y coordinates
- * @param {Point} a
- * @param {Point} b
- * @return {-1|0|1} 
- */
-function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
-}
 
 class SimplePolygonVertex {
   constructor(x, y) {
