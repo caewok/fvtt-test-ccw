@@ -338,6 +338,7 @@ function clipperCoordinates() {
 
 /**
  * Point contained in polygon
+ * Returns 0 if false, -1 if pt is on poly and +1 if pt is in poly.
  */
 function clipperContains(pt) {
   const path = this.clipperCoordinates;
