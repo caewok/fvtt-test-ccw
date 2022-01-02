@@ -28,7 +28,7 @@ ClipperLib
 //import { LinkedPolygon } from "./LinkedPolygon.js";
 //import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
-
+import { pixelLineContainsPoint } from "./utilities.js";
 
 /*
 Basic concept: 
@@ -55,87 +55,6 @@ vertexOutsideBoundary: True if the vertex does not cross and is not contained by
 
 
 */
-
-// point within ± √2 / 2 of another point
-// meaning, the points are within a pixel. 
-function equivalentPixel(p1, p2) {
-  // to try to improve speed, don't just call almostEqual.
-  // Ultimately need the distance between the two points but first check the easy case
-  // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
-  const dx = Math.abs(p2.x - p1.x);
-  if(dx > Math.SQRT1_2) return false;
-  
-  const dy = Math.abs(p2.y - p1.y);
-  if(dy > Math.SQRT1_2) return false;
-  
-  // within the √2 / 2 bounding box
-  // compare distance squared.
-  const dist2 = Math.pow(dx, 2) + Math.pow(dy, 2);
-  return dist2 < 0.5;
-}
-
-//  Is c counterclockwise, clockwise, or colinear w/r/t ray a|b?
-//  Consider ± √2 / 2 coordinates from the line as colinear
-function orient2dPixelLine(ray, c) {
-  const orientation = foundry.utils.orient2dFast(ray.A, ray.B, c);  
-  const orientation2 = orientation * orientation;
-  const cutoff = 0.5 * Math.pow(ray.distance, 2);
-  
-  return (orientation2 < cutoff) ? 0 : orientation;
-}
-
-function pixelLineContainsPoint(ray, pt) {
-  if(equivalentPixel(ray.A, pt) ||
-     equivalentPixel(ray.B, pt)) return true;
-     
-  if(orient2dPixelLine(ray, pt) !== 0) return false;   
-
-  // test if point is between the endpoints, given we already established collinearity
-  const dot = function(r1, r2) {
-     return r1.dx * r2.dx + r1.dy * r2.dy;
-  }
-  
-  const AC = new Ray(ray.A, pt);
-  const k_ab = dot(ray, ray);
-  const k_ac = dot(ray, AC);
-  
-  // if k_ac === 0, point p coincides with A (handled by prior check)    
-  // if k_ac === k_ab, point p coincides with B (handled by prior check)
-  // k_ac is between 0 and k_ab, point is on the segment
-  return k_ac >= 0 && k_ac <= k_ab;   
-}
-
-function lineContainsPoint(ray, pt, e = 1e-08) {
-  const pointAlmostEqual = function(p1, p2, e = 1e-08) {
-    return p1.x.almostEqual(p2.x, e) ? 
-           p1.y.almostEqual(p2.y, e) : false;
-  }
-
-  if(pointAlmostEqual(ray.A, pt, e) ||
-     pointAlmostEqual(ray.B, pt, e)) return true;
-     
-  const ccw = function(a, b, c, e = 1e-08) {
-    const res = foundry.utils.orient2dFast(a, b, c);
-    return res.almostEqual(0, e) ? 0 : res;
-  }
-  
-  if(ccw(ray.A, ray.B, pt) !== 0) return false;
-  
-  // test if point is between the endpoints, given we already established collinearity
-  const dot = function(r1, r2) {
-     return r1.dx * r2.dx + r1.dy * r2.dy;
-  }
-  
-  const AC = new Ray(ray.A, pt);
-  const k_ab = dot(ray, ray);
-  const k_ac = dot(ray, AC);
-  
-  // if k_ac === 0, point p coincides with A (handled by prior check)    
-  // if k_ac === k_ab, point p coincides with B (handled by prior check)
-  // k_ac is between 0 and k_ab, point is on the segment
-  return k_ac >= 0 && k_ac <= k_ab;   
-}
-
 
 
 export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
