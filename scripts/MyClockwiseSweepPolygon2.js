@@ -281,8 +281,84 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     if ( !this.config.hasBoundary ) return canvas.walls.placeables;
     return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
   }
+  
+  /* -------------------------------------------- */
+  /*  Vertex Identification                       */
+  /* -------------------------------------------- */
+
+  /**
+   * Changes to _identifyVertices:
+   * - Remove wallEdgeMap (rely on MyPolygonEdge to track by id instead)
+   * - Replace limited angle restriction with more generic outside boundary test
+   * Consolidate all vertices from identified edges and register them as part of the vertex mapping.
+   * @private
+   */
+  _identifyVertices() {
+
+    // Register vertices for all edges
+    for ( let edge of this.edges.values() ) {
+
+      // Get unique vertices A and B
+      const ak = edge.A.key;
+      if ( this.vertices.has(ak) ) edge.A = this.vertices.get(ak);
+      else this.vertices.set(ak, edge.A);
+      const bk = edge.B.key;
+      if ( this.vertices.has(bk) ) edge.B = this.vertices.get(bk);
+      else this.vertices.set(bk, edge.B);
+
+      // Learn edge orientation with respect to the origin
+      const o = foundry.utils.orient2dFast(this.origin, edge.A, edge.B);
+
+      // Ensure B is clockwise of A
+      if ( o > 0 ) {
+        let a = edge.A;
+        edge.A = edge.B;
+        edge.B = a;
+      }
+
+      // Attach edges to each vertex
+      edge.A.attachEdge(edge, -1);
+      edge.B.attachEdge(edge, 1);
+      
+      // *** NEW ***: no wallEdgeMAP
+
+    }
+
+    // Add edge intersections
+    this._identifyIntersections();
+
+    // *** NEW ***
+    if(this.config.hasBoundary) {
+      // Restrict vertices outside the bounding box
+      //const bbox = this.config.bbox;
+      for(let vertex of this.vertices.values()) {
+        const is_outside = this._vertexOutsideBoundary(vertex)
+        if(is_outside) this.vertices.delete(vertex.key);
+      }
+    }
+    // *** END NEW ***
+  }
  
   
+// ---------------- DEPRECATED METHODS ---------------------------------------------------
+
+/**
+   * Restrict the set of candidate edges to those which appear within the limited angle of emission.
+   * @private
+   */
+  _restrictEdgesByAngle() {
+    console.warn(`MyClockwiseSweepPolygon does not use _restrictEdgesByAngle.`);
+    super._restrictEdgesByAngle();
+  }
+
+/**
+   * Process the candidate edges to further constrain them using a circular radius of effect.
+   * @private
+   */
+  _constrainEdgesByRadius() {
+    console.warn(`MyClockwiseSweepPolygon does not use _constrainEdgesByRadius.`);
+    super._constrainEdgesByRadius();
+  }
   
 // ---------------- NEW METHODS ----------------------------------------------------------  
     
@@ -583,55 +659,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
 
 
 
-  /* -------------------------------------------- */
-  /*  Vertex Identification                       */
-  /* -------------------------------------------- */
 
-  /**
-   * Consolidate all vertices from identified edges and register them as part of the vertex mapping.
-   * @private
-   */
-  _identifyVertices() {
-
-    // Register vertices for all edges
-    for ( let edge of this.edges.values() ) {
-
-      // Get unique vertices A and B
-      const ak = edge.A.key;
-      if ( this.vertices.has(ak) ) edge.A = this.vertices.get(ak);
-      else this.vertices.set(ak, edge.A);
-      const bk = edge.B.key;
-      if ( this.vertices.has(bk) ) edge.B = this.vertices.get(bk);
-      else this.vertices.set(bk, edge.B);
-
-      // Learn edge orientation with respect to the origin
-      const o = foundry.utils.orient2dFast(this.origin, edge.A, edge.B);
-
-      // Ensure B is clockwise of A
-      if ( o > 0 ) {
-        let a = edge.A;
-        edge.A = edge.B;
-        edge.B = a;
-      }
-
-      // Attach edges to each vertex
-      edge.A.attachEdge(edge, -1);
-      edge.B.attachEdge(edge, 1);
-
-    }
-
-    // Add edge intersections
-    this._identifyIntersections();
-
-    if(this.config.hasBoundary) {
-      // Restrict vertices outside the bounding box
-      //const bbox = this.config.bbox;
-      for(let vertex of this.vertices.values()) {
-        const is_outside = this._vertexOutsideBoundary(vertex)
-        if(is_outside) this.vertices.delete(vertex.key);
-      }
-    }
-  }
   
  /**
   * Test if vertex is outside the boundary
