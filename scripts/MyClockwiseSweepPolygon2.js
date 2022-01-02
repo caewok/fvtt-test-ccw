@@ -214,6 +214,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * - Add custom edges, intersecting as necessary
    * - Do not otherwise restrict by angle
    * - Do not otherwise constrain by radius
+   * (_getWalls will have already restricted by this.config.bbox)
    * Translate walls and other obstacles into edges which limit visibility
    * @private
    */
@@ -460,7 +461,10 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    }   
 
 
-
+  /* -------------------------------------------- */
+  /*  Edge Configuration                          */
+  /* -------------------------------------------- */
+  
   /**
    * Construct array of edges from a bounding box.
    * If limited angle and no 
@@ -471,6 +475,13 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
      const { bbox, boundaryPolygon, hasLimitedAngle, limitedAnglePolygon } = this.config;
      
      const boundary_edges = [];
+     
+     // Right now, either the limited angle walls are returned or the bounding box.
+     // If limited radius + limited angle, could instead intersect the radius bbox 
+     // and the limited angle polygon and return those walls. 
+     // (could just return the full edge set for limited angle polygon and bbox, 
+     //  but that would be a lot more unnecessary edges)
+     
      
      if(!boundaryPolygon && hasLimitedAngle) {
        const ptsIter = limitedAnglePolygon.iteratePoints();
