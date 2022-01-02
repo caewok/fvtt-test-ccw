@@ -508,7 +508,7 @@ export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, hasBoundary, hasLimitedAngle } = this.config;
+    const { type, hasBoundary } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();

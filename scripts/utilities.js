@@ -1,5 +1,5 @@
 /* globals
-PIXI,
+Ray,
 foundry,
 */
 
