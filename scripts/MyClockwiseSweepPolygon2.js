@@ -57,35 +57,19 @@ vertexOutsideBoundary: True if the vertex does not cross and is not contained by
 */
 
 
-export class MyClockwiseSweepPolygon2 extends PointSourcePolygon {
-
-  // to make JSlint parser happy, move these inside the constructor
+export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
   constructor(...args) {
     super(...args);
     
     /**
-     * The configuration of this polygon.
-     * @type {ClockwiseSweepPolygonConfig}
-     */
-    this.config = {};
-
-    /**
-     * A mapping of vertices which define potential collision points
-     * @type {VertexMap}
-     */
-    this.vertices = new Map();
-
-    /**
-     * The set of edges which define potential boundaries of the polygon
-     * @type {EdgeSet}
+     * A mapping of PolygonEdges which define potential boundaries of the polygon.
+     * Keyed by edge.id, which may be equivalent to wall.id.
+     * PolygonEdge represents both existing walls and temporary edges added in this
+     * sweep class. To be able to link existing wall intersections with these edges,
+     * this.edges must be a Map, not a Set. 
+     * @type {EdgeMap}
      */
     this.edges = new Map();
-
-    /**
-     * A collection of rays which are fired at vertices
-     * @type {Ray[]}
-     */
-    this.rays = [];
   }
  
 
