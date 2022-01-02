@@ -11,7 +11,6 @@ PolygonVertex,
 CONST,
 foundry,
 canvas,
-PointSourcePolygon,
 ClockwiseSweepPolygon,
 Ray,
 NormalizedRectangle,
@@ -123,7 +122,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     
     // Boundary must be a closed polygon. 
     cfg.hasBoundary = Boolean(cfg.boundaryPolygon) || 
-                      cfg.hasLimitedRadius; 
+                      cfg.hasLimitedRadius || 
+                      cfg.hasLimitedAngle; 
                       
     // It is possible and conceptually simpler to treat limited angle like a
     // boundaryPolygon: 
@@ -162,6 +162,9 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
   _compute() {
     super._compute();
     
+    const { boundaryPolygon, limitedRadiusCircle } = this.config;
+    
+    
     // Step 5 - Intersect boundary
     
     // If we have a boundary, intersect it
@@ -181,14 +184,10 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // need three points (6 coords) to form a polygon to intersect
     if(this.points.length < 6) return;
     
-    if(this.config.hasBoundary) {
-       const { boundaryPolygon, 
-               hasLimitedRadius, 
-               limitedRadiusCircle } = this.config;
-   
+    if(boundaryPolygon || limitedRadiusCircle) {        
        const poly = boundaryPolygon ? 
               this._intersectPolygons(this, boundaryPolygon) :
-              this._intersectPolygons(poly, limitedRadiusCircle)
+              this._intersectPolygons(this, limitedRadiusCircle)
               
        // if poly is null (or undefined) something has gone wrong: no intersection found.
        // return the points or return empty points?
@@ -203,9 +202,89 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     }      
   }
   
+  /* -------------------------------------------- */
+  /*  Edge Configuration                          */
+  /* -------------------------------------------- */
+
+  /**
+   * Changes to _identifyEdges:
+   * - Use MyPolygonEdge
+   * - Test for whether the edge is within the bounding box
+   * - Add boundary edges, intersecting as necessary
+   * - Add custom edges, intersecting as necessary
+   * - Do not otherwise restrict by angle
+   * - Do not otherwise constrain by radius
+   * Translate walls and other obstacles into edges which limit visibility
+   * @private
+   */
+  _identifyEdges() {
+    const { type, hasBoundary } = this.config;
+
+    // Add edges for placed Wall objects
+    const walls = this._getWalls();
+    for ( let wall of walls ) {
+      // ignore edges that are of a type that should be ignored
+      if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
+      
+      // *** NEW *** // 
+      const edge = MyPolygonEdge.fromWall(wall, type);
+      this.edges.set(edge.id, edge);
+      // *** END NEW *** //
+    }
+    
+    if(!hasBoundary){
+      // Add edges for the canvas boundary
+      // technically, could treat canvas walls as polygon boundaries, 
+      // but that would likely be slower
+      for ( let boundary of canvas.walls.boundaries ) {
+        const edge = MyPolygonEdge.fromWall(boundary, type);
+        this.edges.set(edge.id, edge);
+      }
+      
+    // *** NEW *** //  
+    } else {   
+    // Add edges for the boundary
+    //if(hasBoundary) {
+      // Add bounding box as edges
+      // don't need canvas boundary because the bounding box will block
+      const boundary_edges = this._getBoundaryEdges();
+      
+      // need to identify intersections with other edges
+      // don't need to compare against each other b/c we know these boundaries
+      // don't need canvas boundary because the bounding box will block
+      const edges_array = Array.from(this.edges.values());
+      edges_array.sort((a, b) => compareXY(a.nw, b.nw));
+      
+      boundary_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
+      
+      boundary_edges.forEach(e => this.edges.set(e.id, e));  
+    
+    }    
+        
+    // add custom edges
+    // this._addCustomEdges();
+    // *** END NEW *** //
+  } 
+  
+   /* -------------------------------------------- */
+
+  /**
+   * Changes to _getWalls:
+   * - Checks for hasBoundary instead of hasLimitedRadius.
+   * - Uses the configured boundary box to limit walls.
+   * Get the super-set of walls which could potentially apply to this polygon.
+   * @returns {Wall[]}
+   * @private
+   */
+  _getWalls() {
+    if ( !this.config.hasBoundary ) return canvas.walls.placeables;
+    return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
+  }
+ 
+  
   
 // ---------------- NEW METHODS ----------------------------------------------------------  
-  
+    
  /**
   * Construct a boundary polygon for a limited angle.
   * It should go from origin --> canvas edge intersection --> canvas corners, if any -->
@@ -334,9 +413,12 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
   }  
   
   /**
-   * Get bounding box for the boundary polygon
-   * Expand so that it definitely includes origin.
-   * Warning: Does not check for this.config.hasBoundary
+   * Get bounding box for the boundary polygon but
+   * expanded so that it definitely includes origin.
+   * Does not explicitly check for this.config.hasBoundary but will return undefined if
+   * no bounding box is present.
+   * Will intersect limited angle and limited radius bounding boxes if both present.
+   * @return {NormalizedRectangle|undefined}  Bounding box, if any
    * @private
    */
    _getBoundingBox() {     
@@ -359,6 +441,12 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
      } else if(hasLimitedRadius) {
        bbox = limitedRadiusCircle.getBounds();
      }
+     
+     if(!bbox) return undefined; // just in case.
+        
+     // convert to NormalizedRectangle, which is expected by _getWalls.
+     // should probably be handled by the respective getBounds methods above.
+     bbox = new NormalizedRectangle(bbox.x, bbox.y, bbox.width, bbox.height); 
         
      bbox.ceil(); // force the box to integer coordinates.
      
@@ -370,7 +458,9 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
      
      return bbox;   
    }   
-   
+
+
+
   /**
    * Construct array of edges from a bounding box.
    * If limited angle and no 
@@ -425,81 +515,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });  
   }
 
-  /* -------------------------------------------- */
-  /*  Edge Configuration                          */
-  /* -------------------------------------------- */
 
-  /**
-   * Translate walls and other obstacles into edges which limit visibility
-   * @private
-   */
-  _identifyEdges() {
-    const { type, hasBoundary } = this.config;
-
-    // Add edges for placed Wall objects
-    const walls = this._getWalls();
-    for ( let wall of walls ) {
-      // ignore edges not going through or in the boundary box
-      if( hasBoundary && this._edgeOutsideBoundary(wall) ) continue;
-
-      // ignore edges that are of a type that should be ignored
-      if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
-       
-      const edge = MyPolygonEdge.fromWall(wall, type);
-      this.edges.set(edge.id, edge);
-    }
-    
-    if(!hasBoundary){
-      // Add edges for the canvas boundary
-      // technically, could treat canvas walls as polygon boundaries, 
-      // but that would likely be slower
-      for ( let boundary of canvas.walls.boundaries ) {
-        const edge = MyPolygonEdge.fromWall(boundary, type);
-        this.edges.set(edge.id, edge);
-      }
-    } else {   
-    // Add edges for the boundary
-    //if(hasBoundary) {
-      // Add bounding box as edges
-      // don't need canvas boundary because the bounding box will block
-      const boundary_edges = this._getBoundaryEdges();
-      
-      // need to identify intersections with other edges
-      // don't need to compare against each other b/c we know these boundaries
-      // don't need canvas boundary because the bounding box will block
-      const edges_array = Array.from(this.edges.values());
-      edges_array.sort((a, b) => compareXY(a.nw, b.nw));
-      
-      boundary_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
-      
-      boundary_edges.forEach(e => this.edges.set(e.id, e));  
-    
-    }    
-    
-   //  // add limited angle edges
-//     if(hasLimitedAngle) {
-//       const {rMin, rMax} = this.config;
-//       const ltd_angle_edges = [ new MyPolygonEdge(rMin.A, rMin.B),
-//                                 new MyPolygonEdge(rMax.A, rMax.B) ];
-//                                  
-//       ltd_angle_edges.forEach(e => {
-//         e.A.isBoundary = true;
-//         e.B.isBoundary = true;
-//       });
-//       // need to identify intersections with other edges
-//       // don't need to compare against each other b/c we know these boundaries
-//       const edges_array = Array.from(this.edges.values());
-//       edges_array.sort((a, b) => compareXY(a.nw, b.nw));
-//       
-//       ltd_angle_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
-//       
-//       ltd_angle_edges.forEach(e => this.edges.set(e.id, e));  
-//     }
-    
-    // add custom edges
-    // this._addCustomEdges();
-
-  }
   
   /**
    * Restrict edges by bounding box of the boundary polygon.
@@ -554,20 +570,6 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     }
   }
 
-  /* -------------------------------------------- */
-
-  /**
-   * Get the super-set of walls which could potentially apply to this polygon.
-   * @returns {Wall[]}
-   * @private
-   */
-  _getWalls() {
-    if ( !this.config.hasLimitedRadius ) return canvas.walls.placeables;
-    const o = this.origin;
-    const r = this.config.radius;
-    const rect = new NormalizedRectangle(o.x - r, o.y - r, 2*r, 2*r);
-    return Array.from(canvas.walls.quadtree.getObjects(rect).values());
-  }
 
 
   /* -------------------------------------------- */
