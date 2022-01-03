@@ -231,8 +231,8 @@ export class MyPolygonEdge extends PolygonEdge {
     this.intersectionKeys.add(v.key);
     other.intersectionKeys.add(v.key);
     
-    this.intersectsWith.set(v.key, v);
-    other.intersectsWith.set(v.key, v);
+    this.intersectsWith.set(other, v);
+    other.intersectsWith.set(this, v);
   }
 
   /**
@@ -277,8 +277,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
   * @type {Set[PolygonEdge]}
   */ 
   get edges() {
-    if(!this._edges) { this._constructEdgesArray(); }
-    return this._edges;
+    return this._edges || (this._edges = this._constructEdgesArray());
   }
   
  /**
@@ -286,7 +285,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
   * @private
   */ 
   _constructEdgesArray() {
-    this._edges = [];
+    const new_edges = [];
       
     const ptsIter = this.iteratePoints();
     let prevPt = ptsIter.next().value;
@@ -298,12 +297,14 @@ export class SimplePolygon2 extends PIXI.Polygon {
         prevEdge.next = currEdge; 
         currEdge.prev = prevEdge;
       }
-      this._edges.push(currEdge);
+      new_edges.push(currEdge);
       prevPt = currPt;
       prevEdge = currEdge;
     }
-    prevEdge.next = this._edges[0];
-    this._edges[0].prev = prevEdge;
+    prevEdge.next = new_edges[0];
+    new_edges[0].prev = prevEdge;
+    
+    return new_edges;
   }
   
  /**
@@ -471,8 +472,8 @@ export class SimplePolygon2 extends PIXI.Polygon {
         // is ix --> B1 --> B2 clockwise or counterclockwise?
         // orientation is positive if B2 is to the left (ccw) of x --> B1
         const orientation = foundry.utils.orient2dFast(curr_pt, B1, B2);
-        if(orientation > 0 && !clockwise || 
-           orientation < 0 && clockwise) {
+        const switch_polygons = clockwise ? orientation < 0 : orientation > 0
+        if(switch_polygons) {
           // jump to other polygon  
           curr_edge = curr_pt.edges.get(curr_edge); // Map is curr_edge --> other_edge          
           
@@ -505,7 +506,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
             
       // go to next edge
       curr_edge = curr_edge.next;
-                  
+                        
       // at next edge, A is the previous edge's B. 
       // so don't add A, skip if it is an intersection
       if(curr_edge.intersectionKeys.size > 0) {
@@ -518,16 +519,17 @@ export class SimplePolygon2 extends PIXI.Polygon {
             curr_pt = curr_edge.orderedIntersections[1];
             next_x_i = 2;
           } else {
-            next_x_i = 0;
             curr_pt = curr_edge.B;
+            next_x_i = 0;
+            
           }
         } else {
           curr_pt = curr_edge.orderedIntersections[0];
           next_x_i = 1;
         }
       } else {
-        next_x_i = 0;
         curr_pt = curr_edge.B; 
+        next_x_i = 0;
       }
     } // end for loop
     
