@@ -2,13 +2,16 @@
 PIXI,
 foundry,
 Ray,
-ClockwiseSweepPolygon
+ClockwiseSweepPolygon,
+PolygonVertex
 */
 
 'use strict';
 
-import { log } from "./module.js";
-import { SimplePolygon, SimplePolygonVertex } from "./SimplePolygon.js";
+//import { log } from "./module.js";
+//import { SimplePolygon, SimplePolygonVertex } from "./SimplePolygon.js";
+import { SimplePolygon2 as SimplePolygon } from "./SimplePolygon2.js";
+
 
 /*
 Intersect or union a polygon with a circle without immediately converting circle to a polygon. Similar method to that of SimplePolygon._combine. Start at intersection point, tracing polygon or circle. At each intersection point, pick the clockwise (intersect) or counterclockwise (union) direction. Use padding to fill the circle to the next intersection. 
@@ -122,7 +125,7 @@ function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
     if(circle_x) {
       // convert intersections to nearest pixel so we can use keys to match to vertices
       circle_x.intersections = circle_x.intersections.map(i => 
-                                 SimplePolygonVertex.fromPoint(i));
+                                 new PolygonVertex(i.x, i.y));
     
       // at least 1 intersection
       const res0 = _processIntersection(circle_x, 0, center, { clockwise, 
@@ -254,7 +257,6 @@ have an intersection
 }
 
 function paddingPoints(fromPt, toPoint, center, { density = 60 } = {}) {
-  // can use ClockwiseSweepPolygon.prototype._getPaddingPoints
   const obj = { config: { density }};
   const r0 = new Ray(center, fromPt);
   const r1 = new Ray(center, toPoint);
