@@ -6,6 +6,7 @@ foundry,
 'use strict';
 
 import { log } from "./module.js";
+import { compareXY } from "./utilities.js"
 
 /*
 Linked Polygon used for finding simple polygon intersections and unions.
@@ -23,18 +24,9 @@ https://en.wikipedia.org/wiki/Weiler%E2%80%93Atherton_clipping_algorithm
 Does not attempt to handle holes. 
 */
 
-/**
- * Compare function to sort point by x, then y coordinates
- * @param {Point} a
- * @param {Point} b
- * @return {-1|0|1} 
- */
-function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
-}
 
-class LinkedPolygonVertex {
+
+export class LinkedPolygonVertex {
   constructor(x, y) {
     this.x = Math.round(x);
     this.y = Math.round(y);
@@ -76,7 +68,7 @@ class LinkedPolygonVertex {
   
 }
 
-class LinkedPolygonEdge {
+export class LinkedPolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
@@ -97,15 +89,15 @@ class LinkedPolygonEdge {
     // following used in finding intersections
     this._nw = undefined;
     this._se = undefined;
-    this._keys = undefined; 
-    this._intersectsAt = new Set();
+    this._edgeKeys = undefined; 
+    this.intersectsWith = new Set();
   }
   
  /**
   * Get the set of keys corresponding to this edge's vertices
   */
-  get keys() {
-    return this._keys || (this._keys = new Set([this.A.key, this.B.key]));
+  get edgeKeys() {
+    return this._edgeKeys || (this._edgeKeys = new Set([this.A.key, this.B.key]));
   } 
   
  /**
@@ -167,7 +159,7 @@ class LinkedPolygonEdge {
          if(edge2.nw.x > edge1.se.x) break;
          
          // ignore edges that share an endpoint but increment the intersection count
-         if( edge1.keys.intersects(edge2.keys) ) {
+         if( edge1.edgeKeys.intersects(edge2.edgeKeys) ) {
            num_intersections += 1;
            continue;
          }
@@ -179,8 +171,8 @@ class LinkedPolygonEdge {
          const x = foundry.utils.lineLineIntersection(edge1.A, edge1.B, edge2.A, edge2.B);
          if(x) {
            num_intersections += 1;
-           edge1._intersectsAt.add(x);
-           edge2._intersectsAt.add(x);
+           edge1.intersectsWith.add(x);
+           edge2.intersectsWith.add(x);
          }       
       }
     }
@@ -354,7 +346,7 @@ export class LinkedPolygon extends PIXI.Polygon {
     }
     
     const p_key = LinkedPolygonVertex.keyFromPoint(p);
-    if(edge.keys.has(p_key)) return;
+    if(edge.edgeKeys.has(p_key)) return;
     
     // from this point on, we are committed to splitting.
     // mark that the points are now out-of-date
@@ -463,11 +455,11 @@ export class LinkedPolygon extends PIXI.Polygon {
       return;
     }
   
-    const sz = edge._intersectsAt.size;
+    const sz = edge.intersectsWith.size;
     if(sz === 0) return;
     
-    const xs = [...edge._intersectsAt];
-    edge._intersectsAt.clear();
+    const xs = [...edge.intersectsWith];
+    edge.intersectsWith.clear();
     if(sz === 1) {
       this.splitAtEdge(edge, xs[0]);
       return;
