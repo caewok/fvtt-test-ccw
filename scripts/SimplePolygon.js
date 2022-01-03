@@ -5,7 +5,7 @@ foundry,
 
 'use strict';
 
-import { log } from "./module.js";
+//import { log } from "./module.js";
 
 /*
 Given two PIXI.Polygon, find intersect or union using only the points array without
@@ -222,7 +222,6 @@ export class SimplePolygonEdge {
   * comparable to identifyWallIntersections method from WallsLayer Class 
   * @param {LinkedPolygonEdge[]} edges1
   * @param {LinkedPolygonEdge[]} edges2
-  * @return {number} Number of intersections found
   */
   static findIntersections(edges1, edges2) {
     edges1.sort((a, b) => compareXY(a.nw, b.nw));
@@ -234,7 +233,6 @@ export class SimplePolygonEdge {
     // for each edge in poly1, iterate over poly2's edges.
     // can skip if poly2 edge is completely left of poly1 edge.
     // can skip to next poly1 edge if poly2 edge is completely right of poly1 edge
-    let first_intersection;
     for(let i = 0; i < ln1; i += 1) {
       const edge1 = edges1[i];
     
@@ -250,14 +248,10 @@ export class SimplePolygonEdge {
         // if edges share 1 or 2 endpoints, include their endpoints as intersections
         if ( edge1.edgeKeys.intersects(edge2.edgeKeys) ) {
           if(edge1.edgeKeys.has(edge2.A.key)) { 
-            if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.A}
             edge1._addIntersectionPoint(edge2, edge2.A); 
             edge2._addIntersectionPoint(edge1, edge2.A); 
           }
           if(edge1.edgeKeys.has(edge2.B.key)) { 
-            if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.B}
             edge1._addIntersectionPoint(edge2, edge2.B); 
             edge2._addIntersectionPoint(edge1, edge2.B); 
           }
@@ -278,13 +272,9 @@ export class SimplePolygonEdge {
            
            edge1._addIntersectionPoint(edge2, x);
            edge2._addIntersectionPoint(edge1, x);
-           
-           if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: x}
          }       
       }
     }
-    return first_intersection;
   } 
 
 }
@@ -457,14 +447,12 @@ export class SimplePolygon extends PIXI.Polygon {
   */ 
   static _tracePolygon(poly1, poly2, { clockwise = true }) {
   
-    const first_ix = SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
-    
-    if(!first_ix) return [];
-    
-    const first_edge = first_ix.edge1;
+    SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
+    const first_edge = poly1.edges.find(e => e.intersectionKeys.size);
+    if(!first_edge) return [];
     
     const pts = [];
-        
+            
     let curr_edge = first_edge;
         
     let next_x_i = 1;
