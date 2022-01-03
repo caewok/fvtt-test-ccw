@@ -27,7 +27,7 @@ ClipperLib
 //import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY } from "./utilities.js";
-import { MyPolygonEdge } from "./MyPolygon.js";
+import { MyPolygonEdge } from "./SimplePolygon2.js";
 
 /*
 Basic concept: 
@@ -256,7 +256,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       const edges_array = Array.from(this.edges.values());
       edges_array.sort((a, b) => compareXY(a.nw, b.nw));
       
-      boundary_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
+      boundary_edges.forEach(e => e._identifyIntersections(edges_array, { sort: false }));
       
       boundary_edges.forEach(e => this.edges.set(e.id, e));  
     
@@ -370,8 +370,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
         }
       }
       
-      if(edge.tempIntersectsWith.size) {
-        for( let [wall, i] of edge.tempIntersectsWith.entries() ) {
+      if(edge.intersectsWith.size) {
+        for( let [wall, i] of edge.intersectsWith.entries() ) {
           const other = this.edges.get(wall.id);
           if ( !other || processed.has(other) ) continue;
         
@@ -1003,7 +1003,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     const edges_array = Array.from(this.edges.values());
     for( const data of customEdges ) {
       const edge = new MyPolygonEdge(data.A, data.B, data[type]);
-      edge.identifyIntersections(edges_array);                             
+      edge._identifyIntersections(edges_array);                             
       this.edges.set(edge.id, edge);
       edges_array.push(edge);
     }

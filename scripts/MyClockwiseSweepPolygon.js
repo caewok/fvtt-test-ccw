@@ -25,9 +25,9 @@ PolygonEdge
 'use strict';
 
 // import { LinkedPolygon } from "./LinkedPolygon.js";
-import { SimplePolygon2 as SimplePolygon } from "./SimplePolygon2.js";
+import { SimplePolygon2 as SimplePolygon, MyPolygonEdge } from "./SimplePolygon2.js";
 import { log } from "./module.js";
-import { MyPolygonEdge } from "./MyPolygon.js";
+// import { MyPolygonEdge } from "./Polygon.js";
 import { compareXY } from "./utilities.js";
 
 /*
@@ -504,7 +504,7 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
       const edges_array = Array.from(this.edges.values());
       edges_array.sort((a, b) => compareXY(a.nw, b.nw));
       
-      bbox_edges.forEach(e => e.identifyIntersections(edges_array, { sort: false }));
+      bbox_edges.forEach(e => e._identifyIntersections(edges_array, { sort: false }));
       bbox_edges.forEach(e => this.edges.set(e.id, e));  
     
     } else {
@@ -567,7 +567,7 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
     const edges_array = Array.from(this.edges.values());
     for( const data of customEdges ) {
       const edge = new MyPolygonEdge(data.A, data.B, data[type]);
-      edge.identifyIntersections(edges_array);                             
+      edge._identifyIntersections(edges_array);                             
       this.edges.set(edge.id, edge);
       edges_array.push(edge);
     }
@@ -664,8 +664,8 @@ export class MyClockwiseSweepPolygon extends PointSourcePolygon {
         }
       }
       
-      if(edge.tempIntersectsWith.size) {
-        for( let [wall, i] of edge.tempIntersectsWith.entries() ) {
+      if(edge.intersectsWith.size) {
+        for( let [wall, i] of edge.intersectsWith.entries() ) {
           const other = this.edges.get(wall.id);
           if ( !other || processed.has(other) ) continue;
         

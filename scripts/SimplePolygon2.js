@@ -1,7 +1,9 @@
 /* globals
 PIXI,
 foundry,
-PolygonVertex
+PolygonVertex,
+PolygonEdge,
+CONST
 */
 
 'use strict';
@@ -25,35 +27,64 @@ Use integer keys to determine shared coordinates.
 
 
 
-class SimplePolygonEdge {
+/*
+intersectsWith: three options when temp edges are used in combination with existing walls
+1. Always use the wall.intersectsWith map. 
+   Create wall.intersectsWith if wall is undefined. 
+   Track and remove temp edges from intersectsWith 
+     by replicating Wall.prototype._removeIntersections.
+   Tracking and deletion could be slow. 
+
+2. Copy the wall.intersectsWith map to edge.intersectsWith. 
+   Copy such that the original map is not disturbed; i.e., new Map(wall.intersectsWith).
+   Likely slower but faster than 1.
+   e.g. this.intersectsWith = wall ? new Map(wall.intersectsWith) : new Map();
+
+3. Create another intersectsWith map at edge.intersectsWith. 
+   Check both in code.
+   A bit complicated; possibly faster than 1 or 2. 
+   e.g., this.intersectsWith = new Map();
+   
+(1) seems problematic b/c deletion means looping through all the intersectsWith entries.
+Going with (3) for speed plus the intersectsAt is useful for processing polygon intersections.
+   
+*/
+
+export class MyPolygonEdge extends PolygonEdge {
 
  /**
   * If LinkedPolygonVertex is passed, it will be referenced as is.
   * @param a {Point|LinkedPolygonVertex}
   * @param b {Point|LinkedPolygonVertex}
   */
-  constructor(a, b) {
-    this.A = new PolygonVertex(a.x, a.y) 
-    this.B = new PolygonVertex(b.x, b.y) 
-                   
+  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+    super(a, b, type, wall);
+        
+    // Track wall ids if this edge corresponds to existing wall
+    // This replaces wallEdgeMap in ClockwiseSweep.
+    this.id = wall?.id || foundry.utils.randomID();
+    
     // following used in finding intersections
     this._nw = undefined;
     this._se = undefined;
-    this._keys = undefined; 
-    this._intersectsAt = new Map();
+    this.edgeKeys = new Set([this.A.key, this.B.key]); 
+    
+    this.intersectionKeys = new Set(); // keys of intersection vertices 
+    this.intersectsWith = new Map();  // Map just as with wall.intersectsWith
+    this._orderedIntersections = undefined; // Array of intersections arranged A...x...B
+    
+    // intersectsWith stores the other edge as the key and the intersection
+    // Each intersection vertex has a Map at v.edges linking the two edges
+    // (see _addIntersectionPoint below)
   }
   
- /**
-  * Get the set of keys corresponding to this edge's vertices
-  */
-  get keys() {
-    return this._keys || (this._keys = new Set([this.A.key, this.B.key]));
-  } 
-  
+ // existing methods from PolygonEdge:
+ // isLimited, fromWall 
+
  /**
   * Identify which endpoint is further west, or if vertical, further north.
   * Required for quick intersection processing.
-  * @type {LinkedPolygonVertex}
+  * @type {PolygonVertex}
   */
   get nw() {
     if(!this._nw) {
@@ -66,7 +97,7 @@ class SimplePolygonEdge {
   
  /**
   * Identify which endpoint is further east, or if vertical, further south.
-  * @type {LinkedPolygonVertex}
+  * @type {PolygonVertex}
   */
   get se() {
     if(!this._se) {
@@ -88,10 +119,11 @@ class SimplePolygonEdge {
  /**
   * Helper to order intersections from A -- i0 -- i1 ... B
   * Ordered by finding distance squared from A.
+  * @return {[PolygonVertex]}   Array of intersection vertices in order from A to B
   * @private
   */
   _orderIntersections() {
-    const xs = [...this._intersectsAt.values()];
+    const xs = [...this.intersectsWith.values()];
     
     if(xs.length < 2) return xs;
     
@@ -110,14 +142,21 @@ class SimplePolygonEdge {
   * Comparable to inside loop of Wall.prototype.identifyWallIntersections.
   * Update this intersectsWith Map and their respective intersectsWith Map accordingly.
   * @param {MyPolygonEdge2[]} edges   Must be sorted.
+  * Options:
+  * @param {boolean} sort   If true, sort the edges array before starting.
+  * @param {boolean} include_endpoints If true, add intersection when endpoints overlap.
   */
-  _identifyIntersections(edges) {
-    //edges.sort((a, b) => compareXY(a.nw, b.nw));
+  _identifyIntersections(edges, { sort = true, include_endpoints = false  } = {}) {
+    if(sort) edges.sort((a, b) => compareXY(a.nw, b.nw));
+    this._orderedIntersections = undefined; // just in case
       
     // iterate over the other edge.walls
     const ln = edges.length;
     for(let j = 0; j < ln; j += 1) {
       const other = edges[j];
+      if(this === other) continue;
+      
+      other._orderedIntersections = undefined; // just in case
       
       // if we have not yet reached the left end of this edge, we can skip
       if(other.se.x < this.nw.x) continue;
@@ -125,23 +164,28 @@ class SimplePolygonEdge {
       // if we reach the right end of this edge, we can skip the rest
       if(other.nw.x > this.se.x) break;
     
-      this._identifyIntersectionsWith(other);
+      this._identifyIntersectionsWith(other, { include_endpoints });
     }
   }
   
  /**
   * Record the intersection points between this wall and another, if any.
   * Comparable to Wall.prototype._identifyIntersectionsWith
-  * @param {SimplePolygonEdge} other   The other edge.
+  * @param {MyPolygonEdge} other   The other edge.
+  * Options:
+  * @param {boolean} include_endpoints  If true, add intersection when endpoints overlap.
   * @private
   */
-  _identifyIntersectionsWith(other) {
-    // if ( this === other ) return;
+  _identifyIntersectionsWith(other, { include_endpoints = false } = {} ) {    
+  
     
-    // if edges share 1 or 2 endpoints, include their endpoints as intersections
-    if ( this.keys.intersects(other.keys) ) {
-      if(this.keys.has(other.A.key)) { this._addIntersectionPoint(other, other.A); }
-      if(this.keys.has(other.B.key)) { this._addIntersectionPoint(other, other.B); }
+    // If include_endpoints and edges share 1 or 2 endpoints, 
+    // include their endpoints as intersections
+    if ( this.edgeKeys.intersects(other.edgeKeys) ) {
+      if(include_endpoints) {
+        if(this.edgeKeys.has(other.A.key)) { this._addIntersectionPoint(other, other.A); }
+        if(this.edgeKeys.has(other.B.key)) { this._addIntersectionPoint(other, other.B); }
+      }
       return;
     }
     
@@ -160,7 +204,7 @@ class SimplePolygonEdge {
   
  /**
   * Helper to add an intersection point both this and other intersect sets.
-  * @param {SimplePolygonEdge} other   The other edge. 
+  * @param {MyPolygonEdge} other   The other edge. 
   * @param {Point} v                   Intersection to add. Must have {x, y} coordinates.
   * @private
   */
@@ -170,81 +214,36 @@ class SimplePolygonEdge {
     v.edges.set(this, other);
     v.edges.set(other, this);
     
-    this._intersectsAt.set(v.key, v);
-    other._intersectsAt.set(v.key, v);
+    this.intersectionKeys.add(v.key);
+    other.intersectionKeys.add(v.key);
+    
+    this.intersectsWith.set(v.key, v);
+    other.intersectsWith.set(v.key, v);
   }
 
   /**
   * Given two arrays of edges with left/right vertices, find their intersections.
   * Mark the intersections using the _intersectsAt set property.
   * comparable to identifyWallIntersections method from WallsLayer Class 
-  * @param {LinkedPolygonEdge[]} edges1
-  * @param {LinkedPolygonEdge[]} edges2
-  * @return {number} Number of intersections found
+  * @param {MyPolygonEdge[]} edges1
+  * @param {MyPolygonEdge[]} edges2
   */
-  static findIntersections(edges1, edges2) {
+  static findIntersections(edges1, edges2, { include_endpoints = false } = {}) {
     edges1.sort((a, b) => compareXY(a.nw, b.nw));
     edges2.sort((a, b) => compareXY(a.nw, b.nw));
     
-    const ln1 = edges1.length;
-    const ln2 = edges2.length;
+    
     
     // for each edge in poly1, iterate over poly2's edges.
     // can skip if poly2 edge is completely left of poly1 edge.
     // can skip to next poly1 edge if poly2 edge is completely right of poly1 edge
-    let first_intersection;
+    const ln1 = edges1.length;
     for(let i = 0; i < ln1; i += 1) {
       const edge1 = edges1[i];
-    
-      for(let j = 0; j < ln2; j += 1) {
-        const edge2 = edges2[j];
-        
-         // if we have not yet reached the left end of this edge, we can skip
-         if(edge2.se.x < edge1.nw.x) continue;
-         
-         // if we reach the right end of this edge, we can skip the rest
-         if(edge2.nw.x > edge1.se.x) break;
-                   
-        // if edges share 1 or 2 endpoints, include their endpoints as intersections
-        if ( edge1.keys.intersects(edge2.keys) ) {
-          if(edge1.keys.has(edge2.A.key)) { 
-            if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.A}
-            edge1._addIntersectionPoint(edge2, edge2.A); 
-            edge2._addIntersectionPoint(edge1, edge2.A); 
-          }
-          if(edge1.keys.has(edge2.B.key)) { 
-            if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: edge2.B}
-            edge1._addIntersectionPoint(edge2, edge2.B); 
-            edge2._addIntersectionPoint(edge1, edge2.B); 
-          }
-          
-          
-          
-          return;
-        }
-         
-         // skip if no intersections
-         if( !foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B) ) continue;
-         
-         // mark the intersection
-         const x = foundry.utils.lineLineIntersection(edge1.A, edge1.B, edge2.A, edge2.B);
-         if(x) {
-//            edge1._intersectsAt.add(x);
-//            edge2._intersectsAt.add(x);
-           
-           edge1._addIntersectionPoint(edge2, x);
-           edge2._addIntersectionPoint(edge1, x);
-           
-           if(!first_intersection) 
-              first_intersection = {edge1: edge1, edge2: edge2, x: x}
-         }       
-      }
+      
+      edge1._identifyIntersections(edges2, {sort: false, include_endpoints });
     }
-    return first_intersection;
-  } 
-
+  }
 }
 
 
@@ -280,7 +279,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
     let currPt;
     let prevEdge;
     while( (currPt = ptsIter.next().value) ) {
-      const currEdge = new SimplePolygonEdge(prevPt, currPt);
+      const currEdge = new MyPolygonEdge(prevPt, currPt);
       if(prevEdge) { 
         prevEdge.next = currEdge; 
         currEdge.prev = prevEdge;
@@ -313,6 +312,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
   
  /**
   * Test if this polygon encompasses another
+  * Only works if you already know that the polygons do not intersect.
   * @param {PIXI.Polygon} other_poly
   */
   encompassesPolygon(other_poly) {
@@ -415,12 +415,11 @@ export class SimplePolygon2 extends PIXI.Polygon {
   */ 
   static _tracePolygon(poly1, poly2, { clockwise = true }) {
   
-    const first_ix = SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
+    MyPolygonEdge.findIntersections(poly1.edges, poly2.edges);
     
-    if(!first_ix) return [];
-    
-    const first_edge = first_ix.edge1;
-    
+    const first_edge = poly1.edges.find(e => e.intersectionKeys.size);
+    if(!first_edge) return [];
+        
     const pts = [];
         
     let curr_edge = first_edge;
@@ -486,7 +485,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
       // add edge B unless it was already dealt with as an intersection
       // or already added as curr_pt
       if(curr_pt.key !== curr_edge.B.key && 
-         !curr_edge._intersectsAt.has(curr_edge.B.key)) {
+         !curr_edge.intersectionKeys.has(curr_edge.B.key)) {
         pts.push(curr_edge.B.x, curr_edge.B.y);
       }
             
@@ -495,13 +494,13 @@ export class SimplePolygon2 extends PIXI.Polygon {
                   
       // at next edge, A is the previous edge's B. 
       // so don't add A, skip if it is an intersection
-      if(curr_edge._intersectsAt.size > 0) {
+      if(curr_edge.intersectionKeys.size > 0) {
         // this new edge has intersections. Get the first one.
         
         // check if A is an intersection
         // if it is, skip the first intersection
-        if(curr_edge._intersectsAt.has(curr_edge.A.key)) { 
-          if(curr_edge._intersectsAt.size > 1) {
+        if(curr_edge.intersectionKeys.has(curr_edge.A.key)) { 
+          if(curr_edge.intersectionKeys.size > 1) {
             curr_pt = curr_edge.orderedIntersections[1];
             next_x_i = 2;
           } else {
