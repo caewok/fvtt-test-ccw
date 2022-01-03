@@ -81,15 +81,15 @@ export class SimplePolygonEdge {
     // following used in finding intersections
     this._nw = undefined;
     this._se = undefined;
-    this._keys = undefined; 
-    this._intersectsAt = new Map();
+    this._edgeKeys = undefined; 
+    this.intersectsWith = new Map();
   }
   
  /**
   * Get the set of keys corresponding to this edge's vertices
   */
-  get keys() {
-    return this._keys || (this._keys = new Set([this.A.key, this.B.key]));
+  get edgeKeys() {
+    return this._edgeKeys || (this._edgeKeys = new Set([this.A.key, this.B.key]));
   } 
   
  /**
@@ -133,7 +133,7 @@ export class SimplePolygonEdge {
   * @private
   */
   _orderIntersections() {
-    const xs = [...this._intersectsAt.values()];
+    const xs = [...this.intersectsWith.values()];
     
     if(xs.length < 2) return xs;
     
@@ -181,9 +181,9 @@ export class SimplePolygonEdge {
     // if ( this === other ) return;
     
     // if edges share 1 or 2 endpoints, include their endpoints as intersections
-    if ( this.keys.intersects(other.keys) ) {
-      if(this.keys.has(other.A.key)) { this._addIntersectionPoint(other, other.A); }
-      if(this.keys.has(other.B.key)) { this._addIntersectionPoint(other, other.B); }
+    if ( this.edgeKeys.intersects(other.edgeKeys) ) {
+      if(this.edgeKeys.has(other.A.key)) { this._addIntersectionPoint(other, other.A); }
+      if(this.edgeKeys.has(other.B.key)) { this._addIntersectionPoint(other, other.B); }
       return;
     }
     
@@ -212,8 +212,8 @@ export class SimplePolygonEdge {
     v.edges.set(this, other);
     v.edges.set(other, this);
     
-    this._intersectsAt.set(v.key, v);
-    other._intersectsAt.set(v.key, v);
+    this.intersectsWith.set(v.key, v);
+    other.intersectsWith.set(v.key, v);
   }
 
   /**
@@ -248,14 +248,14 @@ export class SimplePolygonEdge {
          if(edge2.nw.x > edge1.se.x) break;
                    
         // if edges share 1 or 2 endpoints, include their endpoints as intersections
-        if ( edge1.keys.intersects(edge2.keys) ) {
-          if(edge1.keys.has(edge2.A.key)) { 
+        if ( edge1.edgeKeys.intersects(edge2.edgeKeys) ) {
+          if(edge1.edgeKeys.has(edge2.A.key)) { 
             if(!first_intersection) 
               first_intersection = {edge1: edge1, edge2: edge2, x: edge2.A}
             edge1._addIntersectionPoint(edge2, edge2.A); 
             edge2._addIntersectionPoint(edge1, edge2.A); 
           }
-          if(edge1.keys.has(edge2.B.key)) { 
+          if(edge1.edgeKeys.has(edge2.B.key)) { 
             if(!first_intersection) 
               first_intersection = {edge1: edge1, edge2: edge2, x: edge2.B}
             edge1._addIntersectionPoint(edge2, edge2.B); 
@@ -273,8 +273,8 @@ export class SimplePolygonEdge {
          // mark the intersection
          const x = foundry.utils.lineLineIntersection(edge1.A, edge1.B, edge2.A, edge2.B);
          if(x) {
-//            edge1._intersectsAt.add(x);
-//            edge2._intersectsAt.add(x);
+//            edge1.intersectsWith.add(x);
+//            edge2.intersectsWith.add(x);
            
            edge1._addIntersectionPoint(edge2, x);
            edge2._addIntersectionPoint(edge1, x);
@@ -528,7 +528,7 @@ export class SimplePolygon extends PIXI.Polygon {
       // add edge B unless it was already dealt with as an intersection
       // or already added as curr_pt
       if(curr_pt.key !== curr_edge.B.key && 
-         !curr_edge._intersectsAt.has(curr_edge.B.key)) {
+         !curr_edge.intersectsWith.has(curr_edge.B.key)) {
         pts.push(curr_edge.B.x, curr_edge.B.y);
       }
             
@@ -537,13 +537,13 @@ export class SimplePolygon extends PIXI.Polygon {
                   
       // at next edge, A is the previous edge's B. 
       // so don't add A, skip if it is an intersection
-      if(curr_edge._intersectsAt.size > 0) {
+      if(curr_edge.intersectsWith.size > 0) {
         // this new edge has intersections. Get the first one.
         
         // check if A is an intersection
         // if it is, skip the first intersection
-        if(curr_edge._intersectsAt.has(curr_edge.A.key)) { 
-          if(curr_edge._intersectsAt.size > 1) {
+        if(curr_edge.intersectsWith.has(curr_edge.A.key)) { 
+          if(curr_edge.intersectsWith.size > 1) {
             curr_pt = curr_edge.orderedIntersections[1];
             next_x_i = 2;
           } else {
