@@ -1,6 +1,7 @@
 /* globals
 PIXI,
 foundry,
+PolygonVertex
 */
 
 'use strict';
@@ -22,41 +23,7 @@ Get intersection or union by clockwise walk along points.
 Use integer keys to determine shared coordinates.
 */
 
-class SimplePolygonVertex {
-  constructor(x, y) {
-    this.x = Math.round(x);
-    this.y = Math.round(y);
-    this.key = (this.x << 16) ^ this.y;    
-  }
-  
- /**
-  * Helper to construct a Vertex given a point.
-  * @param {Point} point
-  * @return {LinkedPolygonVertex}
-  */
-  static fromPoint(point) {
-    return new this(point.x, point.y);
-  }
-  
- /**
-  * Calculate key
-  * @param {LinkedPolygonVertex|Point} p  Point or vertex to calculate the key.
-  * @return {number} Integer key for the coordinates or the existing key, if any.
-  */
-  static keyFromPoint(p) {
-    return p?.key || (Math.round(p.x) << 16) ^ Math.round(p.y);
-  } 
-  
- /**
-  * Does this vertex share the same coordinates as another?
-  * @param {LinkedPolygonVertex|Point} p  Point or vertex
-  * @return {boolean} True if they share the same integer coordinates.
-  */
-  equals(p) {
-    return this.keyFromPoint(p) === this.key;
-  }
-  
-}
+
 
 class SimplePolygonEdge {
 
@@ -66,8 +33,8 @@ class SimplePolygonEdge {
   * @param b {Point|LinkedPolygonVertex}
   */
   constructor(a, b) {
-    this.A = SimplePolygonVertex.fromPoint(a) 
-    this.B = SimplePolygonVertex.fromPoint(b)
+    this.A = new PolygonVertex(a.x, a.y) 
+    this.B = new PolygonVertex(b.x, b.y) 
                    
     // following used in finding intersections
     this._nw = undefined;
@@ -198,7 +165,7 @@ class SimplePolygonEdge {
   * @private
   */
   _addIntersectionPoint(other, p) {
-    const v = SimplePolygonVertex.fromPoint(p)
+    const v = new PolygonVertex(p.x, p.y) 
     v.edges = new Map();
     v.edges.set(this, other);
     v.edges.set(other, this);
