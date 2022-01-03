@@ -62,7 +62,7 @@ export class MyPolygonEdge extends PolygonEdge {
         
     // Track wall ids if this edge corresponds to existing wall
     // This replaces wallEdgeMap in ClockwiseSweep.
-    this.id = wall?.id || foundry.utils.randomID();
+    this._id = undefined;
     
     // following used in finding intersections
     this._nw = undefined;
@@ -80,6 +80,13 @@ export class MyPolygonEdge extends PolygonEdge {
   
  // existing methods from PolygonEdge:
  // isLimited, fromWall 
+
+ /**
+  * Get the id for this edge (needed for sweep, but not for general intersections)
+  */
+  get id() {
+    return this._id || (this._id = this.wall?.id || foundry.utils.randomID());
+  }
 
  /**
   * Identify which endpoint is further west, or if vertical, further north.
