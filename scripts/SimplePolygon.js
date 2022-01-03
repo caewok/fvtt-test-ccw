@@ -6,6 +6,7 @@ foundry,
 'use strict';
 
 //import { log } from "./module.js";
+import { compareXY } from "./utilities.js";
 
 /*
 Given two PIXI.Polygon, find intersect or union using only the points array without
@@ -20,16 +21,6 @@ Get intersection or union by clockwise walk along points.
 Use integer keys to determine shared coordinates.
 */
 
-/**
- * Compare function to sort point by x, then y coordinates
- * @param {Point} a
- * @param {Point} b
- * @return {-1|0|1} 
- */
-function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
-}
 
 export class SimplePolygonVertex {
   constructor(x, y) {
@@ -448,7 +439,7 @@ export class SimplePolygon extends PIXI.Polygon {
   static _tracePolygon(poly1, poly2, { clockwise = true }) {
   
     SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges);
-    const first_edge = poly1.edges.find(e => e.intersectionKeys.size);
+    const first_edge = poly1.edges.find(e => e.intersectsWith.size);
     if(!first_edge) return [];
     
     const pts = [];
