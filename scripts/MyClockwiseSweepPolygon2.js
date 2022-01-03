@@ -23,6 +23,9 @@ ClipperLib
 
 'use strict';
 
+
+// version intersecting limited angle polygon
+
 //import { LinkedPolygon } from "./LinkedPolygon.js";
 //import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";

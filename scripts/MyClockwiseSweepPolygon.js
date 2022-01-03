@@ -26,7 +26,7 @@ CONFIG
 //import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY } from "./utilities.js";
-import { MyPolygonEdge, SimplePolygon } from "./SimplePolygon2.js";
+import { MyPolygonEdge, SimplePolygon2 as SimplePolygon } from "./SimplePolygon2.js";
 
 /*
 Basic concept: 
