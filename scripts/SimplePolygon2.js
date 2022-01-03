@@ -67,7 +67,7 @@ export class MyPolygonEdge extends PolygonEdge {
     // following used in finding intersections
     this._nw = undefined;
     this._se = undefined;
-    this.edgeKeys = new Set([this.A.key, this.B.key]); 
+    this._edgeKeys = undefined; 
     
     this.intersectionKeys = new Set(); // keys of intersection vertices 
     this.intersectsWith = new Map();  // Map just as with wall.intersectsWith
@@ -87,6 +87,13 @@ export class MyPolygonEdge extends PolygonEdge {
   get id() {
     return this._id || (this._id = this.wall?.id || foundry.utils.randomID());
   }
+  
+ /**
+  * Get the set of keys corresponding to this edge's vertices
+  */
+  get edgeKeys() {
+    return this._edgeKeys || (this._edgeKeys = new Set([this.A.key, this.B.key]));
+  } 
 
  /**
   * Identify which endpoint is further west, or if vertical, further north.
