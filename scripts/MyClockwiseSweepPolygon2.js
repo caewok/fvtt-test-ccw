@@ -24,13 +24,12 @@ ClipperLib
 'use strict';
 
 
-// version intersecting limited angle polygon
+// version treating limited angle polygon like regular polygon
 
 //import { LinkedPolygon } from "./LinkedPolygon.js";
-//import { SimplePolygon } from "./SimplePolygon.js";
 import { log } from "./module.js";
-import { pixelLineContainsPoint, compareXY } from "./utilities.js";
-import { MyPolygonEdge } from "./SimplePolygon2.js";
+import { compareXY } from "./utilities.js";
+import { SimplePolygonEdge, SimplePolygon } from "./SimplePolygon.js";
 
 /*
 Basic concept: 
@@ -158,14 +157,18 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     if(cfg.hasBoundary) { cfg.bbox = this._getBoundingBox(); }
     
     // User can also provide data to add temporary edges to the sweep algorithm.
-           
+
+    // for debugging 
+    cfg.intersectMethod = cfg.intersectMethod || "simple"; // "simple" or "clipper"            
   }
   
   /** @inheritdoc */
   _compute() {
     super._compute();
     
-    const { boundaryPolygon, limitedRadiusCircle } = this.config;
+    if(this.config.debug) { this._sweepPoints = [...this.points]; }
+    
+    const { boundaryPolygon, limitedRadiusCircle, limitedAnglePolygon } = this.config;
     
     
     // Step 5 - Intersect boundary
@@ -187,22 +190,34 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // need three points (6 coords) to form a polygon to intersect
     if(this.points.length < 6) return;
     
-    if(boundaryPolygon || limitedRadiusCircle) {        
-       const poly = boundaryPolygon ? 
-              this._intersectPolygons(this, boundaryPolygon) :
-              this._intersectPolygons(this, limitedRadiusCircle)
-              
-       // if poly is null (or undefined) something has gone wrong: no intersection found.
-       // return the points or return empty points?
-       // currently returning points
-       
-       if(poly) { 
-         this.points = poly.points; 
-         this._isClosed = poly._isClosed;
-         this._isConvex = poly._isConvex;
-         this._isClockwise = poly._isClockwise;  
-       }
-    }      
+    if(!this.config.hasBoundary) return;
+    
+    let poly = this;
+    
+    if(boundaryPolygon) { 
+      poly = this._intersectPolygons(poly, boundaryPolygon);
+    } 
+    
+    if(limitedAnglePolygon) {
+      poly = this._intersectPolygons(poly, limitedAnglePolygon);
+    }
+    
+    if(limitedRadiusCircle & !boundaryPolygon) {
+      poly = this._intersectPolygons(poly, limitedRadiusCircle)
+    }
+    
+    
+    // if poly is null (or undefined) something has gone wrong: no intersection found.
+    // return the points or return empty points?
+    // currently returning points
+
+    if(poly) { 
+     this.points = poly.points; 
+     this._isClosed = poly._isClosed;
+     this._isConvex = poly._isConvex;
+     this._isClockwise = poly._isClockwise;  
+    }
+        
   }
   
   /* -------------------------------------------- */
@@ -211,7 +226,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
 
   /**
    * Changes to _identifyEdges:
-   * - Use MyPolygonEdge
+   * - Use SimplePolygonEdge
    * - Test for whether the edge is within the bounding box
    * - Add boundary edges, intersecting as necessary
    * - Add custom edges, intersecting as necessary
@@ -231,7 +246,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
       
       // *** NEW *** // 
-      const edge = MyPolygonEdge.fromWall(wall, type);
+      const edge = SimplePolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
       // *** END NEW *** //
     }
@@ -241,7 +256,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       // technically, could treat canvas walls as polygon boundaries, 
       // but that would likely be slower
       for ( let boundary of canvas.walls.boundaries ) {
-        const edge = MyPolygonEdge.fromWall(boundary, type);
+        const edge = SimplePolygonEdge.fromWall(boundary, type);
         this.edges.set(edge.id, edge);
       }
       
@@ -291,7 +306,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
 
   /**
    * Changes to _identifyVertices:
-   * - Remove wallEdgeMap (rely on MyPolygonEdge to track by id instead)
+   * - Remove wallEdgeMap (rely on SimplePolygonEdge to track by id instead)
    * - Replace limited angle restriction with more generic outside boundary test
    * Consolidate all vertices from identified edges and register them as part of the vertex mapping.
    * @private
@@ -346,13 +361,13 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
 
   /**
    * Changes to _identifyIntersections:
-   * - No longer rely on wallEdgeMap (use MyPolygonEdge.id instead)
+   * - No longer rely on wallEdgeMap (use SimplePolygonEdge.id instead)
    * - No limited angle checks
    * - Move registering the intersection to a separate method
    * - Check first for exiting wall intersections and second for 
    *   temporary edge intersections
    * Add additional vertices for intersections between edges.
-   * @param {Map<string,MyPolygonEdge>} wallEdgeMap    A mapping of wall IDs to MyPolygonEdge instances
+   * @param {Map<string,SimplePolygonEdge>} wallEdgeMap    A mapping of wall IDs to SimplePolygonEdge instances
    * @private
    */
   _identifyIntersections() {
@@ -776,9 +791,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // move the origin one pixel back from actual origin, so the limited angle polygon
     // includes the origin
   
-    const r = Ray.fromAngle(this.origin.x, this.origin.y, 
-                            Math.toRadians(rotation + 90), -1)
-    const origin = r.B;
+    const origin = this.origin;
         
     const aMin = Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2)));
     const aMax = aMin + Math.toRadians(angle);
@@ -908,13 +921,13 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
      // either use the user-provided boundaryPolygon or the limited angle/limited radius   
      let bbox;  
      if(boundaryPolygon) {
-       bbox = boundaryPolygon.clipperBounds();
+       bbox = boundaryPolygon.getBounds();
      } else if(hasLimitedAngle && hasLimitedRadius) {
-       const bbox_angle = limitedAnglePolygon.clipperBounds();
+       const bbox_angle = limitedAnglePolygon.getBounds();
        const bbox_circle = limitedRadiusCircle.getBounds();
        bbox = bbox_angle.intersection(bbox_circle);
      } else if(hasLimitedAngle) {
-       bbox = limitedAnglePolygon.clipperBounds();
+       bbox = limitedAnglePolygon.getBounds();
      } else if(hasLimitedRadius) {
        bbox = limitedRadiusCircle.getBounds();
      }
@@ -947,9 +960,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * @private
    */
    _getBoundaryEdges() {
-     const { bbox, boundaryPolygon, hasLimitedAngle, limitedAnglePolygon } = this.config;
+     const { bbox } = this.config;
      
-     const boundary_edges = [];
      
      // TO-DO:
      // Right now, either the limited angle walls are returned or the bounding box.
@@ -958,24 +970,17 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
      // (could just return the full edge set for limited angle polygon and bbox, 
      //  but that would be a lot more unnecessary edges)
      
-     if(!boundaryPolygon && hasLimitedAngle) {
-       const ptsIter = limitedAnglePolygon.iteratePoints();
-       let prevPt = ptsIter.next().value;
-       for(const pt of ptsIter) {
-         boundary_edges.push(new MyPolygonEdge(prevPt, pt));
-         prevPt = pt;
-       }            
-     } else {
-       boundary_edges.push(
-           new MyPolygonEdge({ x: bbox.x, y: bbox.y }, 
+
+    const boundary_edges = [
+           new SimplePolygonEdge({ x: bbox.x, y: bbox.y }, 
                              { x: bbox.right, y: bbox.y }),
-           new MyPolygonEdge({ x: bbox.right, y: bbox.y }, 
+           new SimplePolygonEdge({ x: bbox.right, y: bbox.y }, 
                              { x: bbox.right, y: bbox.bottom }),
-           new MyPolygonEdge({ x: bbox.right, y: bbox.bottom }, 
+           new SimplePolygonEdge({ x: bbox.right, y: bbox.bottom }, 
                              { x: bbox.x, y: bbox.bottom }),
-           new MyPolygonEdge({ x: bbox.x, y: bbox.bottom }, 
-                             { x: bbox.x, y: bbox.y }));   
-    } 
+           new SimplePolygonEdge({ x: bbox.x, y: bbox.bottom }, 
+                             { x: bbox.x, y: bbox.y })   
+    ];
 
     return boundary_edges;   
    }
@@ -1005,7 +1010,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // re-sort at each addition.
     const edges_array = Array.from(this.edges.values());
     for( const data of customEdges ) {
-      const edge = new MyPolygonEdge(data.A, data.B, data[type]);
+      const edge = new SimplePolygonEdge(data.A, data.B, data[type]);
       edge._identifyIntersections(edges_array);                             
       this.edges.set(edge.id, edge);
       edges_array.push(edge);
@@ -1020,8 +1025,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
  /**
   * Moved from _identifyIntersections to allow easy processing of
   * temporary edge intersections using separate loop.
-  * @param {MyPolygonEdge} edge
-  * @param {MyPolygonEdge} other
+  * @param {SimplePolygonEdge} edge
+  * @param {SimplePolygonEdge} other
   * @param {Point} intersection     Intersection point between edge and other.
   * @private
   */
@@ -1043,24 +1048,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
  /**
   * Test if vertex is outside the boundary
   */
-  _vertexOutsideBoundary(v) {
-    const { bbox, limitedAnglePolygon, rMin, rMax, angle } = this.config;
-    
-    if(v.isBoundary) return false;
-    
-    if(limitedAnglePolygon) {
-      //return limitedAnglePolygon.clipperContains(v) === 0; // -1 if on, 1 if within
-      // could just use the bbox but better to eliminate as many as possible.
-      // use the rays to remove
-      // keep points within a short distance of the ray, to avoid losing points on the ray
-      const is_outside_rays = !this.constructor.pointBetweenRays(v, rMin, rMax, angle) &&
-                              !pixelLineContainsPoint(rMin, v, 2) &&
-                              !pixelLineContainsPoint(rMax, v, 2);
-      return is_outside_rays;
-      
-    }
-    
-    return !bbox.containsPoint(v);
+  _vertexOutsideBoundary(v) {            
+    return !this.config.bbox.containsPoint(v);
   } 
   
   /* -------------------------------------------- */
@@ -1079,8 +1068,11 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       
     if(poly2 instanceof PIXI.Circle) 
       return poly2.polygonIntersect(poly1, { density: this.config.density });  
-       
-    return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });  
-  }
+
+    if(this.config.intersectMethod === "clipper") {
+      return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });  
+    }  
+    return SimplePolygon.intersect(poly1, poly2);   
+  }  
 }
  
