@@ -100,3 +100,11 @@ export function compareXY(a, b) {
   if ( a.x === b.x ) return a.y - b.y;
   else return a.x - b.x;
 }
+
+/**
+ * Calculate the key for a set of integer coordinates
+ * See PolygonVertex
+ */
+export function keyForPoint(p) {
+  return (Math.round(p.x) << 16) ^ Math.round(p.y);
+ }
