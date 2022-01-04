@@ -6,8 +6,7 @@ import { testCCWBenchmarkSight }  from "./benchmark.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { LinkedPolygon, LinkedPolygonVertex, LinkedPolygonEdge } from "./LinkedPolygon.js";
-import { SimplePolygon, SimplePolygonVertex, SimplePolygonEdge } from "./SimplePolygon.js";
-import { SimplePolygon2, MyPolygonEdge } from "./SimplePolygon2.js";
+import { SimplePolygon, SimplePolygonEdge } from "./SimplePolygon.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -72,12 +71,9 @@ Hooks.once('init', async function() {
     LinkedPolygonEdge: LinkedPolygonEdge,
     
     SimplePolygon: SimplePolygon,
-    SimplePolygonVertex: SimplePolygonVertex,
+    SimplePolygonVertex: PolygonVertex,
     SimplePolygonEdge: SimplePolygonEdge,
     
-    SimplePolygon2: SimplePolygon2,
-    SimplePolygon2Edge: MyPolygonEdge,
-    SimplePolygon2Vertex: PolygonVertex
     }
 });
 
