@@ -168,7 +168,10 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     
     if(this.config.debug) { this._sweepPoints = [...this.points]; }
     
-    const { boundaryPolygon, limitedRadiusCircle, limitedAnglePolygon } = this.config;
+    const { hasBoundary, 
+            boundaryPolygon, 
+            limitedRadiusCircle, 
+            limitedAnglePolygon } = this.config;
     
     
     // Step 5 - Intersect boundary
@@ -190,7 +193,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // need three points (6 coords) to form a polygon to intersect
     if(this.points.length < 6) return;
     
-    if(!this.config.hasBoundary) return;
+    if(!hasBoundary) return;
     
     let poly = this;
     
@@ -202,7 +205,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       poly = this._intersectPolygons(poly, limitedAnglePolygon);
     }
     
-    if(limitedRadiusCircle & !boundaryPolygon) {
+    if(limitedRadiusCircle && !boundaryPolygon) {
       poly = this._intersectPolygons(poly, limitedRadiusCircle)
     }
     
