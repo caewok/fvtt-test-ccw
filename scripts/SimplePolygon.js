@@ -361,12 +361,13 @@ export class SimplePolygon extends PIXI.Polygon {
   } 
   
  /**
-  * Test if this polygon encompasses another
-  * Only works if you already know that the polygons do not intersect.
-  * @param {PIXI.Polygon} other_poly
+  * Test if this polygon could encompasses another
+  * Only certain to encompass if you already know that the polygons do not intersect.
+  * @param {PIXI.Polygon} other
+  * @return {boolean} True if this polygon could possibly encompass the other.
   */
-  encompassesPolygon(other_poly) {
-    const iter = other_poly.iteratePoints();
+  encompassesPolygon(other) {
+    const iter = other.iteratePoints();
     for(const pt of iter) {
       if(!this.contains(pt.x, pt.y)) return false;
     }
