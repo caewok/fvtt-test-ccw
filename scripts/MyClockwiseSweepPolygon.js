@@ -337,8 +337,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       // Restrict vertices outside the bounding box
       //const bbox = this.config.bbox;
       for(let vertex of this.vertices.values()) {
-        const is_outside = this._vertexOutsideBoundary(vertex)
-        if(is_outside) this.vertices.delete(vertex.key);
+        vertex.is_outside = this._vertexOutsideBoundary(vertex);
       }
     }
     // *** END NEW ***
@@ -411,6 +410,12 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const vertices = this._sortVertices();
     for ( const [i, vertex] of vertices.entries() ) {
 
+      let result
+      if(vertex.is_outside) {
+        result = { target: vertex,
+                   cwEdges: vertex.cwEdges, 
+                   ccwEdges: vertex.ccwEdges };
+      } else {
       // Construct a ray towards the target vertex
       vertex._index = i+1;
       
@@ -424,7 +429,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
 
       // Construct the CollisionResult object
-      const result = ray.result = new CollisionResult({
+        result = ray.result = new CollisionResult({
         target: vertex,
         cwEdges: vertex.cwEdges,
         ccwEdges: vertex.ccwEdges,
@@ -435,6 +440,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
       // Delegate to determine the result of the ray
       this._determineRayResult(ray, vertex, result, activeEdges);
+      }
 
       // Update active edges for the next iteration
       this._updateActiveEdges(result, activeEdges);
@@ -1079,7 +1085,6 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       
     if(poly2 instanceof PIXI.Circle) 
       return poly2.polygonIntersect(poly1, { density: this.config.density });  
-      
       
     if(this.config.intersectMethod === "clipper") {
       return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });  
