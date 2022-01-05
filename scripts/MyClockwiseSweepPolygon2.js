@@ -353,8 +353,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       // Restrict vertices outside the bounding box
       //const bbox = this.config.bbox;
       for(let vertex of this.vertices.values()) {
-        const is_outside = this._vertexOutsideBoundary(vertex)
-        if(is_outside) this.vertices.delete(vertex.key);
+        vertex.is_outside = this._vertexOutsideBoundary(vertex);
       }
     }
     // *** END NEW ***
@@ -426,31 +425,38 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // Sort vertices from clockwise to counter-clockwise and begin the sweep
     const vertices = this._sortVertices();
     for ( const [i, vertex] of vertices.entries() ) {
-
-      // Construct a ray towards the target vertex
-      vertex._index = i+1;
+    
+      let result
+      if(vertex.is_outside) {
+        result = { target: vertex,
+                   cwEdges: vertex.cwEdges, 
+                   ccwEdges: vertex.ccwEdges };
+      } else {
+        // Construct a ray towards the target vertex
+        vertex._index = i+1;
       
-      // *** NEW ***
-      const ray = Ray.towardsPointSquared(origin, vertex, radiusMax2);
-      // *** END NEW ***
+        // *** NEW ***
+        const ray = Ray.towardsPointSquared(origin, vertex, radiusMax2);
+        // *** END NEW ***
       
-      this.rays.push(ray);
+        this.rays.push(ray);
 
-      // Determine whether the target vertex is behind some other active edge
-      const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
+        // Determine whether the target vertex is behind some other active edge
+        const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
 
-      // Construct the CollisionResult object
-      const result = ray.result = new CollisionResult({
-        target: vertex,
-        cwEdges: vertex.cwEdges,
-        ccwEdges: vertex.ccwEdges,
-        isLimited: vertex.isLimited, // *** NEW ***: No isRequired
-        isBehind,
-        wasLimited
-      });
-
-      // Delegate to determine the result of the ray
-      this._determineRayResult(ray, vertex, result, activeEdges);
+        // Construct the CollisionResult object
+        result = ray.result = new CollisionResult({
+          target: vertex,
+          cwEdges: vertex.cwEdges,
+          ccwEdges: vertex.ccwEdges,
+          isLimited: vertex.isLimited, // *** NEW ***: No isRequired
+          isBehind,
+          wasLimited
+        });
+    
+        // Delegate to determine the result of the ray
+        this._determineRayResult(ray, vertex, result, activeEdges);
+      }
 
       // Update active edges for the next iteration
       this._updateActiveEdges(result, activeEdges);
