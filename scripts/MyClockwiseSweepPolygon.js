@@ -805,27 +805,27 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const boundaries = [...canvas.walls.boundaries];
     
     
-    if(this.config.debug) {
-      // debug: confirm boundaries are ordered as expected
-      if(boundaries[0]._nw.key !== 6553500 ||
-         boundaries[0]._se.key !== -399769700 ||
-         boundaries[1]._nw.key !== -399769700 ||
-         boundaries[1]._se.key !== 399774300 ||
-         boundaries[2]._nw.key !== -6548900 ||
-         boundaries[2]._se.key !== 399774300 ||
-         boundaries[3]._nw.key !== 6553500 || 
-         boundaries[3]._se.key !== -6548900) {
-       
-         log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
-       
-         }
-       
-      // debug: confirm angles are arranged as expected   
-      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0 && angle < 180 ||
-         foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) > 0 && angle > 180) {
-        log(`_limitedAnglePolygon: angles not arranged as expected.`);
-      } 
-    }
+//     if(this.config.debug) {
+//       // debug: confirm boundaries are ordered as expected
+//       if(boundaries[0].nw.key !== 6553500 ||
+//          boundaries[0].se.key !== -399769700 ||
+//          boundaries[1].nw.key !== -399769700 ||
+//          boundaries[1].se.key !== 399774300 ||
+//          boundaries[2].nw.key !== -6548900 ||
+//          boundaries[2].se.key !== 399774300 ||
+//          boundaries[3].nw.key !== 6553500 || 
+//          boundaries[3].se.key !== -6548900) {
+//        
+//          log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
+//        
+//          }
+//        
+//       // debug: confirm angles are arranged as expected   
+//       if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0 && angle < 180 ||
+//          foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) > 0 && angle > 180) {
+//         log(`_limitedAnglePolygon: angles not arranged as expected.`);
+//       } 
+//     }
     
     // token rotation: 
     // north is 180º (3.1415 or π radians)
