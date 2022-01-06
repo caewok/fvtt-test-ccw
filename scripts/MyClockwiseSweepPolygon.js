@@ -26,7 +26,7 @@ ClipperLib
 //import { SimplePolygon } from "./SimplePolygon.js";
 //import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY } from "./utilities.js";
-import { SimplePolygonEdge, SimplePolygon, SimplePolygonVertex } from "./SimplePolygon.js";
+import { SimplePolygonEdge, SimplePolygon } from "./SimplePolygon.js";
 
 /*
 Basic concept: 
@@ -432,8 +432,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       vertex._index = i+1;
       
       // *** NEW ***
-      const target = { x: vertex._actualX ?? vertex.x, y: vertex._actualY ?? vertex.y }
-      const ray = Ray.towardsPointSquared(origin, target, radiusMax2);
+      const ray = Ray.towardsPointSquared(origin, vertex, radiusMax2);
       // *** END NEW ***
       
       this.rays.push(ray);
@@ -614,7 +613,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       if ( !x || (x.t0 <= minimumDistance) ) continue; // Require minimum distance
 
       // Get a unique collision point
-      let c = SimplePolygonVertex.fromPoint(x, {distance: x.t0});
+      let c = PolygonVertex.fromPoint(x, {distance: x.t0});
       if ( points.has(c.key) ) c = points.get(c.key);
       else {
         points.set(c.key, c);
@@ -1056,7 +1055,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   */
   _registerIntersection(edge, other, intersection) {
     // Register the intersection point as a vertex
-    let v = SimplePolygonVertex.fromPoint(intersection);
+    let v = PolygonVertex.fromPoint(intersection);
     if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
     else {
       // Ensure the intersection is still inside our limited angle

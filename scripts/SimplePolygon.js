@@ -25,18 +25,6 @@ Get intersection or union by clockwise walk along points.
 Use integer keys to determine shared coordinates.
 */
 
-/** 
- * Overload PolygonVertex to store the original floating point coordinates.
- * Useful for shooting rays, where points close the origin can result in different angles.
- */
-export class SimplePolygonVertex extends PolygonVertex {
-  constructor(x, y, {distance, index}={}) {
-    super(x, y, {distance, index});
-    this._actualX = x;
-    this._actualY = y;
-  }
-}
-
 
 /*
 intersectsWith: three options when temp edges are used in combination with existing walls
@@ -71,8 +59,8 @@ export class SimplePolygonEdge extends PolygonEdge {
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
     super(a, b, type, wall);
     
-    this.A = new SimplePolygonVertex(a.x, a.y);
-    this.B = new SimplePolygonVertex(b.x, b.y);
+    this.A = new PolygonVertex(a.x, a.y);
+    this.B = new PolygonVertex(b.x, b.y);
         
     // Track wall ids if this edge corresponds to existing wall
     // This replaces wallEdgeMap in ClockwiseSweep.
@@ -272,7 +260,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   * @private
   */
   _addIntersectionPoint(other, p) {
-    const v = new SimplePolygonVertex(p.x, p.y) 
+    const v = new PolygonVertex(p.x, p.y) 
     v.edges = new Map();
     v.edges.set(this, other);
     v.edges.set(other, this);
