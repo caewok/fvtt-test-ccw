@@ -16,7 +16,8 @@ NormalizedRectangle,
 CollisionResult,
 PIXI,
 CONFIG,
-ClipperLib
+ClipperLib,
+PolygonVertex
 
 */
 
@@ -82,6 +83,9 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   initialize(origin, config) {  
     super.initialize(origin, config);
     const cfg = this.config;
+    
+    this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
+    
  
     // Reset certain configuration values from what ClockwiseSweep did.
     
@@ -794,12 +798,22 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   _limitedAnglePolygon() {
     const { angle, rotation, radiusMax } = this.config;
     
-    // move the origin one pixel back from actual origin, so the limited angle polygon
+    // move the origin slightly back from actual origin, so the limited angle polygon
     // includes the origin
+    
+    // trick here is that origin and this shifted origin may both be floating point, 
+    // but ray intersections use PolygonVertex, which will round target vertex 
+    // to an integer. This will cause the ray shot from this.origin to the 
+    // shifted origin to move around wildly when, say, dragging a light with
+    // CONFIG.debug.polygons = true. 
+    // We would prefer to stay in line with the origin so the angles better match. 
+    // With that in mind, _initialize now rounds origin to the nearest point.
+    // Here, we also round the origin offset. 
+    // 
     
     const r = Ray.fromAngle(this.origin.x, this.origin.y, 
                             Math.toRadians(rotation + 90), -1)
-    const origin = r.B;
+    const origin = { x: Math.round(r.B.x), y: Math.round(r.B.y) };
             
     const aMin = Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2)));
     const aMax = aMin + Math.toRadians(angle);
