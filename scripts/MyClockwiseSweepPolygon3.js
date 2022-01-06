@@ -88,6 +88,18 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     super.initialize(origin, config);
     const cfg = this.config;
  
+    // *** NEW ***: Round origin b/c:
+    // Origin can be non-integer in certain situations (like when dragging lights)
+    // - we want a consistent angle when calculating the limited angle polygon
+    // - we want a consistent straight ray from origin to the bounding box edges.
+    // (Could be handled by drawing rays to floating point vertices, but this is the 
+    //  simpler option.)
+    //
+    // TO-DO: Rounding origin implies that ClockwiseSweep should only be called when the 
+    // origin has moved 1+ pixels in either x or y direction.
+    this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
+    
+ 
     // Reset certain configuration values from what ClockwiseSweep did.
     
     // Configure limited radius same as ClockwiseSweep.
@@ -217,7 +229,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
          this._isClosed = poly._isClosed;
          this._isConvex = poly._isConvex;
          this._isClockwise = poly._isClockwise;  
-       } else if(hasBoundary) {
+       } else if(this.config.hasBoundary) {
          console.warn(`CW2|hasBoundary but poly is undefined.`, this)
        }
     }      
@@ -756,6 +768,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       const r = ray.result;
       if ( !r ) continue;
       dg.lineStyle(2, 0x00FF00, r.collisions.length ? 1.0 : 0.33).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
+            
       for ( let c of r.collisions ) {
         dg.lineStyle(1, 0x000000).beginFill(0xFF0000).drawCircle(c.x, c.y, 6).endFill();
       }
@@ -826,12 +839,22 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
   _limitedAnglePolygon() {
     const { angle, rotation, radiusMax } = this.config;
     
-    // move the origin one pixel back from actual origin, so the limited angle polygon
+    // move the origin slightly back from actual origin, so the limited angle polygon
     // includes the origin
   
+    // trick here is that origin and this shifted origin may both be floating point, 
+    // but ray intersections use PolygonVertex, which will round target vertex 
+    // to an integer. This will cause the ray shot from this.origin to the 
+    // shifted origin to move around wildly when, say, dragging a light with
+    // CONFIG.debug.polygons = true. 
+    // We would prefer to stay in line with the origin so the angles better match. 
+    // With that in mind, _initialize now rounds origin to the nearest point.
+    // Here, we also round the origin offset. 
+    // 
+    
     const r = Ray.fromAngle(this.origin.x, this.origin.y, 
                             Math.toRadians(rotation + 90), -1)
-    const origin = r.B;
+    const origin = { x: Math.round(r.B.x), y: Math.round(r.B.y) };
         
     const aMin = Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2)));
     const aMax = aMin + Math.toRadians(angle);
@@ -1012,7 +1035,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
      //  but that would be a lot more unnecessary edges)
      
      if(!boundaryPolygon && hasLimitedAngle) {
-       const ptsIter = limitedAnglePolygon.iteratePoints();
+       const ptsIter = limitedAnglePolygon.iteratePoints(); // includes close
        let prevPt = ptsIter.next().value;
        for(const pt of ptsIter) {
          boundary_edges.push(new SimplePolygonEdge(prevPt, pt));

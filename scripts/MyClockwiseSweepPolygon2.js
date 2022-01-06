@@ -85,6 +85,16 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
   initialize(origin, config) {  
     super.initialize(origin, config);
     const cfg = this.config;
+    
+    // *** NEW ***: Round origin b/c:
+    // Origin can be non-integer in certain situations (like when dragging lights)
+    // - we want a consistent angle when calculating the limited angle polygon
+    // - we want a consistent straight ray from origin to the bounding box edges.
+    // (Could be handled by drawing rays to floating point vertices, but this is the 
+    //  simpler option.)
+    // TO-DO: Rounding origin implies that ClockwiseSweep should only be called when the 
+    // origin has moved 1+ pixels in either x or y direction.    
+    this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
  
     // Reset certain configuration values from what ClockwiseSweep did.
     

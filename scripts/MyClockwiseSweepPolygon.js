@@ -84,6 +84,14 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     super.initialize(origin, config);
     const cfg = this.config;
     
+    // *** NEW ***: Round origin b/c:
+    // Origin can be non-integer in certain situations (like when dragging lights)
+    // - we want a consistent angle when calculating the limited angle polygon
+    // - we want a consistent straight ray from origin to the bounding box edges.
+    // (Could be handled by drawing rays to floating point vertices, but this is the 
+    //  simpler option.)
+    // TO-DO: Rounding origin implies that ClockwiseSweep should only be called when the 
+    // origin has moved 1+ pixels in either x or y direction.
     this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
     
  
@@ -175,7 +183,6 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // Step 3 - Radial sweep over endpoints
     this._executeSweep();
     
-    // *** NEW ***: No Step 4 (_constructPolygonPoints)
     // Step 4 - Build polygon points
     this._constructPolygonPoints();
         
@@ -476,7 +483,8 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const rStart = this.config.rStart; // *** NEW ***
     const edges = new Set();
     for ( let edge of this.edges.values() ) {
-      const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);  // *** NEW ***
+      // *** NEW ***: rStart
+      const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);  
       if ( x ) edges.add(edge);
     }
     return edges;
@@ -824,13 +832,6 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // store rMin and rMax for visualization
     this.config.rMin = rMin;
     this.config.rMax = rMax;
-    
-//     if(this.config.debug) {
-//       console.log(`_limitedAnglePolygon|\n
-//       origin        ${origin.x}, ${origin.y}\n
-//       offset origin ${this.origin.x}, ${this.origin.y}\n
-//       offset angle:  ${r.angle} aMin: ${aMin} aMax: ${aMax}`);
-//     }
     
     const pts = [origin.x, origin.y];
     
