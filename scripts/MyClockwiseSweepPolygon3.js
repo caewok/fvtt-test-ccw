@@ -437,6 +437,9 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       // *** NEW ***
       vertex._index = i+1;
       
+      if(!activeEdges.size) 
+        console.warn(`_executeSweep activeEdges size is 0 for vertex ${vertex._index}`);
+      
       // *** NEW ***: construct basic collision result
       const result = new CollisionResult({
         target: vertex,
