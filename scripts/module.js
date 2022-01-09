@@ -13,6 +13,8 @@ import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
+import { ActiveEdges } from "./ActiveEdgesIterator.js";
+
 import * as ClipperLib from "./lib/clipper_unminified.js";
  
 export const MODULE_ID = 'testccw';
@@ -74,7 +76,9 @@ Hooks.once('init', async function() {
     
     SimplePolygon: SimplePolygon,
     SimplePolygonVertex: PolygonVertex,
-    SimplePolygonEdge: SimplePolygonEdge
+    SimplePolygonEdge: SimplePolygonEdge,
+    
+    ActiveEdges: ActiveEdges
     
     }
 });
