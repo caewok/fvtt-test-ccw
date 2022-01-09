@@ -189,7 +189,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     this._executeSweep();
     
     // Step 4 - Build polygon points
-    this._constructPolygonPoints();
+//     this._constructPolygonPoints();
     
     if(this.config.debug) { this._sweepPoints = [...this.points]; }
     
@@ -595,7 +595,9 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
      // Case 5 - Non-limited edges in both directions
     // edge -> edge
     if ( activeEdges.size && !ccwLimited && !cwLimited && ncw && nccw ) {
-      this.collisions.push(result.target) // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
+      //this.collisions.push(result.target) 
+      this.points.push(result.target.x, result.target.y);
+      
       return;
       //return result.collisions.push(result.target);
     }
@@ -610,7 +612,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // empty -> limited
     if ( !activeEdges.size || !nccw ) {
       this._beginNewEdge(ray, result, activeEdges, isBinding);
-      this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+//       this.collisions.push(...result.collisions);
       return;
     }
 
@@ -621,7 +623,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> empty
     if ( !ncw || (nccw && !ccwLimited) ) {
       this._completeCurrentEdge(ray, result, activeEdges, isBinding);
-      this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+//       this.collisions.push(...result.collisions);
       return;
     }
 
@@ -629,10 +631,66 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> edge
     
     this._beginNewEdge(ray, result, activeEdges, isBinding);
-    this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+//     this.collisions.push(...result.collisions); 
     return;
     
   }
+  
+  /**
+   * Jump to a new closest active edge.
+   * In this case, our target vertex will be the primary collision.
+   * We may have a secondary collision if other active edges exist or if the vertex is prior to the ray endpoint.
+   * @private
+   *
+   * @param {Ray} ray                   The ray being emitted
+   * @param {CollisionResult} result    The pending collision result
+   * @param {EdgeSet} activeEdges       The set of currently active edges
+   * @param {boolean} isBinding         Is the target vertex a binding collision point?
+   * @param {boolean} secondaryBefore   Whether to add secondary collision points before ("unshift") or after ("push")
+   */
+  _beginNewEdge(ray, result, activeEdges, isBinding, secondaryBefore=true) {
+
+    // We know we will strike this vertex
+    if ( isBinding ) {
+      result.collisions.push(result.target);
+      this.points.push(result.target.x, result.target.y) 
+    }
+
+    // Find secondary collisions against known edges
+    const xs = this._getSecondaryCollisions(ray, result, activeEdges);
+    if ( !xs.length ) return;
+    const x0 = xs[0];
+
+    // Toggle the insertion method
+    const c = result.collisions;
+    const insert = secondaryBefore ? c.unshift : c.push;
+    
+    const p = this.points;
+    const insertPoints = secondaryBefore ? p.unshift : p.push;
+
+    // If there were no active walls, we hit the terminal point
+    if ( !activeEdges.size ) {
+      insert.call(c, x0);
+      insertPoints.call(c, x0.x, x0.y);
+      return;
+    }
+      
+
+    // Is the first collision point necessary?
+    const isLimitedEdge = (x0.edges.size === 1) && x0.hasLimitedEdge; // Exactly 1 active edge
+    if ( !isBinding && !isLimitedEdge ) return;
+    insert.call(c, x0);
+    insertPoints.call(c, x0.x, x0.y);
+
+    // If we already encountered a limited edge, this was the final collision
+    if ( !isLimitedEdge || result.wasLimited ) return;
+
+    // Otherwise we have a secondary collision as long as it's not somehow equal to the target vertex
+    if ( xs[1] ) {
+      insert.call(c, xs[1]);
+      insertPoints.call(c, xs[1].x, xs[1].y);
+    }
+  }  
  
   /* -------------------------------------------- */
 
