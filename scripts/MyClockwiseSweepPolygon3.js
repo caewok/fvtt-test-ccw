@@ -707,7 +707,13 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 //         this.points.push(c.x, c.y);
 //       }
 //     }
-    this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
+
+    // flatMap is slow; use loop instead
+    // this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
+    for(const pt of this.collisions) {
+      this.points.push(pt.x, pt.y);
+    }
+    
   }   
   
   /* -------------------------------------------- */
