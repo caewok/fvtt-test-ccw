@@ -11,6 +11,17 @@ foundry
 // - a_end_index stays the same or increase, circling back to 0+.
 // - b_end_index stays the same or increase, circling back to 0+.
 
+// union of active edge sets doesn't work, where:
+//   aEdges: From the current vertex or nearest prior A vertex, move backward.
+//           Stop when an edge's B vertex is CCW. All intervening in active edge set.
+//   bEdges: From the current vertex or nearest next B vertex, move forward.
+//           Stop when an edge's A vertex is CW. All intervening in active edge set.
+// Issue is that when scanning from the current vertex, 
+// a short edge will have a CCW B vertex, while a longer edge (say, the canvas edge) 
+// will still be active.
+
+// Instead, must get the intersection of edges
+
 export class ActiveEdges {
   constructor(sorted_vertices, origin, starting_idx = 0) {
     this.vertices = sorted_vertices;
