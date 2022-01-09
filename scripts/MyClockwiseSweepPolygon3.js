@@ -593,11 +593,11 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> limited
     const ccwLimited = !result.wasLimited && (nccw === 1) && vertex.ccwEdges.first().isLimited;
     const cwLimited = !result.wasLimited && (ncw === 1) && vertex.cwEdges.first().isLimited;
-    if ( activeEdges.size && cwLimited && ccwLimited ) return;
+    if ( cwLimited && ccwLimited ) return;
     
      // Case 5 - Non-limited edges in both directions
     // edge -> edge
-    if ( activeEdges.size && !ccwLimited && !cwLimited && ncw && nccw ) {
+    if ( !ccwLimited && !cwLimited && ncw && nccw ) {
       this.collisions.push(result.target) // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
       return;
       //return result.collisions.push(result.target);
@@ -611,7 +611,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // Case 3 - If there are no counter-clockwise edges we must be beginning traversal down a new edge
     // empty -> edge
     // empty -> limited
-    if ( !activeEdges.size || !nccw ) {
+    if ( !nccw ) {
       this._beginNewEdge(ray, result, activeEdges, isBinding);
       this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
       return;
