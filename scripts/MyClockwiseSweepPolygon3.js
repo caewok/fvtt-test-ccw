@@ -28,6 +28,7 @@ ClipperLib
 //import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY, lineBlocksPoint } from "./utilities.js";
 import { SimplePolygonEdge, SimplePolygon } from "./SimplePolygon.js";
+import { ActiveEdges } from "./ActiveEdgesIterator.js";
 
 /*
 Basic concept: 
@@ -433,12 +434,23 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     // Sort vertices from clockwise to counter-clockwise and begin the sweep
     const vertices = this._sortVertices();
+    
+    const ae = new ActiveEdges(vertices, this.origin);
+    this.blockingEdges = new Set();
+    this.limitedEdges = new Set();
+    
     for ( const [i, vertex] of vertices.entries() ) {
       // *** NEW ***
       vertex._index = i+1;
       
       if(!activeEdges.size) 
         console.warn(`_executeSweep activeEdges size is 0 for vertex ${vertex._index}`);
+      
+      if(this.config.debug) {
+        console.log(`\nStarting Vertex ${vertex._index}`);
+        ae.listEdges([...this.blockingEdges], "Blocking edges: ");
+        ae.listEdges([...this.limitedEdges], "Limited edges: ");      
+      }
       
       // *** NEW ***: construct basic collision result
       const result = new CollisionResult({
@@ -579,6 +591,12 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     // Case 2 - Some vertices can be ignored because they are behind other active edges
     if ( result.isBehind ) return;
+    
+    // vertex ccwEdges drop out of the blocking and limited tracking sets
+    if(this.blockingEdges.size) 
+      this.blockingEdges = this.blockingEdges.diff(vertex.ccwEdges);
+    if(this.limitedEdges.size) 
+      this.limitedEdges = this.limitedEdges.diff(vertex.ccwEdges);
 
     // Determine whether this vertex is a binding point
     const nccw = vertex.ccwEdges.size;
@@ -593,12 +611,17 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> limited
     const ccwLimited = !result.wasLimited && (nccw === 1) && vertex.ccwEdges.first().isLimited;
     const cwLimited = !result.wasLimited && (ncw === 1) && vertex.cwEdges.first().isLimited;
-    if ( cwLimited && ccwLimited ) return;
-    
+    if ( cwLimited && ccwLimited ) {
+      if(this.config.debug) { console.log(`Case 4`); }
+      this.blockingEdges = this.vertex.cwEdges;
+      return;
+    }
      // Case 5 - Non-limited edges in both directions
     // edge -> edge
     if ( !ccwLimited && !cwLimited && ncw && nccw ) {
       this.collisions.push(result.target) // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
+      if(this.config.debug) { console.log(`Case 5`); }
+      this.blockingEdges = result.target.cwEdges;
       return;
       //return result.collisions.push(result.target);
     }
@@ -633,9 +656,114 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     
     this._beginNewEdge(ray, result, activeEdges, isBinding);
     this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+        
     return;
     
   }
+
+  /* -------------------------------------------- */
+ 
+  /**
+   * Jump to a new closest active edge.
+   * In this case, our target vertex will be the primary collision.
+   * We may have a secondary collision if other active edges exist or if the vertex is prior to the ray endpoint.
+   * @private
+   *
+   * @param {Ray} ray                   The ray being emitted
+   * @param {CollisionResult} result    The pending collision result
+   * @param {EdgeSet} activeEdges       The set of currently active edges
+   * @param {boolean} isBinding         Is the target vertex a binding collision point?
+   * @param {boolean} secondaryBefore   Whether to add secondary collision points before ("unshift") or after ("push")
+   */
+  _beginNewEdge(ray, result, activeEdges, isBinding, secondaryBefore=true) {
+
+    // We know we will strike this vertex
+    if ( isBinding ) result.collisions.push(result.target);
+    
+    // target edge is front until proven otherwise
+    //this.blockingEdges = result.target.cwEdges;
+
+    // Find secondary collisions against known edges
+    const xs = this._getSecondaryCollisions(ray, result, activeEdges);
+    //if ( !xs.length ) return; // this cannot happen if we have boundaries.
+    const x0 = xs[0];
+
+    // Toggle the insertion method
+    const c = result.collisions;
+    const insert = secondaryBefore ? c.unshift : c.push;
+
+    // following test cannot happen if we have boundaries. 
+    // If there were no active walls, we hit the terminal point
+    //if ( !activeEdges.size ) return insert.call(c, x0);
+
+    // Is the first collision point necessary?
+    const isLimitedEdge = (x0.edges.size === 1) && x0.hasLimitedEdge; // Exactly 1 active edge
+    if ( !isBinding && !isLimitedEdge ) { 
+      // secondaryBefore: x0, result (non-binding) (beginning edge)
+      // !secondaryBefore: result (non-binding), x0 (completing edge)
+      if(secondaryBefore) {
+        this.blockingEdges = x0.cwEdges;
+        this.limitedEdges = result.target.cwEdges;
+      } else {
+        // completing, so ignore the result
+        this.blockingEdges = x0.cwEdges;      
+      }
+          
+      return;   
+    }
+    insert.call(c, x0);
+        
+
+    // If we already encountered a limited edge, this was the final collision
+    if ( !isLimitedEdge || result.wasLimited ) { 
+      // secondaryBefore: x0, result (beginning edge)
+      // !secondaryBefore: result, x0 (completing edge)
+    
+      // one intersection plus the result. 
+      if(secondaryBefore) {
+        // if secondaryBefore, we are beginning an edge.        
+        if(isBinding) {
+          // target is the blocking edge if binding.
+          this.blockingEdges = result.target.cwEdges;
+        } else {
+          // target is the limited edge if not binding.
+          // intersection must block
+          this.limitedEdges = result.target.cwEdges;
+          this.blockingEdges = x0.cwEdges;
+        }
+      } else {
+        // if not secondaryBefore, we are ending an edge.
+        // ignore target
+        // intersection must block
+        this.blockingEdges = x0.cwEdges;
+      }
+     
+      return; 
+    
+    }
+    
+    // Otherwise we have a secondary collision as long as it's not somehow equal to the target vertex
+    const x1 = xs[1];
+    if ( x1 ) { 
+      insert.call(c, x1); 
+      
+      // secondaryBefore: x1, x0 (non-binding), result (non-binding) (beginning edge)
+      // !secondaryBefore: result, x0 (non-binding), x1 (ending edge)
+      if(secondaryBefore) {
+        this.blockingEdges = x0.cwEdges;
+        this.limitedEdges = result.target.cwEdges;
+      } else {
+        this.blockingEdges = x1.cwEdges;
+        this.limitedEdges = x0.cwEdges;
+      }
+      
+      return; 
+    } 
+    
+    console.warn("Reached end of _beginNewEdge.");
+    
+  }
+ 
  
   /* -------------------------------------------- */
 
