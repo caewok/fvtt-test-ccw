@@ -268,6 +268,7 @@ export class ActiveEdges {
   * @return {string} Label in form of A|B.
   */ 
   edgeLabel(edge) {
+    if(!edge) return ``;
     const a = this.vertices.findIndex(v => v.key === edge.A.key) + 1;
     const b = this.vertices.findIndex(v => v.key === edge.B.key) + 1;
     return `${a}|${b}`;
