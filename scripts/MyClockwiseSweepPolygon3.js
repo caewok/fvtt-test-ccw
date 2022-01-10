@@ -697,7 +697,14 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     // Find secondary collisions against known edges
     const xs = this._getSecondaryCollisions(ray, result, activeEdges);
-    //if ( !xs.length ) return; // this cannot happen if we have boundaries.
+    if ( !xs.length ) {
+      if ( isBinding ) {
+        this.blockingEdges = result.target.cwEdges;
+      } else {
+        this.limitedEdges = result.target.cwEdges;
+      }
+      return; 
+    }
     const x0 = xs[0];
 
     // Toggle the insertion method
