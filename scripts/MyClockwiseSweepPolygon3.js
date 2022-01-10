@@ -435,7 +435,10 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // Sort vertices from clockwise to counter-clockwise and begin the sweep
     const vertices = this._sortVertices();
     
-    const ae = new ActiveEdges(vertices, this.origin);
+    let ae = undefined;
+    if(this.config.debug) 
+      ae = new ActiveEdges(vertices, this.origin);
+      
     this.blockingEdges = new Set();
     this.limitedEdges = new Set();
     
@@ -443,22 +446,22 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       // *** NEW ***
       vertex._index = i+1;
       
- 
-      
       if(!activeEdges.size) 
         console.warn(`_executeSweep activeEdges size is 0 for vertex ${vertex._index}`);
       
       if(this.config.debug) {
         console.log(`\nStarting Vertex ${vertex._index}`);
+        
+        const ae_active_edges = ae.activeEdgeSet(i);
+        
         ae.listEdges([...this.blockingEdges], "Blocking edges: ");
         ae.listEdges([...this.limitedEdges], "Limited edges: ");  
         ae.listEdges([...activeEdges], "activeEdges: "); 
-      }
-      
-      const ae_active_edges = ae.activeEdgeSet(i);
-      if(!activeEdges.equals(ae_active_edges)) {
-        console.warn(`Active edges sets not equal.`);
-        ae.listEdges([...ae_active_edges], "AE: ");
+        
+        if(!activeEdges.equals(ae_active_edges)) {
+          console.warn(`Active edges sets not equal.`);
+          ae.listEdges([...ae_active_edges], "AE: ");
+        }
       }
       
       // *** NEW ***: construct basic collision result
