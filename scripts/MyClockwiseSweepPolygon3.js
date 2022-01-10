@@ -452,12 +452,12 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
         console.log(`\nStarting Vertex ${vertex._index}`);
         ae.listEdges([...this.blockingEdges], "Blocking edges: ");
         ae.listEdges([...this.limitedEdges], "Limited edges: ");  
-        ae.listEdges([...activeEdges], "activeEdges: ");    
+        ae.listEdges([...activeEdges], "activeEdges: "); 
       }
       
       const ae_active_edges = ae.activeEdgeSet(i);
       if(!activeEdges.equals(ae_active_edges)) {
-        console.log(`Active edges sets not equal.`);
+        console.warn(`Active edges sets not equal.`);
         ae.listEdges([...ae_active_edges], "AE: ");
       }
       

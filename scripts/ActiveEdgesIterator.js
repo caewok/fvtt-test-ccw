@@ -128,50 +128,56 @@ export class ActiveEdges {
   }
     
  /**
-  * Given a vertex index, get the set of active edges from the 
-  * aEdges or bEdges queue. Search the aEdge queue in reverse; bEdge queue forward 
+  * Given a vertex index, get the set of active edges from the respective queue.
   * aEdges: From the current vertex or nearest prior A vertex, move backward.
-  *         Stop when an edge's B vertex is CCW. All intervening in active edge set.
+  *         Add every edge whose A is ccw.
   * bEdges: From the current vertex or nearest next B vertex, move forward.
-  *         Stop when an edge's A vertex is CW. All intervening in active edge set.
+  *         Add every edge whose B is cw.
   *
   * As we progress forward in the vertex queue, the aEdge end index and bEdge end index
   * will both move forward. Thus, we can simply search forward from the last end index
   * if we have one available. Need to be careful about wrap-around, however.
   */
   activeEdges(vertex_idx, start_idx, type = "A") {
-    const end_idx = this.end_indices[type];
-    
-    //if(typeof end_idx === "undefined") 
+    let end_idx = this.end_indices[type];
+        
+    if(typeof end_idx === "undefined") 
       return this._activeEdgesNewSearch(vertex_idx, start_idx, type);
   
-    // with an end index, 
+      // with an end index, 
     // we can move forward until we pass the test, 
     // then add all edges between start index and end index.
     const test     = type === "A" ? this.aEdgeTest : this.bEdgeTest;
     const count_fn = this.circleForward;
     const edges = this.edges[type];
     const vertex = this.vertices[vertex_idx];
-        
+    
     const ln = edges.length;
+    if(end_idx === start_idx) end_idx = (end_idx + 1) % ln
+        
+    
     for(let i = 0; i < ln; i += 1) {
       const idx = count_fn(i, end_idx, ln);
       const edge = edges[idx];
       
-      if(test.call(this, vertex, edge)) {
+      const test_res = test.call(this, vertex, edge);
+      
+      if(type === "A" && !test_res) {
+        const count = !idx ? (ln - 1) : (idx - 1)
+        this.end_indices[type] = count;
+        break;
+      } else if(type === "B" && test_res) {
+        // for B, moving along normally like with _activeEdgesNewSearch
         this.end_indices[type] = idx;
         break;
-      }
+      } 
     }
     
     if(type === "A") {
-      // get between end and start
-      // inclusive of end index and start index
-      return new Set(this.wrappedSlice(edges, this.end_indices[type], start_idx + 1));
+      // exclude the end index edge and include the start edge.
+      return new Set(this.wrappedSlice(edges, this.end_indices[type] + 1, start_idx + 1));
     } else {
-      // get between start and end
-      // inclusive of end index and start index
-      return new Set(this.wrappedSlice(edges, start_idx, this.end_indices[type] + 1));
+      return new Set(this.wrappedSlice(edges, start_idx, this.end_indices[type]));
     }  
   }    
     
@@ -202,22 +208,24 @@ export class ActiveEdges {
    }
   
   /**
-   * Test for whether an aEdge should be in active set.
-   * We want to stop (return false) when we hit a ccw B vertex
+   * Test for whether an aEdge might be in active set.
+   * If A is ccw to o|v, A might be in the set of activeEdges.
+   * Return true if not in the set.
    */
    aEdgeTest(vertex, edge) {
      const origin = this.origin;
      // orient2d returns positive for ccw
-     return foundry.utils.orient2dFast(origin, vertex, edge.B) < 0;
+     return foundry.utils.orient2dFast(origin, vertex, edge.A) < 0;
    }
 
   /**
-   * Test for whether an bEdge should be in active set.
-   * We want to stop (return false) when we hit a cw A vertex
+   * Test for whether an bEdge might be in active set.
+   * If B is cw to o|v, B might be in the set of activeEdges
+   * Return true if not in the set.
    */
    bEdgeTest(vertex, edge) {
      const origin = this.origin;
-     return foundry.utils.orient2dFast(origin, vertex, edge.A) > 0;
+     return foundry.utils.orient2dFast(origin, vertex, edge.B) > 0;
    }
   
   /**
@@ -236,11 +244,8 @@ export class ActiveEdges {
       const idx = countfn(i, start_idx, ln);
       const edge = edges[idx];
       
-      if(!test.call(this, vertex, edge)) {
+      if(test.call(this, vertex, edge)) {
         // we have reached the end of active edges in this direction
-        // mark the immediately prior edge as the last true
-//         this.end_indices[type] = type === "A" ? (idx + 1) % ln : idx - 1;
-//         if(this.end_indices[type] < 0) { this.end_indices[type] += ln; }
         this.end_indices[type] = idx;
         return active_edges;
       }
@@ -265,7 +270,7 @@ export class ActiveEdges {
     // but subtract out the cwEdges of the vertex, which are technically not yet
     // part of the active edge set
     
-    const activeEdges = activeEdgesA.union(activeEdgesB);
+    const activeEdges = activeEdgesA.intersection(activeEdgesB);
     return activeEdges.diff(this.vertices[vertex_idx].cwEdges);
   }
   
