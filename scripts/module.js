@@ -6,6 +6,8 @@ import { testCCWBenchmarkSight }  from "./benchmark.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
+import { MyClockwiseSweepPolygon4 } from "./MyClockwiseSweepPolygon4.js";
+
 import { LinkedPolygon, LinkedPolygonVertex, LinkedPolygonEdge } from "./LinkedPolygon.js";
 import { SimplePolygon, SimplePolygonEdge } from "./SimplePolygon.js";
 
@@ -69,6 +71,7 @@ Hooks.once('init', async function() {
     MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
     MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
     MyClockwiseSweepPolygon3: MyClockwiseSweepPolygon3,
+    MyClockwiseSweepPolygon4: MyClockwiseSweepPolygon4,
     
     LinkedPolygon: LinkedPolygon,
     LinkedPolygonVertex: LinkedPolygonVertex,
