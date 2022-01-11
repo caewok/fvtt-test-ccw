@@ -452,16 +452,17 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       if(this.config.debug) {
         console.log(`\nStarting Vertex ${vertex._index}`);
         
-        const ae_active_edges = ae.activeEdgeSet(i);
+
         
         ae.listEdges([...this.blockingEdges], "Blocking edges: ");
         ae.listEdges([...this.limitedEdges], "Limited edges: ");  
         ae.listEdges([...activeEdges], "activeEdges: "); 
         
-        if(!activeEdges.equals(ae_active_edges)) {
-          console.warn(`Active edges sets not equal.`);
-          ae.listEdges([...ae_active_edges], "AE: ");
-        }
+        //  const ae_active_edges = ae.activeEdgeSet(i);
+//         if(!activeEdges.equals(ae_active_edges)) {
+//           console.warn(`Active edges sets not equal.`);
+//           ae.listEdges([...ae_active_edges], "AE: ");
+//         }
       }
       
       // *** NEW ***: construct basic collision result
@@ -595,58 +596,96 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    * @private
    */
   _determineRayResult(vertex, result, activeEdges) {
-    // *** NEW ***: No Case 1
     
-    if(vertex.is_outside) { return; }
-    
-    const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(vertex, activeEdges);
-    result.isBehind = isBehind;
-    result.wasLimited = wasLimited;
-    
-
-    // Case 2 - Some vertices can be ignored because they are behind other active edges
-    if ( result.isBehind ) return;
-    
-    // vertex ccwEdges drop out of the blocking and limited tracking sets
-    if(this.blockingEdges.size) 
-      this.blockingEdges = this.blockingEdges.diff(vertex.ccwEdges);
-    if(this.limitedEdges.size) 
-      this.limitedEdges = this.limitedEdges.diff(vertex.ccwEdges);
-
-    // Determine whether this vertex is a binding point
+    // Case 1: Vertex is outside the defined boundary
+    if(vertex.is_outside) { 
+      if(this.config.debug) { console.log(`Case 1`); }
+      return; 
+    }
+            
     const nccw = vertex.ccwEdges.size;
     const ncw = vertex.cwEdges.size;
+    
+    const ccwLimited = nccw === 1 && vertex.ccwEdges.first().isLimited;
+    const cwLimited = ncw === 1 && vertex.cwEdges.first().isLimited;
+
+    
+    // Case 2: Limited edges in both directions
+    // limited -> limited
+    // - must have a single limited edge on both sides of the vertex
+    // - this.limitedEdge must be the vertex ccwEdge
+    if(ccwLimited &&
+       cwLimited &&
+       // this.limitedEdges.size === 1 && // do we need this?
+       this.limitedEdges.has(vertex.ccwEdges.first())
+       ) {
+         
+      if(this.config.debug) { console.log(`Case 2`); }
+      this.limitedEdges = vertex.cwEdges;
+      return;
+    } 
+    
+    // Case 3: Non-limited edges in both directions
+    // edge -> edge
+    // - must have edges in both directions
+    // - must be non-limited in both directions
+    // - this.limitedEdge must be one of the vertex ccwEdge
+    if(!ccwLimited &&
+       !cwLimited && 
+       ncw && 
+       nccw && 
+       this.blockingEdges.has(vertex.ccwEdges.first())) {
+       
+      // is testing one blocking edge fine in the event we have 2+ blocking edges or
+      // 2+ vertex ccwEdges?
+      if(this.config.debug) { console.log(`Case 3`); }
+      this.blockingEdges = vertex.cwEdges;
+      this.collisions.push(result.target); 
+      return;
+    }
+    
+    // Case 4: Vertex is behind a blocking edge
+    const origin = this.origin;
+    for(const blocking_edge of this.blockingEdges) {
+      if(lineBlocksPoint(blocking_edge.A, blocking_edge.B, vertex, origin)) {
+        if(this.config.debug) { console.log(`Case 4`); }
+        result.isBehind = true;
+        return;
+      }
+    }
+    result.isBehind = false;
+    
+    // Case 5: Vertex is behind 2+ limited edges
+    // if it was behind a blocking edge, it would have been caught in Case 4.
+    let wasLimited = false;
+    for(const limited_edge of this.limitedEdges) {
+      if(lineBlocksPoint(limited_edge.A, limited_edge.B, vertex, origin)) {
+        if(wasLimited) {
+          if(this.config.debug) { console.log(`Case 5`); }
+          result.isBehind = true;
+          result.wasLimited = wasLimited;
+          return;
+          
+        }
+        wasLimited = true;        
+      }
+    }
+    result.wasLimited = wasLimited;
+    
     let isBinding = true;
     if ( result.isLimited ) {
       // Limited points can still be binding if there are two or more connected edges on the same side.
       if ( !result.wasLimited && (ncw < 2) && (nccw < 2) ) isBinding = false;
     }
-    
-    // Case 4 - Limited edges in both directions
-    // limited -> limited
-    const ccwLimited = !result.wasLimited && (nccw === 1) && vertex.ccwEdges.first().isLimited;
-    const cwLimited = !result.wasLimited && (ncw === 1) && vertex.cwEdges.first().isLimited;
-    if ( cwLimited && ccwLimited ) {
-      if(this.config.debug) { console.log(`Case 4`); }
-      this.blockingEdges = this.vertex.cwEdges;
-      return;
-    }
-     // Case 5 - Non-limited edges in both directions
-    // edge -> edge
-    if ( !ccwLimited && !cwLimited && ncw && nccw ) {
-      this.collisions.push(result.target) // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
-      if(this.config.debug) { console.log(`Case 5`); }
-      this.blockingEdges = result.target.cwEdges;
-      return;
-      //return result.collisions.push(result.target);
-    }
+        
+    if(this.config.debug) { console.log(`Need ray.`); }
     
     // *** NEW ***: Construct ray here, instead of in _executeSweep    
     const ray = Ray.towardsPointSquared(this.origin, vertex, this.config.radiusMax2);
     ray.result = result;
     this.rays.push(ray);
 
-    // Case 3 - If there are no counter-clockwise edges we must be beginning traversal down a new edge
+    // Case 6 - If there are no counter-clockwise edges we must be beginning traversal down a new edge
     // empty -> edge
     // empty -> limited
     if ( !nccw ) {
@@ -656,7 +695,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     }
 
 
-    // Case 6 - Complete edges which do not extend in both directions
+    // Case 7 - Complete edges which do not extend in both directions
     // edge -> limited
     // edge -> empty
     // limited -> empty
@@ -666,7 +705,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       return;
     }
 
-    // Case 7 - Otherwise we must be jumping to a new closest edge
+    // Case 8 - Otherwise we must be jumping to a new closest edge
     // limited -> edge
     
     this._beginNewEdge(ray, result, activeEdges, isBinding);
