@@ -286,10 +286,14 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
       // need to identify intersections with other edges
       // don't need to compare against each other b/c we know these boundaries
       // don't need canvas boundary because the bounding box will block
-      const edges_array = Array.from(this.edges.values());
-      edges_array.sort((a, b) => compareXY(a.nw, b.nw));
       
-      boundary_edges.forEach(e => e._identifyIntersections(edges_array, { sort: false }));
+      SimplePolygonEdge.findIntersections([...this.edges.values()],
+                                           boundary_edges)
+      
+//       const edges_array = Array.from(this.edges.values());
+//       edges_array.sort((a, b) => compareXY(a.nw, b.nw));
+//       
+//       boundary_edges.forEach(e => e._identifyIntersections(edges_array, { sort: false }));
       
       boundary_edges.forEach(e => this.edges.set(e.id, e));  
     
@@ -707,7 +711,11 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
 //         this.points.push(c.x, c.y);
 //       }
 //     }
-    this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
+    // flatMap is slow; use loop instead
+    // this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
+    for(const pt of this.collisions) {
+      this.points.push(pt.x, pt.y);
+    }
   }   
   
   /* -------------------------------------------- */
