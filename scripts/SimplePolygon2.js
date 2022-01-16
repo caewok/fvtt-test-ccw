@@ -11,6 +11,7 @@ CONST
 //import { log } from "./module.js";
 
 import { keyForPoint } from "./utilities.js";
+import { SimplePolygonEdge } from "./SimplePolygon.js";
 
 
 /**
@@ -200,9 +201,8 @@ export class SimplePolygonEdge2 extends PolygonEdge {
       if(other.max_x < this.min_x) continue;
     
       // if we reach the right end of this edge, we can skip the rest
-      //if(other.nw.x > this.se.x) break;
+      if(other.min_x > this.max_x) break;
       
-    
       id_method.call(this, other);
     }
   }
@@ -346,7 +346,7 @@ export class SimplePolygon2 extends PIXI.Polygon {
     let currPt;
     let prevEdge;
     while( (currPt = ptsIter.next().value) ) {
-      const currEdge = new SimplePolygonEdge2(prevPt, currPt);
+      const currEdge = new SimplePolygonEdge(prevPt, currPt);
       if(prevEdge) { 
         prevEdge.next = currEdge; 
         currEdge.prev = prevEdge;
@@ -488,120 +488,96 @@ export class SimplePolygon2 extends PIXI.Polygon {
   * @return {number[]} Points array, in format [x0, y0, x1, y1, ...]
   * @private
   */ 
-  static _tracePolygon(poly1, poly2, { clockwise = true } = {}) {
+ static _tracePolygon(poly1, poly2, { clockwise = true } = {}) {
   
-    SimplePolygonEdge2.findIntersections(poly1.edges, poly2.edges, {intersecting_polygons: true});
+    SimplePolygonEdge.findIntersections(poly1.edges, poly2.edges, {intersecting_polygons: true});
     
-    const first_edge = poly1.edges.find(e => e.intersectionKeys.size);
-    if(!first_edge) return [];
+    // start at the first poly1 intersection that is not at an A vertex
+    let curr_edge = poly1.edges.find(e => e.intersectionKeys.size &&
+                                             !e.intersectionKeys.has(e.A.key));
+                                             
+    // if no intersections, can return
+    if(!curr_edge) return [];
     
+    // set up starting conditions
     const pts = [];
+    const first_ix = curr_edge.orderedIntersections[0];
+//     if(!first_ix.equals(curr_edge.B)) {
+//       pts.push(first_ix.x, first_ix.y);
+//     }
         
-    let curr_edge = first_edge;
-        
-    let next_x_i = 1;
-    let curr_pt = first_edge.orderedIntersections[0];
-        
-    const first_vertex = curr_pt;
-    const first_vertex_key = first_vertex.key;
-    
+    // following ensures we don't get stuck in an infinite loop due to some error.
     const max_iterations = poly1.points.length / 2 + poly2.points.length / 2 + 1;
     let i;
+    loop1:
     for(i = 0; i < max_iterations; i += 1) {
-    //for(i = 0; i < 6; i += 1) {
-      // each iteration should add one intersection point to the points array
-      // each iteration may also add vertices A and B
-//       drawVertex(curr_pt)
-//       i += 1
-      
-      if(curr_pt.key === first_vertex_key && i > 0) break;
-      
-      pts.push(curr_pt.x, curr_pt.y);
-      
-      // Process intersections
-      if(next_x_i) {
-        // we are at an intersection. Determine if we need to move to other polygon
+    
+      // for a given current edge, we may have multiple intersections
+      // test if we are at an intersection
+      let num_ix = curr_edge.intersectionKeys.size;
+      for(let x = 0; x < num_ix; x += 1) {
+        // intersection does not count if it is an A vertex for the current edge
+        if(x === 0 && curr_edge.intersectionKeys.has(curr_edge.A.key)) continue;
         
-        // tricky part: if intersection is at B, we need the next edge's B vertex
-        const B1 = ( curr_pt.key === curr_edge.B.key ) ? curr_edge.next.B : curr_edge.B;
+        const curr_ix = curr_edge.orderedIntersections[x];
         
-        const other_edge = curr_pt.edges.get(curr_edge);
-        const B2 = ( curr_pt.key === other_edge.B.key ) ? 
-                   other_edge.next.B : other_edge.B;
-        
-        // determine direction from the intersection
-        // is ix --> B1 --> B2 clockwise or counterclockwise?
-        // orientation is positive if B2 is to the left (ccw) of x --> B1
-        const orientation = foundry.utils.orient2dFast(curr_pt, B1, B2);
-        const switch_polygons = clockwise ? orientation < 0 : orientation > 0
-        if(switch_polygons) {
+        if(SimplePolygon2._checkForSwitch(curr_edge, x, clockwise)) {
           // jump to other polygon  
-          curr_edge = curr_pt.edges.get(curr_edge); // Map is curr_edge --> other_edge          
-          
-          // figure out which intersection index we are on
-          next_x_i = curr_edge.orderedIntersections.findIndex(x => x.key === curr_pt.key) + 1;
-          if(next_x_i === -1) {
-            console.error(`SimplePolygon|Intersection not found for key ${curr_pt.key}.`);     
-          }  
-        }
-        
-        // from an intersection, the next point is either B or another intersection
-        const xs = curr_edge.orderedIntersections;
-        if(next_x_i < xs.length) {
-          // get the next intersection
-          curr_pt = xs[next_x_i];
-          next_x_i += 1;
-          
-//           console.log("Process next intersection")
-          continue; // process that next intersection point   
-        }
-      } 
+          curr_edge = curr_ix.edges.get(curr_edge); // Map is curr_edge --> other_edge          
       
-      // no more intersections
-      // add edge B unless it was already dealt with as an intersection
-      // or already added as curr_pt
-      if(curr_pt.key !== curr_edge.B.key && 
-         !curr_edge.intersectionKeys.has(curr_edge.B.key)) {
-        pts.push(curr_edge.B.x, curr_edge.B.y);
-      }
-            
-      // go to next edge
-      curr_edge = curr_edge.next;
-                        
-      // at next edge, A is the previous edge's B. 
-      // so don't add A, skip if it is an intersection
-      if(curr_edge.intersectionKeys.size > 0) {
-        // this new edge has intersections. Get the first one.
-        
-        // check if A is an intersection
-        // if it is, skip the first intersection
-        if(curr_edge.intersectionKeys.has(curr_edge.A.key)) { 
-          if(curr_edge.intersectionKeys.size > 1) {
-            curr_pt = curr_edge.orderedIntersections[1];
-            next_x_i = 2;
-          } else {
-            curr_pt = curr_edge.B;
-            next_x_i = 0;
-            
+          // figure out which intersection index we are on
+          x = curr_edge.orderedIntersections.findIndex(e => e.key === curr_ix.key);
+          if(x === -1) {
+            console.error(`SimplePolygon|Intersection not found for key ${curr_ix.key}.`);     
+          }  
+          
+          // update the maximum number of intersections now that we are on the other edge
+          num_ix = curr_edge.intersectionKeys.size;
+      
+          // add the intersection point
+          // note we are checking against the new current edge b/c that could be used 
+          // below if no more intersections.
+          if(!curr_ix.equals(curr_edge.B)) {
+            pts.push(curr_ix.x, curr_ix.y);
           }
-        } else {
-          curr_pt = curr_edge.orderedIntersections[0];
-          next_x_i = 1;
-        }
-      } else {
-        curr_pt = curr_edge.B; 
-        next_x_i = 0;
+
+        } 
+        
+        // done when we get back to first intersection
+        if(i && curr_ix.equals(first_ix)) break loop1;
+        
+        // if we are not switching polygons at this intersection, we don't need to add
+        // this intersection to points (the intersection will line up with this edge)        
       }
+    
+      pts.push(curr_edge.B.x, curr_edge.B.y);
+      curr_edge = curr_edge.next;
+      // remember that A vertices === B vertices for connected polygons, so ignore A.
+      
     } // end for loop
+    
     
     if(i >= max_iterations) { 
       console.warn(`SimplePolygon|max iterations ${max_iterations} met.`);
     }
     
-    // add the first vertex again to close the polygon
-    pts.push(first_vertex.x, first_vertex.y)
-    
     return pts;
+  }
+
+  static _checkForSwitch(curr_edge, x, clockwise) {
+
+    const curr_ix = curr_edge.orderedIntersections[x];
+    
+    const B1 = ( curr_ix.key === curr_edge.B.key ) ? curr_edge.next.B : curr_edge.B;
+
+    const other_edge = curr_ix.edges.get(curr_edge);
+    const B2 = curr_ix.equals(other_edge.B) ? 
+               other_edge.next.B : other_edge.B;
   
+    // determine direction from the intersection
+    // is ix --> B1 --> B2 clockwise or counterclockwise?
+    // orientation is positive if B2 is to the left (ccw) of x --> B1
+    const orientation = foundry.utils.orient2dFast(curr_ix, B1, B2);
+    return clockwise ? orientation < 0 : orientation > 0;
   }
 }

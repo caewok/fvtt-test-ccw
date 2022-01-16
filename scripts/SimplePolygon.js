@@ -96,6 +96,14 @@ export class SimplePolygonEdge extends PolygonEdge {
   get edgeKeys() {
     return this._edgeKeys || (this._edgeKeys = new Set([this.A.key, this.B.key]));
   } 
+  
+  get min_x() {
+    return this._min_x ?? ( this._min_x = Math.min(this.A.x, this.B.x) );
+  }
+  
+  get max_x() {
+    return this._max_x ?? ( this._max_x = Math.max(this.A.x, this.B.x) );
+  }
 
  /**
   * Identify which endpoint is further west, or if vertical, further north.
@@ -226,31 +234,63 @@ export class SimplePolygonEdge extends PolygonEdge {
   */
   _identifyPolygonIntersectionsWith(other) {    
     // If edges share 1 or 2 endpoints, break out
-    if ( this.edgeKeys.intersects(other.edgeKeys) && this.B.key === other.B.key ) {
+    if ( this.edgeKeys.intersects(other.edgeKeys)) {
       // If these two edges both intersect at B, count as intersection point.
       // Other edges will intersect at A, or A with B. Don't count as that would
       // repeat intersections and cause problems with _tracePolygon. 
-      this._addIntersectionPoint(other, other.B); 
+      if(this.edgeKeys.has(other.B.key)) {
+        this._addIntersectionPoint(other, other.B); 
+      }
+      
       return;
     }
+    
+    // For polygon intersections, we want to mark endpoint intersections.
+    // It is possible for foundry.utils.lineSegmentIntersects to return false if 
+    // the intersection is slightly beyond the segment but could still be rounded to 
+    // equal the endpoint of the segment. This can result in inconsistent intersection
+    // results, whereby one segment has an intersection at, say, A but the corresponding 
+    // segment has no corresponding intersection at B. 
+    // To avoid, check for intersection first, mark as necessary.
     
     const wa = this.A;
     const wb = this.B;
     const oa = other.A;
     const ob = other.B;
-
-    // Record any intersections
-    if ( !foundry.utils.lineSegmentIntersects(wa, wb, oa, ob) ) return;
-    const x = foundry.utils.lineLineIntersection(wa, wb, oa, ob);
-    if ( !x ) return;  // This eliminates co-linear lines
+    const epsilon = 1e-8;
     
-    // These edges form polygons, so we know the A and B vertices are shared. 
-    // Thus only count intersections with the B vertices.
-    // Avoids dealing with special cases in _tracePolygon.
+    // Calculate any intersections
+
+    // Check denominator - avoid parallel lines where d = 0
+    const dnm = ((ob.y - oa.y) * (wb.x - wa.x) - (ob.x - oa.x) * (wb.y - wa.y));
+    if (dnm === 0) return;
+
+    // Vector distance from a
+    const t0 = ((ob.x - oa.x) * (wa.y - oa.y) - (ob.y - oa.y) * (wa.x - oa.x)) / dnm;
+    
+    const x = {
+      x: wa.x + t0 * (wb.x - wa.x),
+      y: wa.y + t0 * (wb.y - wa.y),
+      t0: t0
+    }
+ 
+    // skip if the intersection is for an A vertex
     const key = keyForPoint(x);
     if(key === this.A.key || key === other.A.key) return;
-  
+    
+    // if intersection is a B vertex, keep    
+    if(key === this.B.key || key === other.B.key) 
+      return this._addIntersectionPoint(other, x);;
+     
+    // otherwise, only keep if we are within the segments
+    if ( !Number.between(t0, 0-epsilon, 1+epsilon) ) return;
+    
+    // Vector distance from oa
+    const t1 = ((wb.x - wa.x) * (wa.y - oa.y) - (wb.y - wa.y) * (wa.x - oa.x)) / dnm;
+    if ( !Number.between(t1, 0-epsilon, 1+epsilon) ) return;
+
     this._addIntersectionPoint(other, x);
+   
   }
   
  /**
@@ -479,15 +519,7 @@ export class SimplePolygon extends PIXI.Polygon {
         
     let next_x_i = 1;
     let curr_pt = first_edge.orderedIntersections[0];
-    
-    // if the intersection is at A, back up one edge and use the last intersection,
-    // which by definition should be the B vertex. 
-//     if(first_edge.A.key === curr_pt.key) {
-//       curr_edge = first_edge.prev;
-//       next_x_i = curr_edge.orderedIntersections.length
-//       curr_pt = first_edge.orderedIntersections[next_x_i - 1];
-//     }
-    
+        
     const first_vertex = curr_pt;
     const first_vertex_key = first_vertex.key;
     
