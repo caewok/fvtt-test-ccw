@@ -1,12 +1,5 @@
 /* globals 
 
-
-*/
-
-'use strict';
-
-/* globals 
-
 CONST,
 foundry,
 canvas,
