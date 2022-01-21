@@ -96,9 +96,17 @@ export function pixelLineContainsPoint(ray, c) {
  * @param {Point} b
  * @return {-1|0|1} 
  */
-export function compareXY(a, b) {
-  if ( a.x === b.x ) return a.y - b.y;
-  else return a.x - b.x;
+export function compareXY(a, b) { 
+  return ( a.x - b.x ) || (a.y - b.y );
+}
+
+/**
+ * Generate a random integer between 0 and (max - 1).
+ * @param {number} max
+ * @return {number}   Random integer.
+ */
+export function randomPositiveZeroInteger(max) {
+  return Math.floor(Math.random() * max)
 }
 
 /**

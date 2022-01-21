@@ -8,12 +8,16 @@ import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
 import { LinkedPolygon, LinkedPolygonVertex, LinkedPolygonEdge } from "./LinkedPolygon.js";
 import { SimplePolygon, SimplePolygonEdge } from "./SimplePolygon.js";
+import { SimplePolygon2, SimplePolygonEdge2 } from "./SimplePolygon2.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
 import * as ClipperLib from "./lib/clipper_unminified.js";
+import {sweep, brute, bush} from "./lib/isect.js";
+
+import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
  
 export const MODULE_ID = 'testccw';
 
@@ -75,6 +79,19 @@ Hooks.once('init', async function() {
     SimplePolygon: SimplePolygon,
     SimplePolygonVertex: PolygonVertex,
     SimplePolygonEdge: SimplePolygonEdge,
+
+    SimplePolygon2: SimplePolygon2,
+    SimplePolygonVertex2: PolygonVertex,
+    SimplePolygonEdge2: SimplePolygonEdge2,
+    
+    Intersections: Intersections,
+    Intersections2: Intersections2,
+    BruteSortIntersections: BruteSortIntersections,
+    BruteSortXYIntersections: BruteSortXYIntersections,
+    
+    sweep: sweep,
+    brute: brute,
+    bush: bush
     
     }
 });
