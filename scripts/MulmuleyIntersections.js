@@ -57,6 +57,10 @@ class Vertex {
     return this._key ?? ( this._key = Vertex.keyFromPoint(this) );
   }
   
+  get label() {
+    return `${this.x},${this.y}`;
+  }
+  
   static keyFromPoint(p) { return (p.x << 16) ^ p.y;}
   
   static fromPoint(p) { return new this(p.x, p.y); }
@@ -93,6 +97,10 @@ class Segment {
   get max_xy() {
     if(!this._max_xy) { this.min_xy; }
     return this._max_xy;
+  }
+  
+  get label() {
+    return `${this.A.label} | ${this.B.label}`;
   }
   
   static fromEdge(e) { return new this(e.A, e.B); }
@@ -213,7 +221,8 @@ class Face {
     // mark the intersection
     const ix = foundry.utils.lineLineIntersection(max_xy, min_xy, left, right);
     if(!ix) {
-      console.error(`Transition expected an intersection at ${max_xy.x}, ${max_xy.y}|${min_xy.x}, ${min_xy.y} x ${left.x}, ${left.y}|${right.x}, ${right.y}`);
+      console.error(`Transition expected an intersection at ${max_xy.label} | ${min_xy.label} x ${left.label} | ${right.label}`);
+
     }  
     
     this.intersections.push({
@@ -286,6 +295,70 @@ class Adjacency extends Vertex {
   static fromVertex(v, face, neighbor, successor) {
     return new this(v.x, v.y, face, neighbor, successor);
   }
+  
+  consistencyTest() {
+    // has face, neighbor, successor
+    if(!this.face) {
+      console.error(`${this.label} has no face.`);
+      return false;
+    }
+    
+    if(!this.neighbor) {
+      console.error(`${this.label} has no neighbor.`);
+      return false;
+    }
+    
+   if(!this.successor) {
+      console.error(`${this.label} has no successor.`);
+      return false;
+   }
+   
+   // neighbor should have the same location
+   if(!this.equals(this.neighbor)) {
+      console.error(`${this.label} has neighbor ${this.neighbor.label}.`);
+      return false;     
+   }
+   
+   // neighbor should have different face
+  if(this.face === this.neighbor.face) {
+      console.error(`${this.label} has neighbor ${this.neighbor.label} with different face.`);
+      return false;     
+   }
+   
+   // successor should share the same face
+   if(this.face !== this.successor.face) {
+      console.error(`${this.label} has successor with different face ${this.label}.`);
+      return false;     
+   }
+   
+   // successor should have different vertex
+    if(this.equals(this.successor)) {
+      console.error(`${this.label} has successor ${this.successor.label}.`);
+      return false;     
+   }  
+   
+   // this face should have this adjacency
+   if(!this.face.adjacencies.has(this)) {
+      console.error(`Face for ${this.label} does not have this adjacency.`);
+      return false;         
+   }
+   
+   // this face should have this successor
+   if(!this.face.adjacencies.has(this.successor)) {
+      console.error(`Face for ${this.label} does not have successor ${this.successor.label}.`);
+      return false;         
+   }
+   
+   // if there is an endpoint...
+   if(!this.endpoint) return true;
+
+   if(!this.endpoint.equals(this)) {
+      console.error(`${this.label} endpoint ${this.endpoint.label} does not match.`);
+      return false;         
+   }   
+   
+  
+  } 
 
 }
 
@@ -294,12 +367,14 @@ class Partition {
     this.segments = segments.map(s => Segment.fromEdge(s));
     
     const endpoints = [];
-    this.segments.forEach(s => {
+    this.segments.forEach((s, i) => {
       // track segments for intersection reporting
       const e1 = s.A;
       const e2 = s.B;
       e1.segment = s;
       e2.segment = s;
+      
+      s._index = i; // for drawing/debugging
     
       endpoints.push(e1, e2); 
     });
@@ -465,13 +540,65 @@ class Partition {
     
   }
   
-  addSegment({ draw = false } = {}) {
+  addSegment({ draw = false, idx = undefined } = {}) {
     // randomly add a segment to the partition
     // remove from the segments array
-    const idx = randomPositiveZeroInteger(this.segments.length);
+    
+/*
+At s0: 
+2'C|2'B  1'B•1'A
+   |        |
+C  |  B1    |  A face
+ ix|--------|s    
+   |        |
+   |  B2    | 
+   |        |
+2"C|2"B  1"B•1"A
+
+
+B1 and B2 are combined at start as B:
+
+1"B.endpoint ->> s
+1'B.endpoint ->> s
+
+s.attachment.top    ->> 1'B
+s.attachment.bottom ->> 1"B
+  
+B face: 1'B.successor ->> 2'B.successor ->> 2"B.successor ->> 1"B 
+
+1'B.neighbor ->> 1'A
+1"B.neighbor ->> 1"A, ... 
+
+Create 2 new faces: B1 and B2. Blank at first
+
+Create 2 new adjacencies at point s. Call them sB1 and sB2. (A face is invisible)
+-- do we need an endpoint? Technically these are not attachments. 
+
+Create 2 new adjacencies at point ix. Call them ixB1 and ixB2
+
+Once we know ix and we know the top face B1 is finished:
+- B1 face: sB1.successor ->> 1'B1.successor ->> 2'B1.successor ->> ixB1.successor ->> sB1
+- 
+
+Once we know ix and we know the bottom face B2 is finished, same as above.
+
+Once we know B1 and B2:
+- sB1.neighbor ->> sB2
+- sB2.neighbor ->> sB1
+- ixB1.neighbor ->> sB2
+- ixB2.neighbor ->> sB1
+
+If we are shifting an attachment up, say at vertex 2"
+- ixB2 goes away
+- ixB1 is an attachment, replacing 2"B
+- ixC1 is an attachment, replacing 2"C
+  
+*/    
+    
+    if(!idx) idx = randomPositiveZeroInteger(this.segments.length);
     const s = this.segments.splice(idx, 1)[0];
     
-    if(draw) console.log(`Adding segment ${idx}: ${s.A.x}, ${s.A.y}|${s.B.x}, ${s.B.y}`);
+    if(draw) console.log(`Adding segment ${s._index} currently at idx ${idx}: ${s.label}`);
     
     this.partitioned_segments.push(s);
     
@@ -495,6 +622,7 @@ class Partition {
     const new_faces = [];
     
     
+    
     let i = 0;
     const ln_endpoints = this.endpoints.length;
     while(i < ln_endpoints && !curr_ix.equals(s1)) {
@@ -509,17 +637,17 @@ class Partition {
         
       if(typeof new_y !== "undefined") {
         // transitioning through a vertical attachment
-        curr_border = next_v.endpoint.borders.top;
+        curr_border = next_v.endpoint.borders.top; // should just be right.neighbor?
         curr_face = next_v.face;
         //this.faces.delete(curr_face);
-        curr_ix = ix;
-        this.adjacencies.set(ix.key, ix)
+//         curr_ix = ix;
+        // this.adjacencies.set(ix.key, ix)
                 
         if(is_left) {
           // endpoint is on bottom half
           // bottom face is now complete; build          
           curr_bottom_pts.push(left, ix);
-          const { face: f_bottom } = this._buildNewFace(curr_bottom_pts);
+          const { face: f_bottom, adjacencies } = this._buildNewFace(curr_bottom_pts);
           new_faces.push(f_bottom);
           
           if(draw) { f_bottom.draw({ color: colors[ci] }); }
@@ -529,18 +657,31 @@ class Partition {
           // TO-DO: Is there always only one other neighbor for this location?
           curr_bottom_pts = [ix, left.neighbor];
           
+          
+          // adjacencies[0] is the starting ix from somewhere to the right on the segment
+          // adjacencies[length - 1] is this ix
+          // this ix neighbor is the next adjacencies[0]
+          // this ix endpoint needs to be added
+          
+
+          curr_ix.neighbor = adjacencies[0];
+          adjacencies[0].neighbor = curr_ix;
+          curr_ix = adjacencies[adjacencies.length - 1];
+          this.adjacencies.set(curr_ix);
+          
           //move top attachment down to ix unless we are at an endpoint of s
           if(!curr_ix.equals(s1) && !curr_ix.equals(s0)) {
             this.adjacencies.delete(next_v.endpoint.borders.top.key);
-            ix.endpoint = next_v.endpoint;
-            next_v.endpoint.borders.top = ix;          
+           //  curr_ix.endpoint = next_v.endpoint;
+//             curr_ix.borders = next_v.borders;
+            next_v.endpoint.borders.top = curr_ix;          
           }
           
         } else {
           // endpoint is on top half
           // top face is now complete; build
           curr_top_pts.push(right, ix);
-          const { face: f_top } = this._buildNewFace(curr_top_pts);
+          const { face: f_top, adjacencies } = this._buildNewFace(curr_top_pts);
           new_faces.push(f_top);
           if(draw) { f_top.draw({ color: colors[ci] }); }
           
@@ -549,11 +690,20 @@ class Partition {
           // TO-DO: Is there always only one other neighbor for this location?   
           curr_top_pts = [ix, right.neighbor];
           
+          adjacencies[0].neighbor = 
+          
+          curr_ix.neighbor = adjacencies[0];
+          adjacencies[0].neighbor = curr_ix;
+          
+          curr_ix = adjacencies[adjacencies.length - 1];
+          this.adjacencies.set(curr_ix);
+
           // move bottom attachment up to ix unless we are at an endpoint of s
           if(!curr_ix.equals(s1) && !curr_ix.equals(s0)) {
             this.adjacencies.delete(next_v.endpoint.borders.bottom.key);
-            ix.endpoint = next_v.endpoint;
-            next_v.endpoint.borders.bottom = ix;
+//             curr_ix.endpoint = next_v.endpoint;
+//             curr_ix.borders = next_v.borders;
+            next_v.endpoint.borders.bottom = curr_ix;
           }
         }
         
@@ -625,59 +775,38 @@ class Partition {
     }
     const polygonText = d.polygonText;
     
-    this.segments.forEach((s, i) => {
+    this.segments.forEach(s => {
       // update existing label if it exists at or very near endpoint
       let idx = polygonText.children.findIndex(c => s.A.x.almostEqual(c.position.x) && s.A.y.almostEqual(c.position.y));
       if(idx !== -1) { d.polygonText.removeChildAt(idx); }
     
-       const t = polygonText.addChild(new PIXI.Text(String(i), CONFIG.canvasTextStyle));
+       const t = polygonText.addChild(new PIXI.Text(String(s._index), CONFIG.canvasTextStyle));
        t.position.set(s.A.x, s.A.y);
     })
   
   }
   
   clearLabels() {
+    if(!canvas.controls.debug.polygonText) return;
     canvas.controls.debug.polygonText.removeChildren();
   }
-  
+   
   // ----- DEBUGGING -----
-  testInitialization() {
+  consistencyTest() {
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
     for(let [key, adj] of this.adjacencies.entries()) {
+      adj.consistencyTest();
+    
       if(adj.key !== key) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) does not match.`);
+        console.log(`adj ${adj.label} (${key}) does not match.`);
         return false;
       }
-  
-      if(adj.face !== adj.successor.face) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) successor face does not match.`);
-        return false; 
-      }
-  
-      if(adj.successor.equals(adj)) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) successor has same vertex.`);
-        return false; 
-      } 
 
-      if(!adj.neighbor.equals(adj)) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) neighbor vertex does not match.`);
-        return false; 
-      } 
-  
-      if(adj.neighbor.face === adj.face) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) neighbor has same face.`);
-        return false;   
-      }
   
       if(!this.faces.has(adj.face)) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) face not in partition faces.`);
-        return false;     
-      }
-  
-      if(!adj.face.adjacencies.has(adj)) {
-        console.log(`adj ${adj.x}, ${adj.y} (${key}) face does not have adjacency.`);
+        console.log(`adj ${adj.label} (${key}) face not in partition faces.`);
         return false;     
       }
     }
@@ -685,17 +814,17 @@ class Partition {
     // confirm each endpoint has an adjacency
     for(let e of this.endpoints.values()) {
       if(!(e.borders.top instanceof Adjacency)) {
-        console.log(`endpoint ${e.x}, ${e.y} does not have top adjacency.`);
+        console.log(`endpoint ${e.label} does not have top adjacency.`);
         return false;    
       }
       
       if(!(e.borders.bottom instanceof Adjacency)) {
-        console.log(`endpoint ${e.x}, ${e.y} does not have bottom adjacency.`);
+        console.log(`endpoint ${e.label} does not have bottom adjacency.`);
         return false;    
       }
   
       if(e.x !== e.borders.top.x || e.x !== e.borders.bottom.x) {
-        console.log(`endpoint ${e.x}, ${e.y} does not match adjacency.`);
+        console.log(`endpoint ${e.label} does not match adjacency.`);
         return false;        
       }
     }
@@ -725,15 +854,21 @@ let COLORS = {
 
 
 // testing
+
+// partition.clearLabels();
 canvas.controls.debug.clear()
 walls = canvas.walls.placeables;
 partition = new Partition(walls);
-
+partition.labelSegments()
 partition.initialize();
-partition.testInitialization();
+partition.consistencyTest();
 partition.draw({shade_faces: false});
 
 new_faces = partition.addSegment({ draw: true });
 
 
+new_faces = partition.addSegment({ draw: true, idx: 1 });
+new_faces = partition.addSegment({ draw: true, idx: 5 });
 
+// test if partition is still consistent
+partition.consistencyTest();
