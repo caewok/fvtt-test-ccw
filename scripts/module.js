@@ -17,7 +17,7 @@ import { registerPIXICircleMethods } from "./PIXICircle.js";
 import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
-import { Intersections, Intersections2 } from "./Intersections.js";
+import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
  
 export const MODULE_ID = 'testccw';
 
@@ -86,6 +86,8 @@ Hooks.once('init', async function() {
     
     Intersections: Intersections,
     Intersections2: Intersections2,
+    BruteSortIntersections: BruteSortIntersections,
+    BruteSortXYIntersections: BruteSortXYIntersections,
     
     sweep: sweep,
     brute: brute,
