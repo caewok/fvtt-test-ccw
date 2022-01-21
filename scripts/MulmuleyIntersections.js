@@ -497,9 +497,9 @@ class Partition {
       
       const { adjacencies } = this._buildNewFace([tr, tl, bl, br]);
       
-      // set the endpoint/border links to the adjacencies
-      e.borders = { top: adjacencies[ADJS.tr], 
-                    bottom: adjacencies[ADJS.br]}
+      // set the endpoint links to the adjacencies
+      e.attachments = { top: adjacencies[ADJS.tr], 
+                        bottom: adjacencies[ADJS.br]}
       
       adjacencies[ADJS.tr].endpoint = e;
       adjacencies[ADJS.br].endpoint = e;
@@ -610,14 +610,18 @@ If we are shifting an attachment up, say at vertex 2"
     const s0 = s.max_xy;
     const s1 = s.min_xy;
     
+    
+    
+    
+    
     // get the vertical attachment to s0
-    let curr_border = s0.borders.top;        
-    let curr_face = curr_border.face;
+    let curr_attachment = s0.attachments.top;        
+    let curr_face = curr_attachment.face;
     this.faces.delete(curr_face);
     let curr_ix = s0;
     
-    let curr_top_pts = [curr_ix, s0.borders.top];
-    let curr_bottom_pts = [curr_ix, s0.borders.bottom];
+    let curr_top_pts = [curr_ix, s0.attachments.top];
+    let curr_bottom_pts = [curr_ix, s0.attachments.bottom];
     
     const new_faces = [];
     
@@ -632,12 +636,12 @@ If we are shifting an attachment up, say at vertex 2"
       const ci = i % 3;
   
       // do traversal / transition until we find other end of s
-      const [right, left] = curr_face.traverse(curr_border, s);
+      const [right, left] = curr_face.traverse(curr_attachment, s);
       const { next_v, new_y, ix, is_left } = Face.transition(left, right, s);
         
       if(typeof new_y !== "undefined") {
         // transitioning through a vertical attachment
-        curr_border = next_v.endpoint.borders.top; // should just be right.neighbor?
+        curr_attachment = next_v.endpoint.attachments.top; // should just be right.neighbor?
         curr_face = next_v.face;
         //this.faces.delete(curr_face);
 //         curr_ix = ix;
@@ -671,10 +675,10 @@ If we are shifting an attachment up, say at vertex 2"
           
           //move top attachment down to ix unless we are at an endpoint of s
           if(!curr_ix.equals(s1) && !curr_ix.equals(s0)) {
-            this.adjacencies.delete(next_v.endpoint.borders.top.key);
+            this.adjacencies.delete(next_v.endpoint.attachments.top.key);
            //  curr_ix.endpoint = next_v.endpoint;
-//             curr_ix.borders = next_v.borders;
-            next_v.endpoint.borders.top = curr_ix;          
+//             curr_ix.attachments = next_v.attachments;
+            next_v.endpoint.attachments.top = curr_ix;          
           }
           
         } else {
@@ -700,10 +704,10 @@ If we are shifting an attachment up, say at vertex 2"
 
           // move bottom attachment up to ix unless we are at an endpoint of s
           if(!curr_ix.equals(s1) && !curr_ix.equals(s0)) {
-            this.adjacencies.delete(next_v.endpoint.borders.bottom.key);
+            this.adjacencies.delete(next_v.endpoint.attachments.bottom.key);
 //             curr_ix.endpoint = next_v.endpoint;
-//             curr_ix.borders = next_v.borders;
-            next_v.endpoint.borders.bottom = curr_ix;
+//             curr_ix.attachments = next_v.attachments;
+            next_v.endpoint.attachments.bottom = curr_ix;
           }
         }
         
@@ -718,12 +722,12 @@ If we are shifting an attachment up, say at vertex 2"
     const ci = (i + 1) % 3;
     if(curr_top_pts.some(pt => pt.x === curr_ix.x)) {
       // top closed; close bottom
-      curr_bottom_pts.push(s1.borders.bottom, curr_ix);
+      curr_bottom_pts.push(s1.attachments.bottom, curr_ix);
       let { face: f_bottom } = this._buildNewFace(curr_bottom_pts);
       new_faces.push(f_bottom);
       if(draw) { f_bottom.draw({color: colors[ci]}); }
     } else {
-      curr_top_pts.push(s1.borders.top, curr_ix);
+      curr_top_pts.push(s1.attachments.top, curr_ix);
       let { face: f_top } = this._buildNewFace(curr_top_pts);
       new_faces.push(f_top);
       if(draw) { f_top.draw({color: colors[ci]}); }     
@@ -813,17 +817,17 @@ If we are shifting an attachment up, say at vertex 2"
 
     // confirm each endpoint has an adjacency
     for(let e of this.endpoints.values()) {
-      if(!(e.borders.top instanceof Adjacency)) {
+      if(!(e.attachments.top instanceof Adjacency)) {
         console.log(`endpoint ${e.label} does not have top adjacency.`);
         return false;    
       }
       
-      if(!(e.borders.bottom instanceof Adjacency)) {
+      if(!(e.attachments.bottom instanceof Adjacency)) {
         console.log(`endpoint ${e.label} does not have bottom adjacency.`);
         return false;    
       }
   
-      if(e.x !== e.borders.top.x || e.x !== e.borders.bottom.x) {
+      if(e.x !== e.attachments.top.x || e.x !== e.attachments.bottom.x) {
         console.log(`endpoint ${e.label} does not match adjacency.`);
         return false;        
       }
