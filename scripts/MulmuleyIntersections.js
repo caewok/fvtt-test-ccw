@@ -89,6 +89,15 @@ class Segment {
     this.B = new Vertex(b.x, b.y);
   }
   
+  get slope() {
+    return this._slope ?? (this._slope = (this.B.y - this.A.y) / (this.B.x - this.A.x));
+  }
+  
+  get y_intercept() {
+    return this._y_intercept ?? (this._y_intercept = this.A.y - this.slope * this.A.x);
+  
+  }
+  
   get min_xy() {
     if(!this._min_xy) {
       const first_is_min = compareXY(this.A, this.B) < 0;
@@ -105,6 +114,10 @@ class Segment {
   
   get label() {
     return `${this.A.label} | ${this.B.label}`;
+  }
+  
+  calculateY(x) {
+    return this.slope * x + this.y_intercept;
   }
   
   static fromEdge(e) { return new this(e.A, e.B); }
@@ -225,6 +238,7 @@ class Face {
     return [curr, successor];
   }
   
+  
   static transition(left, right, s) {
     if(!(left instanceof Adjacency) || !(right instanceof Adjacency)) {
       console.error(`Need to convert to Adjacency for Face.traverse.`);
@@ -233,22 +247,21 @@ class Face {
     const max_xy = s.max_xy;
     const min_xy = s.min_xy;
     
-    // if right or its neighbor have an endpoint, we are crossing a vertical attachment.
-    // find the next face using the neighbor
-    const endpoint = right.endpoint || right.neighbor.endpoint;
-    if(endpoint) {
+    // is left|right vertical and associated with the same endpoint? 
+    // then we have a vertical attachment
+    const l_endpoint = left.endpoint || left.neighbor.endpoint;
+    const r_endpoint = right.neighbor.endpoint || right.endpoint;    
+    if(left.x === right.x && l_endpoint === r_endpoint) {
       // left|right is vertical, with right at the top
       // so, what is the fastest way to calculate x,y point on S at a known x value?
       // y = mx + b; b = y - mx
       // works unless s is vertical...
-      const m = (s.B.y - s.A.y) / (s.B.x - s.A.x);
-      if(!isFinite(m)) {
+      if(!isFinite(s.slope)) {
         console.error(`transition currently requires finite slope (non-vertical) s.`);
       }
-      const b = s.A.y - m * s.A.x;
-      const new_y = m * endpoint.x + b;
-            
-      const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, endpoint) > 0;
+      const new_y = s.calculateY(l_endpoint.x);
+      
+      const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, l_endpoint) > 0;
 
       // if endpoint is to left of S, right.neighbor gives the next vertex in R i+1
       // if endpoint is to the right of S, left.neighbor gives the next vertex?
@@ -256,13 +269,10 @@ class Face {
         next_v: e_is_left ? right.neighbor : left.neighbor,
         new_y: new_y,
         is_left: e_is_left,
-        ix: new Vertex(endpoint.x, new_y)
-      }
+        ix: new Vertex(l_endpoint.x, new_y)
+      }      
     }
     
-    
-
-
     let h = left.neighbor;
     
     // we are crossing a segment: right|left.
@@ -274,7 +284,7 @@ class Face {
     }  
     
     this.intersections.push({
-      ix: ix,
+      ix: Vertex.fromPoint(ix),
       s1: s,
       s2: endpoint.segment // TO-DO: I think endpoint is undefined
     });
@@ -1263,8 +1273,7 @@ partition.draw({shade_faces: false});
        ci = i % color_ln;
       
       // do traversal / transition until we find other end of s
-       curr_face = curr_v.face;
-      let [right, left] = curr_face.traverse(curr_v, s);
+      let [right, left] = curr_v.traverse(s);
       let { next_v, new_y, ix, is_left } = Face.transition(left, right, s);
       curr_v = next_v;
       curr_ix = ix;
