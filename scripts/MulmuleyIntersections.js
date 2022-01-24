@@ -293,11 +293,12 @@ class Face {
     
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
-    const s_rising = max_xy.y > ix.y; // 
-    console.log(`Transition: s is ${s_rising ? "rising" : "falling"}.`);
+    const rising = left.x < right.x;
+    //const s_rising = max_xy.y > ix.y; // 
+    console.log(`Transition: s0 is ${rising ? "below" : "above"} other right endpoint.`);
     
     //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
-    if(s_rising) {
+    if(rising) {
       while(i < ln && h.successor.x < ix.x) {
         h = h.successor.neighbor;
         i += 1;
@@ -317,7 +318,7 @@ class Face {
       ix: new Vertex(ix.x, ix.y),
       ix_record: { ix: ix, s1: s, s2: left.segment },
 //       is_left: e_is_left,
-      s_rising: s_rising
+      rising: rising
     };
   }
   
@@ -1287,7 +1288,7 @@ partition.draw({shade_faces: false});
       
       // do traversal / transition until we find other end of s
       let [right, left] = curr_v.traverse(s);
-      let { next_v, new_y, ix, is_left, ix_record, h, s_rising } = Face.transition(left, right, s);
+      let { next_v, new_y, ix, is_left, ix_record, h, rising } = Face.transition(left, right, s);
       curr_v = next_v;
       curr_ix = ix;
       
@@ -1334,11 +1335,11 @@ partition.draw({shade_faces: false});
         // transitioning through other segment
         console.log(`Need to transition through other segment.`);
         // TO-DO: is_left vs is_right?
-        if(!s_rising) {
+        if(!rising) {
           // other segment is rising when moving left from ix
           // s is falling when moving left from ix
           // so s starts above other to the right and falls below
-          console.log(`s is falling`);
+          console.log(`s0 above intersecting segment's right endpoint`);
 
        // intersection needs 4 adjacencies: t, l, b, r
         ix_adj_top = Adjacency.fromVertex(ix);
@@ -1427,7 +1428,7 @@ partition.draw({shade_faces: false});
         // for now, with s moving from low right to upper left:
         
         // 1. top face finished with vertex as final point
-        console.log(`s is rising`);
+        console.log(`s0 below intersecting segment's right endpoint`);
         
         // not quite _closeSegmentFace
         adjs[TOP].push(ix_adj_right)
