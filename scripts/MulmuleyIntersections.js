@@ -163,27 +163,17 @@ class Face {
     }    
   }
   
-  open(v0, v1 = v0, matching_face) {
+  open(v0, v1, matching_face) {
 //     this._isOpen = true;
     
     this.adjacencies.push(v0);
         
     if(matching_face) { 
-      v1 = this._findAttachment(v1, matching_face);
-      
-      if(v1.face !== matching_face) {
-        // likely starting a new face where a process line above/below s
-        // is ending. Need to get past that endpoint to the attachment
-        
-        
-      }
-      
+      v1 = this._findAttachment(v1, matching_face);      
     }
     
-    
-    
     this.adjacencies.push(v1);
-    
+        
     // find successor / predecessor if any
     // when there is another vertex (i.e., intersection) before 
     // reaching the next attachment
@@ -236,11 +226,15 @@ class Face {
 //     return v;
 //   }
   
-  close(v0, closing_v) {
+  close(v0, closing_v, matching_face) {
     const adjs = this.adjacencies;
 //     this._isOpen = false;
     
     if(closing_v) { 
+      if(matching_face) { 
+        closing_v = this._findAttachment(closing_v, matching_face);      
+      }
+    
       //let v1 = this._findAttachment(closing_v);
       //if(closing_v.face) { v1 = v1.matchFace(closing_v); }
       adjs.push(closing_v);  
@@ -918,79 +912,135 @@ D. closing other face (here, assume top)
 
 */
 
- _buildSegmentIntersectionFaces(ix, left, right, next_v, adjs, curr_faces, rising = true) {
-   // track faces added for debugging
-   const old_faces = [];
-      
-   // intersection needs 4 adjacencies: t, l, b, r
-   const ix_adjs = [ Adjacency.fromVertex(ix), 
-               Adjacency.fromVertex(ix), 
-               Adjacency.fromVertex(ix), 
-               Adjacency.fromVertex(ix)];
+  _buildSegmentIntersectionFaces(ix, left, right, next_v, curr_faces, rising = true) {
+   
+    // intersection needs 4 adjacencies: t, l, b, r
+    let ix_adjs = [ Adjacency.fromVertex(ix), 
+                      Adjacency.fromVertex(ix), 
+                      Adjacency.fromVertex(ix), 
+                      Adjacency.fromVertex(ix)];
   
-   // Set neighbors CCW
-   ix_adjs[TOP].neighbor = ix_adjs[LEFT];
-   ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
-   ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
-   ix_adjs[RIGHT].neighbor = ix_adjs[TOP]; 
-   
-   // rising = TOP
-   const pos = rising ? TOP : BOTTOM;
-   const opp = pos ^ 1;
-   
-   // 1. Finish right face with vertex as final point. Typically a triangle but not always   
-   const last_adj = adjs[pos][adjs[pos].length - 1]
-   if(pos === BOTTOM && 
-      !next_v.equals(last_adj) &&
-      !next_v.equals(ix_adjs[RIGHT])) {
-     adjs[pos].push(next_v.matchFace(last_adj));
-     }
-   
-   this._closeSegmentFace(adjs, curr_faces, ix_adjs[RIGHT], pos);
-   
-   // 2. Open new face using vertex --> next_v --> attachment
-   old_faces.push(curr_faces[pos]);
-   curr_faces[pos] = new Face();
-   
-   // TO-DO: do we need to check for endpoints to use instead of attachments?
-   //        like with _buildSegmentFace?
-   //adjs[pos] = [ix_adjs[pos], next_v, next_v.endpoint.attachments[pos]];
-   const v = this._findAttachment(next_v, pos, next_v);
-   adjs[pos] = [ix_adjs[pos], next_v, v];
-   
-   
-   // 3. opposite face gets another vertex at the intersection
-   adjs[opp].unshift(ix_adjs[opp]);
-   
-   // 4. opposite face can be finished using either left or right adjacency 
-   //    and associated attachment.
-   const closing_side = pos === TOP ? left : right;
-   let v_opp = this._findAttachment(closing_side.neighbor, opp, closing_side);
-   if(!v_opp.neighbor.equals(closing_side)) { adjs[opp].push(v_opp.neighbor); }
-   
-   // if the closing_side is an endpoint, we need to follow it to its attachment
-   if(closing_side?.endpoint?.attachments && 
-      !closing_side.endpoint.attachments[opp].equals(closing_side)) {
-     const att = closing_side.endpoint.attachments[opp];
-     adjs[opp].push(att.matchFace(closing_side));   
-   }
-   
-   this._closeSegmentFace(adjs, curr_faces, closing_side, opp);
-   
-   // 5. open new opposite face using vertex --> nothing
-   old_faces.push(curr_faces[opp]);
-   curr_faces[opp] = new Face();
-   adjs[opp] = [ix_adjs[LEFT]];
-   
-   // is there another vertex to the left (i.e., intersection) before reaching 
-   // the next attachment? if so, add
-   if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
-     adjs[opp].push(closing_side.matchFace(next_v));
-   }
-   
-   return old_faces;
- 
- } 
+    // Set neighbors CCW
+    ix_adjs[TOP].neighbor = ix_adjs[LEFT];
+    ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
+    ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
+    ix_adjs[RIGHT].neighbor = ix_adjs[TOP];   
+    
+    this.adjacencies.set(ix_adjs[TOP].key, ix_adjs[TOP]);
+    this.adjacencies.set(ix_adjs[LEFT].key, ix_adjs[LEFT]);
+    this.adjacencies.set(ix_adjs[BOTTOM].key, ix_adjs[BOTTOM]);
+    this.adjacencies.set(ix_adjs[RIGHT].key, ix_adjs[RIGHT]);
+    
+    // rising === TOP
+    let pos = rising ? TOP : BOTTOM;
+    let opp = pos ^ 1;
+    let old_faces = []
+    
+    // 1. Close the right (top|bottom) face, using vertex as the final point.
+    // TO-DO: Are there situations where closing will require more than the intersection?
+    curr_faces[pos].close(ix_adjs[RIGHT]);
+    old_faces.push(curr_faces[pos])
+    
+    // 2. opposite face gets another vertex at the intersection
+    // curr_faces[opp].adjacencies.unshift(ix_adjs[opp]); // handled below
+    
+    // 3. Close the opposite face, which will be above or below intersection 
+    //    depending on position.
+    let closing_side = pos === TOP ? left : right;
+    curr_faces[opp].close(ix_adjs[opp], closing_side, closing_side.face);  // what should be here?
+    
+    // 4. Open new face
+    curr_faces[pos] = new Face({ orientation: pos });
+    curr_faces[pos].open(ix_adjs[pos], next_v, next_v.face); // what should be here?
+    
+    // 5. Open new opposite face
+    curr_faces[opp] = new Face({ orientation: opp });
+    
+    curr_faces[pos].adjacencies.push(ix_adjs[LEFT])
+    // is there another vertex to the left (i.e., intersection) before reaching 
+    // the next attachment? if so, add
+    if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
+      curr_faces[opp].push(closing_side.matchFace(next_v));
+    }
+    
+    curr_faces[opp].open(ix_adjs[LEFT], )
+    
+    return old_faces;
+  }
+
+//  _buildSegmentIntersectionFaces(ix, left, right, next_v, adjs, curr_faces, rising = true) {
+//    // track faces added for debugging
+//    const old_faces = [];
+//       
+//    // intersection needs 4 adjacencies: t, l, b, r
+//    const ix_adjs = [ Adjacency.fromVertex(ix), 
+//                Adjacency.fromVertex(ix), 
+//                Adjacency.fromVertex(ix), 
+//                Adjacency.fromVertex(ix)];
+//   
+//    // Set neighbors CCW
+//    ix_adjs[TOP].neighbor = ix_adjs[LEFT];
+//    ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
+//    ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
+//    ix_adjs[RIGHT].neighbor = ix_adjs[TOP]; 
+//    
+//    // rising = TOP
+//    const pos = rising ? TOP : BOTTOM;
+//    const opp = pos ^ 1;
+//    
+//    // 1. Finish right face with vertex as final point. Typically a triangle but not always   
+//    const last_adj = adjs[pos][adjs[pos].length - 1]
+//    if(pos === BOTTOM && 
+//       !next_v.equals(last_adj) &&
+//       !next_v.equals(ix_adjs[RIGHT])) {
+//      adjs[pos].push(next_v.matchFace(last_adj));
+//      }
+//    
+//    this._closeSegmentFace(adjs, curr_faces, ix_adjs[RIGHT], pos);
+//    
+//    // 2. Open new face using vertex --> next_v --> attachment
+//    old_faces.push(curr_faces[pos]);
+//    curr_faces[pos] = new Face();
+//    
+//    // TO-DO: do we need to check for endpoints to use instead of attachments?
+//    //        like with _buildSegmentFace?
+//    //adjs[pos] = [ix_adjs[pos], next_v, next_v.endpoint.attachments[pos]];
+//    const v = this._findAttachment(next_v, pos, next_v);
+//    adjs[pos] = [ix_adjs[pos], next_v, v];
+//    
+//    
+//    // 3. opposite face gets another vertex at the intersection
+//    adjs[opp].unshift(ix_adjs[opp]);
+//    
+//    // 4. opposite face can be finished using either left or right adjacency 
+//    //    and associated attachment.
+//    const closing_side = pos === TOP ? left : right;
+//    let v_opp = this._findAttachment(closing_side.neighbor, opp, closing_side);
+//    if(!v_opp.neighbor.equals(closing_side)) { adjs[opp].push(v_opp.neighbor); }
+//    
+//    // if the closing_side is an endpoint, we need to follow it to its attachment
+//    if(closing_side?.endpoint?.attachments && 
+//       !closing_side.endpoint.attachments[opp].equals(closing_side)) {
+//      const att = closing_side.endpoint.attachments[opp];
+//      adjs[opp].push(att.matchFace(closing_side));   
+//    }
+//    
+//    this._closeSegmentFace(adjs, curr_faces, closing_side, opp);
+//    
+//    // 5. open new opposite face using vertex --> nothing
+//    old_faces.push(curr_faces[opp]);
+//    curr_faces[opp] = new Face();
+//    adjs[opp] = [ix_adjs[LEFT]];
+//    
+//    // is there another vertex to the left (i.e., intersection) before reaching 
+//    // the next attachment? if so, add
+//    if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
+//      adjs[opp].push(closing_side.matchFace(next_v));
+//    }
+//    
+//    return old_faces;
+//  
+//  } 
 
 
  _closeSegmentFace(adjs, curr_faces, v, position) {
