@@ -138,13 +138,56 @@ class Segment {
 
 class Face {
   constructor() {
-    this.adjacencies = new Set();
+    this.adjacencies = [];
+    
+    this._isOpen = undefined; // true if open, false if closed, undefined at start.
+    this._creationOrientation = undefined; // TOP or BOTTOM
   }
   
   get label() {
     const str = [];
     this.adjacencies.forEach(adj => str.push(`${adj.label}`));
     return str.join(` ->> `);
+  }
+  
+  
+  open(...pts) {
+    this._isOpen = true;
+    
+    this.adjacencies.push(...pts);
+  }
+  
+  close(...pts) {
+    const adjs = this.adjacencies;
+    this._isOpen = false;
+    
+    this.adjacencies.push(...pts);
+    
+    // if this is a BOTTOM face relative to the creating segment, then 
+    // the adjacencies must be reversed.
+    if(this._creationOrientation === BOTTOM) adjs.reverse();
+    
+    // successors are in order of the array, looping around to beginning
+    // also set the face for each adjacency.
+    const ln = adjs.length;
+    for(let i = 0; i < ln; i += 1) {
+      const next_i = (i + 1) % ln;
+      adjs[i].successor = adjs[next_i];
+      adjs[i].face = this;
+    }
+  }
+  
+  static open(...pts) {
+    const f = new Face();
+    f.open(...pts);
+    return f;
+  }
+  
+  
+  static create(...pts) {
+    const f = new Face();
+    f.close(...pts);
+    return f;
   }
   
   consistencyTest({ test_neighbor = false, 
@@ -164,7 +207,7 @@ class Face {
       }
       
       // face adjacency successors should all be in face
-      if(!this.adjacencies.has(adj.successor)) {
+      if(!this.adjacencies.includes(adj.successor)) {
         console.error(`adj ${adj.label} successor ${adj.successor.label} not in face.`, adj, this);
         return false;
       }
@@ -363,6 +406,14 @@ class Adjacency extends Vertex {
     return new this(v.x, v.y, face, neighbor, successor);
   }
   
+  setNeighbor(other) {
+    if(!other.equals(this)) {
+      console.error(`Attempting to set neighbor for ${this.label} to ${other.label}!`);
+    }
+    other.neighbor = this;
+    this.neighbor = other;
+  }
+  
   matchFace(other_v, other_face) {
     if(!other_face) { other_face = other_v.face; }
     let curr_v = this.neighbor;
@@ -448,13 +499,13 @@ class Adjacency extends Vertex {
    }  
    
    // this face should have this adjacency
-   if(!this.face.adjacencies.has(this)) {
+   if(!this.face.adjacencies.includes(this)) {
       console.error(`Face ${this.face.lablel} for ${this.label} does not have this adjacency.`, this);
       return false;         
    }
    
    // this face should have this successor
-   if(!this.face.adjacencies.has(this.successor)) {
+   if(!this.face.adjacencies.includes(this.successor)) {
       console.error(`Face ${this.face.label} for ${this.label} does not have successor ${this.successor.label}.`, this);
       return false;         
    }
@@ -559,132 +610,169 @@ class Partition {
     
     return { face: f, adjacencies: vertices };
   }
-  
-  // tr, tl, bl, br
- //  _buildNewFace(tl, tr, bl, br) {    
-//     // face has vertices in ccw order
-//     const f = new Face();
-//     this.faces.add(f);
-//     
-//     const adj_tl = Adjacency.fromVertex(tl, f);
-//     const adj_tr = Adjacency.fromVertex(tr, f);
-//     const adj_bl = Adjacency.fromVertex(bl, f);
-//     const adj_br = Adjacency.fromVertex(br, f);
-//     
-//     f.adjacencies.add(adj_tl);
-//     f.adjacencies.add(adj_tr);
-//     f.adjacencies.add(adj_bl);
-//     f.adjacencies.add(adj_br);
-//         
-//     // successors are ccw to next one
-//     adj_tr.successor = adj_tl;
-//     adj_tl.successor = adj_bl;
-//     adj_bl.successor = adj_br;
-//     adj_br.successor = adj_tr;
-//         
-//     // cannot set neighbors without the other face
-// //     return { tl: adj_tl, tr: adj_tr, bl: adj_bl, br: adj_br };
-//     return f;
-//   }
-  
-//   _buildNewAdjacency(p, f1, f2) {
-//     const adj1 = new Adjacency(p, f1);
-//     const adj2 = new Adjacency(p, f2);
-//     adj1.next = adj2;
-//     adj2.next = adj1;
-//       
-//     this.adjacencies.set(p, adj1);
-//   }
     
   initialize() {
-    // for each segment, get the top and bottom canvas vertices.   
     const x_left = 0;
     const x_right = canvas.dimensions.width;
      
     const y_top = 0;
     const y_bottom = canvas.dimensions.height;
     
-    const tl = new Vertex(x_left, y_top);
-    const tr = new Vertex(x_right, y_top);
-    const bl = new Vertex(x_left, y_bottom);
-    const br = new Vertex(x_right, y_bottom);
-    
+    // Assume we are treating the bottom of the canvas as a segment.
+    // Each face created is a "TOP" face, with adjacencies going from 
+    // bottom right --> top right --> top left --> bottom left
+    // bottom right and top right are on the vertical line for the endpoint
     
     // initial face is outside the canvas
     // (or the entire canvas, depending on how you look at it)
-    //this.faces.clear();
+    // Here, we will pretend we are starting in the lower right corner to follow
+    // the same sequence as above
+    const ADJS = { br: 0, tr: 1, tl: 2, bl: 3 };    
+    const initial_face = Face.create(new Adjacency(x_right, y_bottom),
+                                     new Adjacency(x_right, y_top),
+                                     new Adjacency(x_left, y_top),
+                                     new Adjacency(x_left, y_bottom));
+                                   
+    initial_face.adjacencies.forEach(adj => this.adjacencies.set(adj.key, adj));    
+                        
+    let prior_top = initial_face.adjacencies[ADJS.tl];            
+    let prior_bottom = initial_face.adjacencies[ADJS.bl];
     
-    const { adjacencies: first_adjacencies } = this._buildNewFace([tr, tl, bl, br]);
-  
-    // for tracking which vertex corresponds to the face adjacency array
-    // tr, tl, bl, br
-    const ADJS = { tr: 0, tl: 1, bl: 2, br: 3 };
-      
-    // f0 is a bit different, as we want to track the 
-    // left vertices as if they were the right vertices.
-    let prior_adjacencies = [...first_adjacencies];
-    prior_adjacencies[ADJS.tr] = first_adjacencies[ADJS.tl];
-    prior_adjacencies[ADJS.br] = first_adjacencies[ADJS.bl];
-    
-    
-    let prior_tr = tl;
-    let prior_br = bl;
-  
-    this.endpoints.forEach(e => {
-      // as we move left-to-right, the previous face will
-      // help inform the current 
-      // right vertices have faces of this face and next face,
-      // so have to wait until next loop for those.
-      
-      const tr = new Vertex(e.x, y_top);
-      const br = new Vertex(e.x, y_bottom);
-      const tl = prior_tr;
-      const bl = prior_br;
-      
-      const { adjacencies } = this._buildNewFace([tr, tl, bl, br]);
-      
-      // set the endpoint links to the adjacencies
-      e.attachments = [ adjacencies[ADJS.br], adjacencies[ADJS.tr]]; // BOTTOM, TOP
-      
-      
-      adjacencies[ADJS.tr].endpoint = e;
-      adjacencies[ADJS.br].endpoint = e;
-      
-      // set neighbors for the adjacencies
-      adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
-      prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
-      
-      adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
-      prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
-           
-      prior_tr = tr;
-      prior_br = br;     
-      prior_adjacencies = adjacencies; 
-    });
-    
-    // final step treats the prior_tr, prior_br as left vertices,
-    // with right corners   
-    
+    // move left-to-right through sorted endpoints
+    this.endpoints.forEach(e => {      
+      // can skip opening and just supply the 4 adjacencies in order
+      const f = Face.create(new Adjacency(e.x, y_bottom),
+                            new Adjacency(e.x, y_top),
+                            Adjacency.fromVertex(prior_top),
+                            Adjacency.fromVertex(prior_bottom));
+            
+      // set the neighbors for the left side
+      f.adjacencies[ADJS.tl].setNeighbor(prior_top);
+      f.adjacencies[ADJS.bl].setNeighbor(prior_bottom);  
 
-// tr, tl, bl, br
-    
-    const { adjacencies } = this._buildNewFace([tr, prior_tr, prior_br, br]);
-    
-    adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
-    prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
+      // set the endpoint links for the adjacencies
+      // attachments point to the left face
+      e.attachments = [ f.adjacencies[ADJS.br], f.adjacencies[ADJS.tr]]; // BOTTOM, TOP
+      f.adjacencies[ADJS.br].endpoint = e;
+      f.adjacencies[ADJS.tr].endpoint = e;
+                  
+      prior_top = f.adjacencies[ADJS.tr];        
+      prior_bottom = f.adjacencies[ADJS.br];
       
-    adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
-    prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
-    
-    // and handle the right-most corners?
-    adjacencies[ADJS.tr].neighbor = first_adjacencies[ADJS.tr];
-    first_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tr];
-    
-    adjacencies[ADJS.br].neighbor = first_adjacencies[ADJS.br];
-    first_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.br];    
-    
-    
+      this.adjacencies.set(prior_top.key, prior_top);
+      this.adjacencies.set(prior_bottom.key, prior_bottom);                           
+    });
+         
+    // construct the face between the right endpoint and the canvas edge
+    const initial_top = initial_face.adjacencies[ADJS.tr];
+    const initial_bottom = initial_face.adjacencies[ADJS.br];
+
+    const last_f = Face.create(Adjacency.fromVertex(initial_bottom),
+                               Adjacency.fromVertex(initial_top),
+                               Adjacency.fromVertex(prior_top),
+                               Adjacency.fromVertex(prior_bottom));
+                     
+    // set neighbors on right side
+    last_f.adjacencies[ADJS.tr].setNeighbor(initial_top);
+    last_f.adjacencies[ADJS.br].setNeighbor(initial_bottom);  
+                                      
+    // set neighbors on left side
+    last_f.adjacencies[ADJS.tl].setNeighbor(prior_top);
+    last_f.adjacencies[ADJS.bl].setNeighbor(prior_bottom);                                    
   }
+
+    
+ //  initialize() {
+//     // for each segment, get the top and bottom canvas vertices.   
+//     const x_left = 0;
+//     const x_right = canvas.dimensions.width;
+//      
+//     const y_top = 0;
+//     const y_bottom = canvas.dimensions.height;
+//     
+//     const tl = new Vertex(x_left, y_top);
+//     const tr = new Vertex(x_right, y_top);
+//     const bl = new Vertex(x_left, y_bottom);
+//     const br = new Vertex(x_right, y_bottom);
+//     
+//     
+//     // initial face is outside the canvas
+//     // (or the entire canvas, depending on how you look at it)
+//     //this.faces.clear();
+//     
+//     const { adjacencies: first_adjacencies } = this._buildNewFace([tr, tl, bl, br]);
+//   
+//     // for tracking which vertex corresponds to the face adjacency array
+//     // tr, tl, bl, br
+//     const ADJS = { tr: 0, tl: 1, bl: 2, br: 3 };
+//       
+//     // f0 is a bit different, as we want to track the 
+//     // left vertices as if they were the right vertices.
+//     let prior_adjacencies = [...first_adjacencies];
+//     prior_adjacencies[ADJS.tr] = first_adjacencies[ADJS.tl];
+//     prior_adjacencies[ADJS.br] = first_adjacencies[ADJS.bl];
+//     
+//     
+//     let prior_tr = tl;
+//     let prior_br = bl;
+//     
+// 
+//   
+//     this.endpoints.forEach(e => {
+//       // as we move left-to-right, the previous face will
+//       // help inform the current 
+//       // right vertices have faces of this face and next face,
+//       // so have to wait until next loop for those.
+//       
+//       const tr = new Vertex(e.x, y_top);
+//       const br = new Vertex(e.x, y_bottom);
+//       const tl = prior_tr;
+//       const bl = prior_br;
+//       
+//       const { adjacencies } = this._buildNewFace([tr, tl, bl, br]);
+//       
+//       // set the endpoint links to the adjacencies
+//       e.attachments = [ adjacencies[ADJS.br], adjacencies[ADJS.tr]]; // BOTTOM, TOP
+//       
+//       
+//       adjacencies[ADJS.tr].endpoint = e;
+//       adjacencies[ADJS.br].endpoint = e;
+//       
+//       // set neighbors for the adjacencies
+//       adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
+//       prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
+//       
+//       adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
+//       prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
+//            
+//       prior_tr = tr;
+//       prior_br = br;     
+//       prior_adjacencies = adjacencies; 
+//     });
+//     
+//     // final step treats the prior_tr, prior_br as left vertices,
+//     // with right corners   
+//     
+// 
+// // tr, tl, bl, br
+//     
+//     const { adjacencies } = this._buildNewFace([tr, prior_tr, prior_br, br]);
+//     
+//     adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
+//     prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
+//       
+//     adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
+//     prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
+//     
+//     // and handle the right-most corners?
+//     adjacencies[ADJS.tr].neighbor = first_adjacencies[ADJS.tr];
+//     first_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tr];
+//     
+//     adjacencies[ADJS.br].neighbor = first_adjacencies[ADJS.br];
+//     first_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.br];    
+//     
+//     
+//   }
     
     
 /*
@@ -841,6 +929,8 @@ D. closing other face (here, assume top)
     }
     return v;
   }
+  
+ 
 
     
   _buildSegmentFace(s, ix, left, right, next_v, adjs, curr_faces, position = BOTTOM) {
@@ -1136,7 +1226,7 @@ Here, bottom face B2 extends across, and the former 2" is replaced by ixC1 and i
           console.log(`Adding intersection face ${f.label}.`);
           if(draw) f.draw({color: colors[ci]})
           new_faces.push(f);
-          if(!old_face.consistencyTest({ test_neighbor: false, 
+          if(!f.consistencyTest({ test_neighbor: false, 
                                          test_successor: true, 
                                          test_face: true })) {
             console.error(`Failed intersection consistency test at i ${i} for f ${f.label}`, f, new_faces);
@@ -1243,10 +1333,10 @@ Here, bottom face B2 extends across, and the former 2" is replaced by ixC1 and i
       }
 
   
-      if(!this.faces.has(adj.face)) {
-        console.error(`adj ${adj.label} (${key}) face ${adj.face.label} not in partition faces.`, adj, this);
-        return false;     
-      }
+//       if(!this.faces.has(adj.face)) {
+//         console.error(`adj ${adj.label} (${key}) face ${adj.face.label} not in partition faces.`, adj, this);
+//         return false;     
+//       }
     }
 
     // confirm each endpoint has an adjacency
@@ -1323,339 +1413,175 @@ closing bottom face:
 */
 
 partition.clearLabels();
-
 canvas.controls.debug.clear()
 walls = canvas.walls.placeables;
 partition = new Partition(walls);
 partition.labelSegments()
 partition.initialize();
+partition.consistencyTest();
 partition.consistencyTest({ test_neighbor: true, 
                             test_successor: true, 
                             test_face: true });
-
-partition.draw({shade_faces: false});
-
-  
-  
-
-new_faces = partition.addSegment({ draw: true, idx: 5 });
-
-new_faces = partition.addSegment({ draw: true });
-
-
-// locate all the faces using adjacencies
-faces = new Set()
-partition.adjacencies.forEach(adj => faces.add(adj.face));
-
-
-
-
-
-// to reset drawing
-canvas.controls.debug.clear()
-partition.labelSegments()
-partition.draw({shade_faces: false});
-
-
-    draw = true
-    if(typeof idx === "undefined") {
-      idx = partition.process_queue.pop()
-    } else {
-      // drop idx from the queue if it exists
-       i = partition.process_queue.findIndex(elem => elem === idx);
-      if(~i) { partition.process_queue.splice(i, 1); }
-    }
-    
-     s = partition.segments.get(idx);
-    
-    if(draw) console.log(`Adding segment ${s._index}.`);
-    
-    
-    
-   
-    
-    // we will move from s0 right to s1.
-     s0 = s.max_xy;
-     s1 = s.min_xy;
-    
-    // Debugging 
-     new_faces = []; // track faces created
-     colors = [
-      COLORS.lightblue, 
-      COLORS.lightgreen, 
-      COLORS.lightred
-    ]; // drawing faces
-     color_ln = colors.length; // to alternate face colors
-    if(draw) s.draw({width: 2})
-   
-    
-    // ------ Set variables for the while loop ----- //
-    
-    // Create two new faces, to be filled in as we move along segment from s0 to s1.
-    // Along the way, each face will be closed and replaced by another, depending
-    // on the layout. 
-     curr_faces = [new Face(), new Face()]; // BOTTOM and TOP faces
-     adjs = [ [], [] ] // BOTTOM and TOP adjacencies
-        
-    // Get the top and bottom beginning of the respective new faces
-    // neighbor unchanged; successor and face must change later
-
-        
-    // Create adjacencies at s0
-    // one adj will link to the nw face.
-    // second adj will link to sw face.
-     s0nw = Adjacency.fromVertex(s0); 
-     s0sw = Adjacency.fromVertex(s0);
-    
-    s0.neighbor = s0nw; // link endpoint to first adjacency to the nw.
-    s0nw.endpoint = s0; // link adjacency back to s0 endpoint
-    s0sw.endpoint = s0; // link adjacency back to s0 endpoint
-    
-    s0nw.face = curr_faces[TOP];
-    s0sw.face = curr_faces[BOTTOM]; 
-    
-    s0nw.neighbor = s0sw;    
-    s0sw.neighbor = s0nw;                                         
-    
-    adjs[TOP].push(s0nw, s0.attachments[TOP]);
-    adjs[BOTTOM].push(s0sw, s0.attachments[BOTTOM]);
-   
-     curr_v = s0.attachments[TOP];
-     curr_ix = s0;
-         
-    // i and ln_endpoints to avoid infinite loops while debugging
-     i = 0;
-     ln_endpoints = partition.endpoints.length;
-    while(i < ln_endpoints && !curr_ix.equals(s1)) {
-      i += 1;
-      
-      // for coloring
-       ci = i % color_ln;
-      
-      // do traversal / transition until we find other end of s
-      let [right, left] = curr_v.traverse(s);
-      let { next_v, ix, is_left, rising } = Face.transition(left, right, s);
-      curr_v = next_v;
-      curr_ix = ix;
-      
-
-      
-      if(typeof rising === "undefined") {
-        // transitioning through a vertical attachment
-        position = is_left ? BOTTOM : TOP;
-        old_face = partition._buildSegmentFace(s, ix, left, right, next_v, adjs, curr_faces, position);
-        new_faces.push(old_face)
-        if(draw) old_face.draw({color: colors[ci]})
-          
-        if(!old_face.consistencyTest({ test_neighbor: false, 
-                                       test_successor: true, 
-                                       test_face: true })) {
-          console.error(`Failed consistency test at i ${i}`);
-          //return new_faces;                                                  
-        }
-                 
-      } else {
-        // transitioning through other segment
-        console.log(`Need to transition through other segment.`);
-        
-        // record the intersection
-        partition.intersections.push({
-            ix: ix,
-            s1: s,
-            s2: left.segment 
-        });
-      
-        old_faces = partition._buildSegmentIntersectionFaces(ix, left, right, next_v, 
-                                                              adjs, curr_faces, rising);
-        old_faces.forEach(f => {
-          new_faces.push(f);
-            if(draw) f.draw({color: colors[ci]})
-            if(!old_face.consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-              console.error(`Failed intersection consistency test at i ${i} for face ${f.label}`, f, new_faces);
-            }
-         });     
-      
-      }
-      
-      if(curr_ix.equals(s1)) { console.log("Done loop!") }
-    }
-        
-    last_face = curr_faces[0] || curr_faces[1];
-    new_faces.push(last_face);
-    
-    ci = (i + 1) % color_ln;
-    if(draw) last_face.draw({ color: colors[ci] })
-    
-    if(!last_face.consistencyTest({ test_neighbor: false, 
-                                   test_successor: true, 
-                                   test_face: true })) {
-      console.error(`Failed consistency test at last face`);
-      //return new_faces;                                                  
-    }
-          
-    partition.partitioned_segments.add(s);    
-        
-                
-//         // TO-DO: is_left vs is_right?
-//         if(!rising) {
-//           // other segment is rising when moving left from ix
-//           // s is falling when moving left from ix
-//           // so s starts above other to the right and falls below
-//           console.log(`s0 above intersecting segment's right endpoint`);
 // 
-//         // intersection needs 4 adjacencies: t, l, b, r
-//         ix_adj_top = Adjacency.fromVertex(ix);
-//         ix_adj_left = Adjacency.fromVertex(ix);
-//         ix_adj_bottom = Adjacency.fromVertex(ix);
-//         ix_adj_right = Adjacency.fromVertex(ix);
-//         
-//         ix_adj_top.neighbor = ix_adj_left;
-//         ix_adj_left.neighbor = ix_adj_bottom;
-//         ix_adj_bottom.neighbor = ix_adj_right;
-//         ix_adj_right.neighbor = ix_adj_top;
-//         
-//         // when reversed (s is below the other to the right)
-//         // is_left === false
-//         
-//         // 1. bottom face finished with vertex as final point
-//         adjs[BOTTOM].push(ix_adj_right);
-//         adjs[BOTTOM].reverse();
-//         partition._buildAdjacencies(adjs[BOTTOM], curr_faces[BOTTOM]);
-//         
-//         // 2. top face gets another vertex at the intersection
-//         adjs[TOP].unshift(ix_adj_top);
-//         
-//         // 3. top face can be finished using right and the top attachment
-//         // TO-DO: do we need to check for endpoints to use instead of attachment?
-//         partition._closeSegmentFace(adjs, curr_faces, undefined,
-//           right.neighbor.endpoint.attachments[TOP].neighbor, right, TOP)
-//         
-//         // 4. open new bottom face using vertex 
-//         old_face = curr_faces[BOTTOM];
-//         new_faces.push(old_face);
-//         if(draw) old_face.draw({color: colors[ci]})
-//         if(!old_face.consistencyTest({ test_neighbor: false, 
-//                                        test_successor: true, 
-//                                        test_face: true })) {
-//           console.error(`Failed consistency test for intersection (bottom) at i ${i}`);
-//           //return new_faces;                                                  
-//         }
-//         
-//         curr_faces[BOTTOM] = new Face();
-//          
-//         // TO-DO: do we need to check for endpoints to use instead of attachment?
-//         adjs[BOTTOM] = [ix_adj_bottom, h, h.endpoint.attachments[BOTTOM]]; 
-//          
-//         // 5. open new top face using vertex -> nothing
-//         old_face = curr_faces[TOP];
-//         new_faces.push(old_face);
-//         if(draw) old_face.draw({color: colors[ci]})
-//         if(!old_face.consistencyTest({ test_neighbor: false, 
-//                                        test_successor: true, 
-//                                        test_face: true })) {
-//           console.error(`Failed consistency test for intersection (top) at i ${i}`);
-//           //return new_faces;                                                  
-//         }
-//        
-//         curr_faces[TOP] = new Face();
-//         adjs[TOP] = [ix_adj_left]; 
-//         
-//         
-// //         curr_v = h;
-//         
-//         // 6. close new bottom face using next_v
-//  //        adjs[BOTTOM].push(next_v.neighbor.endpoints.attachments[BOTTOM].neighbor, next_v);
-// //         adjs[BOTTOM].reverse();
-// //         partition._buildAdjacencies(adjs[BOTTOM], curr_faces[BOTTOM]);
-// //         old_face = curr_faces[BOTTOM];
-// //         new_faces.push(old_face);
-// //         if(draw) old_face.draw({color: colors[ci]})
-// //         if(!old_face.consistencyTest({ test_neighbor: false, 
-// //                                        test_successor: true, 
-// //                                        test_face: true })) {
-// //           console.error(`Failed consistency test for intersection (bottom) at i ${i}`);
-// //           //return new_faces;                                                  
-// //         }
-// //         curr_faces[BOTTOM] = new Face();
-// //         
-// //         adjs[BOTTOM] = []
-//         
-//         
-//         // 7. close new top face using next_v
-//  
-//         
-//         } else {
-//         // TO-DO: presumably following is reversed somehow (is_left)? 
-//         // if s is above the other to the right
-//         // for now, with s moving from low right to upper left:
-//         // rising
+// partition.draw({shade_faces: false});
+// 
+//   
+//   
+// 
+// new_faces = partition.addSegment({ draw: true, idx: 5 });
+// 
+// new_faces = partition.addSegment({ draw: true });
+// 
+// 
+// // locate all the faces using adjacencies
+// faces = new Set()
+// partition.adjacencies.forEach(adj => faces.add(adj.face));
+// 
+// 
+// 
+// 
 
-//         // 1. top face finished with vertex as final point
-//         console.log(`s0 below intersecting segment's right endpoint`);
+// new addSegment
+//idx = 
+
+
+
+
+// // to reset drawing
+// canvas.controls.debug.clear()
+// partition.labelSegments()
+// partition.draw({shade_faces: false});
+// 
+// 
+//     draw = true
+//     if(typeof idx === "undefined") {
+//       idx = partition.process_queue.pop()
+//     } else {
+//       // drop idx from the queue if it exists
+//        i = partition.process_queue.findIndex(elem => elem === idx);
+//       if(~i) { partition.process_queue.splice(i, 1); }
+//     }
+//     
+//      s = partition.segments.get(idx);
+//     
+//     if(draw) console.log(`Adding segment ${s._index}.`);
+//     
+//     
+//     
+//    
+//     
+//     // we will move from s0 right to s1.
+//      s0 = s.max_xy;
+//      s1 = s.min_xy;
+//     
+//     // Debugging 
+//      new_faces = []; // track faces created
+//      colors = [
+//       COLORS.lightblue, 
+//       COLORS.lightgreen, 
+//       COLORS.lightred
+//     ]; // drawing faces
+//      color_ln = colors.length; // to alternate face colors
+//     if(draw) s.draw({width: 2})
+//    
+//     
+//     // ------ Set variables for the while loop ----- //
+//     
+//     // Create two new faces, to be filled in as we move along segment from s0 to s1.
+//     // Along the way, each face will be closed and replaced by another, depending
+//     // on the layout. 
+//      curr_faces = [new Face(), new Face()]; // BOTTOM and TOP faces
+//      adjs = [ [], [] ] // BOTTOM and TOP adjacencies
 //         
-//         // not quite _closeSegmentFace
-//         adjs[TOP].push(ix_adj_right)
-//         partition._buildAdjacencies(adjs[TOP], curr_faces[TOP]);
+//     // Get the top and bottom beginning of the respective new faces
+//     // neighbor unchanged; successor and face must change later
+// 
 //         
-//         // 2. bottom face gets another vertex at the intersection
-//         adjs[BOTTOM].unshift(ix_adj_bottom);
-//         
-//         // 3. bottom face can be finished using left and the bottom attachment
-//         // TO-DO: do we need to check for endpoints to use instead of attachment?
-//         partition._closeSegmentFace(adjs, curr_faces, left.neighbor.endpoint.attachments[BOTTOM].neighbor, undefined, left, BOTTOM)
-//         
-//         // 4. open new top face using vertex -> next_v -> top attachment
-//         old_face = curr_faces[TOP];
-//         new_faces.push(old_face);
+//     // Create adjacencies at s0
+//     // one adj will link to the nw face.
+//     // second adj will link to sw face.
+//      s0nw = Adjacency.fromVertex(s0); 
+//      s0sw = Adjacency.fromVertex(s0);
+//     
+//     s0.neighbor = s0nw; // link endpoint to first adjacency to the nw.
+//     s0nw.endpoint = s0; // link adjacency back to s0 endpoint
+//     s0sw.endpoint = s0; // link adjacency back to s0 endpoint
+//     
+//     s0nw.face = curr_faces[TOP];
+//     s0sw.face = curr_faces[BOTTOM]; 
+//     
+//     s0nw.neighbor = s0sw;    
+//     s0sw.neighbor = s0nw;                                         
+//     
+//     adjs[TOP].push(s0nw, s0.attachments[TOP]);
+//     adjs[BOTTOM].push(s0sw, s0.attachments[BOTTOM]);
+//    
+//      curr_v = s0.attachments[TOP];
+//      curr_ix = s0;
+//          
+//     // i and ln_endpoints to avoid infinite loops while debugging
+//      i = 0;
+//      ln_endpoints = partition.endpoints.length;
+//     while(i < ln_endpoints && !curr_ix.equals(s1)) {
+//       i += 1;
+//       
+//       // for coloring
+//        ci = i % color_ln;
+//       
+//       // do traversal / transition until we find other end of s
+//       let [right, left] = curr_v.traverse(s);
+//       let { next_v, ix, is_left, rising } = Face.transition(left, right, s);
+//       curr_v = next_v;
+//       curr_ix = ix;
+//       
+// 
+//       
+//       if(typeof rising === "undefined") {
+//         // transitioning through a vertical attachment
+//         position = is_left ? BOTTOM : TOP;
+//         old_face = partition._buildSegmentFace(s, ix, left, right, next_v, adjs, curr_faces, position);
+//         new_faces.push(old_face)
 //         if(draw) old_face.draw({color: colors[ci]})
+//           
 //         if(!old_face.consistencyTest({ test_neighbor: false, 
 //                                        test_successor: true, 
 //                                        test_face: true })) {
-//           console.error(`Failed consistency test for intersection (top) at i ${i}`);
+//           console.error(`Failed consistency test at i ${i}`);
 //           //return new_faces;                                                  
 //         }
+//                  
+//       } else {
+//         // transitioning through other segment
+//         console.log(`Need to transition through other segment.`);
 //         
-//         curr_faces[TOP] = new Face();
-//         
-//         // TO-DO: do we need to check for endpoints to use instead of attachment?
-//         adjs[TOP] = [ix_adj_top, next_v, next_v.endpoint.attachments[TOP]];
-//         
-//         // 5. open new bottom face using vertex -> nothing
-//         old_face = curr_faces[BOTTOM];
-//         new_faces.push(old_face);
-//         if(draw) old_face.draw({color: colors[ci]})
-//         if(!old_face.consistencyTest({ test_neighbor: false, 
-//                                        test_successor: true, 
-//                                        test_face: true })) {
-//           console.error(`Failed consistency test for intersection (bottom) at i ${i}`);
-//           //return new_faces;                                                  
-//         }
-//        
-//         curr_faces[BOTTOM] = new Face();
-//         adjs[BOTTOM] = [ix_adj_left];
-//         
-//         }
-//         
-        
-        
-        
-        
-        
-        
-        
-        
+//         // record the intersection
+//         partition.intersections.push({
+//             ix: ix,
+//             s1: s,
+//             s2: left.segment 
+//         });
+//       
+//         old_faces = partition._buildSegmentIntersectionFaces(ix, left, right, next_v, 
+//                                                               adjs, curr_faces, rising);
+//         old_faces.forEach(f => {
+//           new_faces.push(f);
+//             if(draw) f.draw({color: colors[ci]})
+//             if(!old_face.consistencyTest({ test_neighbor: false, 
+//                                            test_successor: true, 
+//                                            test_face: true })) {
+//               console.error(`Failed intersection consistency test at i ${i} for face ${f.label}`, f, new_faces);
+//             }
+//          });     
+//       
 //       }
 //       
 //       if(curr_ix.equals(s1)) { console.log("Done loop!") }
-//     
 //     }
-//     
-//      last_face = curr_faces[0] || curr_faces[1];
+//         
+//     last_face = curr_faces[0] || curr_faces[1];
 //     new_faces.push(last_face);
 //     
-//      ci = (i + 1) % color_ln;
+//     ci = (i + 1) % color_ln;
 //     if(draw) last_face.draw({ color: colors[ci] })
 //     
 //     if(!last_face.consistencyTest({ test_neighbor: false, 
@@ -1664,10 +1590,11 @@ partition.draw({shade_faces: false});
 //       console.error(`Failed consistency test at last face`);
 //       //return new_faces;                                                  
 //     }
-//     
-//     partition.partitioned_segments.add(s);
-//     return new_faces;
-//  
+//           
+//     partition.partitioned_segments.add(s);    
+        
+                
+
      
 
     
