@@ -234,7 +234,7 @@ class Face {
       if(matching_face) { 
         closing_v = this._findAttachment(closing_v, matching_face);      
       }
-    
+
       //let v1 = this._findAttachment(closing_v);
       //if(closing_v.face) { v1 = v1.matchFace(closing_v); }
       adjs.push(closing_v);  
@@ -942,29 +942,34 @@ D. closing other face (here, assume top)
     old_faces.push(curr_faces[pos])
     
     // 2. opposite face gets another vertex at the intersection
-    // curr_faces[opp].adjacencies.unshift(ix_adjs[opp]); // handled below
+    curr_faces[opp].adjacencies.unshift(ix_adjs[opp]); // handled below
     
     // 3. Close the opposite face, which will be above or below intersection 
     //    depending on position.
+    // TO-DO: Is it possible to incorporate the endpoint/attachment search in close/open?
     let closing_side = pos === TOP ? left : right;
-    curr_faces[opp].close(ix_adjs[opp], closing_side, closing_side.face);  // what should be here?
+    let opp_endpoint = closing_side.endpoint || closing_side.neighbor.endpoint;
+    let opp_att = opp_endpoint.attachments[opp];
+    curr_faces[opp].close(closing_side, opp_att, closing_side.face);  
+    old_faces.push(curr_faces[opp])
     
     // 4. Open new face
     curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].open(ix_adjs[pos], next_v, next_v.face); // what should be here?
+    curr_faces[pos].adjacencies.push(ix_adjs[pos]);
+    let pos_endpoint = next_v.endpoint || next_v.neighbor.endpoint;
+    let pos_att = pos_endpoint.attachments[pos];
+    curr_faces[pos].open(next_v, pos_att, next_v.face); 
     
     // 5. Open new opposite face
     curr_faces[opp] = new Face({ orientation: opp });
+    curr_faces[opp].adjacencies.push(ix_adjs[LEFT])
     
-    curr_faces[pos].adjacencies.push(ix_adjs[LEFT])
     // is there another vertex to the left (i.e., intersection) before reaching 
     // the next attachment? if so, add
     if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
       curr_faces[opp].push(closing_side.matchFace(next_v));
     }
-    
-    curr_faces[opp].open(ix_adjs[LEFT], )
-    
+        
     return old_faces;
   }
 
@@ -1287,7 +1292,7 @@ D. closing other face (here, assume top)
       // ------ Set variables for the while loop ----- //
       let curr_v = s0.attachments[TOP];
       let curr_ix = s0nw;
-
+      let old_faces;
       let i = 0;
       const ln_endpoints = this.endpoints.length;
       
@@ -1297,21 +1302,30 @@ D. closing other face (here, assume top)
   
         let [right, left] = curr_v.traverse(s);
         let { next_v, ix, is_left, rising} = Face.transition(left, right, s);
-  
+        
         if(typeof rising === "undefined") {
-          const old_faces = this._buildSegmentFace(s, ix, left, right, next_v, 
-                                                   curr_faces, is_left);
-                                                        
-          new_faces.push(...old_faces);                                              
-          old_faces.forEach(f => {
-            if(draw) f.draw({ color: nextShade() });
-            if(!f.consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-              console.error(`Failed consistency test at last face`);  
-            }    
+          old_faces = this._buildSegmentFace(s, ix, left, right, next_v, 
+                                                   curr_faces, is_left);                                                       
+        } else {
+          // record the intersection
+          partition.intersections.push({
+              ix: ix,
+              s1: s,
+              s2: left.segment 
           });
+    
+          // process intersection
+          old_faces = partition._buildSegmentIntersectionFaces(ix, left, right, next_v, curr_faces, rising)
         }
+        new_faces.push(...old_faces);                                              
+        old_faces.forEach(f => {
+          if(draw) f.draw({ color: nextShade() });
+          if(!f.consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+            console.error(`Failed consistency test at last face`);  
+          }    
+        });
   
         curr_v = next_v;
         curr_ix = ix;  
