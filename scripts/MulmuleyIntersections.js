@@ -40,6 +40,37 @@ CONFIG
 //   return Math.floor(Math.random() * max)
 // }
 
+/* more consistent rules for building segment faces
+
+(assume a top face; reverse for bottom)
+Goal is to set up all but the closing adjacencies
+Opening at an attachment-segment vertex
+v0 = ix
+- Follow the face successors until reaching the x coordinate for the next_v.
+- Don't include that last vertex because it might be skipped in next iteration
+- Trick is finding the first vertex on the face to follow
+Simple Face:
+- for the current v, get the attachment.
+- test for face match?
+- next vertex on face will be the attachment at next_v; stop
+
+Face with endpoint
+- for the current v, get the attachment, which should be at the endpoint?
+- next vertex on face either at next_v x coordinate (stop) or a processed intersection (add)
+
+closing
+v0 = ix
+- Situations where we need more than ix?
+- need to get that closing attachment
+- can we walk face predecessors until we reach the last point?
+- or should we just aim for the attachment?
+
+
+
+
+
+*/
+
 
 function compareXY(a, b) { 
   return ( a.x - b.x ) || (a.y - b.y );
@@ -162,6 +193,35 @@ class Face {
       adjs[i].face = this;
     }    
   }
+  
+  
+  /*
+  Open:
+  v0: The new crossing to add, where vertical attachment line crosses s.
+  attachment: link to the endpoint attachment
+  target: next_v, indicting the face to be traced and the x value to reach
+  
+1. Add v0.
+2. Add attachment and any subsequent (successor/predecessor) vertex until reaching 
+   the target x
+   
+   --> confirm that the attachments are moved to the nearest processed endpoint, 
+   meaning attachment is in fact the first point and we don't have to go looking for it.
+  
+  Close:
+  v0: The new crossing to add to close.
+  attachment: link to the endpoint attachment. May be undefined for intersections.
+  
+1. Add attachment. 
+2. Add v0
+3. Reverse points if BOTTOM
+
+--> confirm that the attachment is the correct one to add and we don't need to go 
+    looking for it.
+--> confirm that we don't need more than one attachment/vertex to add here.
+  */
+  
+  
   
   open(v0, v1, matching_face) {
 //     this._isOpen = true;
