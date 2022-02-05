@@ -155,14 +155,24 @@ class Segment {
   
   static fromEdge(e) { return new this(e.A, e.B); }
   
-  draw({ color = COLORS.blue, alpha = 1, width = 5 } = {}) {
-    canvas.controls.debug.lineStyle(width, color, alpha).
+  // color, alpha, width, possibly others
+  draw(opts = {}) {
+    opts.color = opts.color ?? COLORS.blue;
+    opts.alpha = opts.alpha ?? 1;
+    opts.width = opts.width ?? 5;
+  
+    //canvas.controls.debug.lineStyle(width, color, alpha).
+    canvas.controls.debug.lineStyle(opts).
         moveTo(this.A.x, this.A.y).
         lineTo(this.B.x, this.B.y);    
   }
   
-  static drawEdge(e, { color = COLORS.blue, alpha = 1, width = 5 } = {}) {
-    Segment.fromEdge(e).draw({ color, alpha, width });
+  static drawEdge(e, opts = {}) {
+    opts.color = opts.color ?? COLORS.blue;
+    opts.alpha = opts.alpha ?? 1;
+    opts.width = opts.width ?? 5;
+
+    Segment.fromEdge(e).draw(opts);
   }
   
 }
@@ -290,7 +300,7 @@ class Face {
       adjs.push(closing_v);  
     }
     
-    this.adjacencies.push(v0);
+    adjs.push(v0);
     
     // if this is a BOTTOM face relative to the creating segment, then 
     // the adjacencies must be reversed.
@@ -1362,11 +1372,12 @@ D. closing other face (here, assume top)
       
       // draw the attachments, if any
       if(e.attachments) {
+        const shader = new _pixi_graphics_smooth.DashLineShader({dash: 5, gap: 8});
         Segment.drawEdge({ A: e, B: e.attachments[TOP] }, 
-                         { color: COLORS.lightblue, width: 1});
+                         { color: COLORS.lightblue, width: 1, shader});
                          
         Segment.drawEdge({ A: e, B: e.attachments[BOTTOM] }, 
-                         { color: COLORS.lightblue, width: 1});                 
+                         { color: COLORS.lightblue, width: 1, shader});                 
       }
       
     });
