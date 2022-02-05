@@ -2,7 +2,8 @@
 canvas,
 foundry,
 PIXI,
-CONFIG
+CONFIG,
+_pixi_graphics_smooth
 */
 
 'use strict';
@@ -231,6 +232,24 @@ class Face {
 --> confirm that we don't need more than one attachment/vertex to add here.
   */
   
+  openSuccessor(v0, v1, x) {
+    if(!x) { console.error(`Expected x value.`); }
+    if(this.orientation === TOP) {
+      this.adjacencies.push(v0);
+    }
+    
+    while(v1.successor.x > x) {
+      v1 = v1.successor;
+      this.adjacencies.push(v1);    
+    } 
+    
+    if(this.orientation === BOTTOM) {
+      this.adjacencies.push(v0);
+      this.adjacencies.reverse();
+    } 
+  
+  }
+  
   
   
   open(v0, v1, x) {
@@ -285,20 +304,27 @@ class Face {
 //     }
 //     return v;
 //   }
+
+  matchFace(v) {
+    if(v.face === this) return v;
+    
+    let neighbor = v.neighbor;  
+    while(neighbor.face !== this && neighbor !== v) {
+      neighbor = neighbor.neighbor;
+    }
+    
+    if(neighbor === v) {
+      console.warn(`matchFace for face ${this.label} and v ${v.label} did not find a match.`);
+    }
+    
+    return neighbor;
+  }
   
-  close(v0, closing_v, matching_face) {
+  close(v0, closing_v) {
     const adjs = this.adjacencies;
 //     this._isOpen = false;
     
-    if(closing_v) { 
-      if(matching_face) { 
-        closing_v = this._findAttachment(closing_v, matching_face);      
-      }
-
-      //let v1 = this._findAttachment(closing_v);
-      //if(closing_v.face) { v1 = v1.matchFace(closing_v); }
-      adjs.push(closing_v);  
-    }
+    if(closing_v) { adjs.push(closing_v); }
     
     adjs.push(v0);
     
@@ -365,7 +391,7 @@ class Face {
             
       // face adjacency predecessors should form clockwise simple poly
       if(adjs[next_i].predecessor !== adj) {
-        console.error(`adj ${adj[next_i].label} predecessor ${adjs[next_i].predecessor.label} not in order. Prior in face is ${adj.label}.`, adj, this);
+        console.error(`adj ${adjs[next_i].label} predecessor ${adjs[next_i].predecessor.label} not in order. Prior in face is ${adj.label}.`, adj, this);
         return false;
       }
    
@@ -972,7 +998,7 @@ D. closing other face (here, assume top)
 
 */
 
-  _buildSegmentIntersectionFaces(ix, left, right, next_v, curr_faces, rising = true) {
+  _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, rising = true) {
    
     // intersection needs 4 adjacencies: t, l, b, r
     let ix_adjs = [ Adjacency.fromVertex(ix), 
@@ -987,9 +1013,9 @@ D. closing other face (here, assume top)
     ix_adjs[RIGHT].neighbor = ix_adjs[TOP];   
     
     this.adjacencies.set(ix_adjs[TOP].key, ix_adjs[TOP]);
-    this.adjacencies.set(ix_adjs[LEFT].key, ix_adjs[LEFT]);
-    this.adjacencies.set(ix_adjs[BOTTOM].key, ix_adjs[BOTTOM]);
-    this.adjacencies.set(ix_adjs[RIGHT].key, ix_adjs[RIGHT]);
+    // this.adjacencies.set(ix_adjs[LEFT].key, ix_adjs[LEFT]);
+//     this.adjacencies.set(ix_adjs[BOTTOM].key, ix_adjs[BOTTOM]);
+//     this.adjacencies.set(ix_adjs[RIGHT].key, ix_adjs[RIGHT]);
     
     // rising === TOP
     let pos = rising ? TOP : BOTTOM;
@@ -997,38 +1023,37 @@ D. closing other face (here, assume top)
     let old_faces = []
     
     // 1. Close the right (top|bottom) face, using vertex as the final point.
-    // TO-DO: Are there situations where closing will require more than the intersection?
-    curr_faces[pos].close(ix_adjs[RIGHT]);
+    // The other closing point follows the face but will at is_left ? left : right
+    //let closing_v = rising ? right : left;
+    //curr_faces[pos].close(ix_adjs[RIGHT], closing_v);
+    curr_faces[pos].close(ix_adjs[RIGHT])
     old_faces.push(curr_faces[pos])
     
     // 2. opposite face gets another vertex at the intersection
-    curr_faces[opp].adjacencies.unshift(ix_adjs[opp]); // handled below
+    curr_faces[opp].adjacencies.unshift(ix_adjs[opp]); 
     
     // 3. Close the opposite face, which will be above or below intersection 
     //    depending on position.
-    // TO-DO: Is it possible to incorporate the endpoint/attachment search in close/open?
     let closing_side = pos === TOP ? left : right;
     let opp_endpoint = closing_side.endpoint || closing_side.neighbor.endpoint;
     let opp_att = opp_endpoint.attachments[opp];
-    curr_faces[opp].close(closing_side, opp_att, closing_side.face);  
+    opp_att = closing_side.face.matchFace(opp_att);
+    curr_faces[opp].close(closing_side, opp_att);  
     old_faces.push(curr_faces[opp])
     
     // 4. Open new face
     curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].adjacencies.push(ix_adjs[pos]);
-    let pos_endpoint = next_v.endpoint || next_v.neighbor.endpoint;
-    let pos_att = pos_endpoint.attachments[pos];
-    curr_faces[pos].open(next_v, pos_att, next_v.face); 
+    let opening_v = curr_v.matchFace(next_v);
+    curr_faces[pos].openSuccessor(ix_adjs[pos], opening_v, next_v.x)
+//     let opening_v = pos === TOP ? left : right;
+//     opening_v = curr_v.face.matchFace(opening_v);
+//     curr_faces[pos].open(ix_adjs[pos], opening_v, next_v.x)
     
     // 5. Open new opposite face
     curr_faces[opp] = new Face({ orientation: opp });
-    curr_faces[opp].adjacencies.push(ix_adjs[LEFT])
-    
-    // is there another vertex to the left (i.e., intersection) before reaching 
-    // the next attachment? if so, add
-    if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
-      curr_faces[opp].push(closing_side.matchFace(next_v));
-    }
+    opening_v = pos === TOP ? right : left;
+    opening_v = curr_v.face.matchFace(opening_v);
+    curr_faces[opp].open(ix_adjs[LEFT], opening_v, next_v.x)
         
     return old_faces;
   }
@@ -1270,79 +1295,79 @@ D. closing other face (here, assume top)
       // arbitrarily start with the TOP face
       let curr_v = s0.attachments[TOP];
       
-      // destructuring is causing problems in the do-while loop
-      // just revert to setting the variables
-      let right, left, next_v, ix, is_left, rising;
       let traverse_res = curr_v.traverse(s);
-      right = traverse_res[0];
-      left = traverse_res[1];
+      let transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
       
-      let transition_res = Face.transition(left, right, s);
-      next_v = transition_res.next_v;
-      ix = transition_res.ix;
-      is_left = transition_res.is_left;
-      
-     //  let [ right, left ] = curr_v.traverse(s);
-//       let { next_v, ix, is_left } = Face.transition(left, right, s);
-
       // Build top and bottom starting faces
-      let curr_faces = this._buildStartSegmentFaces(s, next_v);
+      let curr_faces;
+      if(typeof transition_res.rising === "undefined") {
+        curr_faces = this._buildStartSegmentFaces(s, transition_res.next_v);
+      } else {
+        // intersection is the next vertex
+        const next_v = transition_res.rising ? traverse_res[1] : traverse_res[0];
+        curr_faces = this._buildStartSegmentFaces(s, next_v);
+      }
+
       
             
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
       let ln_endpoints = this.endpoints.length;
-      let old_faces, curr_ix, prior_right, prior_left, prior_is_left;
+      let prior_traverse, prior_transition, old_faces;
       do {
         i += 1;
 
-        if(ix.equals(s1)) {
-          old_faces = this._closeEndSegmentFaces(s, ix, left, right, curr_faces, is_left);
+        if(transition_res.ix.equals(s1)) {
+          old_faces = this._closeEndSegmentFaces(s, 
+                                                 transition_res.ix,
+                                                 traverse_res[1], 
+                                                 traverse_res[0], 
+                                                 curr_faces,
+                                                 transition_res.is_left);
           new_faces.push(...old_faces);   
           old_faces.forEach(f => {
-          if(draw) f.draw({ color: nextShade() });
-          if(!f.consistencyTest({ test_neighbor: false, 
-                                         test_successor: true, 
-                                         test_face: true })) {
-            console.error(`Failed consistency test at last face`);  
-          }    
-        });
+            if(draw) f.draw({ color: nextShade() });
+            if(!f.consistencyTest({ test_neighbor: false, 
+                                           test_successor: true, 
+                                           test_face: true })) {
+              console.error(`Failed consistency test at last face`);  
+            }    
+          });
           break;
         }
         
-        curr_v = next_v;
-        curr_ix = ix;
-        prior_right = right;
-        prior_left = left;
-        prior_is_left = is_left;
+        prior_traverse = traverse_res;
+        prior_transition = transition_res;
         
-        let traverse_res = curr_v.traverse(s);
-        right = traverse_res[0];
-        left = traverse_res[1];
-        let transition_res = Face.transition(left, right, s);
-        next_v = transition_res.next_v;
-        ix = transition_res.ix;
-        is_left = transition_res.is_left;
-        rising = transition_res.rising;
-       //  let [ right, left ] = curr_v.traverse(s);
-//         let { next_v, ix, is_left, rising } = Face.transition(left, right, s);
+        traverse_res = transition_res.next_v.traverse(s);
+        transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
         
-        if(typeof rising === "undefined") {
-          old_faces = this._buildSegmentFace(s, curr_ix, 
-                                             prior_left, prior_right, 
-                                             curr_v, next_v, 
-                                             curr_faces, prior_is_left);                                                       
+        if(typeof prior_transition.rising === "undefined") {
+          old_faces = this._buildSegmentFace(s, 
+                                             prior_transition.ix, 
+                                             prior_traverse[1], // left
+                                             prior_traverse[0], // right
+                                             prior_transition.next_v, // curr_v
+                                             transition_res.next_v,
+                                             curr_faces,
+                                             prior_transition.is_left);                                                       
         } else {
-          console.log(`Recording intersection ${ix.label}`);
+          console.log(`Recording intersection ${prior_transition.ix.label}`);
           // record the intersection
           this.intersections.push({
-              ix: ix,
+              ix: prior_transition.ix,
               s1: s,
-              s2: left.segment 
+              s2: prior_traverse[0].segment || prior_traverse[1].segment
           });
     
           // process intersection
-          old_faces = this._buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, rising)
+          old_faces = this._buildSegmentIntersectionFaces(prior_transition.ix,
+                                                          prior_traverse[1], // left
+                                                          prior_traverse[0], // right
+                                                          prior_transition.next_v, // curr_v
+                                                          transition_res.next_v,
+                                                          curr_faces,
+                                                          prior_transition.rising)
         }
         
         new_faces.push(...old_faces);                                              
