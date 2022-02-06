@@ -515,7 +515,9 @@ class Face {
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
     
-    const s0_below = min_xy.y < left.segment.min_xy.y;
+    const other_segment = left.segment ?? right.segment;
+    
+    const s0_below = min_xy.y < other_segment.min_xy.y;
     //const s_rising = max_xy.y > ix.y; // 
     console.log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
     
