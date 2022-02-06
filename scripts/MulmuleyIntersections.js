@@ -515,7 +515,19 @@ class Face {
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
     
-    const other_segment = left.segment ?? right.segment;
+    let other_segment = left.segment ?? right.segment;
+    if(!other_segment) {
+      // should mean both left and right are intersections; get the intersection of their
+      // segments
+      if(!left.segments || !right.segments) { 
+        console.error(`Face.transition: No segments found.`);
+      }
+      other_segment = [...left.segments.intersection(right.segments)][0];
+      if(!other_segment) { 
+        console.error(`Face.transition: No segment found.`);
+      }
+    }
+    
     
     const s0_below = min_xy.y < other_segment.min_xy.y;
     //const s_rising = max_xy.y > ix.y; // 
@@ -539,7 +551,8 @@ class Face {
     return {
       next_v: s0_below ? h.successor : h,
       ix: new Vertex(ix.x, ix.y),
-      s0_below: s0_below
+      s0_below: s0_below,
+      other_segment: other_segment
     };
   }
   
@@ -1001,7 +1014,7 @@ D. closing other face (here, assume top)
 
 */
 
-  _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, s0_below = true) {
+  _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, s0_below = true, segments) {
     /*
     left.draw({color: COLORS.green, radius: 8})
     right.draw({color:COLORS.orange, radius: 8})
@@ -1020,6 +1033,8 @@ D. closing other face (here, assume top)
     ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
     ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
     ix_adjs[RIGHT].neighbor = ix_adjs[TOP];   
+    
+    ix_adjs.forEach(adj => adj.segments = segments);
     
     this.adjacencies.set(ix_adjs[TOP].key, ix_adjs[TOP]);
     // this.adjacencies.set(ix_adjs[LEFT].key, ix_adjs[LEFT]);
@@ -1370,7 +1385,7 @@ D. closing other face (here, assume top)
           this.intersections.push({
               ix: prior_transition.ix,
               s1: s,
-              s2: prior_traverse[0].segment || prior_traverse[1].segment
+              s2: transition_res.other_segment
           });
     
           // process intersection
@@ -1382,7 +1397,8 @@ D. closing other face (here, assume top)
                                                           prior_transition.next_v, // curr_v
                                                           next_v,
                                                           curr_faces,
-                                                          prior_transition.s0_below)
+                                                          prior_transition.s0_below,
+                                                          new Set([s, transition_res.other_segment]))
         }
         
         new_faces.push(...old_faces);                                              
