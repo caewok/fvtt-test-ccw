@@ -514,12 +514,13 @@ class Face {
     
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
-    const rising = left.x < right.x;
+    
+    const s0_below = min_xy.y < left.segment.min_xy.y;
     //const s_rising = max_xy.y > ix.y; // 
-    console.log(`Transition: s0 is ${rising ? "below" : "above"} other right endpoint.`);
+    console.log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
     
     //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
-    if(rising) {
+    if(s0_below) {
       while(i < ln && h.successor.x < ix.x) {
         h = h.successor.neighbor;
         i += 1;
@@ -534,9 +535,9 @@ class Face {
 //     const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, r_endpoint) > 0;
      
     return {
-      next_v: rising ? h.successor : h,
+      next_v: s0_below ? h.successor : h,
       ix: new Vertex(ix.x, ix.y),
-      rising: rising
+      s0_below: s0_below
     };
   }
   
@@ -998,7 +999,7 @@ D. closing other face (here, assume top)
 
 */
 
-  _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, rising = true) {
+  _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, s0_below = true) {
     /*
     left.draw({color: COLORS.green, radius: 8})
     right.draw({color:COLORS.orange, radius: 8})
@@ -1023,8 +1024,7 @@ D. closing other face (here, assume top)
 //     this.adjacencies.set(ix_adjs[BOTTOM].key, ix_adjs[BOTTOM]);
 //     this.adjacencies.set(ix_adjs[RIGHT].key, ix_adjs[RIGHT]);
     
-    // rising === TOP
-    let pos = rising ? TOP : BOTTOM;
+    let pos = s0_below ? TOP : BOTTOM;
     let opp = pos ^ 1;
     let old_faces = []
     let closing_v, opening_v;
@@ -1305,11 +1305,11 @@ D. closing other face (here, assume top)
       
       // Build top and bottom starting faces
       let curr_faces;
-      if(typeof transition_res.rising === "undefined") {
+      if(typeof transition_res.s0_below === "undefined") {
         curr_faces = this._buildStartSegmentFaces(s, transition_res.next_v);
       } else {
         // intersection is the next vertex
-        const next_v = transition_res.rising ? traverse_res[1] : traverse_res[0];
+        const next_v = transition_res.s0_below ? traverse_res[1] : traverse_res[0];
         curr_faces = this._buildStartSegmentFaces(s, next_v);
       }
 
@@ -1347,8 +1347,8 @@ D. closing other face (here, assume top)
         traverse_res = transition_res.next_v.traverse(s);
         transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
         
-        if(typeof prior_transition.rising === "undefined") {
-          const next_v = ( typeof transition_res.rising === "undefined" ) ? 
+        if(typeof prior_transition.s0_below === "undefined") {
+          const next_v = ( typeof transition_res.s0_below === "undefined" ) ? 
                        transition_res.next_v : transition_res.ix;
           old_faces = this._buildSegmentFace(s, 
                                              prior_transition.ix, 
@@ -1374,7 +1374,7 @@ D. closing other face (here, assume top)
                                                           prior_transition.next_v, // curr_v
                                                           transition_res.next_v,
                                                           curr_faces,
-                                                          prior_transition.rising)
+                                                          prior_transition.s0_below)
         }
         
         new_faces.push(...old_faces);                                              
