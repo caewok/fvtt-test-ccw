@@ -99,7 +99,7 @@ class Vertex {
     return `${this.x},${this.y}`;
   }
   
-  static keyFromPoint(p) { return (p.x << 16) ^ p.y;}
+  static keyFromPoint(p) { return (Math.round(p.x) << 16) ^ Math.round(p.y);}
   
   static fromPoint(p) { return new this(p.x, p.y); }
   
