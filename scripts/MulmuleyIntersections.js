@@ -1053,7 +1053,11 @@ D. closing other face (here, assume top)
     // close the face
     closing_v = pos === TOP ? left : right;
     let dir = pos === TOP ? "successor" : "predecessor";
-    curr_faces[opp].close(closing_v, closing_v[dir])
+    let last = curr_faces[opp].adjacencies[curr_faces[opp].adjacencies.length - 1];
+    
+    let closing_v2 = closing_v[dir].equals(last) ? undefined : closing_v[dir];
+    
+    curr_faces[opp].close(closing_v, closing_v2)
     old_faces.push(curr_faces[opp])
      
     // 5. add the new faces
@@ -1368,11 +1372,13 @@ D. closing other face (here, assume top)
           });
     
           // process intersection
+          const next_v = ( typeof transition_res.s0_below === "undefined" ) ? 
+                       transition_res.next_v : transition_res.ix;
           old_faces = this._buildSegmentIntersectionFaces(prior_transition.ix,
                                                           prior_traverse[1], // left
                                                           prior_traverse[0], // right
                                                           prior_transition.next_v, // curr_v
-                                                          transition_res.next_v,
+                                                          next_v,
                                                           curr_faces,
                                                           prior_transition.s0_below)
         }
