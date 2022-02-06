@@ -999,6 +999,12 @@ D. closing other face (here, assume top)
 */
 
   _buildSegmentIntersectionFaces(ix, left, right, curr_v, next_v, curr_faces, rising = true) {
+    /*
+    left.draw({color: COLORS.green, radius: 8})
+    right.draw({color:COLORS.orange, radius: 8})
+    curr_v.draw({color:COLORS.yellow, radius: 8})
+    next_v.draw({color:COLORS.red, radius: 8})
+    */
    
     // intersection needs 4 adjacencies: t, l, b, r
     let ix_adjs = [ Adjacency.fromVertex(ix), 
@@ -1021,72 +1027,35 @@ D. closing other face (here, assume top)
     let pos = rising ? TOP : BOTTOM;
     let opp = pos ^ 1;
     let old_faces = []
-    let closing_v, opening_v, f_left, f_pos;
-    
-    
-    if(pos === BOTTOM) {
-      // 1. open face for the LEFT (opp) adjacency
-      // shares portion of face with curr_v; use that to walk to relevant points
-      // may only have one adjacency (triangle-shaped face)
-      f_left = new Face({ orientation: opp });    
-      f_left.open(ix_adjs[LEFT], curr_v, next_v.x)
-    
-      // 2. open face for the pos (TOP or BOTTOM) adjacency
-      // shares other portion of face with curr_v
-      f_pos = new Face({ orientation: pos });
-      opening_v = curr_v.matchFace(next_v);
-      f_pos.adjacencies.push(ix_adjs[pos]);
-      f_pos.open(opening_v, opening_v, next_v.x)
+    let closing_v, opening_v;
 
-      // 3. Close the right (pos) face, using vertex as the final point
-      curr_faces[pos].close(ix_adjs[RIGHT])
-      old_faces.push(curr_faces[pos])
+    // 1. open face for the LEFT (opp) adjacency
+    // shares portion of face with curr_v; use that to walk to relevant points
+    // may only have one adjacency (triangle-shaped face)
+    let f_left = new Face({ orientation: opp });    
+    f_left.open(ix_adjs[LEFT], curr_v, next_v.x)
+
+    // 2. open face for the pos (TOP or BOTTOM) adjacency
+    // shares other portion of face with curr_v
+    let f_pos = new Face({ orientation: pos });
+    opening_v = curr_v.matchFace(next_v);
+    f_pos.adjacencies.push(ix_adjs[pos]);
+    f_pos.open(opening_v, opening_v, next_v.x)
+
+    // 3. Close the right (pos) face, using vertex as the final point
+    curr_faces[pos].close(ix_adjs[RIGHT])
+    old_faces.push(curr_faces[pos])
     
-      // 4. Close the opp (TOP or BOTTOM) face
-      // opposite face will have only one endpoint
-      // re-do the face
-      if(curr_faces[opp].adjacencies.length > 1) { console.warn(`_buildSegmentIntersectionFaces #4 curr_faces[opp] adjacencies length greater than 1.`); }
-      let prior_ix = curr_faces[opp].adjacencies[0];
-      opening_v = opp === TOP ? left : right
-      curr_faces[opp] = new Face({orientation: opp})
+    // 4. Close the opp (TOP or BOTTOM) face
+    // add the intersection
+    curr_faces[opp].adjacencies.unshift(ix_adjs[opp])
     
-      // opposite face gets another vertex at the intersection
-      curr_faces[opp].adjacencies.push(ix_adjs[opp]); 
-      curr_faces[opp].open(prior_ix, opening_v, next_v.x)
-    
-      // close the face
-      closing_v = pos === TOP ? left : right;
-      curr_faces[opp].close(closing_v, closing_v.predecessor)
+    // close the face
+    closing_v = pos === TOP ? left : right;
+    let dir = pos === TOP ? "successor" : "predecessor";
+    curr_faces[opp].close(closing_v, closing_v[dir])
+    old_faces.push(curr_faces[opp])
      
-    } else {
-      // pos === TOP
-      // 1. open face for the LEFT (opp) adjacency
-      // shares portion of face with curr_v; use that to walk to relevant points
-      // may only have one adjacency (triangle-shaped face)
-      f_left = new Face({ orientation: opp });    
-      f_left.open(ix_adjs[LEFT], curr_v, next_v.x)
-    
-      // 2. open face for the pos (TOP or BOTTOM) adjacency
-      // shares other portion of face with curr_v
-      f_pos = new Face({ orientation: pos });
-      opening_v = curr_v.matchFace(next_v);
-      f_pos.adjacencies.push(ix_adjs[pos]);
-      f_pos.open(opening_v, opening_v, next_v.x)
-
-      // 3. Close the right (pos) face, using vertex as the final point
-      curr_faces[pos].close(ix_adjs[RIGHT])
-      old_faces.push(curr_faces[pos])
-    
-      // 4. Close the opp (TOP or BOTTOM) face
-      // add the intersection
-      curr_faces[opp].adjacencies.unshift(ix_adjs[opp])
-      
-      // close the face
-      closing_v = pos === TOP ? left : right;
-      curr_faces[opp].close(closing_v, closing_v.successor)
-    }
-    
-   
     // 5. add the new faces
     curr_faces[opp] = f_left;
     curr_faces[pos] = f_pos;
@@ -1379,12 +1348,14 @@ D. closing other face (here, assume top)
         transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
         
         if(typeof prior_transition.rising === "undefined") {
+          const next_v = ( typeof transition_res.rising === "undefined" ) ? 
+                       transition_res.next_v : transition_res.ix;
           old_faces = this._buildSegmentFace(s, 
                                              prior_transition.ix, 
                                              prior_traverse[1], // left
                                              prior_traverse[0], // right
                                              prior_transition.next_v, // curr_v
-                                             transition_res.next_v,
+                                             next_v,
                                              curr_faces,
                                              prior_transition.is_left);                                                       
         } else {
@@ -1421,6 +1392,11 @@ D. closing other face (here, assume top)
       // ---------- Cleanup ------------ //
       
       this.partitioned_segments.add(s);
+      
+      this.consistencyTest({ test_neighbor: true, 
+                            test_successor: true, 
+                            test_face: true });
+      
       return new_faces;
     }
   
