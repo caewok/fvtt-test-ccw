@@ -1283,13 +1283,15 @@ D. closing other face (here, assume top)
     
     console.log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
     
-    
     // move the attachment for this next endpoint at the opposite side
     // position === bottom: top attachment for right|left line moved down to s
     // position === top: bottom attachment moved up
     ix_adj2.endpoint = transition.next_v.endpoint;
     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp]);
     ix_adj2.endpoint.attachments[opp] = ix_adj2; 
+    
+    // drop the adjacency opposite where we closed
+    this.adjacencies.delete(traversal[opp]);
     
     this.adjacencies.add(ix_adj1);
     this.adjacencies.add(ix_adj2);
@@ -1430,7 +1432,10 @@ D. closing other face (here, assume top)
   
 
   
-  draw({ shade_faces = true } = {}) {
+  draw({ shade_faces = true, clear = true, label = true } = {}) {
+    if(clear) canvas.controls.debug.clear()
+    if(label) this.labelSegments()
+  
     // initial drawing is just the verticals with endpoints identified
     this.endpoints.forEach(e => {
       Vertex.drawPoint(e, { color: COLORS.blue });
