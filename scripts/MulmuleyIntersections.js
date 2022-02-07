@@ -73,6 +73,7 @@ v0 = ix
 */
 
 
+
 function compareXY(a, b) { 
   return ( a.x - b.x ) || (a.y - b.y );
 }
@@ -176,6 +177,160 @@ class Segment {
     Segment.fromEdge(e).draw(opts);
   }
   
+  traverseRight(v) {
+    if(!(v instanceof Adjacency)) {
+      console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
+    }
+
+    const max_xy = this.max_xy;
+    const min_xy = this.min_xy;
+
+    if(!(v instanceof Adjacency)) {
+      console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
+    }
+            
+    const ln = v.face.adjacencies.length;
+    let i = 0;
+    let curr = v;
+    while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, curr) > 0) {
+      curr = curr.successor;
+      i += 1;
+    }   
+    
+    return curr;
+  }
+  
+  traverse(v) {      
+    const max_xy = this.max_xy;
+    const min_xy = this.min_xy;
+  
+    const ln = v.face.adjacencies.length;
+    let i = 0;
+        
+    // start with an adjacency to the right of s
+    let curr = this.traverseRight(v);
+    
+    // now find the first adjacency to the left of s
+    let successor = curr.successor;
+    while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) < 0) {
+      curr = successor
+      successor = curr.successor;
+      i += 1;
+    }
+    
+    // match right with TOP, left with BOTTOM b/c when moving 
+    // east --> west along a segment s, the right will be towards the TOP
+    // useful when opening/closing faces
+    const out = Array(2);
+    out[TOP] = curr; // right
+    out[BOTTOM] = successor // left    
+    return out;
+  }
+  
+  _transitionAttachment(left, right, l_endpoint) {    
+    // left|right is vertical, with right at the top
+    // so, what is the fastest way to calculate x,y point on S at a known x value?
+    // y = mx + b; b = y - mx
+    // works unless s is vertical...
+    if(!isFinite(this.slope)) {
+      console.error(`transition currently requires finite slope (non-vertical) s.`);
+    }
+    const new_y = this.calculateY(l_endpoint.x);
+    const e_is_left = foundry.utils.orient2dFast(this.max_xy, 
+                                                 this.min_xy, 
+                                                 l_endpoint) > 0;
+    
+    // next_v provides a vertex with the next face, after s crosses through left|right
+    return {
+      next_v: e_is_left ? right.neighbor : left.neighbor,
+      is_left: e_is_left,
+      ix: new Vertex(l_endpoint.x, new_y)
+    }        
+  }
+  
+  _transitionIntersection(left, right) {  
+    // we are crossing a segment: right|left.
+    // mark the intersection
+    const ix = foundry.utils.lineLineIntersection(this.max_xy, this.min_xy, left, right);
+    if(!ix) {
+      console.error(`Transition expected an intersection at ${this.max_xy.label} | ${this.min_xy.label} x ${left.label} | ${right.label}`);
+
+    }  
+    
+    // walk along the segment right|left to the left, turning around at the endpoint
+    // and find the first vertex on the other "side" that is to the right of S.
+    // one approach is to use 
+    // use the intersection to determine if each successor is ccw or cw.
+    // but likely faster to compare x-coordinate of the point with the intersection.
+    // see discussion at Mulmuley p. 261–62.
+    let h = left.neighbor;
+    
+    const ln = 1000; // to prevent infinite loops while debugging
+    let i = 0;
+    
+    let other_segment = left.segment ?? right.segment;
+    if(!other_segment) {
+      // should mean both left and right are intersections; get the intersection of their
+      // segments
+      if(!left.segments || !right.segments) { 
+        console.error(`Face.transition: No segments found.`);
+      }
+      other_segment = [...left.segments.intersection(right.segments)][0];
+      if(!other_segment) { 
+        console.error(`Face.transition: No segment found.`);
+      }
+    }
+    
+    const s0_below = this.min_xy.y < other_segment.min_xy.y;
+    //const s_rising = max_xy.y > ix.y; // 
+    console.log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
+    
+    //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
+    if(s0_below) {
+      while(i < ln && h.successor.x < ix.x) {
+        h = h.successor.neighbor;
+        i += 1;
+      }   
+    } else {
+      while(i < ln && h.successor.x > ix.x) {
+        h = h.successor.neighbor;
+        i += 1;
+      }   
+    }
+        
+//     const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, r_endpoint) > 0;
+    return {
+      next_v: s0_below ? h.successor : h,
+      ix: new Vertex(ix.x, ix.y),
+      s0_below: s0_below,
+      other_segment: other_segment
+    };
+  
+  }
+  
+  transition(traversal) {
+    const left = traversal[BOTTOM];
+    const right = traversal[TOP];
+  
+    if(!(left instanceof Adjacency) || 
+       !(right instanceof Adjacency)) {
+      console.error(`Need to convert to Adjacency for Face.traverse.`);
+    }
+        
+    // is left|right vertical and associated with the same endpoint? 
+    // then we have a vertical attachment
+    const l_endpoint = left.endpoint || left.neighbor.endpoint;
+    const r_endpoint = right.neighbor.endpoint || right.endpoint;    
+    
+    if(left.x === right.x && l_endpoint === r_endpoint) {
+      return this._transitionAttachment(left, right, l_endpoint);
+    }
+    
+    // otherwise we are crossing another segment: right|left.
+    return this._transitionIntersection(left, right);
+  }
+  
+  
 }
 
 class Face {
@@ -250,90 +405,127 @@ class Face {
   
   }
   
-  
-  
-  open(v0, v1, x) {
-    this.adjacencies.push(v0);    
-    if(!x) { console.error(`Expected x value.`); }
-    const dir = this.orientation === TOP ? "successor" : "predecessor";
+  openNextV(v0, next_v, x) {
+    // walk forward from next_v until to the left of x
+    this.adjacencies.push(v0);
     
-    while(v1[dir].x > x) {
-      v1 = v1[dir];
-      this.adjacencies.push(v1);    
-    }    
-    
-  }
-  
-  _findAttachment(v, matching_face) {
-    const endpoint = v.endpoint || v.neighbor.endpoint;
-    if(endpoint && endpoint.neighbor && v.face !== matching_face) {
-      // if the endpoint has a neighbor vertex, then we must use that instead
-      // if that vertex shares this face
-      // (means the endpoint has been processed and blocks on this side)
-      
-      v = endpoint.neighbor.matchFace(undefined, matching_face);
-      
-      //if(endpoint.neighbor && endpoint.neighbor.face === ) { return endpoint.neighbor}
-    
-       // otherwise, if we are at an attachment, we are done
-      
-    } 
-    
-    if(v.face !== matching_face) {
-        // likely starting a new face where a process line above/below s
-        // is ending. Need to get past that endpoint to the attachment 
-        v = v.endpoint.attachments[this.orientation].matchFace(undefined, matching_face);
-    }
-      
-    return v; 
-    
-    // how about points after the initial intersection or endpoint?
-  
-  }
-  
-//   _findAttachment(v) {
-//     if(!v.endpoint?.attachments) { 
-//       return v;  // intersection or attachment;
-//     }
-//     
-//     const closing_v = v;    
-//     v = v.endpoint.attachments[this.orientation];
-//     if(closing_v.face && v.face !== closing_v.face) { 
-//       // need to use the endpoint vertex instead
-//       v = closing_v.endpoint.neighbor; 
-//     }
-//     return v;
-//   }
-
-  matchFace(v) {
-    if(v.face === this) return v;
-    
-    let neighbor = v.neighbor;  
-    while(neighbor.face !== this && neighbor !== v) {
-      neighbor = neighbor.neighbor;
+    const i_max = 100;
+    let i = 0;
+    if(this.orientation === TOP) {
+      let v1 = next_v.successor;
+      while(v1.x >= x) {
+        this.adjacencies.push(v1);
+        v1 = v1.successor;
+      }  
+    } else { // bottom
+      let v1 = next_v.predecessor;
+      while(v1.x >= x) {
+        this.adjacencies.push(v1);
+        v1 = v1.predecessor;
+      }      
     }
     
-    if(neighbor === v) {
-      console.warn(`matchFace for face ${this.label} and v ${v.label} did not find a match.`);
-    }
-    
-    return neighbor;
+    if(i >= i_max) { console.error(`openNextV hit i_max`);}
   }
   
-  close(v0, closing_v) {
-    const adjs = this.adjacencies;
-//     this._isOpen = false;
+  
+  open(v0, v1) {
+    // walk backwards from v1 around v1.face until passing v0
+    // include v1 as an adjacency
     
-    if(closing_v) { adjs.push(closing_v); }
+    const i_max = 100;
+    let i = 0;
+    if(this.orientation === TOP) {
+      while(v1.y < v0.y && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.predecessor;
+        i += 1;
+      }
+      
+    } else {
+      // BOTTOM
+      while(v1.y > v0.y && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.successor;
+        i += 1;
+      }
+    }
+  
+    if(i >= i_max) { console.error(`open hit i_max`);}
+    this.adjacencies.push(v0);
+    this.adjacencies.reverse();
+  }
+  
+  close(v0, v1) {
+    // walk forwards from v1 around v1.face until passing v0
+    // include v1 as an adjacency
+    // possible that no v1 is present
+    const i_max = 100;
+    let i = 0;
+    if(v1 && this.orientation === TOP) {
+      while(v1.y < v0.y && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.successor;
+        i += 1;
+      }  
     
-    adjs.push(v0);
+    } else if(v1 && this.orientation === BOTTOM) {
+      while(v1.y > v0.y && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.predecessor;
+        i += 1;
+      }
+    }
+    if(i >= i_max) { console.error(`close hit i_max`);}
+    this.adjacencies.push(v0);
     
-    // if this is a BOTTOM face relative to the creating segment, then 
-    // the adjacencies must be reversed.
-    if(this.orientation === BOTTOM) adjs.reverse();
+    // ensure adjacencies are ccw
+    if(this.orientation === BOTTOM) this.adjacencies.reverse();
     
     this._linkAdjacencies();
+  
   }
+  
+//   open(v0, v1, x) {
+//     this.adjacencies.push(v0);    
+//     if(!x) { console.error(`Face.open expected x value.`); }
+//     const dir = this.orientation === TOP ? "successor" : "predecessor";
+//     
+//     while(v1[dir].x > x) {
+//       v1 = v1[dir];
+//       this.adjacencies.push(v1);    
+//     }    
+//     
+//   }
+  
+//   close(v0, v1) {
+//     
+//     const new_adjs = [];
+//     const dir = this.orientation === TOP ? "predecessor" : "successor";
+//     const x = this.adjacencies[this.adjacencies.length - 1].x;
+//     
+//     while(v1[dir].x < x) {
+//       v1 = v1[dir];
+//       new_adjs.push(v1);
+//     }
+//     this._linkAdjacencies();
+//   }
+//   
+//   
+//   close(v0, closing_v) {
+//     const adjs = this.adjacencies;
+// //     this._isOpen = false;
+//     
+//     if(closing_v) { adjs.push(closing_v); }
+//     
+//     adjs.push(v0);
+//     
+//     // if this is a BOTTOM face relative to the creating segment, then 
+//     // the adjacencies must be reversed.
+//     if(this.orientation === BOTTOM) adjs.reverse();
+//     
+//     this._linkAdjacencies();
+//   }
   
   static open(...pts) {
     const f = new Face();
@@ -405,157 +597,7 @@ class Face {
     
     return true;
   }
-  
-
-  
-  traverseRight(v, s) {
-    const max_xy = s.max_xy;
-    const min_xy = s.min_xy;
-
-    if(!(v instanceof Adjacency)) {
-      console.error(`Need to convert Vertex to Adjacency for Face.traverse.`);
-    }
-    
-    if(v.face !== this) {
-      console.error(`Face.traverse v does not have this face.`);
-    }
-    
-    const ln = this.adjacencies.length;
-    let i = 0;
-    let curr = v;
-    while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, curr) > 0) {
-      curr = curr.successor;
-      i += 1;
-    }   
-    
-    return curr;
-  
-  }
-  
-  traverse(v, s) {
-    if(!(v instanceof Adjacency)) {
-      console.error(`Need to convert Vertex to Adjacency for Face.traverse.`);
-    }
-    
-    if(v.face !== this) {
-      console.error(`Face.traverse v does not have this face.`);
-    }
-  
-    const max_xy = s.max_xy;
-    const min_xy = s.min_xy;
-  
-    const ln = this.adjacencies.length;
-    let i = 0;
-        
-    // start with an adjacency to the right of s
-    let curr = this.traverseRight(v, s);
-    
-    // now find the first adjacency to the left of s
-    let successor = curr.successor;
-    while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) < 0) {
-      curr = successor
-      successor = curr.successor;
-      i += 1;
-    }
-        
-    return [curr, successor];
-  }
-  
-  
-  static transition(left, right, s) {
-    if(!(left instanceof Adjacency) || !(right instanceof Adjacency)) {
-      console.error(`Need to convert to Adjacency for Face.traverse.`);
-    }
-    
-    const max_xy = s.max_xy;
-    const min_xy = s.min_xy;
-    
-    // is left|right vertical and associated with the same endpoint? 
-    // then we have a vertical attachment
-    const l_endpoint = left.endpoint || left.neighbor.endpoint;
-    const r_endpoint = right.neighbor.endpoint || right.endpoint;    
-    
-    if(left.x === right.x && l_endpoint === r_endpoint) {
-      // left|right is vertical, with right at the top
-      // so, what is the fastest way to calculate x,y point on S at a known x value?
-      // y = mx + b; b = y - mx
-      // works unless s is vertical...
-      if(!isFinite(s.slope)) {
-        console.error(`transition currently requires finite slope (non-vertical) s.`);
-      }
-      const new_y = s.calculateY(l_endpoint.x);
-      const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, l_endpoint) > 0;
       
-      // next_v provides a vertex with the next face, after s crosses through left|right
-      return {
-        next_v: e_is_left ? right.neighbor : left.neighbor,
-        is_left: e_is_left,
-        ix: new Vertex(l_endpoint.x, new_y)
-      }      
-    }
-    
-   
-    
-    // we are crossing a segment: right|left.
-    // mark the intersection
-    const ix = foundry.utils.lineLineIntersection(max_xy, min_xy, left, right);
-    if(!ix) {
-      console.error(`Transition expected an intersection at ${max_xy.label} | ${min_xy.label} x ${left.label} | ${right.label}`);
-
-    }  
-    
-    // walk along the segment right|left to the left, turning around at the endpoint
-    // and find the first vertex on the other "side" that is to the right of S.
-    // one approach is to use 
-    // use the intersection to determine if each successor is ccw or cw.
-    // but likely faster to compare x-coordinate of the point with the intersection.
-    // see discussion at Mulmuley p. 261–62.
-    let h = left.neighbor;
-    
-    const ln = 1000; // to prevent infinite loops while debugging
-    let i = 0;
-    
-    let other_segment = left.segment ?? right.segment;
-    if(!other_segment) {
-      // should mean both left and right are intersections; get the intersection of their
-      // segments
-      if(!left.segments || !right.segments) { 
-        console.error(`Face.transition: No segments found.`);
-      }
-      other_segment = [...left.segments.intersection(right.segments)][0];
-      if(!other_segment) { 
-        console.error(`Face.transition: No segment found.`);
-      }
-    }
-    
-    
-    const s0_below = min_xy.y < other_segment.min_xy.y;
-    //const s_rising = max_xy.y > ix.y; // 
-    console.log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
-    
-    //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
-    if(s0_below) {
-      while(i < ln && h.successor.x < ix.x) {
-        h = h.successor.neighbor;
-        i += 1;
-      }   
-    } else {
-      while(i < ln && h.successor.x > ix.x) {
-        h = h.successor.neighbor;
-        i += 1;
-      }   
-    }
-        
-//     const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, r_endpoint) > 0;
-     
-    return {
-      next_v: s0_below ? h.successor : h,
-      ix: new Vertex(ix.x, ix.y),
-      s0_below: s0_below,
-      other_segment: other_segment
-    };
-  }
-  
   draw({ color = COLORS.lightblue, alpha = 0.25} = {}) {
     // draw as polygon, using vertices
     const pts = [];
@@ -605,19 +647,34 @@ class Adjacency extends Vertex {
     this.neighbor = other;
   }
   
-  matchFace(other_v, other_face) {
-    if(!other_face) { other_face = other_v.face; }
-    let curr_v = this.neighbor;
+  matchFace(f) {
+    if(this.face === f) return this;
     
-    let i = 0;
-    const max_i = 100;
-    while(i < max_i && curr_v && curr_v !== this) {
-      if(curr_v.face === other_face) break;
-      curr_v = curr_v.neighbor;
-      i += 1;
+    let neighbor = this.neighbor;
+    while(neighbor.face !== f && neighbor !== this) {
+      neighbor = neighbor.neighbor;
     }
-    return curr_v;
+    
+    if(neighbor === this) {
+      console.warn(`matchFace for face ${this.label} and face ${f.label} did not find a match.`);
+    }
+    
+    return neighbor;
   }
+  
+//   matchFace(other_v, other_face) {
+//     if(!other_face) { other_face = other_v.face; }
+//     let curr_v = this.neighbor;
+//     
+//     let i = 0;
+//     const max_i = 100;
+//     while(i < max_i && curr_v && curr_v !== this) {
+//       if(curr_v.face === other_face) break;
+//       curr_v = curr_v.neighbor;
+//       i += 1;
+//     }
+//     return curr_v;
+//   }
   
   traverseRight(s) {
     // traverse to the right of s around this adjacency's face.
@@ -732,7 +789,7 @@ class Partition {
     this.intersections = []; // to track intersections found
     this.segments = new Map();
 //     this.faces = new Set();
-    this.adjacencies = new Map();
+    this.adjacencies = new Set();
     
     const endpoints = [];
     segments.forEach((s, i) => {
@@ -771,7 +828,7 @@ class Partition {
   _buildAdjacencies(adjs, face) {
     //this.faces.add(face);
   
-    adjs.forEach(adj => this.adjacencies.set(adj.key, adj));
+    adjs.forEach(adj => this.adjacencies.add(adj));
     adjs.forEach(adj => adj.face = face);
     
     face.adjacencies = new Set(adjs);
@@ -824,7 +881,7 @@ class Partition {
                                      new Adjacency(x_left, y_top),
                                      new Adjacency(x_left, y_bottom));
                                    
-    initial_face.adjacencies.forEach(adj => this.adjacencies.set(adj.key, adj));    
+    initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj));    
                         
     let prior_top = initial_face.adjacencies[ADJS.tl];            
     let prior_bottom = initial_face.adjacencies[ADJS.bl];
@@ -850,8 +907,8 @@ class Partition {
       prior_top = f.adjacencies[ADJS.tr];        
       prior_bottom = f.adjacencies[ADJS.br];
       
-      this.adjacencies.set(prior_top.key, prior_top);
-      this.adjacencies.set(prior_bottom.key, prior_bottom);                           
+      this.adjacencies.add(prior_top);
+      this.adjacencies.add(prior_bottom);                           
     });
          
     // construct the face between the right endpoint and the canvas edge
@@ -1036,10 +1093,10 @@ D. closing other face (here, assume top)
     
     ix_adjs.forEach(adj => adj.segments = segments);
     
-    this.adjacencies.set(ix_adjs[TOP].key, ix_adjs[TOP]);
-    // this.adjacencies.set(ix_adjs[LEFT].key, ix_adjs[LEFT]);
-//     this.adjacencies.set(ix_adjs[BOTTOM].key, ix_adjs[BOTTOM]);
-//     this.adjacencies.set(ix_adjs[RIGHT].key, ix_adjs[RIGHT]);
+    this.adjacencies.add(ix_adjs[TOP]);
+    this.adjacencies.add(ix_adjs[LEFT]);
+    this.adjacencies.add(ix_adjs[BOTTOM]);
+    this.adjacencies.add(ix_adjs[RIGHT]);
     
     let pos = s0_below ? TOP : BOTTOM;
     let opp = pos ^ 1;
@@ -1055,7 +1112,7 @@ D. closing other face (here, assume top)
     // 2. open face for the pos (TOP or BOTTOM) adjacency
     // shares other portion of face with curr_v
     let f_pos = new Face({ orientation: pos });
-    opening_v = curr_v.matchFace(next_v);
+    opening_v = curr_v.matchFace(next_v.face);    
     f_pos.adjacencies.push(ix_adjs[pos]);
     f_pos.open(opening_v, opening_v, next_v.x)
 
@@ -1084,79 +1141,7 @@ D. closing other face (here, assume top)
     return old_faces;
   }
 
-//  _buildSegmentIntersectionFaces(ix, left, right, next_v, adjs, curr_faces, rising = true) {
-//    // track faces added for debugging
-//    const old_faces = [];
-//       
-//    // intersection needs 4 adjacencies: t, l, b, r
-//    const ix_adjs = [ Adjacency.fromVertex(ix), 
-//                Adjacency.fromVertex(ix), 
-//                Adjacency.fromVertex(ix), 
-//                Adjacency.fromVertex(ix)];
-//   
-//    // Set neighbors CCW
-//    ix_adjs[TOP].neighbor = ix_adjs[LEFT];
-//    ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
-//    ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
-//    ix_adjs[RIGHT].neighbor = ix_adjs[TOP]; 
-//    
-//    // rising = TOP
-//    const pos = rising ? TOP : BOTTOM;
-//    const opp = pos ^ 1;
-//    
-//    // 1. Finish right face with vertex as final point. Typically a triangle but not always   
-//    const last_adj = adjs[pos][adjs[pos].length - 1]
-//    if(pos === BOTTOM && 
-//       !next_v.equals(last_adj) &&
-//       !next_v.equals(ix_adjs[RIGHT])) {
-//      adjs[pos].push(next_v.matchFace(last_adj));
-//      }
-//    
-//    this._closeSegmentFace(adjs, curr_faces, ix_adjs[RIGHT], pos);
-//    
-//    // 2. Open new face using vertex --> next_v --> attachment
-//    old_faces.push(curr_faces[pos]);
-//    curr_faces[pos] = new Face();
-//    
-//    // TO-DO: do we need to check for endpoints to use instead of attachments?
-//    //        like with _buildSegmentFace?
-//    //adjs[pos] = [ix_adjs[pos], next_v, next_v.endpoint.attachments[pos]];
-//    const v = this._findAttachment(next_v, pos, next_v);
-//    adjs[pos] = [ix_adjs[pos], next_v, v];
-//    
-//    
-//    // 3. opposite face gets another vertex at the intersection
-//    adjs[opp].unshift(ix_adjs[opp]);
-//    
-//    // 4. opposite face can be finished using either left or right adjacency 
-//    //    and associated attachment.
-//    const closing_side = pos === TOP ? left : right;
-//    let v_opp = this._findAttachment(closing_side.neighbor, opp, closing_side);
-//    if(!v_opp.neighbor.equals(closing_side)) { adjs[opp].push(v_opp.neighbor); }
-//    
-//    // if the closing_side is an endpoint, we need to follow it to its attachment
-//    if(closing_side?.endpoint?.attachments && 
-//       !closing_side.endpoint.attachments[opp].equals(closing_side)) {
-//      const att = closing_side.endpoint.attachments[opp];
-//      adjs[opp].push(att.matchFace(closing_side));   
-//    }
-//    
-//    this._closeSegmentFace(adjs, curr_faces, closing_side, opp);
-//    
-//    // 5. open new opposite face using vertex --> nothing
-//    old_faces.push(curr_faces[opp]);
-//    curr_faces[opp] = new Face();
-//    adjs[opp] = [ix_adjs[LEFT]];
-//    
-//    // is there another vertex to the left (i.e., intersection) before reaching 
-//    // the next attachment? if so, add
-//    if(!closing_side.endpoint && !closing_side.neighbor.endpoint) {
-//      adjs[opp].push(closing_side.matchFace(next_v));
-//    }
-//    
-//    return old_faces;
-//  
-//  } 
+
 
 
  _closeSegmentFace(adjs, curr_faces, v, position) {
@@ -1172,119 +1157,186 @@ D. closing other face (here, assume top)
  }
  
  
-  _findAttachment(next_v, position, closing_v) {
-    if(!next_v.endpoint?.attachments) {
-      // likely next_v is an intersection. 
-      // Return whichever next_v neighbor matches the face of the closing v
-      console.log(`_findAttachment thinks ${next_v.label} is an intersection.`);
-      return next_v.matchFace(closing_v);
-    }
+//   _findAttachment(next_v, position, closing_v) {
+//     if(!next_v.endpoint?.attachments) {
+//       // likely next_v is an intersection. 
+//       // Return whichever next_v neighbor matches the face of the closing v
+//       console.log(`_findAttachment thinks ${next_v.label} is an intersection.`);
+//       return next_v.matchFace(closing_v);
+//     }
+//   
+//     let v = next_v.endpoint.attachments[position];
+//     if(v.face !== next_v.face) {
+//       // need to use the endpoint vertex instead
+//       v = next_v.endpoint.neighbor;
+//       if(v.face !== next_v.face) {
+//         v = v.neighbor;
+//       }
+//     }
+//     return v;
+//   }
   
-    let v = next_v.endpoint.attachments[position];
-    if(v.face !== next_v.face) {
-      // need to use the endpoint vertex instead
-      v = next_v.endpoint.neighbor;
-      if(v.face !== next_v.face) {
-        v = v.neighbor;
-      }
-    }
-    return v;
-  }
-  
-  _buildStartSegmentFaces(s, next_v) {
-    console.log(`Opening faces for starting endpoint ${s.max_xy.label}`);
+  _buildStartSegmentFaces(s, traversal) {
     const s0 = s.max_xy;
-    const curr_faces = [ new Face({ orientation: BOTTOM }), 
-                         new Face({ orientation: TOP }) ];
+    const curr_faces = Array(2);
      
     // Create adjacencies at s0. These will link to the nw face (TOP) and sw face (BOTTOM)                     
     const s0nw = Adjacency.fromVertex(s0);
     const s0sw = Adjacency.fromVertex(s0);
+    
+    s0nw.segment = s;
+    s0sw.segment = s;
 
     // link the adjacencies as neighbors, plus link to endpoint
-    
     s0nw.endpoint = s0; // link adjacency back to s0 endpoint
     s0sw.endpoint = s0; // link adjacency back to s0 endpoint 
     s0nw.setNeighbor(s0sw); // link endpoint to first adjacency to the nw.
-                            
-    curr_faces[TOP].open(s0nw, s0nw.endpoint.attachments[BOTTOM], next_v.x);
-    curr_faces[BOTTOM].open(s0sw, s0sw.endpoint.attachments[TOP], next_v.x);
+    
+    curr_faces[TOP] = new Face({ orientation: TOP });                        
+    curr_faces[TOP].open(s0nw, traversal[TOP].predecessor);
+    
+    curr_faces[BOTTOM] = new Face({ orientation: BOTTOM })
+    curr_faces[BOTTOM].open(s0sw, traversal[BOTTOM].successor);
+    
+    console.log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
+
+    this.adjacencies.add(s0nw);
+    this.adjacencies.add(s0sw);
 
     return curr_faces;
   }
   
-  _closeEndSegmentFaces(s, ix, left, right, curr_faces, is_left) {
-    console.log(`Closing faces for ending endpoint ${s.min_xy.label}`);
-    let pos = is_left ? BOTTOM : TOP;
+  _closeEndSegmentFaces(s, traversal, transition, curr_faces) {
+    let pos = transition.is_left ? BOTTOM : TOP;
     let opp = pos ^ 1;
     let s1 = s.min_xy;
     
-    // construct new adjacencies for the intersection
-    // adj1 will be for this current face; adj2 will be for the new face
-    // for intersection tracking, mark the segment for the intersection points  
-    let ix_adj1 = Adjacency.fromVertex(ix);
-    let ix_adj2 = Adjacency.fromVertex(ix);
-    this.adjacencies.set(ix_adj1.key, ix_adj1);
-    
+    let ix_adj1 = Adjacency.fromVertex(transition.ix);
+    let ix_adj2 = Adjacency.fromVertex(transition.ix);
+
     ix_adj1.segment = s;
     ix_adj2.segment = s;
-    ix_adj1.setNeighbor(ix_adj2);
+    ix_adj1.setNeighbor(ix_adj2);  
     
-    // close one face
-    let closing_v = is_left ? left : right;
-    curr_faces[pos].close(ix_adj1, closing_v);    
-    
-    // close the other face
-    let closing_v_opp = is_left ? right : left;
     ix_adj1.endpoint = s1;
     ix_adj2.endpoint = s1;
-    s1.neighbor = pos === BOTTOM ? ix_adj2 : ix_adj1;
-    curr_faces[opp].close(ix_adj2, closing_v_opp);
   
+    // close one face
+    curr_faces[pos].close(ix_adj1, traversal[pos]);
+    console.log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+    if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
+    }
+    
+    
+    // close the other face
+    curr_faces[opp].close(ix_adj2, traversal[opp]);
+    console.log(`At ix ${ix_adj2.label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
+    
+    if(!curr_faces[opp].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      console.log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
+    
+    } 
+    
+    this.adjacencies.add(ix_adj1);
+    this.adjacencies.add(ix_adj2);                              
+                                    
     return curr_faces;
   }
-  
- 
-  _buildSegmentFace(s, ix, left, right, curr_v, next_v, curr_faces, is_left) {
-    let pos = is_left ? BOTTOM : TOP;
+    
+  _buildSegmentFace(s, traversal, transition, curr_faces) {
+    let pos = transition.is_left ? BOTTOM : TOP;
     let opp = pos ^ 1;
     
-    // construct new adjacencies for the intersection
-    // adj1 will be for this current face; adj2 will be for the new face
-    // for intersection tracking, mark the segment for the intersection points  
-    let ix_adj1 = Adjacency.fromVertex(ix);
-    let ix_adj2 = Adjacency.fromVertex(ix);
-    this.adjacencies.set(ix_adj1.key, ix_adj1); // neighbor would share same key
-    //     this.adjacencies.set(ix_adj2.key, ix_adj2);   
-    console.log(`Closing ${is_left ? "BOTTOM" : "TOP"} face for vertex ${ix_adj1.label}`);
+    let ix_adj1 = Adjacency.fromVertex(transition.ix);
+    let ix_adj2 = Adjacency.fromVertex(transition.ix);
     
     ix_adj1.segment = s;
     ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);
-   
-    // close the face
-    let closing_v = is_left ? left : right;
-    curr_faces[pos].close(ix_adj1, closing_v);
+    
+    // close old face by tracing the prior left/right face in the opposite direction
+    // this time, include left/right in the adjacencies
+    curr_faces[pos].close(ix_adj1, traversal[pos]);
+    
+    console.log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+    if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
+    }
     
     // store old face to return
     let old_face = curr_faces[pos];
-        
-    // open the new face
-    curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].open(ix_adj2, curr_v, next_v.x);
     
-     
+    // open new face by tracing the current left/right like with the starting point
+    curr_faces[pos] = new Face({ orientation: pos });
+    curr_faces[pos].openNextV(ix_adj2, transition.next_v, traversal[pos].x);
+    //curr_faces[pos].open(ix_adj2, traversal[pos].neighbor)
+    //curr_faces[pos].open(ix_adj2, transition.next_v);
+    
+    console.log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+    
     // move the attachment for this next endpoint at the opposite side
-    // position = bottom: top attachment for right|left line moved down to s
-    // position = top: bottom attachment moved up
-    ix_adj2.endpoint = curr_v.endpoint;
-    this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].key);
-//     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].neighbor.key);
+    // position === bottom: top attachment for right|left line moved down to s
+    // position === top: bottom attachment moved up
+    ix_adj2.endpoint = transition.next_v.endpoint;
+    this.adjacencies.delete(ix_adj2.endpoint.attachments[opp]);
     ix_adj2.endpoint.attachments[opp] = ix_adj2; 
     
+    this.adjacencies.add(ix_adj1);
+    this.adjacencies.add(ix_adj2);
     
-    return [old_face];  
+    return [old_face]; 
   }
+ 
+  // _buildSegmentFace(s, ix, left, right, curr_v, next_v, curr_faces, is_left) {
+//     let pos = is_left ? BOTTOM : TOP;
+//     let opp = pos ^ 1;
+//     
+//     // construct new adjacencies for the intersection
+//     // adj1 will be for this current face; adj2 will be for the new face
+//     // for intersection tracking, mark the segment for the intersection points  
+//     let ix_adj1 = Adjacency.fromVertex(ix);
+//     let ix_adj2 = Adjacency.fromVertex(ix);
+//     this.adjacencies.set(ix_adj1.key, ix_adj1); // neighbor would share same key
+//     //     this.adjacencies.set(ix_adj2.key, ix_adj2);   
+//     console.log(`Closing ${is_left ? "BOTTOM" : "TOP"} face for vertex ${ix_adj1.label}`);
+//     
+//     ix_adj1.segment = s;
+//     ix_adj2.segment = s;
+//     ix_adj1.setNeighbor(ix_adj2);
+//    
+//     // close the face
+//     let closing_v = is_left ? left : right;
+//     curr_faces[pos].close(ix_adj1, closing_v);
+//     
+//     // store old face to return
+//     let old_face = curr_faces[pos];
+//         
+//     // open the new face
+//     curr_faces[pos] = new Face({ orientation: pos });
+//     curr_faces[pos].open(ix_adj2, curr_v, next_v.x);
+//     
+//      
+//     // move the attachment for this next endpoint at the opposite side
+//     // position = bottom: top attachment for right|left line moved down to s
+//     // position = top: bottom attachment moved up
+//     ix_adj2.endpoint = curr_v.endpoint;
+//     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].key);
+// //     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].neighbor.key);
+//     ix_adj2.endpoint.attachments[opp] = ix_adj2; 
+//     
+//     
+//     return [old_face];  
+//   }
     
 
 
@@ -1319,87 +1371,20 @@ D. closing other face (here, assume top)
       //  is above the endpoint.)
       
       // arbitrarily start with the TOP face
+      let curr_ix = s0;
       let curr_v = s0.attachments[TOP];
-      
-      let traverse_res = curr_v.traverse(s);
-      let transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
-      
-      // Build top and bottom starting faces
-      let curr_faces;
-      if(typeof transition_res.s0_below === "undefined") {
-        curr_faces = this._buildStartSegmentFaces(s, transition_res.next_v);
-      } else {
-        // intersection is the next vertex
-        const next_v = transition_res.s0_below ? traverse_res[1] : traverse_res[0];
-        curr_faces = this._buildStartSegmentFaces(s, next_v);
-      }
+      let traversal = s.traverse(curr_v);
+      let transition = s.transition(traversal);
+      curr_v = transition.next_v; 
+      curr_ix = transition.ix;
 
-      
+      let curr_faces = this._buildStartSegmentFaces(s, traversal);      
             
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
       let ln_endpoints = this.endpoints.length;
-      let prior_traverse, prior_transition, old_faces;
-      do {
-        i += 1;
-
-        if(transition_res.ix.equals(s1)) {
-          old_faces = this._closeEndSegmentFaces(s, 
-                                                 transition_res.ix,
-                                                 traverse_res[1], 
-                                                 traverse_res[0], 
-                                                 curr_faces,
-                                                 transition_res.is_left);
-          new_faces.push(...old_faces);   
-          old_faces.forEach(f => {
-            if(draw) f.draw({ color: nextShade() });
-            if(!f.consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-              console.error(`Failed consistency test at last face`);  
-            }    
-          });
-          break;
-        }
-        
-        prior_traverse = traverse_res;
-        prior_transition = transition_res;
-        
-        traverse_res = transition_res.next_v.traverse(s);
-        transition_res = Face.transition(traverse_res[1], traverse_res[0], s);
-        
-        if(typeof prior_transition.s0_below === "undefined") {
-          const next_v = ( typeof transition_res.s0_below === "undefined" ) ? 
-                       transition_res.next_v : transition_res.ix;
-          old_faces = this._buildSegmentFace(s, 
-                                             prior_transition.ix, 
-                                             prior_traverse[1], // left
-                                             prior_traverse[0], // right
-                                             prior_transition.next_v, // curr_v
-                                             next_v,
-                                             curr_faces,
-                                             prior_transition.is_left);                                                       
-        } else {
-          console.log(`Recording intersection ${prior_transition.ix.label}`);
-          // record the intersection
-          this.intersections.push({
-              ix: prior_transition.ix,
-              s1: s,
-              s2: transition_res.other_segment
-          });
-    
-          // process intersection
-          const next_v = ( typeof transition_res.s0_below === "undefined" ) ? 
-                       transition_res.next_v : transition_res.ix;
-          old_faces = this._buildSegmentIntersectionFaces(prior_transition.ix,
-                                                          prior_traverse[1], // left
-                                                          prior_traverse[0], // right
-                                                          prior_transition.next_v, // curr_v
-                                                          next_v,
-                                                          curr_faces,
-                                                          prior_transition.s0_below,
-                                                          new Set([s, transition_res.other_segment]))
-        }
+      while(i < ln_endpoints && !curr_ix.equals(s1)) {
+        const old_faces = this._buildSegmentFace(s, traversal, transition, curr_faces);
         
         new_faces.push(...old_faces);                                              
         old_faces.forEach(f => {
@@ -1407,11 +1392,30 @@ D. closing other face (here, assume top)
           if(!f.consistencyTest({ test_neighbor: false, 
                                          test_successor: true, 
                                          test_face: true })) {
-            console.error(`Failed consistency test at last face`);  
+            console.error(`Failed consistency test at ${f.label}`);  
           }    
         });
+        
+        curr_v = transition.next_v; 
+        traversal = s.traverse(curr_v);
+        transition = s.transition(traversal);
+        curr_ix = transition.ix; 
+        
+        if(curr_ix.equals(s1)) { console.log(`Done while loop!`); }
+                   
+      }
+      const old_faces = this._closeEndSegmentFaces(s, traversal, transition, curr_faces)
+      
+      new_faces.push(...old_faces);                                              
+      old_faces.forEach(f => {
+        if(draw) f.draw({ color: nextShade() });
+        if(!f.consistencyTest({ test_neighbor: false, 
+                                       test_successor: true, 
+                                       test_face: true })) {
+          console.error(`Failed consistency test at last face ${f.label}`);  
+        }    
+      });
   
-      } while(i < ln_endpoints)
       
       // ---------- Cleanup ------------ //
       
@@ -1502,7 +1506,8 @@ D. closing other face (here, assume top)
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
-    for(let [key, adj] of this.adjacencies.entries()) {
+    this.adjacencies.forEach(adj => {
+      const key = adj.key;
       if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
         console.error(`adj ${adj.label} fails consistency test.`, adj, this);
         return false;
@@ -1512,16 +1517,10 @@ D. closing other face (here, assume top)
         console.error(`adj ${adj.label} (${key}) does not match.`, adj, this);
         return false;
       }
-
-  
-//       if(!this.faces.has(adj.face)) {
-//         console.error(`adj ${adj.label} (${key}) face ${adj.face.label} not in partition faces.`, adj, this);
-//         return false;     
-//       }
-    }
-
+    });
+    
     // confirm each endpoint has an adjacency
-    for(let e of this.endpoints.values()) {
+    this.endpoints.forEach(e => {
       if(!(e.attachments[TOP] instanceof Adjacency)) {
         console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
         return false;    
@@ -1536,7 +1535,8 @@ D. closing other face (here, assume top)
         console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
         return false;        
       }
-    }
+    
+    });
     
     return true;
   }
