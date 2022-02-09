@@ -429,6 +429,42 @@ class Face {
     if(i >= i_max) { console.error(`openNextV hit i_max`);}
   }
   
+  closeBackwards(v0, v1) {
+    // walk backwards from v1, including anything equal or to the left of v1
+    let i_max = 100;
+    let i = 0;
+    let adjs = [];
+    let next_v = v1;
+    if(this.orientation === TOP) {
+      adjs.push(v0);
+      while(next_v.x <= v1.x && i < i_max) {
+        adjs.push(next_v);
+        next_v = next_v.predecessor;
+        i += 1;
+      }
+      adjs.reverse();
+      
+      this.adjacencies.push(...adjs);
+      
+    } else {
+      // BOTTOM
+      adjs.push(v0);
+      while(next_v.x <= v1.x && i < i_max) {
+        adjs.push(next_v)
+        next_v = next_v.successor;
+        i += 1;
+      }
+      adjs.reverse();
+      this.adjacencies.push(...adjs);
+      this.adjacencies.reverse();
+    }
+  
+    if(i >= i_max) { console.error(`closeBackwards hit i_max`);}
+    
+    this._linkAdjacencies();
+  
+  }
+  
   closeWalkBackwards(v0, v1) {
     // walk backwards from v1 until next attachment
     // include the vertex for that attachment
@@ -461,7 +497,7 @@ class Face {
       this.adjacencies.reverse();
     }
   
-    if(i >= i_max) { console.error(`open hit i_max`);}
+    if(i >= i_max) { console.error(`closeWalkBackwards hit i_max`);}
     
     this._linkAdjacencies();
   
@@ -1181,7 +1217,7 @@ D. closing other face (here, assume top)
       }
     
       // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].closeWalkBackwards(ix_adjs[opp], traversal[opp]);
+      curr_faces[opp].closeBackwards(ix_adjs[opp], traversal[opp]);
       old_faces.push(curr_faces[opp]);
     
       console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
@@ -1219,7 +1255,7 @@ D. closing other face (here, assume top)
       }
     
       // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].closeWalkBackwards(ix_adjs[opp], traversal[opp]);
+      curr_faces[opp].closeBackwards(ix_adjs[opp], traversal[opp]);
       old_faces.push(curr_faces[opp]);
     
       console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
