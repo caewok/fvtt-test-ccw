@@ -404,6 +404,30 @@ class Face {
   
   }
   
+  addFromNextV(next_v, next_ix) {
+   // walk backward from next_v until past next_ix
+     const i_max = 100;
+    let i = 0;
+    if(this.orientation === TOP) {
+      let v1 = next_v.successor;
+      while(v1.x > next_ix.x && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.successor;
+        i += 1;
+      }  
+    } else { // bottom
+      let v1 = next_v.predecessor;
+      while(v1.x > next_ix.x && i < i_max) {
+        this.adjacencies.push(v1);
+        v1 = v1.predecessor;
+        i += 1;
+      }      
+    }
+    
+    if(i >= i_max) { console.error(`addFromNextV hit i_max`);}  
+  
+  }
+  
   openNextV(v0, next_v, next_ix) {
     // walk forward from next_v until past next_ix
     this.adjacencies.push(v0);
@@ -1424,6 +1448,11 @@ D. closing other face (here, assume top)
     //curr_faces[pos].open(ix_adj2, transition.next_v);
     
     console.log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+    // add to opposite face by tracing from nextV to next_ix
+    // only needed to capture faces that contain processed intersections
+    curr_faces[opp].addFromNextV(transition.next_v, next_ix);
+    
     
     // move the attachment for this next endpoint at the opposite side
     // position === bottom: top attachment for right|left line moved down to s
