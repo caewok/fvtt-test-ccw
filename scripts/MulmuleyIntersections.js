@@ -319,9 +319,8 @@ class Segment {
         
     // is left|right vertical and associated with the same endpoint? 
     // then we have a vertical attachment
-    const l_endpoint = left.endpoint// || left.neighbor.endpoint;
-    const r_endpoint = right.endpoint// || right.neighbor.endpoint;    
-    
+    const l_endpoint = left.endpoint || left.neighboring_endpoint;
+    const r_endpoint = right.endpoint || right.neighboring_endpoint;
     if(left.x === right.x && l_endpoint === r_endpoint) {
       return this._transitionAttachment(left, right, l_endpoint);
     }
@@ -405,22 +404,22 @@ class Face {
   
   }
   
-  openNextV(v0, next_v) {
-    // walk forward from next_v until next attachment
+  openNextV(v0, next_v, next_ix) {
+    // walk forward from next_v until past next_ix
     this.adjacencies.push(v0);
     
     const i_max = 100;
     let i = 0;
     if(this.orientation === TOP) {
       let v1 = next_v.successor;
-      while(!v1.endpoint && i < i_max) {
+      while(v1.x > next_ix.x && i < i_max) {
         this.adjacencies.push(v1);
         v1 = v1.successor;
         i += 1;
       }  
     } else { // bottom
       let v1 = next_v.predecessor;
-      while(!v1.endpoint && i < i_max) {
+      while(v1.x > next_ix.x && i < i_max) {
         this.adjacencies.push(v1);
         v1 = v1.predecessor;
         i += 1;
@@ -428,6 +427,44 @@ class Face {
     }
     
     if(i >= i_max) { console.error(`openNextV hit i_max`);}
+  }
+  
+  closeWalkBackwards(v0, v1) {
+    // walk backwards from v1 until next attachment
+    // include the vertex for that attachment
+    let i_max = 100;
+    let i = 0;
+    let adjs = [];
+    if(this.orientation === TOP) {
+      adjs.push(v0);
+      while(!v1.endpoint && i < i_max) {
+        adjs.push(v1);
+        v1 = v1.predecessor;
+        i += 1;
+      }
+      adjs.push(v1);
+      adjs.reverse();
+      
+      this.adjacencies.push(...adjs);
+      
+    } else {
+      // BOTTOM
+      adjs.push(v0);
+      while(!v1.endpoint && i < i_max) {
+        adjs.push(v1)
+        v1 = v1.successor;
+        i += 1;
+      }
+      adjs.push(v1);
+      adjs.reverse();
+      this.adjacencies.push(...adjs);
+      this.adjacencies.reverse();
+    }
+  
+    if(i >= i_max) { console.error(`open hit i_max`);}
+    
+    this._linkAdjacencies();
+  
   }
   
   
@@ -1097,7 +1134,13 @@ D. closing other face (here, assume top)
 
 */
 
-  _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces) {
+  _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces, next_ix) {
+    // if s0 is below, the first face we fill will be the right triangle/poly above s
+    // call that TOP
+    let pos = transition.s0_below ? TOP : BOTTOM;
+    let opp = pos ^ 1;
+    let old_faces = []
+    
     // intersection needs 4 adjacencies: t, l, b, r
     let ix_adjs = [ Adjacency.fromVertex(transition.ix), 
                     Adjacency.fromVertex(transition.ix), 
@@ -1110,7 +1153,7 @@ D. closing other face (here, assume top)
     ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
     ix_adjs[RIGHT].neighbor = ix_adjs[TOP];   
     
-    const segments = new Set([s, transition.other_segment])
+    let segments = new Set([s, transition.other_segment])
     ix_adjs.forEach(adj => adj.segments = segments);
     
     this.adjacencies.add(ix_adjs[TOP]);
@@ -1118,16 +1161,15 @@ D. closing other face (here, assume top)
     this.adjacencies.add(ix_adjs[BOTTOM]);
     this.adjacencies.add(ix_adjs[RIGHT]);
     
-    // if s0 is below, the first face we fill will be the right triangle/poly above s
-    // call that TOP
-    let pos = transition.s0_below ? TOP : BOTTOM;
-    let opp = pos ^ 1;
-    let old_faces = []
-    
-    
     if(pos === TOP) {
       // 1. Close the right (pos) face, using vertex as the final point
-      curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos])
+//       if(curr_faces[pos].adjacencies[curr_faces[pos].adjacencies.length - 1] === traversal[pos]) {
+//         curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos].successor)
+//       } else {
+//         curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos])
+//       }
+     
+      curr_faces[pos].close(ix_adjs[RIGHT])
       old_faces.push(curr_faces[pos])
     
       console.log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
@@ -1139,7 +1181,7 @@ D. closing other face (here, assume top)
       }
     
       // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].close(ix_adjs[opp], traversal[opp]);
+      curr_faces[opp].closeWalkBackwards(ix_adjs[opp], traversal[opp]);
       old_faces.push(curr_faces[opp]);
     
       console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
@@ -1152,19 +1194,20 @@ D. closing other face (here, assume top)
     
       // 3. open face for the LEFT (opp) adjacency
       curr_faces[opp] = new Face({ orientation: opp });
-      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, traversal[opp].x + 1)
+      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, next_ix)
       console.log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
     
       // 4. open face for the pos (TOP or BOTTOM) adjacency
       curr_faces[pos] = new Face({ orientation: pos });
-      curr_faces[pos].adjacencies.push(ix_adjs[pos]);
-      curr_faces[pos].openNextV(transition.next_v, transition.next_v, traversal[pos].x)
+      curr_faces[pos].adjacencies.push(ix_adjs[pos])
+      curr_faces[pos].openNextV(transition.next_v, transition.next_v, next_ix)
+      
       console.log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
     
     } else {
       // pos === BOTTOM
       // 1. Close the right (pos) face, using vertex as the final point
-      curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos])
+      curr_faces[pos].close(ix_adjs[RIGHT])
       old_faces.push(curr_faces[pos])
     
       console.log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
@@ -1176,8 +1219,7 @@ D. closing other face (here, assume top)
       }
     
       // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].adjacencies.push(ix_adjs[opp]); 
-      curr_faces[opp].close(ix_adjs[opp], traversal[opp]);
+      curr_faces[opp].closeWalkBackwards(ix_adjs[opp], traversal[opp]);
       old_faces.push(curr_faces[opp]);
     
       console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
@@ -1190,13 +1232,13 @@ D. closing other face (here, assume top)
     
       // 3. open face for the LEFT (opp) adjacency
       curr_faces[opp] = new Face({ orientation: opp });
-      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, traversal[opp].x + 1)
+      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, next_ix)
       console.log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
     
       // 4. open face for the pos (TOP or BOTTOM) adjacency
       curr_faces[pos] = new Face({ orientation: pos });
       curr_faces[pos].adjacencies.push(ix_adjs[pos]);
-      curr_faces[pos].openNextV(transition.next_v, transition.next_v, traversal[pos].x)
+      curr_faces[pos].openNextV(transition.next_v, transition.next_v, next_ix)
       console.log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
     
     }
@@ -1239,27 +1281,27 @@ D. closing other face (here, assume top)
 //     return v;
 //   }
   
-  _buildStartSegmentFaces(s, traversal) {
-    const s0 = s.max_xy;
-    const curr_faces = Array(2);
+  _buildStartSegmentFaces(s, traversal, transition) {
+    let s0 = s.max_xy;
+    let curr_faces = Array(2);
      
     // Create adjacencies at s0. These will link to the nw face (TOP) and sw face (BOTTOM)                     
-    const s0nw = Adjacency.fromVertex(s0);
-    const s0sw = Adjacency.fromVertex(s0);
+    let s0nw = Adjacency.fromVertex(s0);
+    let s0sw = Adjacency.fromVertex(s0);
     
     s0nw.segment = s;
     s0sw.segment = s;
 
     // link the adjacencies as neighbors, plus link to endpoint
-    // s0nw.endpoint = s0; // link adjacency back to s0 endpoint
-//     s0sw.endpoint = s0; // link adjacency back to s0 endpoint 
+    s0nw.neighboring_endpoint = s0; // link adjacency back to s0 endpoint
+    s0sw.neighboring_endpoint = s0; // link adjacency back to s0 endpoint 
     s0nw.setNeighbor(s0sw); 
     
     curr_faces[TOP] = new Face({ orientation: TOP });                        
-    curr_faces[TOP].open(s0nw, traversal[TOP].predecessor);
+    curr_faces[TOP].openNextV(s0nw, s0.attachments[BOTTOM].neighbor, transition.ix);
     
     curr_faces[BOTTOM] = new Face({ orientation: BOTTOM })
-    curr_faces[BOTTOM].open(s0sw, traversal[BOTTOM].successor);
+    curr_faces[BOTTOM].openNextV(s0sw, s0.attachments[TOP].neighbor, transition.ix);
     
     console.log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
 
@@ -1281,8 +1323,8 @@ D. closing other face (here, assume top)
     ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);  
     
-    ix_adj1.endpoint = s1;
-    ix_adj2.endpoint = s1;
+    ix_adj1.neighboring_endpoint = s1;
+    ix_adj2.neighboring_endpoint = s1;
   
     // close one face
     curr_faces[pos].close(ix_adj1, traversal[pos]);
@@ -1312,7 +1354,7 @@ D. closing other face (here, assume top)
     return curr_faces;
   }
     
-  _buildSegmentFace(s, traversal, transition, curr_faces) {
+  _buildSegmentFace(s, traversal, transition, curr_faces, next_ix) {
     let pos = transition.is_left ? BOTTOM : TOP;
     let opp = pos ^ 1;
     
@@ -1340,7 +1382,7 @@ D. closing other face (here, assume top)
     
     // open new face by tracing the current left/right like with the starting point
     curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].openNextV(ix_adj2, transition.next_v);
+    curr_faces[pos].openNextV(ix_adj2, transition.next_v, next_ix);
     //curr_faces[pos].openNextV(ix_adj2, transition.next_v, traversal[pos].x);
     //curr_faces[pos].open(ix_adj2, traversal[pos].neighbor)
     //curr_faces[pos].open(ix_adj2, transition.next_v);
@@ -1411,6 +1453,8 @@ D. closing other face (here, assume top)
     addSegment({ draw = false, idx = undefined } = {}) {
       // ------ Initial setup ----- //
       // randomly select segment or choose user-selected
+      if(partition.process_queue.length === 0) return false; 
+      
       if(typeof idx === "undefined") {
         idx = this.process_queue.pop()
       } else {
@@ -1446,15 +1490,22 @@ D. closing other face (here, assume top)
       curr_v = transition.next_v; 
       curr_ix = transition.ix;
 
-      let curr_faces = this._buildStartSegmentFaces(s, traversal);      
+      let curr_faces = this._buildStartSegmentFaces(s, traversal, transition);   
             
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
       let ln_endpoints = this.endpoints.length;
-      let old_faces;
+      let old_faces, next_traversal, next_transition;
       while(i < ln_endpoints && !curr_ix.equals(s1)) {
+        next_traversal = s.traverse(curr_v);
+        next_transition = s.transition(next_traversal); 
+       
         if(typeof transition.s0_below === "undefined") {   
-          old_faces = this._buildSegmentFace(s, traversal, transition, curr_faces);
+          old_faces = this._buildSegmentFace(s, 
+                                             traversal, 
+                                             transition, 
+                                             curr_faces, 
+                                             next_transition.ix);
         } else {
           console.log(`Recording intersection ${transition.ix.label}`);
           // record the intersection
@@ -1464,7 +1515,11 @@ D. closing other face (here, assume top)
             s2: transition.other_segment
           });
           
-          old_faces = this._buildSegmentIntersectionFaces(s, traversal, transition, curr_faces)
+          old_faces = this._buildSegmentIntersectionFaces(s, 
+                                                          traversal, 
+                                                          transition, 
+                                                          curr_faces,
+                                                          next_transition.ix)
         }  
         
         new_faces.push(...old_faces);                                              
@@ -1477,13 +1532,11 @@ D. closing other face (here, assume top)
           }    
         });
         
-        curr_v = transition.next_v; 
-        traversal = s.traverse(curr_v);
-        transition = s.transition(traversal);
-        curr_ix = transition.ix; 
+        traversal = next_traversal;
+        transition = next_transition;
         
-        if(curr_ix.equals(s1)) { console.log(`Done while loop!`); }
-                   
+        curr_v = transition.next_v; 
+        curr_ix = transition.ix;            
       }
       old_faces = this._closeEndSegmentFaces(s, traversal, transition, curr_faces)
       
