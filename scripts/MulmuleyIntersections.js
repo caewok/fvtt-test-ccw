@@ -72,6 +72,14 @@ v0 = ix
 
 */
 
+const MODULE_ID = "testccw";
+const log = function(...args) {
+  try {
+    if (game.modules.get(MODULE_ID).api.debug) {
+      console.log(MODULE_ID, '|', ...args);
+    }
+  } catch(e) { return; }
+}
 
 
 function compareXY(a, b) { 
@@ -283,7 +291,7 @@ class Segment {
     
     const s0_below = this.min_xy.y < other_segment.min_xy.y;
     //const s_rising = max_xy.y > ix.y; // 
-    console.log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
+    log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
     
     //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
     if(s0_below) {
@@ -404,22 +412,26 @@ class Face {
   
   }
   
-  addFromNextV(next_v, next_ix) {
-   // walk backward from next_v until past next_ix
-     const i_max = 100;
+  addFromNextV(v, stop) {
+   // walk backward from v until x no longer decreases
+    const i_max = 100;
     let i = 0;
     if(this.orientation === TOP) {
-      let v1 = next_v.successor;
-      while(v1.x > next_ix.x && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.successor;
+      let curr_v = v;
+      let next_v = curr_v.successor;
+      while(curr_v.x > next_v.x && curr_v !== stop && i < i_max) {
+        this.adjacencies.push(curr_v);
+        curr_v = next_v;
+        next_v = curr_v.successor;
         i += 1;
       }  
     } else { // bottom
-      let v1 = next_v.predecessor;
-      while(v1.x > next_ix.x && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.predecessor;
+      let curr_v = v;
+      let next_v = curr_v.predecessor;
+      while(curr_v.x > next_v.x && curr_v !== stop && i < i_max) {
+        this.adjacencies.push(curr_v);
+        curr_v = next_v;
+        next_v = curr_v.predecessor;
         i += 1;
       }      
     }
@@ -428,29 +440,64 @@ class Face {
   
   }
   
-  openNextV(v0, next_v, next_ix) {
-    // walk forward from next_v until past next_ix
+  openNextV(v0, next_v) {
+    // store next_v temporarily
     this.adjacencies.push(v0);
     
-    const i_max = 100;
-    let i = 0;
-    if(this.orientation === TOP) {
-      let v1 = next_v.successor;
-      while(v1.x > next_ix.x && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.successor;
-        i += 1;
-      }  
-    } else { // bottom
-      let v1 = next_v.predecessor;
-      while(v1.x > next_ix.x && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.predecessor;
-        i += 1;
-      }      
-    }
+    let dir = this.orientation === TOP ? "successor" : "predecessor";
+    this._next_v = next_v[dir];
+    this.adjacencies.push(this._next_v);
+  }
+  
+  openIxLeft(ix, next_v) {
+    this.adjacencies.push(ix);
+    this._next_v = next_v;
+  }
+  
+  openIx(ix, next_v) {
+    this.adjacencies.push(ix);
+    this.openNextV(next_v, next_v);
+  }
+  
+  updateNextV(next_v) {
+    let dir = this.orientation === TOP ? "successor" : "predecessor";
     
-    if(i >= i_max) { console.error(`openNextV hit i_max`);}
+    let curr = this._next_v[dir];
+    let i_max = 100;
+    let i = 0;
+    while(curr.x > next_v.x && i < i_max) {
+      i += 1;
+      this.adjacencies.push(curr);
+      curr = curr[dir];
+    }
+    this._next_v = next_v;
+    
+    if(i >= i_max) { console.error(`updateNextV hit i_max`);}
+  }
+  
+  closeNextV(v0, closing_v) {
+    this.updateNextV(closing_v)
+    this.adjacencies.push(closing_v);
+    this.adjacencies.push(v0);
+    if(this.orientation === BOTTOM) this.adjacencies.reverse();
+    this._linkAdjacencies();
+  }
+  
+  closeIxRight(ix) {
+    this.updateNextV(ix)
+    this.adjacencies.push(ix);
+    if(this.orientation === BOTTOM) this.adjacencies.reverse();
+    this._linkAdjacencies();
+  }
+  
+  closeIx(ix, traversal) {
+    let dir = this.orientation === TOP ? "predecessor" : "successor";
+    this.updateNextV(traversal[dir]);
+    this.adjacencies.push(traversal[dir]);
+    this.adjacencies.push(traversal);
+    this.adjacencies.push(ix);
+    if(this.orientation === BOTTOM) this.adjacencies.reverse();
+    this._linkAdjacencies();
   }
   
   closeBackwards(v0, v1) {
@@ -923,6 +970,15 @@ class Partition {
     return faces;
   }
   
+  calculateIntersections() {
+    // use for loop solely to avoid infinite loops on errors
+    const ln = this.process_queue.length;
+    for(let i = 0; i < ln; i += 1) {
+      this.addSegment();
+    }
+    return this.intersections;
+  }
+  
   
   _buildAdjacencies(adjs, face) {
     //this.faces.add(face);
@@ -1221,88 +1277,40 @@ D. closing other face (here, assume top)
     this.adjacencies.add(ix_adjs[BOTTOM]);
     this.adjacencies.add(ix_adjs[RIGHT]);
     
-    if(pos === TOP) {
-      // 1. Close the right (pos) face, using vertex as the final point
-//       if(curr_faces[pos].adjacencies[curr_faces[pos].adjacencies.length - 1] === traversal[pos]) {
-//         curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos].successor)
-//       } else {
-//         curr_faces[pos].close(ix_adjs[RIGHT], traversal[pos])
-//       }
-     
-      curr_faces[pos].close(ix_adjs[RIGHT])
-      old_faces.push(curr_faces[pos])
-    
-      console.log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
-    
-      if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-        console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
-      }
-    
-      // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].closeBackwards(ix_adjs[opp], traversal[opp]);
-      old_faces.push(curr_faces[opp]);
-    
-      console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
-    
-      if(!curr_faces[opp].consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-        console.log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
-      }
-    
-      // 3. open face for the LEFT (opp) adjacency
-      curr_faces[opp] = new Face({ orientation: opp });
-      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, next_ix)
-      console.log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
-    
-      // 4. open face for the pos (TOP or BOTTOM) adjacency
-      curr_faces[pos] = new Face({ orientation: pos });
-      curr_faces[pos].adjacencies.push(ix_adjs[pos])
-      curr_faces[pos].openNextV(transition.next_v, transition.next_v, next_ix)
-      
-      console.log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
-    
-    } else {
-      // pos === BOTTOM
-      // 1. Close the right (pos) face, using vertex as the final point
-      curr_faces[pos].close(ix_adjs[RIGHT])
-      old_faces.push(curr_faces[pos])
-    
-      console.log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
-    
-      if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-        console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
-      }
-    
-      // 2. Close the opp (TOP or BOTTOM) face
-      curr_faces[opp].closeBackwards(ix_adjs[opp], traversal[opp]);
-      old_faces.push(curr_faces[opp]);
-    
-      console.log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
-    
-      if(!curr_faces[opp].consistencyTest({ test_neighbor: false, 
-                                           test_successor: true, 
-                                           test_face: true })) {
-        console.log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
-      }
-    
-      // 3. open face for the LEFT (opp) adjacency
-      curr_faces[opp] = new Face({ orientation: opp });
-      curr_faces[opp].openNextV(ix_adjs[LEFT], transition.next_v, next_ix)
-      console.log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
-    
-      // 4. open face for the pos (TOP or BOTTOM) adjacency
-      curr_faces[pos] = new Face({ orientation: pos });
-      curr_faces[pos].adjacencies.push(ix_adjs[pos]);
-      curr_faces[pos].openNextV(transition.next_v, transition.next_v, next_ix)
-      console.log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
-    
+    curr_faces[pos].closeIxRight(ix_adjs[RIGHT])
+    old_faces.push(curr_faces[pos])
+  
+    log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
+  
+    if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
     }
+  
+    // 2. Close the opp (TOP or BOTTOM) face
+    curr_faces[opp].closeIx(ix_adjs[opp], traversal[opp])      
+    old_faces.push(curr_faces[opp]);
+  
+    log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
+  
+    if(!curr_faces[opp].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
+    }
+  
+    // 3. open face for the LEFT (opp) adjacency
+    curr_faces[opp] = new Face({ orientation: opp });
+    curr_faces[opp].openIxLeft(ix_adjs[LEFT], transition.next_v)
+    log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
+  
+    // 4. open face for the pos (TOP or BOTTOM) adjacency
+    curr_faces[pos] = new Face({ orientation: pos });
+    curr_faces[pos].openIx(ix_adjs[pos], transition.next_v)
     
+    log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+        
     return old_faces;
   }
 
@@ -1326,7 +1334,7 @@ D. closing other face (here, assume top)
 //     if(!next_v.endpoint?.attachments) {
 //       // likely next_v is an intersection. 
 //       // Return whichever next_v neighbor matches the face of the closing v
-//       console.log(`_findAttachment thinks ${next_v.label} is an intersection.`);
+//       log(`_findAttachment thinks ${next_v.label} is an intersection.`);
 //       return next_v.matchFace(closing_v);
 //     }
 //   
@@ -1358,12 +1366,12 @@ D. closing other face (here, assume top)
     s0nw.setNeighbor(s0sw); 
     
     curr_faces[TOP] = new Face({ orientation: TOP });                        
-    curr_faces[TOP].openNextV(s0nw, s0.attachments[BOTTOM].neighbor, transition.ix);
+    curr_faces[TOP].openNextV(s0nw, s0.attachments[BOTTOM].neighbor);
     
     curr_faces[BOTTOM] = new Face({ orientation: BOTTOM })
-    curr_faces[BOTTOM].openNextV(s0sw, s0.attachments[TOP].neighbor, transition.ix);
+    curr_faces[BOTTOM].openNextV(s0sw, s0.attachments[TOP].neighbor);
     
-    console.log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
+    log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
 
     this.adjacencies.add(s0nw);
     this.adjacencies.add(s0sw);
@@ -1387,24 +1395,24 @@ D. closing other face (here, assume top)
     ix_adj2.neighboring_endpoint = s1;
   
     // close one face
-    curr_faces[pos].close(ix_adj1, traversal[pos]);
-    console.log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    curr_faces[pos].closeNextV(ix_adj1, traversal[pos]);
+    log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
     
     if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
                                          test_successor: true, 
                                          test_face: true })) {
-      console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
+      log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
     }
     
     
     // close the other face
-    curr_faces[opp].close(ix_adj2, traversal[opp]);
-    console.log(`At ix ${ix_adj2.label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
+    curr_faces[opp].closeNextV(ix_adj2, traversal[opp]);
+    log(`At ix ${ix_adj2.label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
     
     if(!curr_faces[opp].consistencyTest({ test_neighbor: false, 
                                          test_successor: true, 
                                          test_face: true })) {
-      console.log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
+      log(`Face ${curr_faces[opp].label} failed consistency test`)                                   
     
     } 
     
@@ -1425,33 +1433,12 @@ D. closing other face (here, assume top)
     ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);
     
-    // close old face by tracing the prior left/right face in the opposite direction
-    // this time, include left/right in the adjacencies
-    curr_faces[pos].close(ix_adj1, traversal[pos]);
-    
-    console.log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
-    
-    if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
-                                         test_successor: true, 
-                                         test_face: true })) {
-      console.log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
-    }
-    
-    // store old face to return
-    let old_face = curr_faces[pos];
-    
-    // open new face by tracing the current left/right like with the starting point
-    curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].openNextV(ix_adj2, transition.next_v, next_ix);
-    //curr_faces[pos].openNextV(ix_adj2, transition.next_v, traversal[pos].x);
-    //curr_faces[pos].open(ix_adj2, traversal[pos].neighbor)
-    //curr_faces[pos].open(ix_adj2, transition.next_v);
-    
-    console.log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
-    
     // add to opposite face by tracing from nextV to next_ix
     // only needed to capture faces that contain processed intersections
-    curr_faces[opp].addFromNextV(transition.next_v, next_ix);
+    // needs to happen before closing the pos face, because after intersections,
+    // closing the pos face can modify the face._next_v predecessor/successor
+    curr_faces[opp].updateNextV(transition.next_v);
+    log(`At ix ${ix_adj1.label}: \n\tupdated ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
     
     
     // move the attachment for this next endpoint at the opposite side
@@ -1465,6 +1452,32 @@ D. closing other face (here, assume top)
     // drop the adjacency opposite where we closed
 //     this.adjacencies.delete(traversal[opp]);
     this.adjacencies.delete(traversal[opp].neighbor);
+    
+    // close old face by tracing the prior left/right face in the opposite direction
+    // this time, include left/right in the adjacencies
+    curr_faces[pos].closeNextV(ix_adj1, traversal[pos]);
+    
+    log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+    if(!curr_faces[pos].consistencyTest({ test_neighbor: false, 
+                                         test_successor: true, 
+                                         test_face: true })) {
+      log(`Face ${curr_faces[pos].label} failed consistency test`)                                   
+    }
+    
+    // store old face to return
+    let old_face = curr_faces[pos];
+    
+    // open new face by tracing the current left/right like with the starting point
+    curr_faces[pos] = new Face({ orientation: pos });
+    curr_faces[pos].openNextV(ix_adj2, transition.next_v);
+    //curr_faces[pos].openNextV(ix_adj2, transition.next_v, traversal[pos].x);
+    //curr_faces[pos].open(ix_adj2, traversal[pos].neighbor)
+    //curr_faces[pos].open(ix_adj2, transition.next_v);
+    
+    log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    
+
     
     this.adjacencies.add(ix_adj1);
     this.adjacencies.add(ix_adj2);
@@ -1483,7 +1496,7 @@ D. closing other face (here, assume top)
 //     let ix_adj2 = Adjacency.fromVertex(ix);
 //     this.adjacencies.set(ix_adj1.key, ix_adj1); // neighbor would share same key
 //     //     this.adjacencies.set(ix_adj2.key, ix_adj2);   
-//     console.log(`Closing ${is_left ? "BOTTOM" : "TOP"} face for vertex ${ix_adj1.label}`);
+//     log(`Closing ${is_left ? "BOTTOM" : "TOP"} face for vertex ${ix_adj1.label}`);
 //     
 //     ix_adj1.segment = s;
 //     ix_adj2.segment = s;
@@ -1535,7 +1548,7 @@ D. closing other face (here, assume top)
       let new_faces = []; // track faces created
 
       if(draw) {
-        console.log(`Adding segment ${s._index}.`);
+        log(`Adding segment ${s._index}.`);
         canvas.controls.debug.clear()
         this.labelSegments()
         this.draw({shade_faces: false});
@@ -1572,7 +1585,7 @@ D. closing other face (here, assume top)
                                              curr_faces, 
                                              next_transition.ix);
         } else {
-          console.log(`Recording intersection ${transition.ix.label}`);
+          log(`Recording intersection ${transition.ix.label}`);
           // record the intersection
           this.intersections.push({
             ix: transition.ix,
