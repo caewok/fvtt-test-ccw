@@ -155,6 +155,18 @@ class Segment {
     return `${this.A.label} | ${this.B.label}`;
   }
 
+  contains(p) {
+    // is p collinear?
+    if(!foundry.utils.orient2dFast(this.A, this.B, p).almostEqual(0)) return false;
+
+    // is the distance between a, p + distance between b,p equal to distance a,b?
+    const distAB = Math.hypot(this.A, this.B);
+    const distAP = Math.hypot(this.A, p);
+    const distBP = Math.hypot(this.B, p);
+
+    return (distAP + distBP).almostEqual(distAB);
+  }
+
   calculateY(x) {
     return this.slope * x + this.y_intercept;
   }
@@ -1260,7 +1272,7 @@ D. closing other face (here, assume top)
 
 */
 
-  _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces, next_ix) {
+  _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces) {
     // if s0 is below, the first face we fill will be the right triangle/poly above s
     // call that TOP
     let s0 = s.max_xy;
@@ -1438,7 +1450,7 @@ D. closing other face (here, assume top)
     return curr_faces;
   }
 
-  _buildSegmentFace(s, traversal, transition, curr_faces, next_ix) {
+  _buildSegmentFace(s, traversal, transition, curr_faces) {
     let pos = transition.is_left ? BOTTOM : TOP;
     let opp = pos ^ 1;
 
@@ -1449,7 +1461,6 @@ D. closing other face (here, assume top)
     ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);
 
-    // add to opposite face by tracing from nextV to next_ix
     // only needed to capture faces that contain processed intersections
     // needs to happen before closing the pos face, because after intersections,
     // closing the pos face can modify the face._next_v predecessor/successor
@@ -1547,7 +1558,7 @@ D. closing other face (here, assume top)
     addSegment({ draw = false, idx = undefined } = {}) {
       // ------ Initial setup ----- //
       // randomly select segment or choose user-selected
-      if(partition.process_queue.length === 0) return false;
+      if(this.process_queue.length === 0) return false;
 
       if(typeof idx === "undefined") {
         idx = this.process_queue.pop();
@@ -1589,17 +1600,13 @@ D. closing other face (here, assume top)
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
       let ln_endpoints = this.endpoints.length;
-      let old_faces, next_traversal, next_transition;
+      let old_faces;
       while(i < ln_endpoints && !curr_ix.equals(s1)) {
-        next_traversal = s.traverse(curr_v);
-        next_transition = s.transition(next_traversal);
-
         if(typeof transition.s0_below === "undefined") {
           old_faces = this._buildSegmentFace(s,
                                              traversal,
                                              transition,
-                                             curr_faces,
-                                             next_transition.ix);
+                                             curr_faces);
         } else {
           log(`Recording intersection ${transition.ix.label}`);
           // record the intersection
@@ -1612,8 +1619,7 @@ D. closing other face (here, assume top)
           old_faces = this._buildSegmentIntersectionFaces(s,
                                                           traversal,
                                                           transition,
-                                                          curr_faces,
-                                                          next_transition.ix);
+                                                          curr_faces);
         }
 
         new_faces.push(...old_faces);
@@ -1626,8 +1632,8 @@ D. closing other face (here, assume top)
           }
         });
 
-        traversal = next_traversal;
-        transition = next_transition;
+        traversal = s.traverse(curr_v);
+        transition = s.transition(traversal);
 
         curr_v = transition.next_v;
         curr_ix = transition.ix;
