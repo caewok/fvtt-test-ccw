@@ -1323,7 +1323,7 @@ the intersection.
       let i = 0;
       let ln_endpoints = this.endpoints.length;
       let old_faces;
-      while(i < ln_endpoints && !(curr_ix.x === s1.x && curr_ix.y === s1.y)) {
+      while(i < ln_endpoints && curr_ix.x !== s1.x) {
         if(typeof transition.s0_below === "undefined") {
           old_faces = this._buildSegmentFace(s,
                                              traversal,
