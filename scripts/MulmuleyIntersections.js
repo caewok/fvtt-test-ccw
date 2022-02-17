@@ -235,6 +235,7 @@ class Segment {
       curr = successor;
       successor = curr.successor;
       i += 1;
+//       console.warn(`traverse used multiple successors i = ${i}`);
     }
 
     if(i >= ln) {
@@ -365,6 +366,7 @@ class Face {
 
 //     this._isOpen = undefined; // true if open, false if closed, undefined at start.
     this.orientation = orientation; // TOP or BOTTOM
+    this.dir = this.orientation === TOP ? "successor" : "predecessor";
   }
 
   get label() {
@@ -418,7 +420,8 @@ class Face {
     // store next_v temporarily
     this.adjacencies.push(v0);
 
-    let dir = this.orientation === TOP ? "successor" : "predecessor";
+//     let dir = this.orientation === TOP ? "successor" : "predecessor";
+    let dir = this.dir;
     this._next_v = next_v[dir];
     this.adjacencies.push(this._next_v);
   }
@@ -430,12 +433,14 @@ class Face {
   }
 
   updateNextV(next_v) {
-    let dir = this.orientation === TOP ? "successor" : "predecessor";
+//     let dir = this.orientation === TOP ? "successor" : "predecessor";
+    let dir = this.dir;
 
     let curr = this._next_v[dir];
     let i_max = 100;
     let i = 0;
     while(curr.x > next_v.x && i < i_max) {
+//       console.warn(`Adding adjacency ${curr.label} in updateNextV`);
       i += 1;
       this.adjacencies.push(curr);
       curr = curr[dir];
@@ -455,7 +460,8 @@ class Face {
 
   updateIx(ix, s0) {
     // like updateNextV, but stop when to the left/right of the line
-    let dir = this.orientation === TOP ? "successor" : "predecessor";
+//     let dir = this.orientation === TOP ? "successor" : "predecessor";
+    let dir = this.dir;
 
     // orient2d positive if c is to the left of the a|b line
     const done = this.orientation === TOP ?
