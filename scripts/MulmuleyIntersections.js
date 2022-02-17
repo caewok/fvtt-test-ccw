@@ -737,7 +737,7 @@ class Partition {
     // use for loop solely to avoid infinite loops on errors
     const ln = this.process_queue.length;
     for(let i = 0; i < ln; i += 1) {
-      this.addSegment();
+      this.addSegment({ idx: this.process_queue[i] });
     }
     return this.intersections;
   }
