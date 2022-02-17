@@ -920,7 +920,8 @@ class Adjacency extends Vertex {
    }
 
    // successor should have different vertex
-    if(this.equals(this.successor)) {
+    //if(this.equals(this.successor)) {
+  if(this.x === this.successor.x && this.y === this.successor.y) {
       console.error(`${this.label} has successor ${this.successor.label}.`, this);
       return false;
    }
@@ -1618,7 +1619,7 @@ the intersection.
       if(typeof idx === "undefined") {
         idx = this.process_queue.pop();
       } else {
-        if(idx > this.process_queue.length) {
+        if(idx > this.segments.length) {
           console.warn(`addSegment given an invalid idx ${idx}.`);
           return false;
         }
