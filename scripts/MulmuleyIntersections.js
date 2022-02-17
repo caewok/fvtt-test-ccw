@@ -413,51 +413,6 @@ class Face {
 --> confirm that we don't need more than one attachment/vertex to add here.
   */
 
-  openSuccessor(v0, v1, x) {
-    if(!x) { console.error(`Expected x value.`); }
-    if(this.orientation === TOP) {
-      this.adjacencies.push(v0);
-    }
-
-    while(v1.successor.x > x) {
-      v1 = v1.successor;
-      this.adjacencies.push(v1);
-    }
-
-    if(this.orientation === BOTTOM) {
-      this.adjacencies.push(v0);
-      this.adjacencies.reverse();
-    }
-
-  }
-
-  addFromNextV(v, stop) {
-   // walk backward from v until x no longer decreases
-    const i_max = 100;
-    let i = 0;
-    if(this.orientation === TOP) {
-      let curr_v = v;
-      let next_v = curr_v.successor;
-      while(curr_v.x > next_v.x && curr_v !== stop && i < i_max) {
-        this.adjacencies.push(curr_v);
-        curr_v = next_v;
-        next_v = curr_v.successor;
-        i += 1;
-      }
-    } else { // bottom
-      let curr_v = v;
-      let next_v = curr_v.predecessor;
-      while(curr_v.x > next_v.x && curr_v !== stop && i < i_max) {
-        this.adjacencies.push(curr_v);
-        curr_v = next_v;
-        next_v = curr_v.predecessor;
-        i += 1;
-      }
-    }
-
-    if(i >= i_max) { console.error(`addFromNextV hit i_max`);}
-
-  }
 
   openNextV(v0, next_v) {
     // store next_v temporarily
@@ -468,10 +423,6 @@ class Face {
     this.adjacencies.push(this._next_v);
   }
 
-  openIxLeft(ix, next_v) {
-    this.adjacencies.push(ix);
-    this._next_v = next_v;
-  }
 
   openIx(ix, next_v) {
     this.adjacencies.push(ix);
@@ -531,185 +482,6 @@ class Face {
     this.adjacencies.push(ix);
     if(this.orientation === BOTTOM) this.adjacencies.reverse();
     this._linkAdjacencies();
-  }
-
-  closeBackwards(v0, v1) {
-    // walk backwards from v1, including anything equal or to the left of v1
-    let i_max = 100;
-    let i = 0;
-    let adjs = [];
-    let next_v = v1;
-    if(this.orientation === TOP) {
-      adjs.push(v0);
-      while(next_v.x <= v1.x && i < i_max) {
-        adjs.push(next_v);
-        next_v = next_v.predecessor;
-        i += 1;
-      }
-      adjs.reverse();
-
-      this.adjacencies.push(...adjs);
-
-    } else {
-      // BOTTOM
-      adjs.push(v0);
-      while(next_v.x <= v1.x && i < i_max) {
-        adjs.push(next_v);
-        next_v = next_v.successor;
-        i += 1;
-      }
-      adjs.reverse();
-      this.adjacencies.push(...adjs);
-      this.adjacencies.reverse();
-    }
-
-    if(i >= i_max) { console.error(`closeBackwards hit i_max`);}
-
-    this._linkAdjacencies();
-
-  }
-
-  closeWalkBackwards(v0, v1) {
-    // walk backwards from v1 until next attachment
-    // include the vertex for that attachment
-    let i_max = 100;
-    let i = 0;
-    let adjs = [];
-    if(this.orientation === TOP) {
-      adjs.push(v0);
-      while(!v1.endpoint && i < i_max) {
-        adjs.push(v1);
-        v1 = v1.predecessor;
-        i += 1;
-      }
-      adjs.push(v1);
-      adjs.reverse();
-
-      this.adjacencies.push(...adjs);
-
-    } else {
-      // BOTTOM
-      adjs.push(v0);
-      while(!v1.endpoint && i < i_max) {
-        adjs.push(v1);
-        v1 = v1.successor;
-        i += 1;
-      }
-      adjs.push(v1);
-      adjs.reverse();
-      this.adjacencies.push(...adjs);
-      this.adjacencies.reverse();
-    }
-
-    if(i >= i_max) { console.error(`closeWalkBackwards hit i_max`);}
-
-    this._linkAdjacencies();
-
-  }
-
-
-  open(v0, v1) {
-    // walk backwards from v1 around v1.face until passing v0
-    // include v1 as an adjacency
-
-    const i_max = 100;
-    let i = 0;
-    if(this.orientation === TOP) {
-      while(v1.y < v0.y && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.predecessor;
-        i += 1;
-      }
-
-    } else {
-      // BOTTOM
-      while(v1.y > v0.y && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.successor;
-        i += 1;
-      }
-    }
-
-    if(i >= i_max) { console.error(`open hit i_max`);}
-    this.adjacencies.push(v0);
-    this.adjacencies.reverse();
-  }
-
-  close(v0, v1) {
-    // walk forwards from v1 around v1.face until passing v0
-    // include v1 as an adjacency
-    // possible that no v1 is present
-    const i_max = 100;
-    let i = 0;
-    if(v1 && this.orientation === TOP) {
-      while(v1.y < v0.y && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.successor;
-        i += 1;
-      }
-
-    } else if(v1 && this.orientation === BOTTOM) {
-      while(v1.y > v0.y && i < i_max) {
-        this.adjacencies.push(v1);
-        v1 = v1.predecessor;
-        i += 1;
-      }
-    }
-    if(i >= i_max) { console.error(`close hit i_max`);}
-    this.adjacencies.push(v0);
-
-    // ensure adjacencies are ccw
-    if(this.orientation === BOTTOM) this.adjacencies.reverse();
-
-    this._linkAdjacencies();
-
-  }
-
-//   open(v0, v1, x) {
-//     this.adjacencies.push(v0);
-//     if(!x) { console.error(`Face.open expected x value.`); }
-//     const dir = this.orientation === TOP ? "successor" : "predecessor";
-//
-//     while(v1[dir].x > x) {
-//       v1 = v1[dir];
-//       this.adjacencies.push(v1);
-//     }
-//
-//   }
-
-//   close(v0, v1) {
-//
-//     const new_adjs = [];
-//     const dir = this.orientation === TOP ? "predecessor" : "successor";
-//     const x = this.adjacencies[this.adjacencies.length - 1].x;
-//
-//     while(v1[dir].x < x) {
-//       v1 = v1[dir];
-//       new_adjs.push(v1);
-//     }
-//     this._linkAdjacencies();
-//   }
-//
-//
-//   close(v0, closing_v) {
-//     const adjs = this.adjacencies;
-// //     this._isOpen = false;
-//
-//     if(closing_v) { adjs.push(closing_v); }
-//
-//     adjs.push(v0);
-//
-//     // if this is a BOTTOM face relative to the creating segment, then
-//     // the adjacencies must be reversed.
-//     if(this.orientation === BOTTOM) adjs.reverse();
-//
-//     this._linkAdjacencies();
-//   }
-
-  static open(...pts) {
-    const f = new Face();
-    f.adjacencies.push(...pts);
-    return f;
   }
 
 
@@ -795,12 +567,6 @@ class Face {
     canvas.controls.debug.beginFill(color, alpha).drawShape(poly).endFill();
   }
 
-//   addVertex(p) {
-//     if(!(p instanceof Vertex)) p = Vertex.fromPoint(p);
-//     this.vertices[this.vertices.length - 1]._next = p;
-//     this.vertices.push(p);
-//   }
-
 }
 
 class Adjacency extends Vertex {
@@ -824,46 +590,6 @@ class Adjacency extends Vertex {
     }
     other.neighbor = this;
     this.neighbor = other;
-  }
-
-  matchFace(f) {
-    if(this.face === f) return this;
-
-    let neighbor = this.neighbor;
-    while(neighbor.face !== f && neighbor !== this) {
-      neighbor = neighbor.neighbor;
-    }
-
-    if(neighbor === this) {
-      console.warn(`matchFace for face ${this.label} and face ${f.label} did not find a match.`);
-    }
-
-    return neighbor;
-  }
-
-//   matchFace(other_v, other_face) {
-//     if(!other_face) { other_face = other_v.face; }
-//     let curr_v = this.neighbor;
-//
-//     let i = 0;
-//     const max_i = 100;
-//     while(i < max_i && curr_v && curr_v !== this) {
-//       if(curr_v.face === other_face) break;
-//       curr_v = curr_v.neighbor;
-//       i += 1;
-//     }
-//     return curr_v;
-//   }
-
-  traverseRight(s) {
-    // traverse to the right of s around this adjacency's face.
-    return this.face.traverseRight(this, s);
-  }
-
-  traverse(s) {
-    // traverse from where the segment intersects this adjacency's face to the right to
-    // where the segment intersects this adjacency's face to the left.
-    return this.face.traverse(this, s);
   }
 
   consistencyTest({test_neighbor = false, test_successor = false, test_face = false} = {}) {
@@ -1401,9 +1127,6 @@ the intersection.
     return old_faces;
   }
 
-
-
-
  _closeSegmentFace(adjs, curr_faces, v, position) {
     adjs[position].push(v);
 
@@ -1416,27 +1139,7 @@ the intersection.
     this._buildAdjacencies(adjs[position], curr_faces[position]);
  }
 
-
-//   _findAttachment(next_v, position, closing_v) {
-//     if(!next_v.endpoint?.attachments) {
-//       // likely next_v is an intersection.
-//       // Return whichever next_v neighbor matches the face of the closing v
-//       log(`_findAttachment thinks ${next_v.label} is an intersection.`);
-//       return next_v.matchFace(closing_v);
-//     }
-//
-//     let v = next_v.endpoint.attachments[position];
-//     if(v.face !== next_v.face) {
-//       // need to use the endpoint vertex instead
-//       v = next_v.endpoint.neighbor;
-//       if(v.face !== next_v.face) {
-//         v = v.neighbor;
-//       }
-//     }
-//     return v;
-//   }
-
-  _buildStartSegmentFaces(s, traversal, transition) {
+  _buildStartSegmentFaces(s) {
     let s0 = s.max_xy;
     let curr_faces = Array(2);
 
@@ -1557,9 +1260,7 @@ the intersection.
     // open new face by tracing the current left/right like with the starting point
     curr_faces[pos] = new Face({ orientation: pos });
     curr_faces[pos].openNextV(ix_adj2, transition.next_v);
-    //curr_faces[pos].openNextV(ix_adj2, transition.next_v, traversal[pos].x);
-    //curr_faces[pos].open(ix_adj2, traversal[pos].neighbor)
-    //curr_faces[pos].open(ix_adj2, transition.next_v);
+
 
     log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
@@ -1570,49 +1271,6 @@ the intersection.
 
     return [old_face];
   }
-
-  // _buildSegmentFace(s, ix, left, right, curr_v, next_v, curr_faces, is_left) {
-//     let pos = is_left ? BOTTOM : TOP;
-//     let opp = pos ^ 1;
-//
-//     // construct new adjacencies for the intersection
-//     // adj1 will be for this current face; adj2 will be for the new face
-//     // for intersection tracking, mark the segment for the intersection points
-//     let ix_adj1 = Adjacency.fromVertex(ix);
-//     let ix_adj2 = Adjacency.fromVertex(ix);
-//     this.adjacencies.set(ix_adj1.key, ix_adj1); // neighbor would share same key
-//     //     this.adjacencies.set(ix_adj2.key, ix_adj2);
-//     log(`Closing ${is_left ? "BOTTOM" : "TOP"} face for vertex ${ix_adj1.label}`);
-//
-//     ix_adj1.segment = s;
-//     ix_adj2.segment = s;
-//     ix_adj1.setNeighbor(ix_adj2);
-//
-//     // close the face
-//     let closing_v = is_left ? left : right;
-//     curr_faces[pos].close(ix_adj1, closing_v);
-//
-//     // store old face to return
-//     let old_face = curr_faces[pos];
-//
-//     // open the new face
-//     curr_faces[pos] = new Face({ orientation: pos });
-//     curr_faces[pos].open(ix_adj2, curr_v, next_v.x);
-//
-//
-//     // move the attachment for this next endpoint at the opposite side
-//     // position = bottom: top attachment for right|left line moved down to s
-//     // position = top: bottom attachment moved up
-//     ix_adj2.endpoint = curr_v.endpoint;
-//     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].key);
-// //     this.adjacencies.delete(ix_adj2.endpoint.attachments[opp].neighbor.key);
-//     ix_adj2.endpoint.attachments[opp] = ix_adj2;
-//
-//
-//     return [old_face];
-//   }
-
-
 
     addSegment({ draw = false, idx = undefined } = {}) {
       // ------ Initial setup ----- //
@@ -1659,7 +1317,7 @@ the intersection.
       curr_v = transition.next_v;
       curr_ix = transition.ix;
 
-      let curr_faces = this._buildStartSegmentFaces(s, traversal, transition);
+      let curr_faces = this._buildStartSegmentFaces(s);
 
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
