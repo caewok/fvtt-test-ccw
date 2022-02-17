@@ -196,28 +196,29 @@ class Segment {
     Segment.fromEdge(e).draw(opts);
   }
 
-  traverseRight(v) {
-    if(!(v instanceof Adjacency)) {
-      console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
-    }
-
-    const max_xy = this.max_xy;
-    const min_xy = this.min_xy;
-
-    if(!(v instanceof Adjacency)) {
-      console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
-    }
-
-    const ln = v.face.adjacencies.length;
-    let i = 0;
-    let curr = v;
-    while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, curr) > 0) {
-      curr = curr.successor;
-      i += 1;
-    }
-
-    return curr;
-  }
+//   traverseRight(v) {
+//     if(!(v instanceof Adjacency)) {
+//       console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
+//     }
+//
+//     const max_xy = this.max_xy;
+//     const min_xy = this.min_xy;
+//
+//     if(!(v instanceof Adjacency)) {
+//       console.error(`Need to convert Vertex to Adjacency for Segment.traverse.`);
+//     }
+//
+//     const ln = v.face.adjacencies.length;
+//     let i = 0;
+//     let curr = v;
+//     while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, curr) > 0) {
+//       curr = curr.successor;
+//       i += 1;
+//       console.warn(`traverseRight used multiple successors i = ${i}`);
+//     }
+//
+//     return curr;
+//   }
 
   traverse(v) {
     const max_xy = this.max_xy;
@@ -227,7 +228,12 @@ class Segment {
     let i = 0;
 
     // start with an adjacency to the right of s
-    let curr = this.traverseRight(v);
+//     let curr = this.traverseRight(v);
+
+    if(foundry.utils.orient2dFast(max_xy, min_xy, v) >= 0) {
+      console.warn(`traverse v ${v.label} is not to the right of s.`);
+    }
+    let curr = v;
 
     // now find the first adjacency to the left of s
     let successor = curr.successor;
@@ -251,6 +257,13 @@ class Segment {
     return out;
   }
 
+  _findEndpointAdj(adj, pt) {
+    while(adj.y > pt.y) {
+      adj = adj.successor;
+    }
+    return adj;
+  }
+
   _transitionAttachment(left, right, l_endpoint) {
     // left|right is vertical, with right at the top
     // so, what is the fastest way to calculate x,y point on S at a known x value?
@@ -265,11 +278,24 @@ class Segment {
                                                  l_endpoint) > 0;
 
     // next_v provides a vertex with the next face, after s crosses through left|right
-    return {
-      next_v: e_is_left ? right.neighbor : left.neighbor,
+    // curr_v should be a right adjacency, and
+    // needs to account for when the endpoint is already processed
+    const out = {
       is_left: e_is_left,
       ix: new Vertex(l_endpoint.x, new_y)
-    };
+    }
+
+    if(e_is_left) {
+      out.next_v = right.neighbor;
+      out.curr_v = right.neighbor;
+    } else { // e is right
+      out.next_v = left.neighbor;
+
+      // walk from next_v to something to the right; might be adjacency at processed endpoint.
+      out.curr_v = this._findEndpointAdj(out.next_v, left.endpoint);
+    }
+
+    return out;
   }
 
   _transitionIntersection(left, right) {
@@ -314,21 +340,31 @@ class Segment {
     log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
 
     //while(i < ln && foundry.utils.orient2dFast(max_xy, min_xy, successor) > 0) {
+    let next_v, curr_v;
+
     if(s0_below) {
       while(i < ln && h.successor.x < ix.x) {
         h = h.successor.neighbor;
         i += 1;
       }
+      next_v = h.successor;
+      curr_v = h.successor;
+
     } else {
       while(i < ln && h.successor.x > ix.x) {
         h = h.successor.neighbor;
         i += 1;
       }
+      next_v = h;
+      curr_v = h.successor;
     }
 
 //     const e_is_left = foundry.utils.orient2dFast(max_xy, min_xy, r_endpoint) > 0;
+//     const next_v = s0_below ? h.successor : h;
+
     return {
-      next_v: s0_below ? h.successor : h,
+      next_v: next_v,
+      curr_v: curr_v,
       ix: new Vertex(ix.x, ix.y),
       s0_below: s0_below,
       other_segment: other_segment
@@ -1320,7 +1356,7 @@ the intersection.
       let curr_v = s0.attachments[TOP].neighbor;
       let traversal = s.traverse(curr_v);
       let transition = s.transition(traversal);
-      curr_v = transition.next_v;
+      curr_v = transition.curr_v;
       curr_ix = transition.ix;
 
       let curr_faces = this._buildStartSegmentFaces(s);
@@ -1363,7 +1399,7 @@ the intersection.
         traversal = s.traverse(curr_v);
         transition = s.transition(traversal);
 
-        curr_v = transition.next_v;
+        curr_v = transition.curr_v;
         curr_ix = transition.ix;
       }
       old_faces = this._closeEndSegmentFaces(s, traversal, transition, curr_faces);
