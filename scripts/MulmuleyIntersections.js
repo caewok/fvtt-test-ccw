@@ -85,8 +85,11 @@ function compareXY(a, b) {
 // Used in Partition.addSegment; LEFT/RIGHT in _buildSegmentIntersectionFaces
 const BOTTOM = 0;
 const TOP = 1;
-const LEFT = 2;
-const RIGHT = 3;
+
+const TOPRIGHT = 0;
+const BOTTOMRIGHT = 1;
+const TOPLEFT = 2;
+const BOTTOMLEFT = 3;
 
 class Vertex {
   constructor(x, y) {
@@ -234,6 +237,10 @@ class Segment {
       i += 1;
     }
 
+    if(i >= ln) {
+      console.warn(`traverse hit i for ${v.label}`);
+    }
+
     // match right with TOP, left with BOTTOM b/c when moving
     // east --> west along a segment s, the right will be towards the TOP
     // useful when opening/closing faces
@@ -297,7 +304,11 @@ class Segment {
       }
     }
 
-    const s0_below = this.min_xy.y < other_segment.min_xy.y;
+    // is the other segment right endpoint above (to right) or below (to left) of s?
+    // orient2d positive if c is to the left of s (this)
+    const s0_below = foundry.utils.orient2dFast(this.max_xy, this.min_xy, other_segment.max_xy) < 0;
+
+//     const s0_below = this.max_xy.y > other_segment.max_xy.y;
     //const s_rising = max_xy.y > ix.y; //
     log(`Transition: s0 is ${s0_below ? "below" : "above"} other right endpoint.`);
 
@@ -1273,71 +1284,115 @@ D. closing other face (here, assume top)
 */
 
   _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces) {
-    // if s0 is below, the first face we fill will be the right triangle/poly above s
-    // call that TOP
+/*
+Can think of intersection of two segments as forming a box divided into 4.
+If s goes from s0 on the right to s1 on the left, and intersects
+t, we get:
+   |
+ tl| tr
+--------- s0
+ bl| br
+   |
+   t
+
+So we can think of the faces to the right of t as top (above s) and
+bottom (below s). We will close these faces.
+
+If s intersects t at an angle, tr or br will be acute angles with respect to
+the intersection.
+*/
+
     let s0 = s.max_xy;
-    let pos = transition.s0_below ? TOP : BOTTOM;
-    let opp = pos ^ 1;
+//     let pos = transition.s0_below ? TOP : BOTTOM;
+    //let opp = pos ^ 1;
     let old_faces = [];
 
-    // intersection needs 4 adjacencies: t, l, b, r
+    // intersection needs 4 adjacencies: tr, tl, bl, br
     let ix_adjs = [ Adjacency.fromVertex(transition.ix),
                     Adjacency.fromVertex(transition.ix),
                     Adjacency.fromVertex(transition.ix),
                     Adjacency.fromVertex(transition.ix)];
 
     // Set neighbors CCW
-    ix_adjs[TOP].neighbor = ix_adjs[LEFT];
-    ix_adjs[LEFT].neighbor = ix_adjs[BOTTOM];
-    ix_adjs[BOTTOM].neighbor = ix_adjs[RIGHT];
-    ix_adjs[RIGHT].neighbor = ix_adjs[TOP];
+    ix_adjs[TOPLEFT].neighbor = ix_adjs[TOPRIGHT];
+    ix_adjs[BOTTOMLEFT].neighbor = ix_adjs[TOPLEFT];
+    ix_adjs[BOTTOMRIGHT].neighbor = ix_adjs[BOTTOMLEFT];
+    ix_adjs[TOPRIGHT].neighbor = ix_adjs[BOTTOMRIGHT];
 
     let segments = new Set([s, transition.other_segment]);
     ix_adjs.forEach(adj => adj.segments = segments);
 
-    this.adjacencies.add(ix_adjs[TOP]);
-    this.adjacencies.add(ix_adjs[LEFT]);
-    this.adjacencies.add(ix_adjs[BOTTOM]);
-    this.adjacencies.add(ix_adjs[RIGHT]);
+    this.adjacencies.add(ix_adjs[TOPRIGHT]);
+    this.adjacencies.add(ix_adjs[TOPLEFT]);
+    this.adjacencies.add(ix_adjs[BOTTOMLEFT]);
+    this.adjacencies.add(ix_adjs[BOTTOMRIGHT]);
 
-    curr_faces[pos].closeIx(ix_adjs[RIGHT], s0);
-    old_faces.push(curr_faces[pos]);
+    // 1. Close the TOP face
+    curr_faces[TOP].closeIx(ix_adjs[TOPRIGHT], s0);
+    old_faces.push(curr_faces[TOP]);
 
-    log(`At intersection ${ix_adjs[RIGHT].label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} RIGHT face ${curr_faces[pos].label}`);
+    log(`At intersection ${ix_adjs[TOPRIGHT].label}, \n\tclosed TOPRIGHT face ${curr_faces[TOP].label}`);
 
-    if(!curr_faces[pos].consistencyTest({ test_neighbor: false,
+    if(!curr_faces[TOP].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
-      log(`Face ${curr_faces[pos].label} failed consistency test`);
+      log(`Face ${curr_faces[TOP].label} failed consistency test`);
     }
 
-    // 2. Close the opp (TOP or BOTTOM) face
-    curr_faces[opp].closeIx(ix_adjs[opp], s0);
-    old_faces.push(curr_faces[opp]);
+    // 2. Close the BOTTOM face
+    curr_faces[BOTTOM].closeIx(ix_adjs[BOTTOMRIGHT], s0);
+    old_faces.push(curr_faces[BOTTOM]);
 
-    log(`At intersection ${ix_adjs[opp].label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
+    log(`At intersection ${ix_adjs[BOTTOMRIGHT].label}, \n\tclosed BOTTOMRIGHT face ${curr_faces[BOTTOM].label}`);
 
-    if(!curr_faces[opp].consistencyTest({ test_neighbor: false,
+    if(!curr_faces[BOTTOM].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
-      log(`Face ${curr_faces[opp].label} failed consistency test`);
+      log(`Face ${curr_faces[BOTTOM].label} failed consistency test`);
     }
 
-    // 3. open face for the LEFT (opp) adjacency
+    // 3. open face for the TOPLEFT adjacency
     // Build the next_v using the intersection
-    let dir = opp === TOP ? "successor" : "predecessor";
-    ix_adjs[LEFT][dir] = transition.next_v[dir];
-    curr_faces[opp] = new Face({ orientation: opp });
-    curr_faces[opp].openIx(ix_adjs[LEFT], ix_adjs[LEFT]);
-    log(`At intersection ${ix_adjs[LEFT].label}, \n\topened ${opp === BOTTOM ? "BOTTOM" : "TOP"} LEFT face ${curr_faces[opp].label}`);
 
-    // 4. open face for the pos (TOP or BOTTOM) adjacency
-    dir = pos === TOP ? "successor" : "predecessor";
-    ix_adjs[pos][dir] = transition.next_v;
-    curr_faces[pos] = new Face({ orientation: pos });
-    curr_faces[pos].openIx(ix_adjs[pos], ix_adjs[pos]);
+    let top_next_v = transition.s0_below ? transition.next_v : transition.next_v.successor;
+    ix_adjs[TOPLEFT].successor = top_next_v;
 
-    log(`At intersection ${ix_adjs[pos].label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
+    // for top s0, when TR is obtuse angle
+//     ix_adjs[TOPLEFT].successor = transition.next_v.successor;
+
+    // for top s0, when TR is acute angle (next_v faces down)
+//     ix_adjs[TOPLEFT].successor = transition.next_v.successor;
+
+    // for bottom s0, when TR is acute angle
+//     ix_adjs[TOPLEFT].successor = transition.next_v;
+
+
+
+    curr_faces[TOP] = new Face({ orientation: TOP });
+    curr_faces[TOP].openIx(ix_adjs[TOPLEFT], ix_adjs[TOPLEFT]);
+    log(`At intersection ${ix_adjs[TOPLEFT].label}, \n\topened TOPLEFT face ${curr_faces[TOP].label}`);
+
+    // 4. open face for the BOTTOMLEFT adjacency
+    // Build the next_v using the intersection
+    let bottom_next_v = transition.s0_below ? transition.next_v.predecessor : transition.next_v;
+    ix_adjs[BOTTOMLEFT].predecessor = bottom_next_v;
+
+    // shape goes, ccw, transition.next_v --> ix --> transition.next_v.successor
+    // to ensure transition.next_v is picked up as part of face,
+    //   set the predecessor and successor for ix
+
+    // for top s0, when TR is obtuse angle
+//     ix_adjs[BOTTOMLEFT].predecessor = transition.next_v;
+
+    // for top s0, when TR is acute angle (next_v faces down)
+//     ix_adjs[BOTTOMLEFT].predecessor = transition.next_v;
+
+    // for bottom s0, when TR is acute angle
+//     ix_adjs[BOTTOMLEFT].predecessor = transition.next_v.predecessor
+
+    curr_faces[BOTTOM] = new Face({ orientation: BOTTOM });
+    curr_faces[BOTTOM].openIx(ix_adjs[BOTTOMLEFT], ix_adjs[BOTTOMLEFT]);
+    log(`At intersection ${ix_adjs[BOTTOMLEFT].label}, \n\topened BOTTOMLEFT face ${curr_faces[BOTTOM].label}`);
 
     return old_faces;
   }
@@ -1563,6 +1618,11 @@ D. closing other face (here, assume top)
       if(typeof idx === "undefined") {
         idx = this.process_queue.pop();
       } else {
+        if(idx > this.process_queue.length) {
+          console.warn(`addSegment given an invalid idx ${idx}.`);
+          return false;
+        }
+
         // drop idx from the queue if it exists
         const i = this.process_queue.findIndex(elem => elem === idx);
         if(~i) { this.process_queue.splice(i, 1); }
