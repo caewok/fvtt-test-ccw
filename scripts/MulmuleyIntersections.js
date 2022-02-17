@@ -996,6 +996,9 @@ class Partition {
     // process order in advance
     this.process_queue = Array.fromRange(this.segments.size);
     this.process_queue.sort(() => Math.random() - 0.5);
+
+    // whether to run consistency checks
+    this.consistency_check = true;
   }
 
   get faces() {
@@ -1334,7 +1337,7 @@ the intersection.
 
     log(`At intersection ${ix_adjs[TOPRIGHT].label}, \n\tclosed TOPRIGHT face ${curr_faces[TOP].label}`);
 
-    if(!curr_faces[TOP].consistencyTest({ test_neighbor: false,
+    if(this.consistency_check && !curr_faces[TOP].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
       log(`Face ${curr_faces[TOP].label} failed consistency test`);
@@ -1346,7 +1349,7 @@ the intersection.
 
     log(`At intersection ${ix_adjs[BOTTOMRIGHT].label}, \n\tclosed BOTTOMRIGHT face ${curr_faces[BOTTOM].label}`);
 
-    if(!curr_faces[BOTTOM].consistencyTest({ test_neighbor: false,
+    if(this.consistency_check && !curr_faces[BOTTOM].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
       log(`Face ${curr_faces[BOTTOM].label} failed consistency test`);
@@ -1482,7 +1485,7 @@ the intersection.
     curr_faces[pos].closeNextV(ix_adj1, traversal[pos]);
     log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
-    if(!curr_faces[pos].consistencyTest({ test_neighbor: false,
+    if(this.consistency_check && !curr_faces[pos].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
       log(`Face ${curr_faces[pos].label} failed consistency test`);
@@ -1493,7 +1496,7 @@ the intersection.
     curr_faces[opp].closeNextV(ix_adj2, traversal[opp]);
     log(`At ix ${ix_adj2.label}, \n\tclosed ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
 
-    if(!curr_faces[opp].consistencyTest({ test_neighbor: false,
+    if(this.consistency_check && !curr_faces[opp].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
       log(`Face ${curr_faces[opp].label} failed consistency test`);
@@ -1542,7 +1545,7 @@ the intersection.
 
     log(`At ix ${ix_adj1.label}, \n\tclosed ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
-    if(!curr_faces[pos].consistencyTest({ test_neighbor: false,
+    if(this.consistency_check && !curr_faces[pos].consistencyTest({ test_neighbor: false,
                                          test_successor: true,
                                          test_face: true })) {
       log(`Face ${curr_faces[pos].label} failed consistency test`);
@@ -1686,7 +1689,7 @@ the intersection.
         new_faces.push(...old_faces);
         old_faces.forEach(f => {
           if(draw) f.draw({ color: nextShade() });
-          if(!f.consistencyTest({ test_neighbor: false,
+          if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                   test_successor: true,
                                   test_face: true })) {
             console.error(`Failed consistency test at ${f.label}`);
@@ -1704,7 +1707,7 @@ the intersection.
       new_faces.push(...old_faces);
       old_faces.forEach(f => {
         if(draw) f.draw({ color: nextShade() });
-        if(!f.consistencyTest({ test_neighbor: false,
+        if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                 test_successor: true,
                                 test_face: true })) {
           console.error(`Failed consistency test at last face ${f.label}`);
@@ -1716,7 +1719,7 @@ the intersection.
 
       this.partitioned_segments.add(s);
 
-      this.consistencyTest({ test_neighbor: true,
+      if(this.consistency_check) this.consistencyTest({ test_neighbor: true,
                             test_successor: true,
                             test_face: true });
 
