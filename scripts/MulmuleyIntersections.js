@@ -817,18 +817,18 @@ class Partition {
       const new_s = Segment.fromEdge(s);
 
       // track segments for intersection reporting
-      const e1 = new_s.A;
-      const e2 = new_s.B;
-      e1.segment = new_s;
-      e2.segment = new_s;
+//       const e1 = new_s.A;
+//       const e2 = new_s.B;
+//       e1.segment = new_s;
+//       e2.segment = new_s;
 
       new_s._index = i; // for drawing/debugging
 
-      endpoints.push(e1, e2);
+//       endpoints.push(e1, e2);
       this.segments.push(new_s);
     });
-    endpoints.sort(compareXY);
-    this.endpoints = endpoints;
+//     endpoints.sort(compareXY);
+//     this.endpoints = endpoints;
 
     // keep a set of partitioned_segments for quick look-up
     this.partitioned_segments = new Set();
@@ -1363,7 +1363,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
       // ------ Loop over vertical attachments at endpoints ----- //
       let i = 0;
-      let ln_endpoints = this.endpoints.length;
+      let ln_endpoints = this.segments.length * 2;
       let old_faces;
       while(i < ln_endpoints && curr_ix.x !== s1.x) {
         if(typeof transition.s0_below === "undefined") {
@@ -1435,20 +1435,22 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     if(label) this.labelSegments();
 
     // initial drawing is just the verticals with endpoints identified
-    this.endpoints.forEach(e => {
-      Vertex.drawPoint(e, { color: COLORS.blue });
+    this.segments.forEach(e => {
+      [s.min_xy, s.max_xy].forEach(e => {
+				Vertex.drawPoint(e, { color: COLORS.blue });
 
-      // draw the attachments, if any
-      if(e.attachments) {
-        const shader = new _pixi_graphics_smooth.DashLineShader({dash: 5, gap: 8});
-        Segment.drawEdge({ A: e, B: e.attachments[TOP] },
-                         { color: COLORS.lightblue, width: 1, shader});
+				// draw the attachments, if any
+				if(e.attachments) {
+					const shader = new _pixi_graphics_smooth.DashLineShader({dash: 5, gap: 8});
+					Segment.drawEdge({ A: e, B: e.attachments[TOP] },
+													 { color: COLORS.lightblue, width: 1, shader});
 
-        Segment.drawEdge({ A: e, B: e.attachments[BOTTOM] },
-                         { color: COLORS.lightblue, width: 1, shader});
-      }
+					Segment.drawEdge({ A: e, B: e.attachments[BOTTOM] },
+													 { color: COLORS.lightblue, width: 1, shader});
+				}
 
-    });
+			});
+		});
 
     // for each adjacency, draw the edge connecting it to the next
 //     this.adjacencies.forEach(adj => {
@@ -1468,7 +1470,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     const colors = [COLORS.lightblue, COLORS.lightgreen, COLORS.lightred];
     this.faces.forEach(f => {
       i += 1;
-      if(!i) return; // skip the initial (outside) face
+      //if(!i) return; // skip the initial (outside) face
 
 
       const ci = i % 3;
@@ -1522,25 +1524,26 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     });
 
     // confirm each endpoint has an adjacency if has been processed
-    this.endpoints.forEach(e => {
-      if(e.attachments) {
-				if(!(e.attachments[TOP] instanceof Adjacency)) {
-					console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
-					return false;
-				}
+    this.segments.forEach(s => {
+			[s.min_xy, s.max_xy].forEach(e => {
+				if(e.attachments) {
+					if(!(e.attachments[TOP] instanceof Adjacency)) {
+						console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
+						return false;
+					}
 
-				if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
-					console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
-					return false;
-				}
+					if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
+						console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
+						return false;
+					}
 
-				if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
-					console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
-					return false;
+					if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
+						console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
+						return false;
+					}
 				}
-      }
-
-    });
+			});
+		});
 
     return true;
   }
