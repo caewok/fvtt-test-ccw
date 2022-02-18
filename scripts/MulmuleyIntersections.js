@@ -735,7 +735,7 @@ class Adjacency extends Vertex {
 class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
-    this.segments = new Map();
+    this.segments = [];
 //     this.faces = new Set();
     this.adjacencies = new Set();
 
@@ -752,7 +752,7 @@ class Partition {
       new_s._index = i; // for drawing/debugging
 
       endpoints.push(e1, e2);
-      this.segments.set(i, new_s);
+      this.segments.push(new_s);
     });
     endpoints.sort(compareXY);
     this.endpoints = endpoints;
@@ -767,6 +767,7 @@ class Partition {
 
     // whether to run consistency checks
     this.consistency_check = true;
+    this.debug = true;
   }
 
   get faces() {
@@ -788,7 +789,7 @@ class Partition {
   _buildAdjacencies(adjs, face) {
     //this.faces.add(face);
 
-    adjs.forEach(adj => this.adjacencies.add(adj));
+    if(this.debug) { adjs.forEach(adj => this.adjacencies.add(adj)); }
     adjs.forEach(adj => adj.face = face);
 
     face.adjacencies = new Set(adjs);
@@ -841,7 +842,7 @@ class Partition {
                                      new Adjacency(x_left, y_top),
                                      new Adjacency(x_left, y_bottom));
 
-    initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj));
+    if(this.debug) { initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj)); }
 
     let prior_top = initial_face.adjacencies[ADJS.tl];
     let prior_bottom = initial_face.adjacencies[ADJS.bl];
@@ -883,8 +884,10 @@ class Partition {
       prior_bottom = f.adjacencies[ADJS.br];
       prior_e = e;
 
-      this.adjacencies.add(prior_top);
-      this.adjacencies.add(prior_bottom);
+      if(this.debug) {
+        this.adjacencies.add(prior_top);
+        this.adjacencies.add(prior_bottom);
+      }
     });
 
 
@@ -914,146 +917,6 @@ class Partition {
   }
 
 
- //  initialize() {
-//     // for each segment, get the top and bottom canvas vertices.
-//     const x_left = 0;
-//     const x_right = canvas.dimensions.width;
-//
-//     const y_top = 0;
-//     const y_bottom = canvas.dimensions.height;
-//
-//     const tl = new Vertex(x_left, y_top);
-//     const tr = new Vertex(x_right, y_top);
-//     const bl = new Vertex(x_left, y_bottom);
-//     const br = new Vertex(x_right, y_bottom);
-//
-//
-//     // initial face is outside the canvas
-//     // (or the entire canvas, depending on how you look at it)
-//     //this.faces.clear();
-//
-//     const { adjacencies: first_adjacencies } = this._buildNewFace([tr, tl, bl, br]);
-//
-//     // for tracking which vertex corresponds to the face adjacency array
-//     // tr, tl, bl, br
-//     const ADJS = { tr: 0, tl: 1, bl: 2, br: 3 };
-//
-//     // f0 is a bit different, as we want to track the
-//     // left vertices as if they were the right vertices.
-//     let prior_adjacencies = [...first_adjacencies];
-//     prior_adjacencies[ADJS.tr] = first_adjacencies[ADJS.tl];
-//     prior_adjacencies[ADJS.br] = first_adjacencies[ADJS.bl];
-//
-//
-//     let prior_tr = tl;
-//     let prior_br = bl;
-//
-//
-//
-//     this.endpoints.forEach(e => {
-//       // as we move left-to-right, the previous face will
-//       // help inform the current
-//       // right vertices have faces of this face and next face,
-//       // so have to wait until next loop for those.
-//
-//       const tr = new Vertex(e.x, y_top);
-//       const br = new Vertex(e.x, y_bottom);
-//       const tl = prior_tr;
-//       const bl = prior_br;
-//
-//       const { adjacencies } = this._buildNewFace([tr, tl, bl, br]);
-//
-//       // set the endpoint links to the adjacencies
-//       e.attachments = [ adjacencies[ADJS.br], adjacencies[ADJS.tr]]; // BOTTOM, TOP
-//
-//
-//       adjacencies[ADJS.tr].endpoint = e;
-//       adjacencies[ADJS.br].endpoint = e;
-//
-//       // set neighbors for the adjacencies
-//       adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
-//       prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
-//
-//       adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
-//       prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
-//
-//       prior_tr = tr;
-//       prior_br = br;
-//       prior_adjacencies = adjacencies;
-//     });
-//
-//     // final step treats the prior_tr, prior_br as left vertices,
-//     // with right corners
-//
-//
-// // tr, tl, bl, br
-//
-//     const { adjacencies } = this._buildNewFace([tr, prior_tr, prior_br, br]);
-//
-//     adjacencies[ADJS.tl].neighbor = prior_adjacencies[ADJS.tr];
-//     prior_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tl];
-//
-//     adjacencies[ADJS.bl].neighbor = prior_adjacencies[ADJS.br];
-//     prior_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.bl];
-//
-//     // and handle the right-most corners?
-//     adjacencies[ADJS.tr].neighbor = first_adjacencies[ADJS.tr];
-//     first_adjacencies[ADJS.tr].neighbor = adjacencies[ADJS.tr];
-//
-//     adjacencies[ADJS.br].neighbor = first_adjacencies[ADJS.br];
-//     first_adjacencies[ADJS.br].neighbor = adjacencies[ADJS.br];
-//
-//
-//   }
-
-
-/*
-Building rules:
-2'C|2'B  1'B•1'A
-   |        |
-C  |  B1    |  A face
- ix|--------|s0
-   |        |
-   |  B2    |
-   |        |
-2"C|2"B  1"B•1"A
-
-A. Starting on a new segment at ix === endpoint s0
-√ sB1 and sB2 are new adjacencies
-√ s0.neighbor ->> sB1.neighbor ->> sB2.neighbor ->> sB1
-√ sB1.endpoint = s0; sB2.endpoint = s0
-√ B1 and B2 faces are new
-
-B. At ix where ix ≠ endpoint s1.
-1. endpoint for ix is at bottom:
-√ close bottom face
-√ ixB2 and ixC2 adjacencies are new
-√ ixB2.face = B2
-√ ixC2.face = C2 (new)
-√ can determine successors for all bottom adjacencies around B2.
-√ ixB2.neighbor ->> ixC2.neighbor ->> ixB2
-√ attachment 2 top is set to ixC2. (attachments always to the left)
-√ 2'B and 2'C adjacencies are removed
-√ C2 face is new
-√ start new bottom face adjacencies
-
-2. endpoint for ix is at the top (reverse all from 1)
-
-C. at ix where ix === endpoint s1
-1. endpoint for ix is at bottom:
-- close bottom face
-- ixB1 and ixB2 are new adjacencies
-- ixB1.face = B1; ixB2.face = B2
-- ixB1.neighbor ->> ixB2.neighbor ->> ixB1
-- ixB1.endpoint = s1; ixB2.endpoint = s1
-- s1.neighbor = ixB1
-- can determine successors for all bottom adjacencies around B2.
-
-D. closing other face (here, assume top)
-- close top face
-- can determine successors for all top adjacencies around B1.
-
-*/
 
   _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces) {
 /*
@@ -1094,10 +957,12 @@ the intersection.
     let segments = new Set([s, transition.other_segment]);
     ix_adjs.forEach(adj => adj.segments = segments);
 
-    this.adjacencies.add(ix_adjs[TOPRIGHT]);
-    this.adjacencies.add(ix_adjs[TOPLEFT]);
-    this.adjacencies.add(ix_adjs[BOTTOMLEFT]);
-    this.adjacencies.add(ix_adjs[BOTTOMRIGHT]);
+    if(this.debug) {
+			this.adjacencies.add(ix_adjs[TOPRIGHT]);
+			this.adjacencies.add(ix_adjs[TOPLEFT]);
+			this.adjacencies.add(ix_adjs[BOTTOMLEFT]);
+			this.adjacencies.add(ix_adjs[BOTTOMRIGHT]);
+    }
 
     // 1. Close the TOP face
     curr_faces[TOP].closeIx(ix_adjs[TOPRIGHT], s0);
@@ -1205,8 +1070,10 @@ the intersection.
 
     log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
 
-    this.adjacencies.add(s0nw);
-    this.adjacencies.add(s0sw);
+    if(this.debug) {
+      this.adjacencies.add(s0nw);
+      this.adjacencies.add(s0sw);
+    }
 
     return curr_faces;
   }
@@ -1248,8 +1115,10 @@ the intersection.
 
     }
 
-    this.adjacencies.add(ix_adj1);
-    this.adjacencies.add(ix_adj2);
+    if(this.debug) {
+      this.adjacencies.add(ix_adj1);
+      this.adjacencies.add(ix_adj2);
+    }
 
     return curr_faces;
   }
@@ -1277,12 +1146,12 @@ the intersection.
     // position === top: bottom attachment moved up
     // attachments point to the right face (ix_adj1)
     ix_adj1.endpoint = transition.next_v.neighbor.endpoint;
-    this.adjacencies.delete(ix_adj1.endpoint.attachments[opp]);
+    if(this.debug) { this.adjacencies.delete(ix_adj1.endpoint.attachments[opp]); }
     ix_adj1.endpoint.attachments[opp] = ix_adj1;
 
     // drop the adjacency opposite where we closed
 //     this.adjacencies.delete(traversal[opp]);
-    this.adjacencies.delete(traversal[opp].neighbor);
+    if(this.debug) { this.adjacencies.delete(traversal[opp].neighbor); }
 
     // close old face by tracing the prior left/right face in the opposite direction
     // this time, include left/right in the adjacencies
@@ -1306,10 +1175,10 @@ the intersection.
 
     log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
-
-
-    this.adjacencies.add(ix_adj1);
-    this.adjacencies.add(ix_adj2);
+    if(this.debug) {
+			this.adjacencies.add(ix_adj1);
+			this.adjacencies.add(ix_adj2);
+		}
 
     return [old_face];
   }
@@ -1332,7 +1201,7 @@ the intersection.
         if(~i) { this.process_queue.splice(i, 1); }
       }
 
-      let s = this.segments.get(idx);
+      let s = this.segments[idx];
       let s0 = s.max_xy;
       let s1 = s.min_xy;
 
