@@ -810,25 +810,14 @@ class Partition {
     this.intersections = []; // to track intersections found
     this.segments = [];
     this.faces = new Set();
-    this.adjacencies = new Set();
 
     const endpoints = [];
     segments.forEach((s, i) => {
       const new_s = Segment.fromEdge(s);
-
-      // track segments for intersection reporting
-//       const e1 = new_s.A;
-//       const e2 = new_s.B;
-//       e1.segment = new_s;
-//       e2.segment = new_s;
-
       new_s._index = i; // for drawing/debugging
 
-//       endpoints.push(e1, e2);
       this.segments.push(new_s);
     });
-//     endpoints.sort(compareXY);
-//     this.endpoints = endpoints;
 
     // keep a set of partitioned_segments for quick look-up
     this.partitioned_segments = new Set();
@@ -843,12 +832,6 @@ class Partition {
     this.debug = true;
   }
 
-//   get faces() {
-//     const faces = new Set();
-//     this.adjacencies.forEach(adj => faces.add(adj.face));
-//     return faces;
-//   }
-
   calculateIntersections() {
     // use for loop solely to avoid infinite loops on errors
     const ln = this.process_queue.length;
@@ -856,41 +839,6 @@ class Partition {
       this.addSegment({ idx: this.process_queue[i] });
     }
     return this.intersections;
-  }
-
-
-  _buildAdjacencies(adjs, face) {
-    //this.faces.add(face);
-
-    if(this.debug) { adjs.forEach(adj => this.adjacencies.add(adj)); }
-    adjs.forEach(adj => adj.face = face);
-
-    face.adjacencies = new Set(adjs);
-
-    // successors are in order of the array, looping around to beginning
-    const ln = adjs.length;
-    for(let i = 0; i < ln; i += 1) {
-      const next_i = (i + 1) % ln;
-      adjs[i].successor = adjs[next_i];
-    }
-
-    // neighbors are unknown
-  }
-
-  _buildNewFace(vertices) {
-    const f = new Face();
-
-    vertices = vertices.map(v => {
-      if(v instanceof Adjacency) {
-        v.face = f;
-        return v;
-      }
-      return Adjacency.fromVertex(v, f);
-    });
-
-    this._buildAdjacencies(vertices, f);
-
-    return { face: f, adjacencies: vertices };
   }
 
   initialize() {
@@ -912,7 +860,6 @@ class Partition {
     initial_face.adjacencies.forEach(adj => {
       const new_adj = new Adjacency(adj.x, adj.y);
       adj.setNeighbor(new_adj);
-      if(this.debug) { this.adjacencies.add(new_adj); }
       outside_adjs.push(new_adj);
     })
     const outside_face = Face.create(...outside_adjs);
@@ -920,7 +867,6 @@ class Partition {
     // it does not have a defined boundary function and would therefore
     // overlap with initial_face
 
-    if(this.debug) { initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj)); }
     this.faces.add(initial_face);
   }
 
@@ -964,13 +910,6 @@ the intersection.
 
     let segments = new Set([s, transition.other_segment]);
     ix_adjs.forEach(adj => adj.segments = segments);
-
-    if(this.debug) {
-			this.adjacencies.add(ix_adjs[TOPRIGHT]);
-			this.adjacencies.add(ix_adjs[TOPLEFT]);
-			this.adjacencies.add(ix_adjs[BOTTOMLEFT]);
-			this.adjacencies.add(ix_adjs[BOTTOMRIGHT]);
-    }
 
     // 1. Close the TOP face
     curr_faces[TOP].closeIx(ix_adjs[TOPRIGHT], s0);
@@ -1109,7 +1048,6 @@ the intersection.
       if(~splits.top && ~splits.bottom) break;
     }
 
-    if(this.debug) { adjs.forEach(adj => this.adjacencies.add(adj)); }
 
 /*
 starting with a single face
@@ -1191,10 +1129,6 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
     log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
 
-    if(this.debug) {
-      this.adjacencies.add(s0nw);
-      this.adjacencies.add(s0sw);
-    }
 
     this.faces.delete(s0.attachments[BOTTOM].neighbor.face);
 
@@ -1238,11 +1172,6 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
     }
 
-    if(this.debug) {
-      this.adjacencies.add(ix_adj1);
-      this.adjacencies.add(ix_adj2);
-    }
-
     return curr_faces;
   }
 
@@ -1271,12 +1200,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // position === top: bottom attachment moved up
     // attachments point to the right face (ix_adj1)
     ix_adj1.endpoint = transition.next_v.neighbor.endpoint;
-    if(this.debug) { this.adjacencies.delete(ix_adj1.endpoint.attachments[opp]); }
     ix_adj1.endpoint.attachments[opp] = ix_adj1;
-
-    // drop the adjacency opposite where we closed
-//     this.adjacencies.delete(traversal[opp]);
-    if(this.debug) { this.adjacencies.delete(traversal[opp].neighbor); }
 
     // close old face by tracing the prior left/right face in the opposite direction
     // this time, include left/right in the adjacencies
@@ -1299,11 +1223,6 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
 
     log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
-
-    if(this.debug) {
-			this.adjacencies.add(ix_adj1);
-			this.adjacencies.add(ix_adj2);
-		}
 
     return [old_face];
   }
@@ -1452,12 +1371,6 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 			});
 		});
 
-    // for each adjacency, draw the edge connecting it to the next
-//     this.adjacencies.forEach(adj => {
-//       Segment.drawEdge({ A: adj, B: adj.successor },
-//                        { color: COLORS.lightblue, width: 1 });
-//     });
-
     // draw partitioned segments
     this.partitioned_segments.forEach(s => {
       s.draw({ color: COLORS.green, width: 1});
@@ -1510,18 +1423,20 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
-    this.adjacencies.forEach(adj => {
-      const key = adj.key;
-      if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
-        console.error(`adj ${adj.label} fails consistency test.`, adj, this);
-        return false;
-      }
+    this.faces.forEach(f => {
+			f.adjacencies.forEach(adj => {
+				const key = adj.key;
+				if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
+					console.error(`adj ${adj.label} fails consistency test.`, adj, this);
+					return false;
+				}
 
-      if(adj.key !== key) {
-        console.error(`adj ${adj.label} (${key}) does not match.`, adj, this);
-        return false;
-      }
-    });
+				if(adj.key !== key) {
+					console.error(`adj ${adj.label} (${key}) does not match.`, adj, this);
+					return false;
+				}
+			});
+		});
 
     // confirm each endpoint has an adjacency if has been processed
     this.segments.forEach(s => {
