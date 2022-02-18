@@ -480,21 +480,18 @@ class Face {
     const adjs = this.adjacencies;
     const ln = adjs.length;
 
-    let min_x = Number.POSITIVE_INFINITY;
-    let min_y = Number.POSITIVE_INFINITY;
-    let max_x = Number.NEGATIVE_INFINITY;
-    let max_y = Number.NEGATIVE_INFINITY;
+    const pts = [];
     for(let i = 0; i < ln; i += 1) {
       const next_i = (i + 1) % ln;
-      adjs[i].successor = adjs[next_i];
+      const adj = adjs[i];
+
+      adj.successor = adjs[next_i];
       adjs[next_i].predecessor = adjs[i];
-      adjs[i].face = this;
-      min_x = Math.min(adjs[i].x, min_x);
-      min_y = Math.min(adjs[i].y, min_y);
-      max_x = Math.max(adjs[i].x, max_x);
-      max_y = Math.max(adjs[i].y, max_y);
+      adj.face = this;
+      pts.push(adj.x, adj.y);
     }
-    this.bounds = new PIXI.Rectangle(min_x, min_y, max_x - min_x, max_y - min_y);
+
+    this.bounds = new PIXI.Polygon(pts);
   }
 
 
