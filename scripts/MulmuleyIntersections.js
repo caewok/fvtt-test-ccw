@@ -835,7 +835,7 @@ class Partition {
 
     // to save effort and make debugging easier, randomly generate
     // process order in advance
-    this.process_queue = Array.fromRange(this.segments.size);
+    this.process_queue = Array.fromRange(this.segments.length);
     this.process_queue.sort(() => Math.random() - 0.5);
 
     // whether to run consistency checks
