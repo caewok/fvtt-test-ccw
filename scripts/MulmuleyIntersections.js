@@ -1028,21 +1028,26 @@ the intersection.
         continue;
       }
 
-      let x = foundry.utils.lineLineIntersection(adj, adj.successor, bottom_v, top_v);
-      if(!x) { console.error(`_buildStartSegmentFaces: lineLineIntersection not found for s0 ${s0.label}`); }
+      let ix = foundry.utils.lineLineIntersection(adj, adj.successor, bottom_v, top_v);
+      if(!ix) { console.error(`_buildStartSegmentFaces: lineLineIntersection not found for s0 ${s0.label}`); }
 
-      let dir = foundry.utils.orient2dFast(s.max_xy, s.min_xy, { x: x.x, y: x.y });
+      // to avoid numerical issues, set ix.x to s0.x, as we are using a vertical line.
+      // round ix.y to given number of digits just in case
+      ix.x = s0.x;
+      ix.y = Math.round((ix.y + Number.EPSILON) * 1e10) / 1e10;
+
+      let dir = foundry.utils.orient2dFast(s.max_xy, s.min_xy, ix);
       if(dir === 0) { console.error(`_buildStartSegmentFaces: orientation is colinear s0 ${s0.label}`);}
 
       if(dir > 0) { // left or bottom
         splits.bottom = i;
-        adjs[BOTTOMRIGHT] = Adjacency.fromVertex(x);
-        adjs[BOTTOMLEFT] = Adjacency.fromVertex(x);
+        adjs[BOTTOMRIGHT] = Adjacency.fromVertex(ix);
+        adjs[BOTTOMLEFT] = Adjacency.fromVertex(ix);
 
       } else { // right or top
         splits.top = i;
-        adjs[TOPRIGHT] = Adjacency.fromVertex(x);
-        adjs[TOPLEFT] = Adjacency.fromVertex(x);
+        adjs[TOPRIGHT] = Adjacency.fromVertex(ix);
+        adjs[TOPLEFT] = Adjacency.fromVertex(ix);
       }
 
       if(~splits.top && ~splits.bottom) break;
