@@ -140,6 +140,9 @@ class Segment {
 
   }
 
+
+
+
   get min_xy() {
     if(!this._min_xy) {
       const first_is_min = compareXY(this.A, this.B) < 0;
@@ -157,6 +160,51 @@ class Segment {
   get label() {
     return `${this.A.label} | ${this.B.label}`;
   }
+
+  // equation of a line
+  // form: ax + by + c = 0
+  // ax2 + by2 + c = 0
+  // ax + by = ax2 + by2
+
+  // could start with slope form:
+  // https://socratic.org/questions/how-do-you-find-a-general-form-equation-for-the-line-through-the-pair-of-points-
+
+  // or use algebra
+  // Instead of inverting the matrix, let's try stack:
+  // https://stackoverflow.com/questions/13242738/how-can-i-find-the-general-form-equation-of-a-line-from-two-points
+
+  get general_eq() {
+    if(!this._general_eq) {
+      const x1 = this.min_xy.x;
+      const y1 = this.min_xy.y;
+      const x2 = this.max_xy.x;
+      const y2 = this.max_xy.y;
+
+      this._general_eq = {
+        a: y1 - y2,
+        b: x2 - x1,
+        //c: (x1 - x2) * y1 + (y2 - y1) * x1
+        c: (x1 * y2) - (x2 * y1)
+      }
+    }
+    return this._general_eq;
+  }
+
+  // if x,y is to the left, the equation will be positive; negative to the right
+  // orient2d requires 2 multiplications and 5 subtractions
+  // this requires 2 multiplications and 2 additions, but initial setup of eq requires
+  // an additional 3 subtractions and 2 multiplications.
+  // direction and orient2d are the same
+  // hard to say with caching; these are basically equivalent in speed.
+  direction(p) {
+    const eq = this.general_eq;
+    return (eq.a * p.x) + (eq.b * p.y) + eq.c;
+  }
+
+  orient2d(p) {
+    return foundry.utils.orient2dFast(this.max_xy, this.min_xy, p)
+  }
+
 
   contains(p) {
     // is p collinear?
@@ -1033,18 +1081,6 @@ the intersection.
 
     return old_faces;
   }
-
- _closeSegmentFace(adjs, curr_faces, v, position) {
-    adjs[position].push(v);
-
-    // bottom adjacencies are in clockwise order; reverse
-    // push + reverse appears a lot faster than shifting:
-    // https://jsbench.me/gbkyp4o43l/1
-    if(position === BOTTOM) { adjs[position].reverse(); }
-
-    // construct successors, add face
-    this._buildAdjacencies(adjs[position], curr_faces[position]);
- }
 
   _buildStartSegmentFaces(s) {
     let s0 = s.max_xy;
