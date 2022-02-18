@@ -1039,6 +1039,9 @@ the intersection.
     curr_faces[BOTTOM].openIx(ix_adjs[BOTTOMLEFT], ix_adjs[BOTTOMLEFT]);
     log(`At intersection ${ix_adjs[BOTTOMLEFT].label}, \n\topened BOTTOMLEFT face ${curr_faces[BOTTOM].label}`);
 
+    this.faces.delete(bottom_next_v.face);
+    this.faces.delete(top_next_v.face);
+
     return old_faces;
   }
 
@@ -1193,6 +1196,8 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       this.adjacencies.add(s0sw);
     }
 
+    this.faces.delete(s0.attachments[BOTTOM].neighbor.face);
+
     return curr_faces;
   }
 
@@ -1255,6 +1260,8 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // only needed to capture faces that contain processed intersections
     // needs to happen before closing the pos face, because after intersections,
     // closing the pos face can modify the face._next_v predecessor/successor
+    this.faces.delete(transition.next_v.face);
+
     curr_faces[opp].updateNextV(transition.next_v);
     log(`At ix ${ix_adj1.label}: \n\tupdated ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
 
@@ -1381,6 +1388,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
         new_faces.push(...old_faces);
         old_faces.forEach(f => {
+          this.faces.add(f);
           if(draw) f.draw({ color: nextShade() });
           if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                   test_successor: true,
@@ -1399,6 +1407,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
       new_faces.push(...old_faces);
       old_faces.forEach(f => {
+        this.faces.add(f);
         if(draw) f.draw({ color: nextShade() });
         if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                 test_successor: true,
