@@ -1341,7 +1341,7 @@ the intersection.
       if(idx !== -1) { d.polygonText.removeChildAt(idx); }
 
        const t = polygonText.addChild(new PIXI.Text(String(s._index), CONFIG.canvasTextStyle));
-       t.position.set(s.A.x, s.A.y);
+       t.position.set(s.min_xy.x, s.min_xy.y);
     });
   }
 
