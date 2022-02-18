@@ -91,6 +91,20 @@ const BOTTOMRIGHT = 1;
 const TOPLEFT = 2;
 const BOTTOMLEFT = 3;
 
+
+// used to slice array for splitting faces
+// end can be less than start and this will circle round
+function sliceLoop(arr, start, end) {
+
+  if(!end) return arr.slice(start);
+  if(end > start) return arr.slice(start, end);
+
+  const n = arr.length;
+  const out = arr.slice(start, n);
+  out.push(...arr.slice(0, end));
+  return out;
+}
+
 class Vertex {
   constructor(x, y) {
     this.x = x;
@@ -1028,8 +1042,130 @@ the intersection.
     return old_faces;
   }
 
+  _splitAttachmentFace(s0, s) {
+    // find the face that contains s0.
+    // only one face will contain s0
+    // TO-DO: what if s is on the border of a face?
+    // s0 will always be on the border of
+
+    let enclosing_face = [...this.faces].find(f => f.bounds.contains(s0.x, s0.y));
+    if(!enclosing_face) { console.error(`_buildStartSegmentFaces: No face found for s0 ${s0.label}`); }
+
+    // get the intersecting edges of the face
+    // adjacencies are strictly vertical, so looking for x
+    // top will be to the right of s
+    // bottom will be to the left of s
+    let ln = enclosing_face.adjacencies.length;
+    let top_v = new Vertex(s0.x, 0);
+    let bottom_v = new Vertex(s0.x, canvas.dimensions.height);
+    let splits = { top: -1, bottom: -1 };
+
+    let adjs = Array(4);
+
+    for(let i = 0; i < ln; i += 1) {
+      let adj = enclosing_face.adjacencies[i];
+
+      // two options here:
+      // 1. do lineSegmentIntersects for bottom|top, then lineLineIntersection once
+      //    and then get orientation of the intersection w/r/t s
+      // 2. do lineSegmentIntersects for top segment, then bottom segment,
+      //    then do lineLineIntersection once
+      // Benchmarking is unclear b/c all are fast
+      // orient2d might be slightly faster than lineLineX but 10x+ faster than lineSegment?
+      // looking at the code:
+      // orient2d: 5 subtractions, two multiplications
+      // lineSegmentX: 4 orient2d, two multiplications, two comparisons, 1 boolean
+      // lineLineX: early return using booleans and equality but unlikely to occur
+      //            early return after 1 orient2d for parallel lines
+      //            second orient2d, division, additional 2 subtractions, 2 additions, 2 mult
+      // Expect lineSegmentX to be at least 4x slower than orient2d
+      // Expect lineLineX to be at least 2x slower than orient2d
+      // So option (2) likely faster.
+
+      if(!foundry.utils.lineSegmentIntersects(adj, adj.successor, bottom_v, top_v)) {
+        continue;
+      }
+
+      let x = foundry.utils.lineLineIntersection(adj, adj.successor, bottom_v, top_v);
+      if(!x) { console.error(`_buildStartSegmentFaces: lineLineIntersection not found for s0 ${s0.label}`); }
+
+      let dir = foundry.utils.orient2dFast(s.max_xy, s.min_xy, { x: x.x, y: x.y });
+      if(dir === 0) { console.error(`_buildStartSegmentFaces: orientation is colinear s0 ${s0.label}`);}
+
+      if(dir > 0) { // left or bottom
+        splits.bottom = i;
+        adjs[BOTTOMRIGHT] = Adjacency.fromVertex(x);
+        adjs[BOTTOMLEFT] = Adjacency.fromVertex(x);
+
+      } else { // right or top
+        splits.top = i;
+        adjs[TOPRIGHT] = Adjacency.fromVertex(x);
+        adjs[TOPLEFT] = Adjacency.fromVertex(x);
+      }
+
+      if(~splits.top && ~splits.bottom) break;
+    }
+
+    if(this.debug) { adjs.forEach(adj => this.adjacencies.add(adj)); }
+
+/*
+starting with a single face
+
+•-----•
+|     |
+|     |
+•-----•
+
+splitting into left and right
+
+•-----•-----•
+|     |     |
+|     |     |
+•-----•-----•
+
+so each has a shared top and bottom vertex, represented by two adjacencies each.
+*/
+    // set the neighbors
+    adjs[TOPRIGHT].setNeighbor(adjs[TOPLEFT]);
+    adjs[BOTTOMRIGHT].setNeighbor(adjs[BOTTOMLEFT]);
+
+
+    // split represents the adj|adj.successor where face is split
+    // may not be equal number of adjacencies in right vs left face
+    let bottom_end = (splits.bottom + 1) % ln;
+    let top_end = (splits.top + 1) % ln;
+
+    let right_adjs = [
+      adjs[BOTTOMRIGHT],
+      ...sliceLoop(enclosing_face.adjacencies, bottom_end, splits.top + 1),
+      adjs[TOPRIGHT]
+    ]
+
+    let left_adjs = [
+      adjs[TOPLEFT],
+      ...sliceLoop(enclosing_face.adjacencies, top_end, splits.bottom + 1),
+      adjs[BOTTOMLEFT]
+    ]
+
+    const left_face = Face.create(...left_adjs);
+    const right_face = Face.create(...right_adjs);
+
+    this.faces.delete(enclosing_face);
+    this.faces.add(left_face);
+    this.faces.add(right_face);
+
+    // add to the segment attachments
+    // attachments point to the right face
+    s0.attachments = new Array(2);
+    s0.attachments[BOTTOM] = adjs[BOTTOMRIGHT];
+    s0.attachments[TOP] = adjs[TOPRIGHT];
+    adjs[BOTTOMRIGHT].endpoint = s0;
+    adjs[TOPRIGHT].endpoint = s0;
+  }
+
   _buildStartSegmentFaces(s) {
     let s0 = s.max_xy;
+
     let curr_faces = Array(2);
 
     // Create adjacencies at s0. These will link to the nw face (TOP) and sw face (BOTTOM)
@@ -1186,6 +1322,12 @@ the intersection.
       let s = this.segments[idx];
       let s0 = s.max_xy;
       let s1 = s.min_xy;
+
+      // construct attachments for s0 and s1
+      // do s1 now b/c there are less faces to sort through than will be the case
+      // after processing s. Also, will facilitate drawing.
+      this._splitAttachmentFace(s0, s);
+      this._splitAttachmentFace(s1, s);
 
       let new_faces = []; // track faces created
 
