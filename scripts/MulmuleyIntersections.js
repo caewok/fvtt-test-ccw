@@ -1245,9 +1245,14 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
           return false;
         }
 
-        // drop idx from the queue if it exists
+        // drop idx from the queue if it exists; otherwise return
         const i = this.process_queue.findIndex(elem => elem === idx);
-        if(~i) { this.process_queue.splice(i, 1); }
+        if(~i) {
+          this.process_queue.splice(i, 1);
+        } else {
+          console.warn(`Index ${idx} already added.`);
+          return false;
+        }
       }
 
       let s = this.segments[idx];
