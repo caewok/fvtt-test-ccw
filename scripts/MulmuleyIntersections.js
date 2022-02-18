@@ -76,7 +76,7 @@ const log = function(...args) {
   } catch (e) {
     // empty
   }
-}
+};
 
 function compareXY(a, b) {
   return ( a.x - b.x ) || (a.y - b.y );
@@ -185,7 +185,7 @@ class Segment {
         b: x2 - x1,
         //c: (x1 - x2) * y1 + (y2 - y1) * x1
         c: (x1 * y2) - (x2 * y1)
-      }
+      };
     }
     return this._general_eq;
   }
@@ -202,7 +202,7 @@ class Segment {
   }
 
   orient2d(p) {
-    return foundry.utils.orient2dFast(this.max_xy, this.min_xy, p)
+    return foundry.utils.orient2dFast(this.max_xy, this.min_xy, p);
   }
 
 
@@ -331,7 +331,7 @@ class Segment {
     const out = {
       is_left: e_is_left,
       ix: new Vertex(l_endpoint.x, new_y)
-    }
+    };
 
     if(e_is_left) {
       out.next_v = right.neighbor;
@@ -451,6 +451,7 @@ class Face {
 //     this._isOpen = undefined; // true if open, false if closed, undefined at start.
     this.orientation = orientation; // TOP or BOTTOM
     this.dir = this.orientation === TOP ? "successor" : "predecessor";
+    this.bounds = undefined;
   }
 
   get label() {
@@ -464,12 +465,22 @@ class Face {
     // also set the face for each adjacency.
     const adjs = this.adjacencies;
     const ln = adjs.length;
+
+    let min_x = Number.POSITIVE_INFINITY;
+    let min_y = Number.POSITIVE_INFINITY;
+    let max_x = Number.NEGATIVE_INFINITY;
+    let max_y = Number.NEGATIVE_INFINITY;
     for(let i = 0; i < ln; i += 1) {
       const next_i = (i + 1) % ln;
       adjs[i].successor = adjs[next_i];
       adjs[next_i].predecessor = adjs[i];
       adjs[i].face = this;
+      min_x = Math.min(adjs[i].x, min_x);
+      min_y = Math.min(adjs[i].y, min_y);
+      max_x = Math.max(adjs[i].x, max_x);
+      max_y = Math.max(adjs[i].y, max_y);
     }
+    this.bounds = new PIXI.Rectangle(min_x, min_y, max_x - min_x, max_y - min_y);
   }
 
 
@@ -784,7 +795,7 @@ class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
     this.segments = [];
-//     this.faces = new Set();
+    this.faces = new Set();
     this.adjacencies = new Set();
 
     const endpoints = [];
@@ -818,11 +829,11 @@ class Partition {
     this.debug = true;
   }
 
-  get faces() {
-    const faces = new Set();
-    this.adjacencies.forEach(adj => faces.add(adj.face));
-    return faces;
-  }
+//   get faces() {
+//     const faces = new Set();
+//     this.adjacencies.forEach(adj => faces.add(adj.face));
+//     return faces;
+//   }
 
   calculateIntersections() {
     // use for loop solely to avoid infinite loops on errors
@@ -875,93 +886,28 @@ class Partition {
     const y_top = 0;
     const y_bottom = canvas.dimensions.height;
 
-    // Assume we are treating the bottom of the canvas as a segment.
-    // Each face created is a "TOP" face, with adjacencies going from
-    // bottom right --> top right --> top left --> bottom left
-    // bottom right and top right are on the vertical line for the endpoint
-
-    // initial face is outside the canvas
-    // (or the entire canvas, depending on how you look at it)
-    // Here, we will pretend we are starting in the lower right corner to follow
-    // the same sequence as above
-    const ADJS = { br: 0, tr: 1, tl: 2, bl: 3 };
+    // the canvas corners are four adjacencies of the face
     const initial_face = Face.create(new Adjacency(x_right, y_bottom),
                                      new Adjacency(x_right, y_top),
                                      new Adjacency(x_left, y_top),
                                      new Adjacency(x_left, y_bottom));
 
+    // for consistency test, also build the neighboring adjacencies (outside border)
+    // and face
+    const outside_adjs = [];
+    initial_face.adjacencies.forEach(adj => {
+      const new_adj = new Adjacency(adj.x, adj.y);
+      adj.setNeighbor(new_adj);
+      if(this.debug) { this.adjacencies.add(new_adj); }
+      outside_adjs.push(new_adj);
+    })
+    const outside_face = Face.create(...outside_adjs);
+    // don't add the outside face to the set of faces, b/c
+    // it does not have a defined boundary function and would therefore
+    // overlap with initial_face
+
     if(this.debug) { initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj)); }
-
-    let prior_top = initial_face.adjacencies[ADJS.tl];
-    let prior_bottom = initial_face.adjacencies[ADJS.bl];
-
-    // move left-to-right through sorted endpoints
-    let prior_e;
-    this.endpoints.forEach(e => {
-      // can skip opening and just supply the 4 adjacencies in order
-      const f = Face.create(new Adjacency(e.x, y_bottom),        // br
-                            new Adjacency(e.x, y_top),           // tr
-                            Adjacency.fromVertex(prior_top),     // tl
-                            Adjacency.fromVertex(prior_bottom)); // bl
-
-      // set the neighbors for the left side
-      f.adjacencies[ADJS.tl].setNeighbor(prior_top);
-      f.adjacencies[ADJS.bl].setNeighbor(prior_bottom);
-
-      // set the endpoint links for the adjacencies
-      // attachments point to the right face
-      if(prior_e) {
-        prior_e.attachments = new Array(2);
-        prior_e.attachments[BOTTOM] = f.adjacencies[ADJS.bl];
-        prior_e.attachments[TOP] = f.adjacencies[ADJS.tl];
-        f.adjacencies[ADJS.bl].endpoint = prior_e;
-        f.adjacencies[ADJS.tl].endpoint = prior_e;
-
-      }
-
-
-
-      // attachments point to the left face
-//       e.attachments = new Array(2);
-//       e.attachments[BOTTOM] = f.adjacencies[ADJS.br];
-//       e.attachments[TOP] = f.adjacencies[ADJS.tr];
-//       f.adjacencies[ADJS.br].endpoint = e;
-//       f.adjacencies[ADJS.tr].endpoint = e;
-
-      prior_top = f.adjacencies[ADJS.tr];
-      prior_bottom = f.adjacencies[ADJS.br];
-      prior_e = e;
-
-      if(this.debug) {
-        this.adjacencies.add(prior_top);
-        this.adjacencies.add(prior_bottom);
-      }
-    });
-
-
-
-    // construct the face between the right endpoint and the canvas edge
-    const initial_top = initial_face.adjacencies[ADJS.tr];
-    const initial_bottom = initial_face.adjacencies[ADJS.br];
-
-    const last_f = Face.create(Adjacency.fromVertex(initial_bottom),
-                               Adjacency.fromVertex(initial_top),
-                               Adjacency.fromVertex(prior_top),
-                               Adjacency.fromVertex(prior_bottom));
-
-    // set neighbors on right side
-    last_f.adjacencies[ADJS.tr].setNeighbor(initial_top);
-    last_f.adjacencies[ADJS.br].setNeighbor(initial_bottom);
-
-    // set neighbors on left side
-    last_f.adjacencies[ADJS.tl].setNeighbor(prior_top);
-    last_f.adjacencies[ADJS.bl].setNeighbor(prior_bottom);
-
-    prior_e.attachments = new Array(2);
-    prior_e.attachments[BOTTOM] = last_f.adjacencies[ADJS.bl];
-    prior_e.attachments[TOP] = last_f.adjacencies[ADJS.tl];
-    last_f.adjacencies[ADJS.bl].endpoint = prior_e;
-    last_f.adjacencies[ADJS.tl].endpoint = prior_e;
+    this.faces.add(initial_face);
   }
 
 
@@ -1424,21 +1370,23 @@ the intersection.
       }
     });
 
-    // confirm each endpoint has an adjacency
+    // confirm each endpoint has an adjacency if has been processed
     this.endpoints.forEach(e => {
-      if(!(e.attachments[TOP] instanceof Adjacency)) {
-        console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
-        return false;
-      }
+      if(e.attachments) {
+				if(!(e.attachments[TOP] instanceof Adjacency)) {
+					console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
+					return false;
+				}
 
-      if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
-        console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
-        return false;
-      }
+				if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
+					console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
+					return false;
+				}
 
-      if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
-        console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
-        return false;
+				if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
+					console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
+					return false;
+				}
       }
 
     });
