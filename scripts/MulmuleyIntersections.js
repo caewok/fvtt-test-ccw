@@ -1239,6 +1239,8 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     addSegment({ draw = false, idx = undefined } = {}) {
       // ------ Initial setup ----- //
       // randomly select segment or choose user-selected
+      let t0_addSegment = performance.now();
+
       if(this.process_queue.length === 0) return false;
 
       if(typeof idx === "undefined") {
@@ -1266,8 +1268,12 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       // construct attachments for s0 and s1
       // do s1 now b/c there are less faces to sort through than will be the case
       // after processing s. Also, will facilitate drawing.
+
+      let t0_splitAttachmentFace = performance.now();
       this._splitAttachmentFace(s0, s);
       this._splitAttachmentFace(s1, s);
+      let t1_splitAttachmentFace = performance.now()
+      console.log(`splitAttachmentFace * 2 took ${t1_splitAttachmentFace - t0_splitAttachmentFace} milliseconds.`)
 
       let new_faces = []; // track faces created
 
@@ -1357,6 +1363,10 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       if(this.consistency_check) this.consistencyTest({ test_neighbor: true,
                             test_successor: true,
                             test_face: true });
+
+
+      let t1_addSegment = performance.now()
+      console.log(`addSegment took ${t1_addSegment - t0_addSegment} milliseconds.`)
 
       return new_faces;
     }
