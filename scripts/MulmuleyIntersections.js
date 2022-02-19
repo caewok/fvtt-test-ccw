@@ -463,9 +463,9 @@ class Face {
 
   get label() {
     if(!this._label) {
-			const str = [];
-			this.adjacencies.forEach(adj => str.push(`${adj.label}`));
-			const res = str.join(` ->> `);
+      const str = [];
+      this.adjacencies.forEach(adj => str.push(`${adj.label}`));
+      const res = str.join(` ->> `);
       if(!this.closed) return res;
       this._label = res;
     }
@@ -499,6 +499,7 @@ class Face {
 
     this.bounds = new PIXI.Polygon(pts);
     this.closed = true;
+
   }
 
 
@@ -814,7 +815,7 @@ class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
     this.segments = [];
-    this.faces = [];
+    this.faces = {};
 
     segments.forEach((s, i) => {
       const new_s = Segment.fromEdge(s);
@@ -871,8 +872,10 @@ class Partition {
     // it does not have a defined boundary function and would therefore
     // overlap with initial_face
 
-    initial_face._index = 0;
-    this.faces.push(initial_face);
+//     initial_face._index = 0;
+//     this.faces.push(initial_face);
+    this.faces[initial_face.label] = initial_face;
+
   }
 
 
@@ -984,14 +987,18 @@ the intersection.
     log(`At intersection ${ix_adjs[BOTTOMLEFT].label}, \n\topened BOTTOMLEFT face ${curr_faces[BOTTOM].label}`);
 
     if(bottom_next_v.face !== top_next_v.face) {
-      console.warn(`_buildSegmentIntersectionFaces: next_v top and bottom faces not equal:\n\tBOTTOM:${bottom_next_v.face.label}\n\TOP:${top_next_v.face.label}`);
+      console.warn(`_buildSegmentIntersectionFaces: next_v top and bottom faces not equal:\n\tBOTTOM:${bottom_next_v.face.label}\n\tTOP:${top_next_v.face.label}`);
     }
 
-    curr_faces[TOP]._index = top_next_v.face._index;
-    this.faces[curr_faces[TOP]._index] = curr_faces[TOP];
+//     curr_faces[TOP]._index = top_next_v.face._index;
+//     this.faces[curr_faces[TOP]._index] = curr_faces[TOP];
+//
+//     curr_faces[BOTTOM]._index = this.faces.length;
+//     this.faces.push(curr_faces[BOTTOM]);
+    this.faces[bottom_next_v.face.label] = undefined;
+//     this.faces[curr_faces[TOP].label] = curr_faces[TOP];
+//     this.faces[curr_faces[BOTTOM].label] = curr_faces[BOTTOM];
 
-    curr_faces[BOTTOM]._index = this.faces.length;
-    this.faces.push(curr_faces[BOTTOM]);
 
 //     this.faces.delete(bottom_next_v.face.label);
 //     this.faces.delete(top_next_v.face.label);
@@ -999,15 +1006,7 @@ the intersection.
     return old_faces;
   }
 
-  _splitAttachmentFace(s0, s) {
-    // find the face that contains s0.
-    // only one face will contain s0
-    // TO-DO: what if s is on the border of a face?
-    // s0 will always be on the border of
-
-    let enclosing_face = this.faces.find(f => f.bounds.contains(s0.x, s0.y));
-    if(!enclosing_face) { console.error(`_buildStartSegmentFaces: No face found for s0 ${s0.label}`); }
-
+  _findIntersectingAdjacencies(enclosing_face, s0, s) {
     // get the intersecting edges of the face
     // adjacencies are strictly vertical, so looking for x
     // top will be to the right of s
@@ -1083,7 +1082,29 @@ the intersection.
       if(~splits.top && ~splits.bottom) break;
     }
 
+    // set the neighbors
+    adjs[TOPRIGHT].setNeighbor(adjs[TOPLEFT]);
+    adjs[BOTTOMRIGHT].setNeighbor(adjs[BOTTOMLEFT]);
 
+    // add to the segment attachments
+    // attachments point to the right face
+    s0.attachments = new Array(2);
+    s0.attachments[BOTTOM] = adjs[BOTTOMRIGHT];
+    s0.attachments[TOP] = adjs[TOPRIGHT];
+    adjs[BOTTOMRIGHT].endpoint = s0;
+    adjs[TOPRIGHT].endpoint = s0;
+
+    return { adjs: adjs,
+             splits: splits,
+             ends: { bottom: (splits.bottom + 1) % ln,
+                     top: (splits.top + 1) % ln }
+           };
+  }
+
+  _splitAttachmentFace(s) {
+    // find the face that contains s0.
+    // only one face will contain s0
+    // TO-DO: what if s is on the border of a face?
 /*
 starting with a single face
 
@@ -1101,48 +1122,128 @@ splitting into left and right
 
 so each has a shared top and bottom vertex, represented by two adjacencies each.
 */
-    // set the neighbors
-    adjs[TOPRIGHT].setNeighbor(adjs[TOPLEFT]);
-    adjs[BOTTOMRIGHT].setNeighbor(adjs[BOTTOMLEFT]);
+    // Variations:
+    // 1. s0 and s1 are in the same face, so building ☐☐☐
+    // 2. s0 and s1 are in separate faces, so like above, splitting each into two.
 
+//     let enclosing_face = this.faces.find(f => f && f.bounds.contains(s0.x, s0.y));
+    let s0 = s.max_xy;
+    let s1 = s.min_xy;
 
-    // split represents the adj|adj.successor where face is split
-    // may not be equal number of adjacencies in right vs left face
-    let bottom_end = (splits.bottom + 1) % ln;
-    let top_end = (splits.top + 1) % ln;
+    let enclosing_face_s0;
+    let enclosing_face_s1;
+    for(const f of Object.values(this.faces)) {
+      if(!f) continue;
+      if(!enclosing_face_s0 && f.bounds.contains(s0.x, s0.y)) {
+        enclosing_face_s0 = f;
+      }
 
-    let right_adjs = [
-      adjs[BOTTOMRIGHT],
-      ...sliceLoop(enclosing_face.adjacencies, bottom_end, splits.top + 1),
-      adjs[TOPRIGHT]
-    ];
+      if(!enclosing_face_s1 && f.bounds.contains(s1.x, s1.y)) {
+        enclosing_face_s1 = f;
+      }
+      if(enclosing_face_s0 && enclosing_face_s1) break;
+    }
 
-    let left_adjs = [
-      adjs[TOPLEFT],
-      ...sliceLoop(enclosing_face.adjacencies, top_end, splits.bottom + 1),
-      adjs[BOTTOMLEFT]
-    ];
+    if(!enclosing_face_s0) { console.error(`_splitAttachmentFace: No face found for s0 ${s0.label}`); }
+    if(!enclosing_face_s1) { console.error(`_splitAttachmentFace: No face found for s1 ${s1.label}`); }
 
-    const left_face = Face.create(...left_adjs);
-    const right_face = Face.create(...right_adjs);
+    let res0 = this._findIntersectingAdjacencies(enclosing_face_s0, s0, s);
+    let res1 = this._findIntersectingAdjacencies(enclosing_face_s1, s1, s);
+
+    const new_faces = [];
+    const enclosing_faces = [];
+
+    if(enclosing_face_s0 === enclosing_face_s1) {
+/*
+•-----•-----•-----•
+|     |     |     |
+|     |     |     |
+•-----•-----•-----•
+      s1    s0
+*/
+      let right_adjs = [
+        res0.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.bottom, res0.splits.top + 1),
+        res0.adjs[TOPRIGHT]
+      ];
+
+      let middle_adjs = [
+        res0.adjs[BOTTOMLEFT],
+        res0.adjs[TOPLEFT]
+      ];
+
+      if(res0.splits.top !== res1.splits.top) {
+//         console.log(`_splitAttachmentFace top splits not equal.`);
+        middle_adjs.push(...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.top, res1.ends.top));
+      }
+
+      middle_adjs.push(res1.adjs[TOPRIGHT], res1.adjs[BOTTOMRIGHT]);
+      if(res0.splits.bottom !== res1.splits.bottom) {
+//         console.log(`_splitAttachmentFace bottom splits not equal.`);
+        middle_adjs.push(...sliceLoop(enclosing_face_s0.adjacencies, res1.ends.bottom, res0.ends.bottom));
+      }
+
+      let left_adjs = [
+        res1.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.top, res1.splits.bottom + 1),
+        res1.adjs[BOTTOMLEFT]
+      ];
+
+      new_faces.push(Face.create(...right_adjs),
+                    Face.create(...middle_adjs),
+                     Face.create(...left_adjs));
+      enclosing_faces.push(enclosing_face_s0);
+
+    } else {
+      let right_adjs0 = [
+        res0.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.bottom, res0.splits.top + 1),
+        res0.adjs[TOPRIGHT]
+      ];
+
+      let left_adjs0 = [
+        res0.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.top, res0.splits.bottom + 1),
+        res0.adjs[BOTTOMLEFT]
+      ];
+
+      let right_adjs1 = [
+        res1.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.bottom, res1.splits.top + 1),
+        res1.adjs[TOPRIGHT]
+      ];
+
+      let left_adjs1 = [
+        res1.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.top, res1.splits.bottom + 1),
+        res1.adjs[BOTTOMLEFT]
+      ];
+
+      new_faces.push(Face.create(...left_adjs0),
+                     Face.create(...right_adjs0),
+                     Face.create(...left_adjs1),
+                     Face.create(...right_adjs1));
+
+      enclosing_faces.push(enclosing_face_s0, enclosing_face_s1);
+    }
 
 //     this.faces.delete(enclosing_face.label);
 //     this.faces.set(left_face.label, left_face);
 //     this.faces.set(right_face.label, right_face);
 
-    left_face._index = enclosing_face._index;
-    this.faces[left_face._index] = left_face;
+//     left_face._index = enclosing_face._index;
+//     this.faces[left_face._index] = left_face;
+//
+//     right_face._index = this.faces.length;
+//     this.faces.push(right_face);
 
-    right_face._index = this.faces.length;
-    this.faces.push(right_face);
+//     this.faces[enclosing_face.label] = undefined;
+//     this.faces[left_face.label] = left_face;
+//     this.faces[right_face.label] = right_face;
 
-    // add to the segment attachments
-    // attachments point to the right face
-    s0.attachments = new Array(2);
-    s0.attachments[BOTTOM] = adjs[BOTTOMRIGHT];
-    s0.attachments[TOP] = adjs[TOPRIGHT];
-    adjs[BOTTOMRIGHT].endpoint = s0;
-    adjs[TOPRIGHT].endpoint = s0;
+
+
+    return { new_faces, enclosing_faces };
   }
 
   _buildStartSegmentFaces(s) {
@@ -1173,11 +1274,15 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       console.warn(`_buildStartSegmentFaces attachment faces differ: \n\tTOP: ${s0.attachments[TOP].neighbor.face.label}\n\tBOTTOM:${s0.attachments[BOTTOM].neighbor.face.label}`);
     }
 
-    curr_faces[TOP]._index = s0.attachments[BOTTOM].neighbor.face._index;
-    this.faces[curr_faces[TOP]._index] = curr_faces[TOP];
+//     curr_faces[TOP]._index = s0.attachments[BOTTOM].neighbor.face._index;
+//     this.faces[curr_faces[TOP]._index] = curr_faces[TOP];
+//
+//     curr_faces[BOTTOM]._index = this.faces.length;
+//     this.faces.push(curr_faces[BOTTOM]);
+    this.faces[s0.attachments[BOTTOM].neighbor.face.label] = undefined;
+//     this.faces[curr_faces[TOP].label] = curr_faces[TOP];
+//     this.faces[curr_faces[BOTTOM].label] = curr_faces[BOTTOM];
 
-    curr_faces[BOTTOM]._index = this.faces.length;
-    this.faces.push(curr_faces[BOTTOM]);
     return curr_faces;
   }
 
@@ -1267,8 +1372,11 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     curr_faces[pos] = new Face({ orientation: pos });
     curr_faces[pos].openNextV(ix_adj2, transition.next_v);
 
-    curr_faces[pos]._index = transition.next_v.face._index;
-    this.faces[curr_faces[pos]._index] = curr_faces[pos];
+//     curr_faces[pos]._index = transition.next_v.face._index;
+//     this.faces[curr_faces[pos]._index] = curr_faces[pos];
+    this.faces[transition.next_v.face.label] = undefined;
+//     this.faces[curr_faces[pos].label] = curr_faces[pos];
+
 
     log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
@@ -1309,12 +1417,14 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       // after processing s. Also, will facilitate drawing.
 
 //       let t0_splitAttachmentFace = performance.now();
-      this._splitAttachmentFace(s0, s);
-      this._splitAttachmentFace(s1, s);
+      let new_faces = []; // track faces created
+      let res = this._splitAttachmentFace(s);
+      res.enclosing_faces.forEach(f => this.faces[f.label] = undefined);
+      res.new_faces.forEach(f => this.faces[f.label] = f);
+
 //       let t1_splitAttachmentFace = performance.now()
 //       console.log(`splitAttachmentFace * 2 took ${t1_splitAttachmentFace - t0_splitAttachmentFace} milliseconds.`)
 
-      let new_faces = []; // track faces created
 
       if(draw) {
         log(`Adding segment ${s._index}.`);
@@ -1367,6 +1477,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
         new_faces.push(...old_faces);
         old_faces.forEach(f => {
 //           this.faces.set(f.label, f);
+          this.faces[f.label] = f;
           if(draw) f.draw({ color: nextShade() });
           if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                   test_successor: true,
@@ -1386,6 +1497,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       new_faces.push(...old_faces);
       old_faces.forEach(f => {
 //         this.faces.set(f.label, f);
+        this.faces[f.label] = f;
         if(draw) f.draw({ color: nextShade() });
         if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                 test_successor: true,
@@ -1407,6 +1519,8 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
 //       let t1_addSegment = performance.now()
 //       console.log(`addSegment took ${t1_addSegment - t0_addSegment} milliseconds.`)
+      new_faces.forEach(f => this.faces[f.label] = f);
+
 
       return new_faces;
     }
@@ -1445,16 +1559,15 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     if(!shade_faces) return;
     let i = -1;
     const colors = [COLORS.lightblue, COLORS.lightgreen, COLORS.lightred];
-    this.faces.forEach(f => {
+    for(const f of Object.values(this.faces)) {
+      if(!f) continue;
       i += 1;
       //if(!i) return; // skip the initial (outside) face
-
 
       const ci = i % 3;
 
       f.draw({color: colors[ci]});
-
-    });
+    }
   }
 
   labelSegments() {
@@ -1487,12 +1600,14 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
-    this.faces.forEach((f, idx) => {
-      if(f._index !== idx) { console.error(`Face ${f.label} has index ${f._index} but expected ${idx}.`); }
-
-
-
-
+    const test_set = new Set();
+    let num_faces = 0;
+    for(const [label, f] of Object.entries(this.faces)) {
+      if(!f) continue;
+      num_faces += 1;
+      if(label != f.label) { console.error(`Face ${f.label}; expected ${label}.`);}
+//       if(f._index !== idx) { console.error(`Face ${f.label} has index ${f._index} but expected ${idx}.`); }
+      test_set.add(f.label);
       f.adjacencies.forEach(adj => {
         const key = adj.key;
         if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
@@ -1505,12 +1620,11 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
           return false;
         }
       });
-    });
+    }
+
 
     // faces should be unique
-    const test_set = new Set();
-    this.faces.forEach(f => test_set.add(f.label));
-    if(test_set.size !== this.faces.length) { console.error(`Faces array not unique. ${this.faces.length} vs ${test_set.size}.`); }
+    if(test_set.size !== num_faces) { console.error(`Faces array not unique. ${num_faces} vs ${test_set.size}.`); }
 
 
 
