@@ -456,12 +456,21 @@ class Face {
     this.orientation = orientation; // TOP or BOTTOM
     this.dir = this.orientation === TOP ? "successor" : "predecessor";
     this.bounds = undefined;
+
+    this.closed = false;
+
   }
 
   get label() {
-    const str = [];
-    this.adjacencies.forEach(adj => str.push(`${adj.label}`));
-    return str.join(` ->> `);
+    if(!this._label) {
+			const str = [];
+			this.adjacencies.forEach(adj => str.push(`${adj.label}`));
+			const res = str.join(` ->> `);
+      if(!this.closed) return res;
+      this._label = res;
+    }
+    return this._label;
+
   }
 
   _linkAdjacencies() {
@@ -482,6 +491,7 @@ class Face {
     }
 
     this.bounds = new PIXI.Polygon(pts);
+    this.closed = true;
   }
 
 
@@ -797,7 +807,7 @@ class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
     this.segments = [];
-    this.faces = new Set();
+    this.faces = new Map();
 
     segments.forEach((s, i) => {
       const new_s = Segment.fromEdge(s);
@@ -854,7 +864,7 @@ class Partition {
     // it does not have a defined boundary function and would therefore
     // overlap with initial_face
 
-    this.faces.add(initial_face);
+    this.faces.set(initial_face.label, initial_face);
   }
 
 
@@ -967,8 +977,8 @@ the intersection.
     curr_faces[BOTTOM].openIx(ix_adjs[BOTTOMLEFT], ix_adjs[BOTTOMLEFT]);
     log(`At intersection ${ix_adjs[BOTTOMLEFT].label}, \n\topened BOTTOMLEFT face ${curr_faces[BOTTOM].label}`);
 
-    this.faces.delete(bottom_next_v.face);
-    this.faces.delete(top_next_v.face);
+    this.faces.delete(bottom_next_v.face.label);
+    this.faces.delete(top_next_v.face.label);
 
     return old_faces;
   }
@@ -979,7 +989,7 @@ the intersection.
     // TO-DO: what if s is on the border of a face?
     // s0 will always be on the border of
 
-    let enclosing_face = [...this.faces].find(f => f.bounds.contains(s0.x, s0.y));
+    let enclosing_face = [...this.faces.values()].find(f => f.bounds.contains(s0.x, s0.y));
     if(!enclosing_face) { console.error(`_buildStartSegmentFaces: No face found for s0 ${s0.label}`); }
 
     // get the intersecting edges of the face
@@ -1100,9 +1110,9 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     const left_face = Face.create(...left_adjs);
     const right_face = Face.create(...right_adjs);
 
-    this.faces.delete(enclosing_face);
-    this.faces.add(left_face);
-    this.faces.add(right_face);
+    this.faces.delete(enclosing_face.label);
+    this.faces.set(left_face.label, left_face);
+    this.faces.set(right_face.label, right_face);
 
     // add to the segment attachments
     // attachments point to the right face
@@ -1139,7 +1149,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
 
 
-    this.faces.delete(s0.attachments[BOTTOM].neighbor.face);
+    this.faces.delete(s0.attachments[BOTTOM].neighbor.face.label);
 
     return curr_faces;
   }
@@ -1198,7 +1208,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // only needed to capture faces that contain processed intersections
     // needs to happen before closing the pos face, because after intersections,
     // closing the pos face can modify the face._next_v predecessor/successor
-    this.faces.delete(transition.next_v.face);
+    this.faces.delete(transition.next_v.face.label);
 
     curr_faces[opp].updateNextV(transition.next_v);
     log(`At ix ${ix_adj1.label}: \n\tupdated ${opp === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[opp].label}`);
@@ -1239,7 +1249,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     addSegment({ draw = false, idx = undefined } = {}) {
       // ------ Initial setup ----- //
       // randomly select segment or choose user-selected
-      let t0_addSegment = performance.now();
+//       let t0_addSegment = performance.now();
 
       if(this.process_queue.length === 0) return false;
 
@@ -1269,11 +1279,11 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       // do s1 now b/c there are less faces to sort through than will be the case
       // after processing s. Also, will facilitate drawing.
 
-      let t0_splitAttachmentFace = performance.now();
+//       let t0_splitAttachmentFace = performance.now();
       this._splitAttachmentFace(s0, s);
       this._splitAttachmentFace(s1, s);
-      let t1_splitAttachmentFace = performance.now()
-      console.log(`splitAttachmentFace * 2 took ${t1_splitAttachmentFace - t0_splitAttachmentFace} milliseconds.`)
+//       let t1_splitAttachmentFace = performance.now()
+//       console.log(`splitAttachmentFace * 2 took ${t1_splitAttachmentFace - t0_splitAttachmentFace} milliseconds.`)
 
       let new_faces = []; // track faces created
 
@@ -1327,7 +1337,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
         new_faces.push(...old_faces);
         old_faces.forEach(f => {
-          this.faces.add(f);
+//           this.faces.set(f.label, f);
           if(draw) f.draw({ color: nextShade() });
           if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                   test_successor: true,
@@ -1346,7 +1356,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
       new_faces.push(...old_faces);
       old_faces.forEach(f => {
-        this.faces.add(f);
+//         this.faces.set(f.label, f);
         if(draw) f.draw({ color: nextShade() });
         if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                 test_successor: true,
@@ -1355,6 +1365,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
         }
       });
 
+      new_faces.forEach(f => this.faces.set(f.label, f));
 
       // ---------- Cleanup ------------ //
 
@@ -1365,8 +1376,8 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
                             test_face: true });
 
 
-      let t1_addSegment = performance.now()
-      console.log(`addSegment took ${t1_addSegment - t0_addSegment} milliseconds.`)
+//       let t1_addSegment = performance.now()
+//       console.log(`addSegment took ${t1_addSegment - t0_addSegment} milliseconds.`)
 
       return new_faces;
     }
