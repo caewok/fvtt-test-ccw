@@ -379,9 +379,18 @@ class Segment {
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
 
-    let other_segment = left.segments.intersection(right.segments).values().next().value;
-    if(!other_segment) { console.error(`Face.transition: No segments found.`); }
-
+    let other_segment = left.segment ?? right.segment;
+    if(!other_segment) {
+      // should mean both left and right are intersections; get the intersection of their
+      // segments
+      if(!left.segments || !right.segments) {
+        console.error(`Face.transition: No segments found.`);
+      }
+      other_segment = [...left.segments.intersection(right.segments)][0];
+      if(!other_segment) {
+        console.error(`Face.transition: No segment found.`);
+      }
+    }
 
     // is the other segment right endpoint above (to right) or below (to left) of s?
     // orient2d positive if c is to the left of s (this)
@@ -455,19 +464,36 @@ class Face {
 //     this._isOpen = undefined; // true if open, false if closed, undefined at start.
     this.orientation = orientation; // TOP or BOTTOM
     this.dir = this.orientation === TOP ? "successor" : "predecessor";
-    this.bounds = undefined;
+    this._bounds = undefined;
     this.closed = false;
   }
 
   get label() {
-    if(!this._label) {
-      const str = [];
-      this.adjacencies.forEach(adj => str.push(`${adj.label}`));
-      const res = str.join(` ->> `);
-      if(!this.closed) return res;
-      this._label = res;
+    const str = [];
+    this.adjacencies.forEach(adj => str.push(`${adj.label}`));
+    return str.join(` ->> `);
+  }
+
+//   get label() {
+//     if(!this._label) {
+//       const str = [];
+//       this.adjacencies.forEach(adj => str.push(`${adj.label}`));
+//       const res = str.join(` ->> `);
+//       if(!this.closed) return res;
+//       this._label = res;
+//     }
+//     return this._label;
+//   }
+
+  get bounds() {
+    if(!this._bounds) {
+      const pts = [];
+      this.adjacencies.forEach(adj => pts.push(adj.x, adj.y));
+      const poly = new PIXI.Polygon(pts);
+      if(!this.closed) { this._bounds = poly; }
+      return poly;
     }
-    return this._label;
+    return this._bounds;
   }
 
   _linkAdjacencies() {
@@ -475,16 +501,13 @@ class Face {
     // also set the face for each adjacency.
     const adjs = this.adjacencies;
     const ln = adjs.length;
-    const pts = [];
     for(let i = 0; i < ln; i += 1) {
       const next_i = (i + 1) % ln;
       const adj = adjs[i];
       adj.successor = adjs[next_i];
       adjs[next_i].predecessor = adj;
       adj.face = this;
-      pts.push(adj.x, adj.y);
     }
-    this.bounds = new PIXI.Polygon(pts);
     this.closed = true;
   }
 
@@ -684,7 +707,6 @@ class Adjacency extends Vertex {
     this.face = face;
     this.neighbor = neighbor;
     this.successor = successor;
-    this.segments = new Set();
   }
 
   static fromVertex(v, face, neighbor, successor) {
@@ -802,6 +824,7 @@ class Partition {
     this.intersections = []; // to track intersections found
     this.segments = [];
     this._faces = new Set();
+//     this._faces = undefined;
 
     const endpoints = [];
     segments.forEach((s, i) => {
@@ -1069,7 +1092,8 @@ class Partition {
       if(!ix) { console.error(`_buildStartSegmentFaces: lineLineIntersection not found for s0 ${s0.label}`); }
 
       // set the segment for this vertex
-      let segments = adj.segments.intersection(adj.successor.segments);
+      let segment = adj.segment || adj.successor.segment;
+      if(!segment) { segment = adj.segments.intersection(adj.successor.segments) }
 
       // to avoid numerical issues, set ix.x to s0.x, as we are using a vertical line.
       // round ix.y to given number of digits just in case
@@ -1084,22 +1108,17 @@ class Partition {
         adjs[BOTTOMRIGHT] = Adjacency.fromVertex(ix);
         adjs[BOTTOMLEFT] = Adjacency.fromVertex(ix);
 
-        // make separate copies
-        segments.forEach(s => {
-          adjs[BOTTOMRIGHT].segments.add(s);
-          adjs[BOTTOMLEFT].segments.add(s);
-        });
+        adjs[BOTTOMRIGHT].segment = segment;
+        adjs[BOTTOMLEFT].segment = segment;
 
       } else { // right or top
         splits.top = i;
         adjs[TOPRIGHT] = Adjacency.fromVertex(ix);
         adjs[TOPLEFT] = Adjacency.fromVertex(ix);
 
-        // make separate copies
-        segments.forEach(s => {
-          adjs[TOPRIGHT].segments.add(s);
-          adjs[TOPLEFT].segments.add(s);
-        });
+				adjs[TOPRIGHT].segment = segment;
+				adjs[TOPLEFT].segment = segment;
+
       }
 
       if(~splits.top && ~splits.bottom) break;
@@ -1305,7 +1324,11 @@ the intersection.
     ix_adjs[BOTTOMRIGHT].neighbor = ix_adjs[BOTTOMLEFT];
     ix_adjs[TOPRIGHT].neighbor = ix_adjs[BOTTOMRIGHT];
 
+    // or, if using the same set doesn't matter:
+//     let segments = new Set([s, transition.other_segment]);
+//     ix_adjs.forEach(adj => adj.segments = segments);
     ix_adjs.forEach(adj => {
+      adj.segments = new Set;
       adj.segments.add(s);
       adj.segments.add(transition.other_segment);
     });
@@ -1388,8 +1411,8 @@ the intersection.
     let s0nw = Adjacency.fromVertex(s0);
     let s0sw = Adjacency.fromVertex(s0);
 
-    s0nw.segments.add(s);
-    s0sw.segments.add(s);
+    s0nw.segment = s;
+    s0sw.segment = s;
 
     // link the adjacencies as neighbors, plus link to endpoint
     s0nw.neighboring_endpoint = s0; // link adjacency back to s0 endpoint
@@ -1414,8 +1437,8 @@ the intersection.
     let ix_adj1 = Adjacency.fromVertex(transition.ix);
     let ix_adj2 = Adjacency.fromVertex(transition.ix);
 
-    ix_adj1.segments.add(s);
-    ix_adj2.segments.add(s);
+    ix_adj1.segment = s;
+    ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);
 
     ix_adj1.neighboring_endpoint = s1;
@@ -1453,8 +1476,8 @@ the intersection.
     let ix_adj1 = Adjacency.fromVertex(transition.ix);
     let ix_adj2 = Adjacency.fromVertex(transition.ix);
 
-    ix_adj1.segments.add(s);
-    ix_adj2.segments.add(s);
+    ix_adj1.segment = s;
+    ix_adj2.segment = s;
     ix_adj1.setNeighbor(ix_adj2);
 
     // only needed to capture faces that contain processed intersections
@@ -1620,7 +1643,7 @@ the intersection.
       // ---------- Cleanup ------------ //
 
       this.partitioned_segments.add(s);
-      this._faces.clear();
+//       this._faces.clear();
 
       if(this.consistency_check) this.consistencyTest({ test_neighbor: true,
                             test_successor: true,
