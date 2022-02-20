@@ -286,13 +286,18 @@ have an intersection
   }
   
   // convert padding {x, y} to points array
-  padding = padding.flatMap(pt => [pt.x, pt.y]);
+  //padding = padding.flatMap(pt => [pt.x, pt.y]);
+  let pts = [];
+  for(const pt of padding) {
+    pts.push(pt.x, pt.y);
+  }
+  
   
   // if we were tracing the segment or are now tracing the segment, add intersection
   // (skip if we are just continuing the circle)
-  if(was_tracing_segment || tracing_segment) { padding.push(x.x, x.y); }
+  if(was_tracing_segment || tracing_segment) { pts.push(x.x, x.y); }
   
-  return { padding: padding,
+  return { padding: pts,
            tracing_segment: tracing_segment,
            circle_start: circle_start };
 }

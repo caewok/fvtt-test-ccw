@@ -32,7 +32,13 @@ Helper methods:
 */
 
 function fromPoints(points) {
-  const out = new this(points.flatMap(pt => [pt.x, pt.y]));
+  //const out = new this(points.flatMap(pt => [pt.x, pt.y]));
+  // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
+  const pts = [];
+  for(const pt of points) {
+    pts.push(pt.x, pt.y);
+  }
+  const out = new this(...pts);
   out.close()
   return out;
 }
@@ -311,7 +317,15 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
  * Transform array of X, Y points to a PIXI.Polygon
  */
 function fromClipperPoints(points) {
-  const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
+  // const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
+  // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
+  const pts = [];
+  for(const pt of points) {
+    pts.push(pt.X, pt.Y);
+  }
+  const out = new this(...pts);
+
+  
   out.close();
   return out;
 }

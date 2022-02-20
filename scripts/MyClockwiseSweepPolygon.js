@@ -1,12 +1,5 @@
 /* globals 
 
-
-*/
-
-'use strict';
-
-/* globals 
-
 CONST,
 foundry,
 canvas,
@@ -27,7 +20,7 @@ PolygonVertex
 //import { SimplePolygon } from "./SimplePolygon.js";
 //import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY } from "./utilities.js";
-import { SimplePolygonEdge, SimplePolygon } from "./SimplePolygon.js";
+import { SimplePolygonEdge2 as SimplePolygonEdge, SimplePolygon2 as SimplePolygon } from "./SimplePolygon2.js";
 
 /*
 Basic concept: 
