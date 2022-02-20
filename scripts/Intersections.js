@@ -6,6 +6,8 @@ foundry
 
 'use strict';
 
+import { compareXY } from "./utilities.js";
+
 // Intersections
 
 function intersectLines(a, b, c, d) {
@@ -253,7 +255,42 @@ export class BruteSortIntersections extends Intersections2 {
     
     return segments;
   }
-
+  
+ static _process(segments1, segments2, 
+    { reportIntersection = Intersections2.defaultReporter,
+      intersectTest = Intersections2.defaultTester } = {}) {
+    
+    const results = [];
+    
+    // handle case where we have a single array of segments versus two arrays   
+    const incr_j = segments2 ? 0 : 1;
+    segments2 = segments2 ? segments2 : segments1;
+    
+    const ln1 = segments1.length;
+    const ln2 = segments2.length;
+    for(let i = 0; i < ln1; ++i) {
+      const test = segments1[i];
+      const test_min_x = test.min_x;
+      const test_max_x = test.max_x; 
+      const j_start = (i + 1) * incr_j;
+ 
+      for (let j = j_start; j < ln2; ++j) {
+        const other = segments2[j];
+        
+        // if we have not yet reached the left end of this segment, we can skip
+        if(other.max_x < test_min_x) continue;
+    
+        // if we reach the right end of this segment, we can skip the rest
+        if(other.min_x > test_max_x) break;
+        
+        const pt = intersectTest(test, other);
+        if (pt) {
+          reportIntersection(results, pt, [test, other], { i: i, j: j });
+        }
+      }
+    }
+    return results;    
+ }
   _singlePool(segments) {
     const reportIntersection = this.reportIntersection;
     const intersectTest = this.intersectTest;
@@ -304,6 +341,123 @@ export class BruteSortIntersections extends Intersections2 {
     
         // if we reach the right end of this segment, we can skip the rest
         if(other.min_x > test_max_x) break;
+        
+        const pt = intersectTest(test, other);
+        if (pt) {
+          reportIntersection(results, pt, [test, other], { i: i, j: j });
+        }
+      }
+    }
+    return results;  
+  }
+
+}
+
+export class BruteSortXYIntersections extends Intersections2 {
+  prep(segments) {
+    // set up min/max properties if not already
+    segments.forEach(l => {
+      if(typeof l.min_xy === "undefined") {
+        const first_is_min = compareXY(l.from, l.to) < 0;
+        l.min_xy = first_is_min ? l.from : l.to;
+        l.max_xy = !first_is_min ? l.from : l.to; // will use later
+      }
+    });
+    
+    segments.sort((a, b) => {            
+      return compareXY(a.min_xy, b.min_xy);
+    });
+    
+    return segments;
+  }
+  
+  static _process(segments1, segments2, 
+    { reportIntersection = Intersections2.defaultReporter,
+      intersectTest = Intersections2.defaultTester } = {}) {
+    
+    const results = [];
+    
+    // handle case where we have a single array of segments versus two arrays   
+    const incr_j = segments2 ? 0 : 1;
+    segments2 = segments2 ? segments2 : segments1;
+    
+    const ln1 = segments1.length;
+    const ln2 = segments2.length;
+    for(let i = 0; i < ln1; ++i) {
+      const test = segments1[i];
+      const test_min_xy = test.min_xy;
+      const test_max_xy = test.max_xy; 
+      const j_start = (i + 1) * incr_j;
+ 
+      for (let j = j_start; j < ln2; ++j) {
+        const other = segments2[j];
+        
+        // if we have not yet reached the left end of this segment, we can skip
+        if(compareXY(other.max_xy, test_min_xy) < 0) continue;
+    
+        // if we reach the right end of this segment, we can skip the rest
+        if(compareXY(other.min_xy, test_max_xy) > 0) break;
+        
+        const pt = intersectTest(test, other);
+        if (pt) {
+          reportIntersection(results, pt, [test, other], { i: i, j: j });
+        }
+      }
+    }
+    return results;    
+  }
+  
+
+  _singlePool(segments) {
+    const reportIntersection = this.reportIntersection;
+    const intersectTest = this.intersectTest;
+    const results = [];
+    
+    const ln = segments.length;
+    for(let i = 0; i < ln; ++i) {
+      const test = segments[i];
+      const test_min_xy = test.min_xy;
+      const test_max_xy = test.max_xy; 
+ 
+      for (let j = i + 1; j < ln; ++j) {
+        const other = segments[j];
+        
+        // if we have not yet reached the left end of this segment, we can skip
+        if(compareXY(other.max_xy, test_min_xy) < 0) continue; 
+    
+        // if we reach the right end of this segment, we can skip the rest
+        if(compareXY(other.min_xy, test_max_xy) > 0) break;
+        
+        const pt = intersectTest(test, other);
+        if (pt) {
+          reportIntersection(results, pt, [test, other], { i: i, j: j });
+        }
+      }
+    }
+    return results;
+  
+  }
+  
+  _doublePool(segments1, segments2) {
+    const reportIntersection = this.reportIntersection;
+    const intersectTest = this.intersectTest;
+    const results = [];
+    
+    const ln1 = segments1.length;
+    const ln2 = segments2.length;
+    for(let i = 0; i < ln1; ++i) {
+      const test = segments1[i];
+      const test_min_xy = test.min_xy;
+      const test_max_xy = test.max_xy; 
+ 
+      for (let j = 0; j < ln2; ++j) {
+        const other = segments2[j];
+        
+        // if we have not yet reached the left end of this segment, we can skip
+        if(compareXY(other.max_xy, test_min_xy) < 0) continue;
+    
+        // if we reach the right end of this segment, we can skip the rest
+        if(compareXY(other.min_xy, test_max_xy) > 0) break;
         
         const pt = intersectTest(test, other);
         if (pt) {
