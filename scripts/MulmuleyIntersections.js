@@ -76,10 +76,23 @@ const log = function(...args) {
   } catch (e) {
     // empty
   }
-}
+};
 
 function compareXY(a, b) {
   return ( a.x - b.x ) || (a.y - b.y );
+}
+
+// used to slice array for splitting faces
+// end can be less than start and this will circle round
+function sliceLoop(arr, start, end) {
+
+  if(!end) return arr.slice(start);
+  if(end > start) return arr.slice(start, end);
+
+  const n = arr.length;
+  const out = arr.slice(start, n);
+  out.push(...arr.slice(0, end));
+  return out;
 }
 
 // Used in Partition.addSegment; LEFT/RIGHT in _buildSegmentIntersectionFaces
@@ -185,7 +198,7 @@ class Segment {
         b: x2 - x1,
         //c: (x1 - x2) * y1 + (y2 - y1) * x1
         c: (x1 * y2) - (x2 * y1)
-      }
+      };
     }
     return this._general_eq;
   }
@@ -202,7 +215,7 @@ class Segment {
   }
 
   orient2d(p) {
-    return foundry.utils.orient2dFast(this.max_xy, this.min_xy, p)
+    return foundry.utils.orient2dFast(this.max_xy, this.min_xy, p);
   }
 
 
@@ -331,7 +344,7 @@ class Segment {
     const out = {
       is_left: e_is_left,
       ix: new Vertex(l_endpoint.x, new_y)
-    }
+    };
 
     if(e_is_left) {
       out.next_v = right.neighbor;
@@ -366,18 +379,9 @@ class Segment {
     const ln = 1000; // to prevent infinite loops while debugging
     let i = 0;
 
-    let other_segment = left.segment ?? right.segment;
-    if(!other_segment) {
-      // should mean both left and right are intersections; get the intersection of their
-      // segments
-      if(!left.segments || !right.segments) {
-        console.error(`Face.transition: No segments found.`);
-      }
-      other_segment = [...left.segments.intersection(right.segments)][0];
-      if(!other_segment) {
-        console.error(`Face.transition: No segment found.`);
-      }
-    }
+    let other_segment = left.segments.intersection(right.segments).values().next().value;
+    if(!other_segment) { console.error(`Face.transition: No segments found.`); }
+
 
     // is the other segment right endpoint above (to right) or below (to left) of s?
     // orient2d positive if c is to the left of s (this)
@@ -451,12 +455,19 @@ class Face {
 //     this._isOpen = undefined; // true if open, false if closed, undefined at start.
     this.orientation = orientation; // TOP or BOTTOM
     this.dir = this.orientation === TOP ? "successor" : "predecessor";
+    this.bounds = undefined;
+    this.closed = false;
   }
 
   get label() {
-    const str = [];
-    this.adjacencies.forEach(adj => str.push(`${adj.label}`));
-    return str.join(` ->> `);
+    if(!this._label) {
+      const str = [];
+      this.adjacencies.forEach(adj => str.push(`${adj.label}`));
+      const res = str.join(` ->> `);
+      if(!this.closed) return res;
+      this._label = res;
+    }
+    return this._label;
   }
 
   _linkAdjacencies() {
@@ -464,12 +475,17 @@ class Face {
     // also set the face for each adjacency.
     const adjs = this.adjacencies;
     const ln = adjs.length;
+    const pts = [];
     for(let i = 0; i < ln; i += 1) {
       const next_i = (i + 1) % ln;
-      adjs[i].successor = adjs[next_i];
-      adjs[next_i].predecessor = adjs[i];
-      adjs[i].face = this;
+      const adj = adjs[i];
+      adj.successor = adjs[next_i];
+      adjs[next_i].predecessor = adj;
+      adj.face = this;
+      pts.push(adj.x, adj.y);
     }
+    this.bounds = new PIXI.Polygon(pts);
+    this.closed = true;
   }
 
 
@@ -668,6 +684,7 @@ class Adjacency extends Vertex {
     this.face = face;
     this.neighbor = neighbor;
     this.successor = successor;
+    this.segments = new Set();
   }
 
   static fromVertex(v, face, neighbor, successor) {
@@ -784,8 +801,7 @@ class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
     this.segments = [];
-//     this.faces = new Set();
-    this.adjacencies = new Set();
+    this._faces = new Set();
 
     const endpoints = [];
     segments.forEach((s, i) => {
@@ -810,7 +826,7 @@ class Partition {
 
     // to save effort and make debugging easier, randomly generate
     // process order in advance
-    this.process_queue = Array.fromRange(this.segments.size);
+    this.process_queue = Array.fromRange(this.segments.length);
     this.process_queue.sort(() => Math.random() - 0.5);
 
     // whether to run consistency checks
@@ -818,10 +834,45 @@ class Partition {
     this.debug = true;
   }
 
+  _addFacesToSet(adj) {
+    this._faces.add(adj.face);
+    let curr = adj.neighbor;
+    while(curr !== adj) {
+      this._faces.add(curr.face);
+      curr = curr.neighbor;
+    }
+  }
+
   get faces() {
-    const faces = new Set();
-    this.adjacencies.forEach(adj => faces.add(adj.face));
-    return faces;
+    if(!this._faces.size) {
+      // faces are at endpoints or at intersections
+      // many will be repeats
+      this.partitioned_segments.forEach(s => {
+        const s0 = s.max_xy;
+        const s1 = s.min_xy;
+
+        if(s0.attachments) {
+          this._addFacesToSet(s0.attachments[0]);
+          this._addFacesToSet(s0.attachments[1]);
+        }
+
+        if(s1.attachments) {
+          this._addFacesToSet(s1.attachments[0]);
+          this._addFacesToSet(s1.attachments[1]);
+        }
+
+      });
+
+      // we know intersections have four faces, so don't need to follow neighbors
+      // TO-DO: 3+ segments can share an intersection, this assumption will fail
+      this.intersections.forEach(ix => {
+        this._faces.add(ix.adjs[0].face);
+        this._faces.add(ix.adjs[1].face);
+        this._faces.add(ix.adjs[2].face);
+        this._faces.add(ix.adjs[3].face);
+      });
+    }
+    return this._faces;
   }
 
   calculateIntersections() {
@@ -890,7 +941,24 @@ class Partition {
                                      new Adjacency(x_left, y_top),
                                      new Adjacency(x_left, y_bottom));
 
-    if(this.debug) { initial_face.adjacencies.forEach(adj => this.adjacencies.add(adj)); }
+    if(this.segments.length === 0) {
+      // no segments provided to the constructor
+      // build initial face and return
+      // for consistency test, also build the neighboring adjacencies (outside border)
+      // and face
+      const outside_adjs = [];
+      initial_face.adjacencies.forEach(adj => {
+        const new_adj = new Adjacency(adj.x, adj.y);
+        adj.setNeighbor(new_adj);
+        outside_adjs.push(new_adj);
+      });
+      Face.create(...outside_adjs);
+      this._faces.add(initial_face);
+      // don't add the outside face to the set of faces, b/c
+      // it does not have a defined boundary function and would therefore
+      // overlap with initial_face
+      return;
+    }
 
     let prior_top = initial_face.adjacencies[ADJS.tl];
     let prior_bottom = initial_face.adjacencies[ADJS.bl];
@@ -932,10 +1000,7 @@ class Partition {
       prior_bottom = f.adjacencies[ADJS.br];
       prior_e = e;
 
-      if(this.debug) {
-        this.adjacencies.add(prior_top);
-        this.adjacencies.add(prior_bottom);
-      }
+
     });
 
 
@@ -964,7 +1029,245 @@ class Partition {
     last_f.adjacencies[ADJS.tl].endpoint = prior_e;
   }
 
+  _findIntersectingAdjacencies(enclosing_face, s0, s) {
+    // get the intersecting edges of the face
+    // adjacencies are strictly vertical, so looking for x
+    // top will be to the right of s
+    // bottom will be to the left of s
+    let ln = enclosing_face.adjacencies.length;
+    let top_v = new Vertex(s0.x, 0);
+    let bottom_v = new Vertex(s0.x, canvas.dimensions.height);
+    let splits = { top: -1, bottom: -1 };
 
+    let adjs = Array(4);
+
+    for(let i = 0; i < ln; i += 1) {
+      let adj = enclosing_face.adjacencies[i];
+
+      // two options here:
+      // 1. do lineSegmentIntersects for bottom|top, then lineLineIntersection once
+      //    and then get orientation of the intersection w/r/t s
+      // 2. do lineSegmentIntersects for top segment, then bottom segment,
+      //    then do lineLineIntersection once
+      // Benchmarking is unclear b/c all are fast
+      // orient2d might be slightly faster than lineLineX but 10x+ faster than lineSegment?
+      // looking at the code:
+      // orient2d: 5 subtractions, two multiplications
+      // lineSegmentX: 4 orient2d, two multiplications, two comparisons, 1 boolean
+      // lineLineX: early return using booleans and equality but unlikely to occur
+      //            early return after 1 orient2d for parallel lines
+      //            second orient2d, division, additional 2 subtractions, 2 additions, 2 mult
+      // Expect lineSegmentX to be at least 4x slower than orient2d
+      // Expect lineLineX to be at least 2x slower than orient2d
+      // So option (2) likely faster.
+
+      if(!foundry.utils.lineSegmentIntersects(adj, adj.successor, bottom_v, top_v)) {
+        continue;
+      }
+
+      let ix = foundry.utils.lineLineIntersection(adj, adj.successor, bottom_v, top_v);
+      if(!ix) { console.error(`_buildStartSegmentFaces: lineLineIntersection not found for s0 ${s0.label}`); }
+
+      // set the segment for this vertex
+      let segments = adj.segments.intersection(adj.successor.segments);
+
+      // to avoid numerical issues, set ix.x to s0.x, as we are using a vertical line.
+      // round ix.y to given number of digits just in case
+      ix.x = s0.x;
+      ix.y = Math.round((ix.y + Number.EPSILON) * 1e10) / 1e10;
+
+      let dir = foundry.utils.orient2dFast(s.max_xy, s.min_xy, ix);
+      if(dir === 0) { console.error(`_buildStartSegmentFaces: orientation is colinear s0 ${s0.label}`);}
+
+      if(dir > 0) { // left or bottom
+        splits.bottom = i;
+        adjs[BOTTOMRIGHT] = Adjacency.fromVertex(ix);
+        adjs[BOTTOMLEFT] = Adjacency.fromVertex(ix);
+
+        // make separate copies
+        segments.forEach(s => {
+          adjs[BOTTOMRIGHT].segments.add(s);
+          adjs[BOTTOMLEFT].segments.add(s);
+        });
+
+      } else { // right or top
+        splits.top = i;
+        adjs[TOPRIGHT] = Adjacency.fromVertex(ix);
+        adjs[TOPLEFT] = Adjacency.fromVertex(ix);
+
+        // make separate copies
+        segments.forEach(s => {
+          adjs[TOPRIGHT].segments.add(s);
+          adjs[TOPLEFT].segments.add(s);
+        });
+      }
+
+      if(~splits.top && ~splits.bottom) break;
+    }
+
+    // set the neighbors
+    adjs[TOPRIGHT].setNeighbor(adjs[TOPLEFT]);
+    adjs[BOTTOMRIGHT].setNeighbor(adjs[BOTTOMLEFT]);
+
+    // add to the segment attachments
+    // attachments point to the right face
+    s0.attachments = new Array(2);
+    s0.attachments[BOTTOM] = adjs[BOTTOMRIGHT];
+    s0.attachments[TOP] = adjs[TOPRIGHT];
+    adjs[BOTTOMRIGHT].endpoint = s0;
+    adjs[TOPRIGHT].endpoint = s0;
+
+    return { adjs: adjs,
+             splits: splits,
+             ends: { bottom: (splits.bottom + 1) % ln,
+                     top: (splits.top + 1) % ln }
+           };
+  }
+
+  _splitAttachmentFace(s) {
+    // find the face that contains s0.
+    // only one face will contain s0
+    // TO-DO: what if s is on the border of a face?
+/*
+starting with a single face
+
+•-----•
+|     |
+|     |
+•-----•
+
+splitting into left and right
+
+•-----•-----•
+|     |     |
+|     |     |
+•-----•-----•
+
+so each has a shared top and bottom vertex, represented by two adjacencies each.
+*/
+    // Variations:
+    // 1. s0 and s1 are in the same face, so building ☐☐☐
+    // 2. s0 and s1 are in separate faces, so like above, splitting each into two.
+
+//     let enclosing_face = this.faces.find(f => f && f.bounds.contains(s0.x, s0.y));
+    let s0 = s.max_xy;
+    let s1 = s.min_xy;
+
+    let enclosing_face_s0;
+    let enclosing_face_s1;
+    for(const f of this.faces) {
+      if(!f) continue;
+      if(!enclosing_face_s0 && f.bounds.contains(s0.x, s0.y)) {
+        enclosing_face_s0 = f;
+      }
+
+      if(!enclosing_face_s1 && f.bounds.contains(s1.x, s1.y)) {
+        enclosing_face_s1 = f;
+      }
+      if(enclosing_face_s0 && enclosing_face_s1) break;
+    }
+
+    if(!enclosing_face_s0) { console.error(`_splitAttachmentFace: No face found for s0 ${s0.label}`); }
+    if(!enclosing_face_s1) { console.error(`_splitAttachmentFace: No face found for s1 ${s1.label}`); }
+
+    let res0 = this._findIntersectingAdjacencies(enclosing_face_s0, s0, s);
+    let res1 = this._findIntersectingAdjacencies(enclosing_face_s1, s1, s);
+
+    const new_faces = [];
+    const enclosing_faces = [];
+
+    if(enclosing_face_s0 === enclosing_face_s1) {
+/*
+•-----•-----•-----•
+|     |     |     |
+|     |     |     |
+•-----•-----•-----•
+      s1    s0
+*/
+      let right_adjs = [
+        res0.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.bottom, res0.splits.top + 1),
+        res0.adjs[TOPRIGHT]
+      ];
+
+      let middle_adjs = [
+        res0.adjs[BOTTOMLEFT],
+        res0.adjs[TOPLEFT]
+      ];
+
+      if(res0.splits.top !== res1.splits.top) {
+//         console.log(`_splitAttachmentFace top splits not equal.`);
+        middle_adjs.push(...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.top, res1.ends.top));
+      }
+
+      middle_adjs.push(res1.adjs[TOPRIGHT], res1.adjs[BOTTOMRIGHT]);
+      if(res0.splits.bottom !== res1.splits.bottom) {
+//         console.log(`_splitAttachmentFace bottom splits not equal.`);
+        middle_adjs.push(...sliceLoop(enclosing_face_s0.adjacencies, res1.ends.bottom, res0.ends.bottom));
+      }
+
+      let left_adjs = [
+        res1.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.top, res1.splits.bottom + 1),
+        res1.adjs[BOTTOMLEFT]
+      ];
+
+      new_faces.push(Face.create(...right_adjs),
+                    Face.create(...middle_adjs),
+                     Face.create(...left_adjs));
+      enclosing_faces.push(enclosing_face_s0);
+
+    } else {
+      let right_adjs0 = [
+        res0.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.bottom, res0.splits.top + 1),
+        res0.adjs[TOPRIGHT]
+      ];
+
+      let left_adjs0 = [
+        res0.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s0.adjacencies, res0.ends.top, res0.splits.bottom + 1),
+        res0.adjs[BOTTOMLEFT]
+      ];
+
+      let right_adjs1 = [
+        res1.adjs[BOTTOMRIGHT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.bottom, res1.splits.top + 1),
+        res1.adjs[TOPRIGHT]
+      ];
+
+      let left_adjs1 = [
+        res1.adjs[TOPLEFT],
+        ...sliceLoop(enclosing_face_s1.adjacencies, res1.ends.top, res1.splits.bottom + 1),
+        res1.adjs[BOTTOMLEFT]
+      ];
+
+      new_faces.push(Face.create(...left_adjs0),
+                     Face.create(...right_adjs0),
+                     Face.create(...left_adjs1),
+                     Face.create(...right_adjs1));
+
+      enclosing_faces.push(enclosing_face_s0, enclosing_face_s1);
+    }
+
+//     this.faces.delete(enclosing_face.label);
+//     this.faces.set(left_face.label, left_face);
+//     this.faces.set(right_face.label, right_face);
+
+//     left_face._index = enclosing_face._index;
+//     this.faces[left_face._index] = left_face;
+//
+//     right_face._index = this.faces.length;
+//     this.faces.push(right_face);
+
+//     this.faces[enclosing_face.label] = undefined;
+//     this.faces[left_face.label] = left_face;
+//     this.faces[right_face.label] = right_face;
+
+
+
+    return { new_faces, enclosing_faces };
+  }
 
   _buildSegmentIntersectionFaces(s, traversal, transition, curr_faces) {
 /*
@@ -1002,15 +1305,10 @@ the intersection.
     ix_adjs[BOTTOMRIGHT].neighbor = ix_adjs[BOTTOMLEFT];
     ix_adjs[TOPRIGHT].neighbor = ix_adjs[BOTTOMRIGHT];
 
-    let segments = new Set([s, transition.other_segment]);
-    ix_adjs.forEach(adj => adj.segments = segments);
-
-    if(this.debug) {
-			this.adjacencies.add(ix_adjs[TOPRIGHT]);
-			this.adjacencies.add(ix_adjs[TOPLEFT]);
-			this.adjacencies.add(ix_adjs[BOTTOMLEFT]);
-			this.adjacencies.add(ix_adjs[BOTTOMRIGHT]);
-    }
+    ix_adjs.forEach(adj => {
+      adj.segments.add(s);
+      adj.segments.add(transition.other_segment);
+    });
 
     // 1. Close the TOP face
     curr_faces[TOP].closeIx(ix_adjs[TOPRIGHT], s0);
@@ -1079,7 +1377,7 @@ the intersection.
     curr_faces[BOTTOM].openIx(ix_adjs[BOTTOMLEFT], ix_adjs[BOTTOMLEFT]);
     log(`At intersection ${ix_adjs[BOTTOMLEFT].label}, \n\topened BOTTOMLEFT face ${curr_faces[BOTTOM].label}`);
 
-    return old_faces;
+    return { old_faces, ix_adjs };
   }
 
   _buildStartSegmentFaces(s) {
@@ -1090,8 +1388,8 @@ the intersection.
     let s0nw = Adjacency.fromVertex(s0);
     let s0sw = Adjacency.fromVertex(s0);
 
-    s0nw.segment = s;
-    s0sw.segment = s;
+    s0nw.segments.add(s);
+    s0sw.segments.add(s);
 
     // link the adjacencies as neighbors, plus link to endpoint
     s0nw.neighboring_endpoint = s0; // link adjacency back to s0 endpoint
@@ -1105,12 +1403,6 @@ the intersection.
     curr_faces[BOTTOM].openNextV(s0sw, s0.attachments[TOP].neighbor);
 
     log(`For starting endpoint ${s.max_xy.label}, opened faces \n\t   TOP: ${curr_faces[TOP].label}\n\tBOTTOM: ${curr_faces[BOTTOM].label}`);
-
-    if(this.debug) {
-      this.adjacencies.add(s0nw);
-      this.adjacencies.add(s0sw);
-    }
-
     return curr_faces;
   }
 
@@ -1122,8 +1414,8 @@ the intersection.
     let ix_adj1 = Adjacency.fromVertex(transition.ix);
     let ix_adj2 = Adjacency.fromVertex(transition.ix);
 
-    ix_adj1.segment = s;
-    ix_adj2.segment = s;
+    ix_adj1.segments.add(s);
+    ix_adj2.segments.add(s);
     ix_adj1.setNeighbor(ix_adj2);
 
     ix_adj1.neighboring_endpoint = s1;
@@ -1151,11 +1443,6 @@ the intersection.
 
     }
 
-    if(this.debug) {
-      this.adjacencies.add(ix_adj1);
-      this.adjacencies.add(ix_adj2);
-    }
-
     return curr_faces;
   }
 
@@ -1166,8 +1453,8 @@ the intersection.
     let ix_adj1 = Adjacency.fromVertex(transition.ix);
     let ix_adj2 = Adjacency.fromVertex(transition.ix);
 
-    ix_adj1.segment = s;
-    ix_adj2.segment = s;
+    ix_adj1.segments.add(s);
+    ix_adj2.segments.add(s);
     ix_adj1.setNeighbor(ix_adj2);
 
     // only needed to capture faces that contain processed intersections
@@ -1182,12 +1469,10 @@ the intersection.
     // position === top: bottom attachment moved up
     // attachments point to the right face (ix_adj1)
     ix_adj1.endpoint = transition.next_v.neighbor.endpoint;
-    if(this.debug) { this.adjacencies.delete(ix_adj1.endpoint.attachments[opp]); }
     ix_adj1.endpoint.attachments[opp] = ix_adj1;
 
     // drop the adjacency opposite where we closed
 //     this.adjacencies.delete(traversal[opp]);
-    if(this.debug) { this.adjacencies.delete(traversal[opp].neighbor); }
 
     // close old face by tracing the prior left/right face in the opposite direction
     // this time, include left/right in the adjacencies
@@ -1211,33 +1496,42 @@ the intersection.
 
     log(`At ix ${ix_adj1.label}, \n\topened ${pos === BOTTOM ? "BOTTOM" : "TOP"} face ${curr_faces[pos].label}`);
 
-    if(this.debug) {
-			this.adjacencies.add(ix_adj1);
-			this.adjacencies.add(ix_adj2);
-		}
 
     return [old_face];
   }
 
-    addSegment({ draw = false, idx = undefined } = {}) {
+    addSegment({ draw = false, idx = undefined, s = undefined } = {}) {
       // ------ Initial setup ----- //
-      // randomly select segment or choose user-selected
-      if(this.process_queue.length === 0) return false;
+      if(s) {
+        // adding previously unseen segment
+        this._splitAttachmentFace(s);
 
-      if(typeof idx === "undefined") {
-        idx = this.process_queue.pop();
+
       } else {
-        if(idx > this.segments.length) {
-          console.warn(`addSegment given an invalid idx ${idx}.`);
-          return false;
-        }
+        // add segment from queue or idx
+       // randomly select segment or choose user-selected
+        if(this.process_queue.length === 0) return false;
 
-        // drop idx from the queue if it exists
-        const i = this.process_queue.findIndex(elem => elem === idx);
-        if(~i) { this.process_queue.splice(i, 1); }
+        if(typeof idx === "undefined") {
+          idx = this.process_queue.pop();
+        } else {
+          if(idx > this.segments.length) {
+            console.warn(`addSegment given an invalid idx ${idx}.`);
+            return false;
+          }
+
+          // drop idx from the queue if it exists; otherwise return
+          const i = this.process_queue.findIndex(elem => elem === idx);
+          if(~i) {
+            this.process_queue.splice(i, 1);
+          } else {
+            console.warn(`Index ${idx} already added.`);
+            return false;
+          }
+        }
+        s = this.segments[idx];
       }
 
-      let s = this.segments[idx];
       let s0 = s.max_xy;
       let s1 = s.min_xy;
 
@@ -1278,17 +1572,20 @@ the intersection.
                                              curr_faces);
         } else {
           log(`Recording intersection ${transition.ix.label}`);
+
+          const ix_res = this._buildSegmentIntersectionFaces(s,
+                                                          traversal,
+                                                          transition,
+                                                          curr_faces);
+          old_faces = ix_res.old_faces;
+
           // record the intersection
           this.intersections.push({
             ix: transition.ix,
             s1: s,
-            s2: transition.other_segment
+            s2: transition.other_segment,
+            adjs: ix_res.ix_adjs
           });
-
-          old_faces = this._buildSegmentIntersectionFaces(s,
-                                                          traversal,
-                                                          transition,
-                                                          curr_faces);
         }
 
         new_faces.push(...old_faces);
@@ -1323,6 +1620,7 @@ the intersection.
       // ---------- Cleanup ------------ //
 
       this.partitioned_segments.add(s);
+      this._faces.clear();
 
       if(this.consistency_check) this.consistencyTest({ test_neighbor: true,
                             test_successor: true,
@@ -1338,30 +1636,27 @@ the intersection.
     if(label) this.labelSegments();
 
     // initial drawing is just the verticals with endpoints identified
-    this.endpoints.forEach(e => {
-      Vertex.drawPoint(e, { color: COLORS.blue });
+    this.segments.forEach(s => {
+      [s.min_xy, s.max_xy].forEach(e => {
+        Vertex.drawPoint(e, { color: COLORS.blue });
 
-      // draw the attachments, if any
-      if(e.attachments) {
-        const shader = new _pixi_graphics_smooth.DashLineShader({dash: 5, gap: 8});
-        Segment.drawEdge({ A: e, B: e.attachments[TOP] },
-                         { color: COLORS.lightblue, width: 1, shader});
+        // draw the attachments, if any
+        if(e.attachments) {
+          const shader = new _pixi_graphics_smooth.DashLineShader({dash: 5, gap: 8});
+          Segment.drawEdge({ A: e, B: e.attachments[TOP] },
+                           { color: COLORS.lightblue, width: 1, shader});
 
-        Segment.drawEdge({ A: e, B: e.attachments[BOTTOM] },
-                         { color: COLORS.lightblue, width: 1, shader});
-      }
+          Segment.drawEdge({ A: e, B: e.attachments[BOTTOM] },
+                           { color: COLORS.lightblue, width: 1, shader});
+        }
 
+      });
     });
 
-    // for each adjacency, draw the edge connecting it to the next
-//     this.adjacencies.forEach(adj => {
-//       Segment.drawEdge({ A: adj, B: adj.successor },
-//                        { color: COLORS.lightblue, width: 1 });
-//     });
 
     // draw partitioned segments
     this.partitioned_segments.forEach(s => {
-      s.draw({ color: COLORS.green, width: 1});
+      s.draw({ color: COLORS.green, width: 1 });
     });
 
     // alternate colors; fill in faces
@@ -1369,16 +1664,13 @@ the intersection.
     if(!shade_faces) return;
     let i = -1;
     const colors = [COLORS.lightblue, COLORS.lightgreen, COLORS.lightred];
-    this.faces.forEach(f => {
+    for(const f of Object.values(this.faces)) {
       i += 1;
-      if(!i) return; // skip the initial (outside) face
-
 
       const ci = i % 3;
 
       f.draw({color: colors[ci]});
-
-    });
+    }
   }
 
   labelSegments() {
@@ -1411,36 +1703,40 @@ the intersection.
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
-    this.adjacencies.forEach(adj => {
-      const key = adj.key;
-      if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
-        console.error(`adj ${adj.label} fails consistency test.`, adj, this);
-        return false;
-      }
+    for(const f of this.faces) {
+      f.adjacencies.forEach(adj => {
+        const key = adj.key;
+        if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
+          console.error(`adj ${adj.label} fails consistency test.`, adj, this);
+          return false;
+        }
 
-      if(adj.key !== key) {
-        console.error(`adj ${adj.label} (${key}) does not match.`, adj, this);
-        return false;
-      }
-    });
+        if(adj.key !== key) {
+          console.error(`adj ${adj.label} (${key}) does not match.`, adj, this);
+          return false;
+        }
+      });
+    }
 
     // confirm each endpoint has an adjacency
-    this.endpoints.forEach(e => {
-      if(!(e.attachments[TOP] instanceof Adjacency)) {
-        console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
-        return false;
-      }
+    this.segments.forEach(s => {
+      [s.min_xy, s.max_xy].forEach(e => {
+        if(!(e.attachments[TOP] instanceof Adjacency)) {
+          console.error(`endpoint ${e.label} does not have top adjacency.`, e, this);
+          return false;
+        }
 
-      if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
-        console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
-        return false;
-      }
+        if(!(e.attachments[BOTTOM] instanceof Adjacency)) {
+          console.error(`endpoint ${e.label} does not have bottom adjacency.`, e, this);
+          return false;
+        }
 
-      if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
-        console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
-        return false;
-      }
+        if(e.x !== e.attachments[TOP].x || e.x !== e.attachments[BOTTOM].x) {
+          console.error(`endpoint ${e.label} does not match adjacency.`, e, this);
+          return false;
+        }
 
+      });
     });
 
     return true;
