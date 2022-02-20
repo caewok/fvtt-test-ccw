@@ -815,7 +815,7 @@ class Partition {
   constructor(segments) {
     this.intersections = []; // to track intersections found
     this.segments = [];
-    this.faces = {};
+    this._faces = new Set();
 
     segments.forEach((s, i) => {
       const new_s = Segment.fromEdge(s);
@@ -835,6 +835,47 @@ class Partition {
     // whether to run consistency checks
     this.consistency_check = true;
     this.debug = true;
+  }
+
+  _addFacesToSet(adj) {
+    this._faces.add(adj.face);
+    let curr = adj.neighbor;
+    while(curr !== adj) {
+      this._faces.add(curr.face);
+      curr = curr.neighbor;
+    }
+  }
+
+  get faces() {
+    if(!this._faces.size) {
+      // faces are at endpoints or at intersections
+      // many will be repeats
+      this.partitioned_segments.forEach(s => {
+        const s0 = s.max_xy;
+        const s1 = s.min_xy;
+
+        if(s0.attachments) {
+          this._addFacesToSet(s0.attachments[0]);
+          this._addFacesToSet(s0.attachments[1]);
+        }
+
+        if(s1.attachments) {
+          this._addFacesToSet(s1.attachments[0]);
+          this._addFacesToSet(s1.attachments[1]);
+        }
+
+      });
+
+      // we know intersections have four faces, so don't need to follow neighbors
+      // TO-DO: 3+ segments can share an intersection, this assumption will fail
+      this.intersections.forEach(ix => {
+        this._faces.add(ix.adjs[0].face);
+        this._faces.add(ix.adjs[1].face);
+        this._faces.add(ix.adjs[2].face);
+        this._faces.add(ix.adjs[3].face);
+      });
+    }
+    return this._faces;
   }
 
   calculateIntersections() {
@@ -874,8 +915,8 @@ class Partition {
 
 //     initial_face._index = 0;
 //     this.faces.push(initial_face);
-    this.faces[initial_face.label] = initial_face;
-
+//     this.faces[initial_face.label] = initial_face;
+    this._faces.add(initial_face);
   }
 
 
@@ -995,7 +1036,7 @@ the intersection.
 //
 //     curr_faces[BOTTOM]._index = this.faces.length;
 //     this.faces.push(curr_faces[BOTTOM]);
-    this.faces[bottom_next_v.face.label] = undefined;
+//     this.faces[bottom_next_v.face.label] = undefined;
 //     this.faces[curr_faces[TOP].label] = curr_faces[TOP];
 //     this.faces[curr_faces[BOTTOM].label] = curr_faces[BOTTOM];
 
@@ -1003,7 +1044,7 @@ the intersection.
 //     this.faces.delete(bottom_next_v.face.label);
 //     this.faces.delete(top_next_v.face.label);
 
-    return old_faces;
+    return { old_faces, ix_adjs };
   }
 
   _findIntersectingAdjacencies(enclosing_face, s0, s) {
@@ -1132,7 +1173,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
     let enclosing_face_s0;
     let enclosing_face_s1;
-    for(const f of Object.values(this.faces)) {
+    for(const f of this.faces) {
       if(!f) continue;
       if(!enclosing_face_s0 && f.bounds.contains(s0.x, s0.y)) {
         enclosing_face_s0 = f;
@@ -1279,7 +1320,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 //
 //     curr_faces[BOTTOM]._index = this.faces.length;
 //     this.faces.push(curr_faces[BOTTOM]);
-    this.faces[s0.attachments[BOTTOM].neighbor.face.label] = undefined;
+//     this.faces[s0.attachments[BOTTOM].neighbor.face.label] = undefined;
 //     this.faces[curr_faces[TOP].label] = curr_faces[TOP];
 //     this.faces[curr_faces[BOTTOM].label] = curr_faces[BOTTOM];
 
@@ -1374,7 +1415,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
 //     curr_faces[pos]._index = transition.next_v.face._index;
 //     this.faces[curr_faces[pos]._index] = curr_faces[pos];
-    this.faces[transition.next_v.face.label] = undefined;
+//     this.faces[transition.next_v.face.label] = undefined;
 //     this.faces[curr_faces[pos].label] = curr_faces[pos];
 
 
@@ -1418,9 +1459,9 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
 //       let t0_splitAttachmentFace = performance.now();
       let new_faces = []; // track faces created
-      let res = this._splitAttachmentFace(s);
-      res.enclosing_faces.forEach(f => this.faces[f.label] = undefined);
-      res.new_faces.forEach(f => this.faces[f.label] = f);
+      this._splitAttachmentFace(s);
+//       res.enclosing_faces.forEach(f => this.faces[f.label] = undefined);
+//       res.new_faces.forEach(f => this.faces[f.label] = f);
 
 //       let t1_splitAttachmentFace = performance.now()
 //       console.log(`splitAttachmentFace * 2 took ${t1_splitAttachmentFace - t0_splitAttachmentFace} milliseconds.`)
@@ -1462,22 +1503,27 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
         } else {
           log(`Recording intersection ${transition.ix.label}`);
           // record the intersection
-          this.intersections.push({
-            ix: transition.ix,
-            s1: s,
-            s2: transition.other_segment
-          });
 
-          old_faces = this._buildSegmentIntersectionFaces(s,
+
+          const ix_res = this._buildSegmentIntersectionFaces(s,
                                                           traversal,
                                                           transition,
                                                           curr_faces);
+          old_faces = ix_res.old_faces;
+
+
+          this.intersections.push({
+            ix: transition.ix,
+            s1: s,
+            s2: transition.other_segment,
+            adjs: ix_res.ix_adjs
+          });
         }
 
         new_faces.push(...old_faces);
         old_faces.forEach(f => {
 //           this.faces.set(f.label, f);
-          this.faces[f.label] = f;
+//           this.faces[f.label] = f;
           if(draw) f.draw({ color: nextShade() });
           if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                   test_successor: true,
@@ -1497,7 +1543,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       new_faces.push(...old_faces);
       old_faces.forEach(f => {
 //         this.faces.set(f.label, f);
-        this.faces[f.label] = f;
+//         this.faces[f.label] = f;
         if(draw) f.draw({ color: nextShade() });
         if(this.consistency_check && !f.consistencyTest({ test_neighbor: false,
                                 test_successor: true,
@@ -1511,7 +1557,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       // ---------- Cleanup ------------ //
 
       this.partitioned_segments.add(s);
-
+      this._faces.clear();
       if(this.consistency_check) this.consistencyTest({ test_neighbor: true,
                             test_successor: true,
                             test_face: true });
@@ -1519,7 +1565,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
 
 //       let t1_addSegment = performance.now()
 //       console.log(`addSegment took ${t1_addSegment - t0_addSegment} milliseconds.`)
-      new_faces.forEach(f => this.faces[f.label] = f);
+//       new_faces.forEach(f => this.faces[f.label] = f);
 
 
       return new_faces;
@@ -1600,14 +1646,7 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
     // confirm all adjacency successors have the same face, different vertex
     // confirm that all adjacency neighbors have the same vertex, different face
     // confirm that all adjacencies can be found in faces for the partition and vice-versa
-    const test_set = new Set();
-    let num_faces = 0;
-    for(const [label, f] of Object.entries(this.faces)) {
-      if(!f) continue;
-      num_faces += 1;
-      if(label != f.label) { console.error(`Face ${f.label}; expected ${label}.`);}
-//       if(f._index !== idx) { console.error(`Face ${f.label} has index ${f._index} but expected ${idx}.`); }
-      test_set.add(f.label);
+    for(const f of this.faces) {
       f.adjacencies.forEach(adj => {
         const key = adj.key;
         if(!adj.consistencyTest({ test_neighbor, test_successor, test_face })) {
@@ -1622,9 +1661,6 @@ so each has a shared top and bottom vertex, represented by two adjacencies each.
       });
     }
 
-
-    // faces should be unique
-    if(test_set.size !== num_faces) { console.error(`Faces array not unique. ${num_faces} vs ${test_set.size}.`); }
 
 
 
