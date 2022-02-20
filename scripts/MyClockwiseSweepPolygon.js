@@ -7,7 +7,6 @@
 
 /* globals 
 
-PolygonVertex, 
 CONST,
 foundry,
 canvas,
@@ -17,7 +16,8 @@ NormalizedRectangle,
 CollisionResult,
 PIXI,
 CONFIG,
-ClipperLib
+ClipperLib,
+PolygonVertex
 
 */
 
@@ -25,7 +25,7 @@ ClipperLib
 
 //import { LinkedPolygon } from "./LinkedPolygon.js";
 //import { SimplePolygon } from "./SimplePolygon.js";
-import { log } from "./module.js";
+//import { log } from "./module.js";
 import { pixelLineContainsPoint, compareXY } from "./utilities.js";
 import { SimplePolygonEdge, SimplePolygon } from "./SimplePolygon.js";
 
@@ -83,6 +83,17 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   initialize(origin, config) {  
     super.initialize(origin, config);
     const cfg = this.config;
+    
+    // *** NEW ***: Round origin b/c:
+    // Origin can be non-integer in certain situations (like when dragging lights)
+    // - we want a consistent angle when calculating the limited angle polygon
+    // - we want a consistent straight ray from origin to the bounding box edges.
+    // (Could be handled by drawing rays to floating point vertices, but this is the 
+    //  simpler option.)
+    // TO-DO: Rounding origin implies that ClockwiseSweep should only be called when the 
+    // origin has moved 1+ pixels in either x or y direction.
+    this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
+    
  
     // Reset certain configuration values from what ClockwiseSweep did.
     
@@ -158,13 +169,23 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
            
     // for debugging 
     cfg.intersectMethod = cfg.intersectMethod || "simple"; // "simple" or "clipper"       
-           
   }
   
   /** @inheritdoc */
   _compute() {
-    super._compute();
+    // Step 1 - Identify candidate edges
+    this._identifyEdges();
     
+     
+    // Step 2 - Construct vertex mapping
+    this._identifyVertices();
+    
+    // Step 3 - Radial sweep over endpoints
+    this._executeSweep();
+    
+    // Step 4 - Build polygon points
+    this._constructPolygonPoints();
+        
     if(this.config.debug) { this._sweepPoints = [...this.points]; }
     
     const { boundaryPolygon, limitedRadiusCircle } = this.config;
@@ -203,6 +224,8 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
          this._isClosed = poly._isClosed;
          this._isConvex = poly._isConvex;
          this._isClockwise = poly._isClockwise;  
+       } else if(this.config.hasBoundary) {
+         console.warn(`CW2|hasBoundary but poly is undefined.`, this)
        }
     }      
   }
@@ -337,8 +360,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       // Restrict vertices outside the bounding box
       //const bbox = this.config.bbox;
       for(let vertex of this.vertices.values()) {
-        const is_outside = this._vertexOutsideBoundary(vertex)
-        if(is_outside) this.vertices.delete(vertex.key);
+        vertex.is_outside = this._vertexOutsideBoundary(vertex);
       }
     }
     // *** END NEW ***
@@ -411,6 +433,12 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const vertices = this._sortVertices();
     for ( const [i, vertex] of vertices.entries() ) {
 
+      let result
+      if(vertex.is_outside) {
+        result = { target: vertex,
+                   cwEdges: vertex.cwEdges, 
+                   ccwEdges: vertex.ccwEdges };
+      } else {
       // Construct a ray towards the target vertex
       vertex._index = i+1;
       
@@ -424,7 +452,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
 
       // Construct the CollisionResult object
-      const result = ray.result = new CollisionResult({
+        result = ray.result = new CollisionResult({
         target: vertex,
         cwEdges: vertex.cwEdges,
         ccwEdges: vertex.ccwEdges,
@@ -435,6 +463,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
       // Delegate to determine the result of the ray
       this._determineRayResult(ray, vertex, result, activeEdges);
+      }
 
       // Update active edges for the next iteration
       this._updateActiveEdges(result, activeEdges);
@@ -454,7 +483,8 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const rStart = this.config.rStart; // *** NEW ***
     const edges = new Set();
     for ( let edge of this.edges.values() ) {
-      const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);  // *** NEW ***
+      // *** NEW ***: rStart
+      const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);  
       if ( x ) edges.add(edge);
     }
     return edges;
@@ -705,6 +735,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       const r = ray.result;
       if ( !r ) continue;
       dg.lineStyle(2, 0x00FF00, r.collisions.length ? 1.0 : 0.33).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
+            
       for ( let c of r.collisions ) {
         dg.lineStyle(1, 0x000000).beginFill(0xFF0000).drawCircle(c.x, c.y, 6).endFill();
       }
@@ -775,13 +806,23 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   _limitedAnglePolygon() {
     const { angle, rotation, radiusMax } = this.config;
     
-    // move the origin one pixel back from actual origin, so the limited angle polygon
+    // move the origin slightly back from actual origin, so the limited angle polygon
     // includes the origin
-  
+    
+    // trick here is that origin and this shifted origin may both be floating point, 
+    // but ray intersections use PolygonVertex, which will round target vertex 
+    // to an integer. This will cause the ray shot from this.origin to the 
+    // shifted origin to move around wildly when, say, dragging a light with
+    // CONFIG.debug.polygons = true. 
+    // We would prefer to stay in line with the origin so the angles better match. 
+    // With that in mind, _initialize now rounds origin to the nearest point.
+    // Here, we also round the origin offset. 
+    // 
+    
     const r = Ray.fromAngle(this.origin.x, this.origin.y, 
                             Math.toRadians(rotation + 90), -1)
-    const origin = r.B;
-        
+    const origin = { x: Math.round(r.B.x), y: Math.round(r.B.y) };
+            
     const aMin = Math.normalizeRadians(Math.toRadians(rotation + 90 - (angle / 2)));
     const aMax = aMin + Math.toRadians(angle);
     
@@ -805,27 +846,27 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const boundaries = [...canvas.walls.boundaries];
     
     
-    if(this.config.debug) {
-      // debug: confirm boundaries are ordered as expected
-      if(boundaries[0]._nw.key !== 6553500 ||
-         boundaries[0]._se.key !== -399769700 ||
-         boundaries[1]._nw.key !== -399769700 ||
-         boundaries[1]._se.key !== 399774300 ||
-         boundaries[2]._nw.key !== -6548900 ||
-         boundaries[2]._se.key !== 399774300 ||
-         boundaries[3]._nw.key !== 6553500 || 
-         boundaries[3]._se.key !== -6548900) {
-       
-         log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
-       
-         }
-       
-      // debug: confirm angles are arranged as expected   
-      if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0 && angle < 180 ||
-         foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) > 0 && angle > 180) {
-        log(`_limitedAnglePolygon: angles not arranged as expected.`);
-      } 
-    }
+//     if(this.config.debug) {
+//       // debug: confirm boundaries are ordered as expected
+//       if(boundaries[0].nw.key !== 6553500 ||
+//          boundaries[0].se.key !== -399769700 ||
+//          boundaries[1].nw.key !== -399769700 ||
+//          boundaries[1].se.key !== 399774300 ||
+//          boundaries[2].nw.key !== -6548900 ||
+//          boundaries[2].se.key !== 399774300 ||
+//          boundaries[3].nw.key !== 6553500 || 
+//          boundaries[3].se.key !== -6548900) {
+//        
+//          log(`_limitedAnglePolygon: canvas.walls.boundaries not in expected order.`);
+//        
+//          }
+//        
+//       // debug: confirm angles are arranged as expected   
+//       if(foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) < 0 && angle < 180 ||
+//          foundry.utils.orient2dFast(rMax.A, rMax.B, rMin.B) > 0 && angle > 180) {
+//         log(`_limitedAnglePolygon: angles not arranged as expected.`);
+//       } 
+//     }
     
     // token rotation: 
     // north is 180º (3.1415 or π radians)
@@ -961,7 +1002,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
      //  but that would be a lot more unnecessary edges)
      
      if(!boundaryPolygon && hasLimitedAngle) {
-       const ptsIter = limitedAnglePolygon.iteratePoints();
+       const ptsIter = limitedAnglePolygon.iteratePoints(); // includes close
        let prevPt = ptsIter.next().value;
        for(const pt of ptsIter) {
          boundary_edges.push(new SimplePolygonEdge(prevPt, pt));
@@ -1079,7 +1120,6 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       
     if(poly2 instanceof PIXI.Circle) 
       return poly2.polygonIntersect(poly1, { density: this.config.density });  
-      
       
     if(this.config.intersectMethod === "clipper") {
       return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });  

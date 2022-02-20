@@ -26,7 +26,6 @@ Use integer keys to determine shared coordinates.
 */
 
 
-
 /*
 intersectsWith: three options when temp edges are used in combination with existing walls
 1. Always use the wall.intersectsWith map. 
@@ -59,6 +58,9 @@ export class SimplePolygonEdge extends PolygonEdge {
   */
   constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
     super(a, b, type, wall);
+    
+    this.A = new PolygonVertex(a.x, a.y);
+    this.B = new PolygonVertex(b.x, b.y);
         
     // Track wall ids if this edge corresponds to existing wall
     // This replaces wallEdgeMap in ClockwiseSweep.

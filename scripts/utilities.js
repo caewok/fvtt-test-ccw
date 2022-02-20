@@ -108,3 +108,24 @@ export function compareXY(a, b) {
 export function keyForPoint(p) {
   return (Math.round(p.x) << 16) ^ Math.round(p.y);
  }
+ 
+/**
+ * Test if a line (not a segment) blocks a point relative to an origin
+ * Used in ClockwiseSweep to test if an active edge blocks. In that case, 
+ * we already know the origin and point are in line with the active edge.
+ * (Otherwise, it would not be an active edge.) Slightly faster than 
+ * testing a segment, and about 20–25% faster than testing for intersections.
+ * Another reasonably fast choice (~ 6% slower) would be to use
+ * foundry.utils.lineSegmentIntersects.
+ * See https://jsbench.me/0bky1r3p61/1.
+ * @param {Point} a   Point on the line (typically, segment vertex A)
+ * @param {Point} b   Second point on the line (typically, segment vertex B)
+ * @param {Point} p   Point to test for whether it is blocked by the line a|b
+ * @param {Point} o   "Sight" origin point.
+ * @return {boolean}  True if the line blocks the point.
+ */
+export function lineBlocksPoint(a, b, p, o) {
+   return (foundry.utils.orient2dFast(a, b, p) * foundry.utils.orient2dFast(a, b, o)) < 0;
+}
+ 
+  
