@@ -1,0 +1,188 @@
+// GPUIntersections2
+
+// basic functions for the kernel
+
+function orient2dGPU(ax, ay, bx, by, cx, cy) {
+  return (ay - cy) * (bx - cx) - (ax - cy) * (by - cy);
+} // returns number
+
+function lineSegmentIntersectsGPU(ax, ay, bx, by, cx, cy, dx, dy) {
+  const xab = (orient2dGPU(ax, ay, bx, by, cx, cy) *
+               orient2dGPU(ax, ay, bx, by, dx, dy));
+                 
+  const xcd = (orient2dGPU(cx, cy, dx, dy, ax, ay) *
+               orient2dGPU(cx, cy, dx, dy, bx, by));
+  
+  // note: doesn't work if xab or xcd are boolean. 
+  if(xab <= 0 && xcd <= 0) return 1;
+  return 0;
+         
+} // returns boolean converted to 0|1
+
+
+
+function lineLineIntersectionGPU(ax, ay, bx, by, cx, cy, dx, dy) {
+  const dnm = (dy - cy) * (bx - ax) - (dx - cx) * (by - ay);
+  const t0 = ((dx - cx) * (ay - cy) - (dy - cy) * (ax - cx)) / dnm;
+    
+	return [ax + t0 * (bx - ax),
+				  ay + t0 * (by - ay)];
+} // returns Array(2) (ignore t0 for now)
+
+
+function bruteGPUIx(a, b) {
+  // segment1 A endpoint
+  const ax = a[this.thread.x][0];
+  const ay = a[this.thread.x][1];
+
+  // segment1 B endpoint
+  const bx = a[this.thread.x][2];
+  const by = a[this.thread.x][3];
+
+  // segment2 A endpoint
+  const cx = b[this.thread.y][0];
+  const cy = b[this.thread.y][1];
+
+  // segment2 B endpoint
+  const dx = b[this.thread.y][2];
+  const dy = b[this.thread.y][3];
+    
+  const res = lineSegmentIntersectsGPU(ax, ay, bx, by, cx, cy, dx, dy);
+
+  if(res === 0) {
+    return [-1, -1];
+  }
+  
+  const ix = lineLineIntersectionGPU(ax, ay, bx, by, cx, cy, dx, dy);
+  
+  return ix;
+}
+
+
+let cpu = new window.GPU({ mode: "cpu", fixIntegerDivisionAccuracy: false })
+let gpu = new window.GPU({ fixIntegerDivisionAccuracy: false });
+
+let arg_types = { ax: 'Number', ay: 'Number',
+									bx: 'Number', by: 'Number',
+									cx: 'Number', cy: 'Number',
+									dx: 'Number', dy: 'Number' }
+
+cpu.addFunction(orient2dGPU, { returnType: 'Number', 
+                               argumentTypes: arg_types });
+
+gpu.addFunction(orient2dGPU, { returnType: 'Number', 
+                               argumentTypes: arg_types });                                                
+
+cpu.addFunction(lineSegmentIntersectsGPU, { returnType: 'Integer',
+                                            argumentTypes: arg_types});
+
+gpu.addFunction(lineSegmentIntersectsGPU, { returnType: 'Integer',
+                                            argumentTypes: arg_types});
+
+cpu.addFunction(lineLineIntersectionGPU, { returnType: 'Array(2)',
+                                            argumentTypes: arg_types});
+
+gpu.addFunction(lineLineIntersectionGPU, { returnType: 'Array(2)',
+                                            argumentTypes: arg_types});
+
+gpuBrute = gpu.createKernel(bruteGPUIx,
+		{ fixIntegerDivisionAccuracy: false,
+		  dynamicOutput: true,
+			returnType: 'Array(2)' })
+
+cpuBrute = cpu.createKernel(bruteGPUIx,
+		{ fixIntegerDivisionAccuracy: false,
+		  dynamicOutput: true,
+			returnType: 'Array(2)' })	
+
+function jsBruteBM(segments1, segments2) {
+	const out = [];
+	segments2.forEach(s2 => {
+		const out2 = [];
+		segments1.forEach(s1 => {
+		  if(!foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
+		    out2.push(null);
+		  } else {
+		    out2.push(foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B));
+		  }
+		});
+		out.push(out2);
+	});
+	return out;
+}
+function gpuBruteBM(segments1, segments2) {
+  const ln1 = segments1.length
+  const ln2 = segments2.length
+
+  const s1_arr = [];
+  const s2_arr = [];
+
+  segments1.forEach(s => s1_arr.push(s.A.x, s.A.y, s.B.x, s.B.y));
+  segments2.forEach(s => s2_arr.push(s.A.x, s.A.y, s.B.x, s.B.y));
+
+	// const gpuBrute = gpu.createKernel(bruteGPUIx,
+// 		{ fixIntegerDivisionAccuracy: false,
+// 			returnType: 'Array(2)' })
+		gpuBrute.setOutput([ln1, ln2])
+  const out = gpuBrute(
+					myGPU.input(
+						s1_arr, [4, ln1]),
+					myGPU.input(
+						s2_arr, [4, ln2])
+					);
+// 	gpuBrute.destroy();
+	return out;
+}
+function cpuBruteBM(segments1, segments2) {
+  const ln1 = segments1.length
+  const ln2 = segments2.length
+
+  const s1_arr = [];
+  const s2_arr = [];
+
+  segments1.forEach(s => s1_arr.push(s.A.x, s.A.y, s.B.x, s.B.y));
+  segments2.forEach(s => s2_arr.push(s.A.x, s.A.y, s.B.x, s.B.y));
+
+	// const cpuBrute = cpu.createKernel(bruteGPUIx,
+// 		{ fixIntegerDivisionAccuracy: false,
+// 			returnType: 'Array(2)' })
+	cpuBrute.setOutput([ln1, ln2])
+
+  const out = cpuBrute(
+					myGPU.input(
+						s1_arr, [4, ln1]),
+					myGPU.input(
+						s2_arr, [4, ln2])
+					);
+// 	cpuBrute.destroy();
+	return out;
+}
+
+segments1 = randomSegments(10);
+segments2 = randomSegments(10);
+
+jsBruteBM(segments1, segments2);
+gpuBruteBM(segments1, segments2);
+cpuBruteBM(segments1, segments2);
+
+N = 100
+await benchmarkLoopFn(N, jsBruteBM, "js", segments1, segments2)
+await benchmarkLoopFn(N, gpuBruteBM, "GPU", segments1, segments2)
+await benchmarkLoopFn(N, gpuBruteBM, "GPU", segments1, segments2)
+await benchmarkLoopFn(N, cpuBruteBM, "CPU", segments1, segments2)
+
+
+/* Benchmarks
+// taking higher gpu score
+// fixed output; creating kernel each time
+
+N				js			gpu			cpu
+1			  0.004		5.877		0.361
+10      0.033		5.560		0.461
+100		  0.449		6.112	  8.282
+200			1.403	 9.663	 11.99
+400	   11.63   25.51   34.07
+500    17.05   37.22   51.32
+1000	 53.22	132.5 	 196.6
+2000  222.5   494.5    986.3
+*/

@@ -15,10 +15,9 @@
     }
   ],
   "dependencies": [
-
   ],
   "conflicts": [
-    
+
   ],
   "esmodules": [
     "/scripts/module.js"

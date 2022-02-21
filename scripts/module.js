@@ -18,7 +18,10 @@ import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
 import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
- 
+
+import "./lib/gpu-browser.js";
+// import * as myGPU from "./lib/gpu-browser.js";
+
 export const MODULE_ID = 'testccw';
 
 
@@ -40,8 +43,8 @@ export function log(...args) {
 //   log('Initializing.');
 // });
 
-// setup is after init; before ready. 
-// setup is called after settings and localization have been initialized, 
+// setup is after init; before ready.
+// setup is called after settings and localization have been initialized,
 // but before entities, packs, UI, canvas, etc. has been initialized
 // Hooks.once('setup', async function() {
 //   log("Setup.");
@@ -51,31 +54,31 @@ Hooks.once('init', async function() {
   registerPIXIPolygonMethods();
   registerPIXIRectangleMethods();
   registerPIXICircleMethods();
-  
+
  /**
-  * API switches 
+  * API switches
   * {Boolean}   debug             Toggles certain debug logging
   *
   * API methods
   * {Function}  benchmark         Method to run set of benchmarks vs Foundry base version
-  * 
+  *
   * API classes
   * {Class}     MyClockwiseSweepPolygon   Extends ClockwiseSweepPolygon
   * {Class}     LinkedPolygon             Used to intersect/union polygons
   */
-  
-  game.modules.get(MODULE_ID).api = { 
-    debug: false, 
-    
+
+  game.modules.get(MODULE_ID).api = {
+    debug: false,
+
     benchmark: testCCWBenchmarkSight,
     MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
     MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
     MyClockwiseSweepPolygon3: MyClockwiseSweepPolygon3,
-    
+
     LinkedPolygon: LinkedPolygon,
     LinkedPolygonVertex: LinkedPolygonVertex,
     LinkedPolygonEdge: LinkedPolygonEdge,
-    
+
     SimplePolygon: SimplePolygon,
     SimplePolygonVertex: PolygonVertex,
     SimplePolygonEdge: SimplePolygonEdge,
@@ -83,26 +86,26 @@ Hooks.once('init', async function() {
     SimplePolygon2: SimplePolygon2,
     SimplePolygonVertex2: PolygonVertex,
     SimplePolygonEdge2: SimplePolygonEdge2,
-    
+
     Intersections: Intersections,
     Intersections2: Intersections2,
     BruteSortIntersections: BruteSortIntersections,
     BruteSortXYIntersections: BruteSortXYIntersections,
-    
+
     sweep: sweep,
     brute: brute,
     bush: bush
-    
+
     }
 });
 
 // modules ready
 // ready is called once everything is loaded up and ready to go.
 // Hooks.once('ready', async function() {
-// 
+//
 //   if(typeof game?.user?.isGM === "undefined" || game.user.isGM) {
 //     if(!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
-// 
+//
 //   }
 // });
 

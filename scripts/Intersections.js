@@ -6,17 +6,7 @@ foundry
 
 'use strict';
 
-// import { compareXY } from "./utilities.js";
-// import { keyForPoint } from "./utilities.js";
-
- function compareXY(a, b) {
-  return ( a.x === b.x ) ? ( a.y - b.y ) : ( a.x - b.x );
-}
-
-function keyForPoint(p) {
-  return (Math.round(p.x) << 16) ^ Math.round(p.y);
- }
-
+import { compareXY, keyForPoint } from "./utilities.js";
 
 // Intersections
 
@@ -103,7 +93,7 @@ function intersectSegments$1(a, b) {
 
 
 
-class Intersections2 {
+export class Intersections2 {
   constructor({ reportIntersection = Intersections2.defaultReporter,
                 intersectTest = Intersections2.defaultTester } = {}) {
 
@@ -248,7 +238,7 @@ class Intersections2 {
 }
 
 
- class BruteSortIntersections extends Intersections2 {
+export class BruteSortIntersections extends Intersections2 {
   prep(segments) {
     // set up min/max properties if not already
     segments.forEach(l => {
@@ -363,7 +353,7 @@ class Intersections2 {
 
 }
 
- class BruteSortXYIntersections extends Intersections2 {
+export class BruteSortXYIntersections extends Intersections2 {
   prep(segments) {
     // set up min/max properties if not already
     segments.forEach(l => {
@@ -483,7 +473,7 @@ class Intersections2 {
 
 
 
-class Intersections {
+export class Intersections {
 
   static defaultIntersectionReporter(results, p, interior) {
       results.push({
