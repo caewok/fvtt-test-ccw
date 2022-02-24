@@ -4,6 +4,7 @@ pub mod geometry;
 pub mod intersections;
 
 use geometry::{Point, Segment};
+use serde_json;
 
 fn main() {
     println!("Hello, world!");
@@ -60,6 +61,12 @@ fn main() {
     let s3 = Segment { a: Point { ..d }, b: Point { ..e } };
     let s4 = Segment { a: Point { ..f }, b: Point { ..g } };
 
+    let serialized = serde_json::to_string(&s1).unwrap();
+    println!("serialized = {}", serialized);
+
+    let deserialized: Segment = serde_json::from_str(&serialized).unwrap();
+    println!("deserialized = {:?}", deserialized);
+
     let segments = vec![s1, s2, s3, s4];
     let ixs = intersections::brute_single(&segments);
     dbg!(&ixs);
@@ -67,4 +74,12 @@ fn main() {
     // just use the same array for now
     let ixs2 = intersections::brute_double(&segments, &segments);
     dbg!(&ixs2);
+
+    let serialized = serde_json::to_string(&segments).unwrap();
+    println!("serialized = {}", serialized);
+
+    let deserialized: Vec<Segment> = serde_json::from_str(&serialized).unwrap();
+    println!("deserialized = {:?}", deserialized);
+
+
 }

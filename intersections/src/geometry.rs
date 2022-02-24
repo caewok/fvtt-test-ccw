@@ -1,10 +1,12 @@
-#[derive(Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Point {
   pub x: f64,
   pub y: f64,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Segment {
   pub a: Point,
   pub b: Point,
