@@ -1,20 +1,6 @@
 // TO-DO: Possibly switch to geo crate to handle points, lines.
 // For now, create from scratch to learn rust.
 
-#[derive(Debug)]
-struct Point {
-  x: f64,
-  y: f64,
-}
-
-/// Determine the relative orientation of three points in two-dimensional space.
-/// The result is also an approximation of twice the signed area of the triangle
-/// defined by the three points. This method is fast but not robust against issues
-/// of floating point precision. Best used with integer coordinates.
-/// Adapted from https://github.com/mourner/robust-predicates
-fn orient2d(a: &Point, b: &Point, c: &Point) -> f64 {
-  (a.x - c.y) * (b.x - c.x) - (a.x - c.x) * (b.y - c.y)
-}
 
 fn main() {
     println!("Hello, world!");
@@ -35,7 +21,7 @@ fn main() {
     };
 
     let c = Point {
-      x: 2387.0,
+      x: 3200,0,
       y: 1350.0,
     };
 
