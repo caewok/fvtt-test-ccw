@@ -1,6 +1,9 @@
 // TO-DO: Possibly switch to geo crate to handle points, lines.
 // For now, create from scratch to learn rust.
+pub mod geometry;
+pub mod intersections;
 
+use geometry::{Point, Segment};
 
 fn main() {
     println!("Hello, world!");
@@ -21,14 +24,44 @@ fn main() {
     };
 
     let c = Point {
-      x: 3200,0,
+      x: 3200.0,
       y: 1350.0,
     };
 
-    let o = orient2d(&a, &b, &c);
+    let d = Point {
+      x: 3200.0,
+      y: 1900.0,
+    };
+
+    let e = Point {
+      x: 2500.0,
+      y: 2100.0,
+    };
+
+    let f = Point {
+      x: 4300.0,
+      y: 2100.0,
+    };
+
+    let g = Point {
+      x: 2500.0,
+      y: 2100.0,
+    };
+
+    let o = geometry::orient2d(&a, &b, &c);
     dbg!(&a);
     dbg!(&b);
     dbg!(&c);
 
     println!("Point orientation is {}", o);
+
+    let s1 = Segment { a: Point { ..a }, b: Point { ..b } };
+    let s2 = Segment { a: Point { ..c }, b: Point { ..d } };
+    let s3 = Segment { a: Point { ..d }, b: Point { ..e } };
+    let s4 = Segment { a: Point { ..f }, b: Point { ..g } };
+
+    let segments = vec![s1, s2, s3, s4];
+    let ixs = intersections::brute_single(&segments);
+
+    dbg!(&ixs);
 }

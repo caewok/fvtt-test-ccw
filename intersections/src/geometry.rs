@@ -1,7 +1,13 @@
 #[derive(Debug)]
 pub struct Point {
-  x: f64,
-  y: f64,
+  pub x: f64,
+  pub y: f64,
+}
+
+#[derive(Debug)]
+pub struct Segment {
+  pub a: Point,
+  pub b: Point,
 }
 
 /// Determine the relative orientation of three points in two-dimensional space.
@@ -65,6 +71,7 @@ pub fn line_line_intersection(a: &Point, b: &Point, c: &Point, d: &Point) -> Poi
 
   	Point { x: x_num / x_dnm, y: y_num / y_dnm }
 }
+
 
 #[cfg(test)]
 mod tests {
