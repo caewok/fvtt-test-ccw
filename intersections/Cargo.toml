@@ -9,5 +9,6 @@ authors = ["Michael Enion <caewok_2000@yahoo.com"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+rand = "0.8.5"
 
 

@@ -1,4 +1,7 @@
 use serde::{Serialize, Deserialize};
+use serde_json;
+use std::fs;
+use rand::Rng;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Point {
@@ -10,6 +13,55 @@ pub struct Point {
 pub struct Segment {
   pub a: Point,
   pub b: Point,
+}
+
+impl Point {
+	/// Construct a random point with an optional maximum amount.
+	/// If negative is true, the max will also serve as the floor.
+	/// Otherwise, floor is 0.
+	/// Useful for testing intersections where you need segments that could possibly
+	/// overlap with greater frequency than using random alone.
+	pub fn random_ceil(max: f64, negative: bool) -> Point {
+		let mut rng = rand::thread_rng();
+
+		if negative {
+		  	Point {
+		 		x: rng.gen_range(-max..max),
+		 		y: rng.gen_range(-max..max),
+		 	}
+		} else {
+			Point {
+		 		x: rng.gen_range(0.0..max),
+		 		y: rng.gen_range(0.0..max),
+		 	}
+		}
+	}
+
+	/// Construct a random point
+	pub fn random() -> Point {
+	  	let mut rng = rand::thread_rng();
+	  	Point {
+	    	x: rng.gen(),
+			y: rng.gen(),
+	  	}
+	}
+}
+
+impl Segment {
+	/// Construct a random Segment, using Point::random_ceil
+	pub fn random_ceil(max: f64, negative: bool) -> Segment {
+		Segment {
+			a: Point::random_ceil(max, negative),
+			b: Point::random_ceil(max, negative),
+		}
+	}
+
+	pub fn random() -> Segment {
+		Segment {
+			a: Point::random(),
+			b: Point::random(),
+		}
+	}
 }
 
 /// Determine the relative orientation of three points in two-dimensional space.
@@ -74,6 +126,38 @@ pub fn line_line_intersection(a: &Point, b: &Point, c: &Point, d: &Point) -> Poi
   	Point { x: x_num / x_dnm, y: y_num / y_dnm }
 }
 
+struct TestSetup {
+	points: Vec<Point>,
+	segments_10_1: Vec<Segment>,
+	segments_10_2: Vec<Segment>,
+	segments_100_1: Vec<Segment>,
+	segments_100_2: Vec<Segment>,
+	segments_1000_1: Vec<Segment>,
+	segments_1000_2: Vec<Segment>,
+}
+
+impl TestSetup {
+	fn new() -> Self {
+	   	let str1 = fs::read_to_string("points_test.json").unwrap();
+	   	let str2 = fs::read_to_string("segments_random_10_1000_neg1.json").unwrap();
+	  	let str3 = fs::read_to_string("segments_random_10_1000_neg2.json").unwrap();
+	   	let str4 = fs::read_to_string("segments_random_100_2000_neg1.json").unwrap();
+	   	let str5 = fs::read_to_string("segments_random_100_2000_neg2.json").unwrap();
+	   	let str6 = fs::read_to_string("segments_random_1000_4000_neg1.json").unwrap();
+	   	let str7 = fs::read_to_string("segments_random_1000_4000_neg2.json").unwrap();
+
+		Self {
+			points: serde_json::from_str(&str1).unwrap(),
+			segments_10_1: serde_json::from_str(&str2).unwrap(),
+			segments_10_2: serde_json::from_str(&str3).unwrap(),
+			segments_100_1: serde_json::from_str(&str4).unwrap(),
+			segments_100_2: serde_json::from_str(&str5).unwrap(),
+			segments_1000_1: serde_json::from_str(&str6).unwrap(),
+			segments_1000_2: serde_json::from_str(&str7).unwrap(),
+		}
+	}
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -88,141 +172,175 @@ mod tests {
 
     #[test]
     fn ccw_orientation_works() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+    	let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let c = &setup.points[2];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
-
-		let c = Point {
-			x: 2387.0,
-			y: 1350.0,
-		};
-		let o = orient2d(&a, &b, &c);
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let c = Point {
+// 			x: 2387.0,
+// 			y: 1350.0,
+// 		};
+		let o = orient2d(a, b, c);
 		assert_eq!(o, 1045000.0);
 	}
 
 	#[test]
 	fn cw_orientation_works() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+	    let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let d = &setup.points[3];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let d = Point {
+// 			x: 2500.0,
+// 			y: 2100.0,
+// 		};
 
-		let d = Point {
-			x: 2500.0,
-			y: 2100.0,
-		};
-
-		let o = orient2d(&a, &b, &d);
+		let o = orient2d(a, b, d);
 		assert_eq!(o, -380000.0);
 	}
 
 	#[test]
 	fn collinear_orientation_works() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+	    let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let e = &setup.points[4];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let e = Point {
+// 			x: 3200.0,
+// 			y: 1900.0,
+// 		};
 
-		let e = Point {
-			x: 3200.0,
-			y: 1900.0,
-		};
-
-		let o = orient2d(&a, &b, &e);
+		let o = orient2d(a, b, e);
 		assert_eq!(o, 0.0);
 	}
 
 	#[test]
 	fn intersection_found() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+		let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let c = &setup.points[2];
+    	let d = &setup.points[3];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let c = Point {
+// 			x: 2387.0,
+// 			y: 1350.0,
+// 		};
+//
+// 		let d = Point {
+// 			x: 2500.0,
+// 			y: 2100.0,
+// 		};
 
-		let c = Point {
-			x: 2387.0,
-			y: 1350.0,
-		};
-
-		let d = Point {
-			x: 2500.0,
-			y: 2100.0,
-		};
-
-		let is_ix = line_segment_intersects(&a, &b, &c, &d);
+		let is_ix = line_segment_intersects(a, b, c, d);
 		assert!(is_ix);
 	}
 
 	#[test]
 	fn intersection_not_found() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+		let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let d = &setup.points[3];
+    	let f = &setup.points[5];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
 
-		let d = Point {
-			x: 2500.0,
-			y: 2100.0,
-		};
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let d = Point {
+// 			x: 2500.0,
+// 			y: 2100.0,
+// 		};
+//
+// 		let f = Point {
+// 			x: 2900.0,
+// 			y: 2100.0,
+// 		};
 
-		let f = Point {
-			x: 2900.0,
-			y: 2100.0,
-		};
-
-		let is_ix = line_segment_intersects(&a, &b, &d, &f);
+		let is_ix = line_segment_intersects(a, b, d, f);
 		assert!(!is_ix);
 	}
 
 	#[test]
 	fn intersection() {
-		let a = Point {
-			x: 2300.0,
-			y: 1900.0,
-		};
+		let setup = TestSetup::new();
+    	let a = &setup.points[0];
+    	let b = &setup.points[1];
+    	let c = &setup.points[2];
+    	let e = &setup.points[4];
 
-		let b = Point {
-			x: 4200.0,
-			y: 1900.0,
-		};
+// 		let a = Point {
+// 			x: 2300.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let b = Point {
+// 			x: 4200.0,
+// 			y: 1900.0,
+// 		};
+//
+// 		let c = Point {
+// 			x: 2387.0,
+// 			y: 1350.0,
+// 		};
+//
+// 		let e = Point {
+// 			x: 3200.0,
+// 			y: 1900.0,
+// 		};
 
-		let c = Point {
-			x: 2387.0,
-			y: 1350.0,
-		};
-
-		let e = Point {
-			x: 3200.0,
-			y: 1900.0,
-		};
-
-		let ix = line_line_intersection(&a, &b, &c, &e);
+		let ix = line_line_intersection(a, b, c, e);
 		assert_eq!(ix.x, 3200.0);
 		assert_eq!(ix.y, 1900.0);
 	}
