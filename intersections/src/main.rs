@@ -1,5 +1,7 @@
 // TO-DO: Possibly switch to geo crate to handle points, lines.
 // For now, create from scratch to learn rust.
+#![feature(test)]
+
 pub mod geometry;
 pub mod intersections;
 

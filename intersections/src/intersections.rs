@@ -1,5 +1,9 @@
+extern crate test;
+
 use crate::geometry::{Point, Segment};
 use crate::geometry;
+use serde_json;
+use std::fs;
 
 #[derive(Debug)]
 pub struct IntersectionResult {
@@ -65,4 +69,79 @@ pub fn brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<I
 	}
 
    	ixs
+}
+
+struct TestSetup {
+	segments_10_1: Vec<Segment>,
+	segments_10_2: Vec<Segment>,
+	segments_100_1: Vec<Segment>,
+	segments_100_2: Vec<Segment>,
+	segments_1000_1: Vec<Segment>,
+	segments_1000_2: Vec<Segment>,
+}
+
+impl TestSetup {
+	fn new() -> Self {
+	   	let str2 = fs::read_to_string("segments_random_10_1000_neg1.json").unwrap();
+	  	let str3 = fs::read_to_string("segments_random_10_1000_neg2.json").unwrap();
+	   	let str4 = fs::read_to_string("segments_random_100_2000_neg1.json").unwrap();
+	   	let str5 = fs::read_to_string("segments_random_100_2000_neg2.json").unwrap();
+	   	let str6 = fs::read_to_string("segments_random_1000_4000_neg1.json").unwrap();
+	   	let str7 = fs::read_to_string("segments_random_1000_4000_neg2.json").unwrap();
+
+		Self {
+			segments_10_1: serde_json::from_str(&str2).unwrap(),
+			segments_10_2: serde_json::from_str(&str3).unwrap(),
+			segments_100_1: serde_json::from_str(&str4).unwrap(),
+			segments_100_2: serde_json::from_str(&str5).unwrap(),
+			segments_1000_1: serde_json::from_str(&str6).unwrap(),
+			segments_1000_2: serde_json::from_str(&str7).unwrap(),
+		}
+	}
+}
+
+
+// run test using cargo +nightly bench
+// must first install nightly: rustup install nightly
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use test::Bencher;
+
+	#[bench]
+	fn test_10_single(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_single(&setup.segments_10_1));
+	}
+
+	#[bench]
+	fn test_10_double(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_double(&setup.segments_10_1, &setup.segments_10_2));
+	}
+
+	#[bench]
+	fn test_100_single(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_single(&setup.segments_100_1));
+	}
+
+	#[bench]
+	fn test_100_double(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_double(&setup.segments_100_1, &setup.segments_100_2));
+	}
+
+	#[bench]
+	fn test_1000_single(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_single(&setup.segments_1000_1));
+	}
+
+	#[bench]
+	fn test_1000_double(b: &mut Bencher) {
+		let setup = TestSetup::new();
+		b.iter(|| brute_double(&setup.segments_1000_1, &setup.segments_1000_2));
+	}
 }

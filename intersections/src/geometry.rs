@@ -128,32 +128,14 @@ pub fn line_line_intersection(a: &Point, b: &Point, c: &Point, d: &Point) -> Poi
 
 struct TestSetup {
 	points: Vec<Point>,
-	segments_10_1: Vec<Segment>,
-	segments_10_2: Vec<Segment>,
-	segments_100_1: Vec<Segment>,
-	segments_100_2: Vec<Segment>,
-	segments_1000_1: Vec<Segment>,
-	segments_1000_2: Vec<Segment>,
 }
 
 impl TestSetup {
 	fn new() -> Self {
 	   	let str1 = fs::read_to_string("points_test.json").unwrap();
-	   	let str2 = fs::read_to_string("segments_random_10_1000_neg1.json").unwrap();
-	  	let str3 = fs::read_to_string("segments_random_10_1000_neg2.json").unwrap();
-	   	let str4 = fs::read_to_string("segments_random_100_2000_neg1.json").unwrap();
-	   	let str5 = fs::read_to_string("segments_random_100_2000_neg2.json").unwrap();
-	   	let str6 = fs::read_to_string("segments_random_1000_4000_neg1.json").unwrap();
-	   	let str7 = fs::read_to_string("segments_random_1000_4000_neg2.json").unwrap();
 
 		Self {
 			points: serde_json::from_str(&str1).unwrap(),
-			segments_10_1: serde_json::from_str(&str2).unwrap(),
-			segments_10_2: serde_json::from_str(&str3).unwrap(),
-			segments_100_1: serde_json::from_str(&str4).unwrap(),
-			segments_100_2: serde_json::from_str(&str5).unwrap(),
-			segments_1000_1: serde_json::from_str(&str6).unwrap(),
-			segments_1000_2: serde_json::from_str(&str7).unwrap(),
 		}
 	}
 }
