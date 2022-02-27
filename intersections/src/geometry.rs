@@ -3,16 +3,33 @@ use serde_json;
 use std::fs;
 use rand::Rng;
 
-#[derive(Serialize, Deserialize, Debug)]
+use std::cmp::Ordering;
+
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
 pub struct Point {
-  pub x: f64,
-  pub y: f64,
+	pub x: f64,
+  	pub y: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Segment {
-  pub a: Point,
-  pub b: Point,
+	pub a: Point,
+	pub b: Point,
+
+	// Use the result of a function as the default if not included in the input
+	// see https://sodocumentation.net/rust/topic/1170/serde
+
+	// create copies of a and b where they are min/max
+	// Pointing to a or b is a nightmare and may be impossible
+	// see https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
+
+	// Never serialized.
+	#[serde(skip)]
+	min_xy: Option<Point>,
+
+	// Never serialized.
+	#[serde(skip)]
+	max_xy: Option<Point>,
 }
 
 impl Point {
@@ -45,22 +62,68 @@ impl Point {
 			y: rng.gen(),
 	  	}
 	}
+
 }
 
 impl Segment {
+	pub fn new(a: Point, b: Point) -> Self  {
+		Self { a: a, b: b, .. Default::default() }
+	}
+
 	/// Construct a random Segment, using Point::random_ceil
 	pub fn random_ceil(max: f64, negative: bool) -> Segment {
-		Segment {
-			a: Point::random_ceil(max, negative),
-			b: Point::random_ceil(max, negative),
-		}
+		Self::new(Point::random_ceil(max, negative),
+					 Point::random_ceil(max, negative))
 	}
 
 	pub fn random() -> Segment {
-		Segment {
-			a: Point::random(),
-			b: Point::random(),
-		}
+		Self::new(Point::random(), Point::random())
+	}
+
+	pub fn min_xy(&mut self) -> &Point {
+	  if Option::is_none(&self.min_xy) {
+	    self.set_xy();
+	  }
+	  self.min_xy.as_ref().expect("max_xy still has none value after calling self.set_xy().")
+	}
+
+	pub fn max_xy(&mut self) -> &Point {
+	  if Option::is_none(&self.min_xy) {
+	    self.set_xy();
+	  }
+	  self.max_xy.as_ref().expect("max_xy still has none value after calling self.set_xy().")
+	}
+
+	fn set_xy(& mut self) {
+	    let order = Segment::compare_xy(&self.a, &self.b);
+	    if order == Ordering::Less {
+	    	let min = Some(self.a);
+	    	let max = Some(self.b);
+	    	self.min_xy = min;
+	    	self.max_xy = max;
+
+	    } else {
+	      self.min_xy = Some(self.b);
+	      self.max_xy = Some(self.a);
+	    }
+	}
+
+	pub fn compare_xy(a: &Point, b: &Point) -> Ordering {
+	  	let res: f64;
+
+	  	if a.x == b.x {
+			res = a.y - b.y;
+	  	} else {
+	  		res = a.x - b.x;
+	  	}
+
+	  	if res == 0.0 {
+	  		Ordering::Equal
+	  	} else if res < 0.0 {
+	  		Ordering::Less
+	  	} else {
+	  		Ordering::Greater
+	  	}
 	}
 }
 

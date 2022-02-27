@@ -1,4 +1,4 @@
-extern crate test;
+// extern crate test;
 
 use crate::geometry::{Point, Segment};
 use crate::geometry;
@@ -70,6 +70,21 @@ pub fn brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<I
 
    	ixs
 }
+
+/// Detect intersections in a set of segments.
+/// Sort the segments based on the left point
+/// Only test segments that fall within the x value of the current segment being tested.
+///
+/// ## Arguments
+/// *segments* Array of segments to test. Each should be a Segment made up of 2 Points.
+///
+/// ## Returns
+/// Array of intersections and segment indices.
+
+// Use impl Segment fn new to identify ne/sw points?
+// Use a fast sort mechanism?
+
+
 
 struct TestSetup {
 	segments_10_1: Vec<Segment>,

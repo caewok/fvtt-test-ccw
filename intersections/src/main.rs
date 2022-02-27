@@ -1,6 +1,13 @@
 // TO-DO: Possibly switch to geo crate to handle points, lines.
 // For now, create from scratch to learn rust.
+// for nightly:
+// cargo +nightly build
+// cargo +nightly test
+// cargo +nightly benchmark
+// cargo +nightly run
+
 #![feature(test)]
+extern crate test;
 
 pub mod geometry;
 pub mod intersections;
@@ -78,7 +85,7 @@ fn build_test_points() {
 			y: 2100.0,
 		}];
 
-	let serialized = serde_json::to_string(&points).unwrap();
+	let serialized = serde_json::to_string_pretty(&points).unwrap();
 	fs::write("points_test.json", &serialized).unwrap();
 	println!("Saved points_test.json.")
 }
@@ -90,82 +97,89 @@ fn main() {
 
 
 	// Create serialized output
-    build_random_for_tests();
-    build_test_points();
+//     build_random_for_tests();
+//     build_test_points();
+
+
+
 
     // horizontal line 2300,1900|4200,1900
     // point to left: 2387, 1350
     // point on line: 3200, 1900
     // point to right: 2500, 2100
-//     let a = Point {
-//       x: 2300.0,
-//       y: 1900.0,
-//     };
+    let a = Point {
+      x: 2300.0,
+      y: 1900.0,
+    };
 
 //     let a = Point::random();
 //     let b = Point::random_ceil(2000.0, false);
 
-//     let b = Point {
-//       x: 4200.0,
-//       y: 1900.0,
-//     };
+    let b = Point {
+      x: 4200.0,
+      y: 1900.0,
+    };
 
-//     let c = Point {
-//       x: 3200.0,
-//       y: 1350.0,
-//     };
-//
-//     let d = Point {
-//       x: 3200.0,
-//       y: 1900.0,
-//     };
-//
-//     let e = Point {
-//       x: 2500.0,
-//       y: 2100.0,
-//     };
-//
-//     let f = Point {
-//       x: 4300.0,
-//       y: 2100.0,
-//     };
-//
-//     let g = Point {
-//       x: 2500.0,
-//       y: 2100.0,
-//     };
-//
-//     let o = geometry::orient2d(&a, &b, &c);
-//     dbg!(&a);
-//     dbg!(&b);
-//     dbg!(&c);
-//
-//     println!("Point orientation is {}", o);
-//
-//     let s1 = Segment { a: Point { ..a }, b: Point { ..b } };
-//     let s2 = Segment { a: Point { ..c }, b: Point { ..d } };
-//     let s3 = Segment { a: Point { ..d }, b: Point { ..e } };
-//     let s4 = Segment { a: Point { ..f }, b: Point { ..g } };
-//
-//     let serialized = serde_json::to_string(&s1).unwrap();
-//     println!("serialized = {}", serialized);
-//
-//     let deserialized: Segment = serde_json::from_str(&serialized).unwrap();
-//     println!("deserialized = {:?}", deserialized);
-//
-//     let segments = vec![s1, s2, s3, s4];
-//     let ixs = intersections::brute_single(&segments);
-//     dbg!(&ixs);
-//
-//     // just use the same array for now
-//     let ixs2 = intersections::brute_double(&segments, &segments);
-//     dbg!(&ixs2);
-//
-//     let serialized = serde_json::to_string(&segments).unwrap();
-//     println!("serialized = {}", serialized);
-//
-//     let deserialized: Vec<Segment> = serde_json::from_str(&serialized).unwrap();
-//     println!("deserialized = {:?}", deserialized);
+    let c = Point {
+      x: 3200.0,
+      y: 1350.0,
+    };
+
+    let d = Point {
+      x: 3200.0,
+      y: 1900.0,
+    };
+
+    let e = Point {
+      x: 2500.0,
+      y: 2100.0,
+    };
+
+    let f = Point {
+      x: 4300.0,
+      y: 2100.0,
+    };
+
+    let g = Point {
+      x: 2500.0,
+      y: 2100.0,
+    };
+
+    let o = geometry::orient2d(&a, &b, &c);
+    dbg!(&a);
+    dbg!(&b);
+    dbg!(&c);
+
+    println!("Point orientation is {}", o);
+
+    let mut s1 = Segment::new( Point { ..a }, Point { ..b } );
+    let s2 = Segment::new( Point { ..c }, Point { ..d } );
+    let s3 = Segment::new( Point { ..d }, Point { ..e } );
+    let s4 = Segment::new( Point { ..f }, Point { ..g } );
+
+    println!("min/max for s1");
+	dbg!(&s1.min_xy());
+	dbg!(&s1.max_xy());
+
+    let serialized = serde_json::to_string(&s1).unwrap();
+    println!("serialized = {}", serialized);
+
+    let deserialized: Segment = serde_json::from_str(&serialized).unwrap();
+    println!("deserialized = {:?}", deserialized);
+
+    let segments = vec![s1, s2, s3, s4];
+    let ixs = intersections::brute_single(&segments);
+    dbg!(&ixs);
+
+    // just use the same array for now
+    let ixs2 = intersections::brute_double(&segments, &segments);
+    dbg!(&ixs2);
+
+    let serialized = serde_json::to_string_pretty(&segments).unwrap();
+    println!("serialized = {}", serialized);
+
+    let deserialized: Vec<Segment> = serde_json::from_str(&serialized).unwrap();
+    println!("deserialized = {:?}", deserialized);
 
 
 }
