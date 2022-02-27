@@ -101,7 +101,8 @@ fn main() {
 //     build_test_points();
 
 
-
+//     let a = Point::random();
+//     let b = Point::random_ceil(2000.0, false);
 
     // horizontal line 2300,1900|4200,1900
     // point to left: 2387, 1350
@@ -112,8 +113,7 @@ fn main() {
       y: 1900.0,
     };
 
-//     let a = Point::random();
-//     let b = Point::random_ceil(2000.0, false);
+
 
     let b = Point {
       x: 4200.0,
@@ -152,14 +152,16 @@ fn main() {
 
     println!("Point orientation is {}", o);
 
-    let mut s1 = Segment::new( Point { ..a }, Point { ..b } );
+    let s1 = Segment::new( Point { ..a }, Point { ..b } );
     let s2 = Segment::new( Point { ..c }, Point { ..d } );
     let s3 = Segment::new( Point { ..d }, Point { ..e } );
     let s4 = Segment::new( Point { ..f }, Point { ..g } );
 
-    println!("min/max for s1");
-	dbg!(&s1.min_xy());
-	dbg!(&s1.max_xy());
+    let cmp1 = Segment::compare_xy(&a, &b);
+    let cmp2 = a.partial_cmp(&b).unwrap();
+    dbg!(&cmp1);
+    dbg!(&cmp2);
+
 
     let serialized = serde_json::to_string(&s1).unwrap();
     println!("serialized = {}", serialized);
@@ -167,13 +169,20 @@ fn main() {
     let deserialized: Segment = serde_json::from_str(&serialized).unwrap();
     println!("deserialized = {:?}", deserialized);
 
-    let segments = vec![s1, s2, s3, s4];
+    let mut segments = vec![s1, s2, s3, s4];
+    let mut segments2 = segments.clone();
     let ixs = intersections::brute_single(&segments);
     dbg!(&ixs);
 
     // just use the same array for now
     let ixs2 = intersections::brute_double(&segments, &segments);
     dbg!(&ixs2);
+
+    let ixs3 = intersections::brute_sort_single(&mut segments);
+    dbg!(&ixs3);
+
+    let ixs4 = intersections::brute_sort_double(&mut segments, &mut segments2);
+    dbg!(&ixs4);
 
     let serialized = serde_json::to_string_pretty(&segments).unwrap();
     println!("serialized = {}", serialized);

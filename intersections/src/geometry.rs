@@ -5,13 +5,13 @@ use rand::Rng;
 
 use std::cmp::Ordering;
 
-#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Point {
 	pub x: f64,
   	pub y: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd)]
 pub struct Segment {
 	pub a: Point,
 	pub b: Point,
@@ -22,14 +22,6 @@ pub struct Segment {
 	// create copies of a and b where they are min/max
 	// Pointing to a or b is a nightmare and may be impossible
 	// see https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct
-
-	// Never serialized.
-	#[serde(skip)]
-	min_xy: Option<Point>,
-
-	// Never serialized.
-	#[serde(skip)]
-	max_xy: Option<Point>,
 }
 
 impl Point {
@@ -67,7 +59,14 @@ impl Point {
 
 impl Segment {
 	pub fn new(a: Point, b: Point) -> Self  {
-		Self { a: a, b: b, .. Default::default() }
+		// For bruteSort, define Segment has having the a point
+		// nw (min_xy) and b point se (max_xy)
+		let order = a.partial_cmp(&b).unwrap();
+		match order {
+			Ordering::Less => Self { a: a, b: b },
+			Ordering::Equal => Self { a: a, b: b },
+			Ordering::Greater => Self { a: b, b: a },
+		}
 	}
 
 	/// Construct a random Segment, using Point::random_ceil
@@ -80,34 +79,9 @@ impl Segment {
 		Self::new(Point::random(), Point::random())
 	}
 
-	pub fn min_xy(&mut self) -> &Point {
-	  if Option::is_none(&self.min_xy) {
-	    self.set_xy();
-	  }
-	  self.min_xy.as_ref().expect("max_xy still has none value after calling self.set_xy().")
-	}
-
-	pub fn max_xy(&mut self) -> &Point {
-	  if Option::is_none(&self.min_xy) {
-	    self.set_xy();
-	  }
-	  self.max_xy.as_ref().expect("max_xy still has none value after calling self.set_xy().")
-	}
-
-	fn set_xy(& mut self) {
-	    let order = Segment::compare_xy(&self.a, &self.b);
-	    if order == Ordering::Less {
-	    	let min = Some(self.a);
-	    	let max = Some(self.b);
-	    	self.min_xy = min;
-	    	self.max_xy = max;
-
-	    } else {
-	      self.min_xy = Some(self.b);
-	      self.max_xy = Some(self.a);
-	    }
-	}
-
+	// don't need separate compare_xy function---if a,b are ordered in new(),
+	// then can use a.partial_cmp(&b) to accomplish the same thing.
+	//
 	pub fn compare_xy(a: &Point, b: &Point) -> Ordering {
 	  	let res: f64;
 
