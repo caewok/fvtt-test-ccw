@@ -109,37 +109,46 @@ fn main() {
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
 	let mut segments2 = segments.clone();
-
-    let ixs = intersections::brute_single(&segments);
-    dbg!(&ixs);
-
-    // just use the same array for now
-    let ixs2 = intersections::brute_double(&segments, &segments);
-    dbg!(&ixs2);
-
-    let ixs3 = intersections::brute_sort_single(&mut segments);
-    dbg!(&ixs3);
-
-    let ixs4 = intersections::brute_sort_double(&mut segments, &mut segments2);
+//
+//     let mut ixs = intersections::brute_single(&segments);
+//     ixs.iter_mut().for_each(|i| i.order_ids());
+//     ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+//     dbg!(&ixs);
+//
+//     // just use the same array for now
+//     let mut ixs2 = intersections::brute_double(&segments, &segments);
+//     ixs2.iter_mut().for_each(|i| i.order_ids());
+//     ixs2.sort_by(|a, b| a.partial_cmp(b).unwrap());
+//     dbg!(&ixs2);
+//
+//     let mut ixs3 = intersections::brute_sort_single(&mut segments);
+//     ixs3.iter_mut().for_each(|i| i.order_ids());
+//     ixs3.sort_by(|a, b| a.partial_cmp(b).unwrap());
+//     dbg!(&ixs3);
+//
+    let mut ixs4 = intersections::brute_sort_double(&mut segments, &mut segments2);
+//     ixs4.iter_mut().for_each(|i| i.order_ids());
+//     ixs4.sort_by(|a, b| a.partial_cmp(b).unwrap());
     dbg!(&ixs4);
+//
+//     let serialized = serde_json::to_string_pretty(&ixs).unwrap();
+//     fs::write("segments_intersection_results_brute_single.json", &serialized).unwrap();
+// 	println!("Saved segments_intersection_results_brute_single.json.");
+//
+// 	let serialized = serde_json::to_string_pretty(&ixs2).unwrap();
+//     fs::write("segments_intersection_results_brute_double.json", &serialized).unwrap();
+// 	println!("Saved segments_intersection_results_brute_double.json.");
+//
+// 	let serialized = serde_json::to_string_pretty(&ixs3).unwrap();
+//     fs::write("segments_intersection_results_brute_sort_single.json", &serialized).unwrap();
+// 	println!("Saved segments_intersection_results_brute_sort_single.json.");
+//
+// 	let serialized = serde_json::to_string_pretty(&ixs4).unwrap();
+//     fs::write("segments_intersection_results_brute_sort_double.json", &serialized).unwrap();
+// 	println!("Saved segments_intersection_results_brute_sort_double.json.");
 
-    let serialized = serde_json::to_string_pretty(&ixs).unwrap();
-    fs::write("segments_intersection_results_brute_single.json", &serialized).unwrap();
-	println!("Saved segments_intersection_results_brute_single.json.");
-
-	let serialized = serde_json::to_string_pretty(&ixs2).unwrap();
-    fs::write("segments_intersection_results_brute_double.json", &serialized).unwrap();
-	println!("Saved segments_intersection_results_brute_double.json.");
-
-	let serialized = serde_json::to_string_pretty(&ixs3).unwrap();
-    fs::write("segments_intersection_results_brute_sort_single.json", &serialized).unwrap();
-	println!("Saved segments_intersection_results_brute_sort_single.json.");
-
-	let serialized = serde_json::to_string_pretty(&ixs4).unwrap();
-    fs::write("segments_intersection_results_brute_sort_double.json", &serialized).unwrap();
-	println!("Saved segments_intersection_results_brute_sort_double.json.");
-
-
+	let mut ixs5 = intersections::brute_sort_double2(&mut segments, &mut segments2);
+	dbg!(&ixs5);
 
 //     let a = Point::random();
 //     let b = Point::random_ceil(2000.0, false);

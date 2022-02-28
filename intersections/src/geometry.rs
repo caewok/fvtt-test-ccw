@@ -4,6 +4,7 @@ use std::fs;
 use rand::Rng;
 
 use std::cmp::Ordering;
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Point {
@@ -102,6 +103,20 @@ impl Segment {
 	  		Ordering::Greater
 	  	}
 	}
+}
+
+impl fmt::Display for Point {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		// Point x,y
+        write!(f, "{},{}", self.x, self.y)
+    }
+}
+
+impl fmt::Display for Segment {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Segment a.x,a.y|b.x,b.y
+        write!(f, "{}|{}", self.a, self.b)
+    }
 }
 
 /// Determine the relative orientation of three points in two-dimensional space.
