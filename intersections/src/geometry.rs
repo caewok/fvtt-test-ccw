@@ -16,6 +16,9 @@ pub struct Segment {
 	pub a: Point,
 	pub b: Point,
 
+	#[serde(default)]
+	pub id: String,
+
 	// Use the result of a function as the default if not included in the input
 	// see https://sodocumentation.net/rust/topic/1170/serde
 
@@ -58,25 +61,25 @@ impl Point {
 }
 
 impl Segment {
-	pub fn new(a: Point, b: Point) -> Self  {
+	pub fn new(a: Point, b: Point, id: String) -> Self  {
 		// For bruteSort, define Segment has having the a point
 		// nw (min_xy) and b point se (max_xy)
 		let order = a.partial_cmp(&b).unwrap();
 		match order {
-			Ordering::Less => Self { a: a, b: b },
-			Ordering::Equal => Self { a: a, b: b },
-			Ordering::Greater => Self { a: b, b: a },
+			Ordering::Less => Self { a: a, b: b, id: id },
+			Ordering::Equal => Self { a: a, b: b, id: id },
+			Ordering::Greater => Self { a: b, b: a, id: id },
 		}
 	}
 
 	/// Construct a random Segment, using Point::random_ceil
 	pub fn random_ceil(max: f64, negative: bool) -> Segment {
 		Self::new(Point::random_ceil(max, negative),
-					 Point::random_ceil(max, negative))
+					 Point::random_ceil(max, negative), String::from(""))
 	}
 
 	pub fn random() -> Segment {
-		Self::new(Point::random(), Point::random())
+		Self::new(Point::random(), Point::random(), String::from(""))
 	}
 
 	// don't need separate compare_xy function---if a,b are ordered in new(),
@@ -132,9 +135,14 @@ pub fn orient2d(a: &Point, b: &Point, c: &Point) -> f64 {
 /// ## Returns
 /// True if the lines segments intersect.
 pub fn line_segment_intersects(a: &Point, b: &Point, c: &Point, d: &Point) -> bool {
-  let xab = (orient2d(a, b, c) * orient2d(a, b, d)) <= 0.0;
-  let xcd = (orient2d(c, d, a) * orient2d(c, d, b)) <= 0.0;
-  return xab && xcd
+	let xa = orient2d(a, b, c);
+	let xb = orient2d(a, b, d);
+
+	if xa == 0.0 && xb == 0.0 { return false; }
+
+	let xab = (xa * xb) <= 0.0;
+	let xcd = (orient2d(c, d, a) * orient2d(c, d, b)) <= 0.0;
+	return xab && xcd
 }
 
 /// Compute the intersection between two infinite lines.
