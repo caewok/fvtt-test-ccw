@@ -7,7 +7,6 @@ use serde_json;
 use std::fs;
 use std::cmp::Ordering;
 use std::cmp;
-use std::collections::HashSet;
 use rayon::prelude::*; // multi-threading iterator
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, PartialOrd, Clone)]
@@ -49,7 +48,7 @@ pub fn brute_single(segments: &Vec<Segment>) -> Vec<IntersectionResult> {
 
 	for (i, si) in segments.iter().enumerate() {
 		let segments_slice = &segments[(i + 1)..]; // faster than if i <= j { continue; }
-	    for (j, sj) in segments_slice.iter().enumerate() {
+	    for sj in segments_slice {
 	      	// if i <= j { continue; } // don't need to compare the same segments twice
 	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
 
@@ -77,8 +76,8 @@ pub fn brute_single(segments: &Vec<Segment>) -> Vec<IntersectionResult> {
 pub fn brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<IntersectionResult> {
     let mut ixs: Vec<IntersectionResult> = Vec::new();
 
-	for (i, si) in segments1.iter().enumerate() {
-	    for (j, sj) in segments2.iter().enumerate() {
+	for si in segments1 {
+	    for sj in segments2 {
 	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
 
 	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
@@ -112,12 +111,11 @@ pub fn brute_sort_single(segments: &mut Vec<Segment>) -> Vec<IntersectionResult>
 
 	// sort the segments by the a point (ne or min_xy)
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-	let ln = segments.len();
 
 	for (i, si) in segments.iter().enumerate() {
 		let segments_slice = &segments[(i + 1)..];
 
-	    for (j, sj) in segments_slice.iter().enumerate() {
+	    for sj in segments_slice {
 // 	    	if i <= j { continue; }
 
 	    	// if we have not yet reached the left end of this segment, we can skip
@@ -145,7 +143,7 @@ pub fn brute_sort_single(segments: &mut Vec<Segment>) -> Vec<IntersectionResult>
 // slower when tracking skipped with HashSet
 // faster to use slice than to use for j in start_j..ln!
 // Using HashSet appears slower for most cases
-pub fn brute_sort_single2(segments: &mut Vec<Segment>) -> Vec<IntersectionResult> {
+pub fn brute_sort_single_threaded(segments: &mut Vec<Segment>) -> Vec<IntersectionResult> {
 	// sort the segments by the a point (ne or min_xy)
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -203,8 +201,8 @@ pub fn brute_sort_double(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segme
 // 	dbg!(&segments1);
 // 	dbg!(&segments2);
 
-	for (i, si) in segments1.iter().enumerate() {
-	    for (j, sj) in segments2.iter().enumerate() {
+	for si in segments1 {
+	    for sj in segments2.iter() {
 // 	    	println!("i {}, j {}", i, j);
 // 	    	println!("si: {}", si);
 // 	    	println!("sj: {}", sj);
@@ -245,25 +243,23 @@ pub fn brute_sort_double(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segme
    	ixs
 }
 
-pub fn brute_sort_double2(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	let mut ixs: Vec<IntersectionResult> = Vec::new();
+// threaded appears much faster for 1000 segments, not for 100
+// see https://github.com/GoogleChromeLabs/wasm-bindgen-rayon for using with wasm
 
+pub fn brute_sort_double_threaded(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>) -> Vec<IntersectionResult> {
 	// sort the segments by the a point (ne or min_xy)
 	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
-	let mut skipped = HashSet::new();
-
-	for (i, si) in segments1.iter().enumerate() {
-	    for (j, sj) in segments2.iter().enumerate() {
-	    	if skipped.contains(&j) { continue; }
-
+	let ln1 = segments1.len();
+	let result: Vec<_> = (0..ln1).into_par_iter().map(|i| {
+		let si = &segments1[i];
+		let segments_slice = &segments2[..];
+		let mut thread_ixs: Vec<IntersectionResult> = Vec::new();
+		for sj in segments_slice {
 	    	// if we have not yet reached the left end of this segment, we can skip
 	    	let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-	    	if left_res == Ordering::Less {
-	    		skipped.insert(j);
-	    		continue;
-	    	}
+	    	if left_res == Ordering::Less { continue; }
 
 	    	// if we reach the right end of this segment, we can skip the rest
 	    	let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
@@ -272,15 +268,16 @@ pub fn brute_sort_double2(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segm
 	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
 
 	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	ixs.push(IntersectionResult {
+          	thread_ixs.push(IntersectionResult {
               	ix,
               	s1_id: si.id.clone(),
               	s2_id: sj.id.clone(),
          	});
-	  	}
-	}
+		}
+		thread_ixs
+	}).collect();
 
-   	ixs
+   	result.concat()
 }
 
 
@@ -423,9 +420,9 @@ mod tests {
 	}
 
 	#[test]
-	fn brute_sort_single2_works() {
+	fn brute_sort_single_threaded_works() {
 	    let mut setup = TestSetup::new();
-	    let mut ixs = brute_sort_single2(&mut setup.segments);
+	    let mut ixs = brute_sort_single_threaded(&mut setup.segments);
     	ixs.iter_mut().for_each(|i| i.order_ids());
     	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
     	assert_eq!(ixs, setup.results_single);
@@ -443,11 +440,11 @@ mod tests {
 	}
 
 	#[test]
-	fn brute_sort_double2_works() {
+	fn brute_sort_double_threaded_works() {
 	    let mut setup = TestSetup::new();
 	    let mut segments2 = setup.segments.clone();
 
-	    let mut ixs = brute_sort_double2(&mut setup.segments, &mut segments2);
+	    let mut ixs = brute_sort_double_threaded(&mut setup.segments, &mut segments2);
     	ixs.iter_mut().for_each(|i| i.order_ids());
     	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
     	assert_eq!(ixs, setup.results_double);
@@ -467,9 +464,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_10_sort_single2(b: &mut Bencher) {
+	fn test_10_sort_single_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single2(&mut setup.segments_10_1));
+		b.iter(|| brute_sort_single_threaded(&mut setup.segments_10_1));
 	}
 
 	#[bench]
@@ -485,9 +482,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_10_sort_double2(b: &mut Bencher) {
+	fn test_10_sort_double_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double2(&mut setup.segments_10_1, &mut setup.segments_10_2));
+		b.iter(|| brute_sort_double_threaded(&mut setup.segments_10_1, &mut setup.segments_10_2));
 	}
 
 	#[bench]
@@ -503,9 +500,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_100_sort_single2(b: &mut Bencher) {
+	fn test_100_sort_single_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single2(&mut setup.segments_100_1));
+		b.iter(|| brute_sort_single_threaded(&mut setup.segments_100_1));
 	}
 
 	#[bench]
@@ -521,9 +518,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_100_sort_double2(b: &mut Bencher) {
+	fn test_100_sort_double_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double2(&mut setup.segments_100_1, &mut setup.segments_100_2));
+		b.iter(|| brute_sort_double_threaded(&mut setup.segments_100_1, &mut setup.segments_100_2));
 	}
 
 	#[bench]
@@ -539,9 +536,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_1000_sort_single2(b: &mut Bencher) {
+	fn test_1000_sort_single_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single2(&mut setup.segments_1000_1));
+		b.iter(|| brute_sort_single_threaded(&mut setup.segments_1000_1));
 	}
 
 	#[bench]
@@ -557,9 +554,9 @@ mod tests {
 	}
 
 	#[bench]
-	fn test_1000_sort_double2(b: &mut Bencher) {
+	fn test_1000_sort_double_threaded(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double2(&mut setup.segments_1000_1, &mut setup.segments_1000_2));
+		b.iter(|| brute_sort_double_threaded(&mut setup.segments_1000_1, &mut setup.segments_1000_2));
 	}
 
 }

@@ -121,7 +121,7 @@ fn main() {
 //     ixs2.sort_by(|a, b| a.partial_cmp(b).unwrap());
 //     dbg!(&ixs2);
 //
-    let mut ixs3 = intersections::brute_sort_single2(&mut segments);
+    let mut ixs3 = intersections::brute_sort_single_threaded(&mut segments);
     ixs3.iter_mut().for_each(|i| i.order_ids());
     ixs3.sort_by(|a, b| a.partial_cmp(b).unwrap());
     dbg!(&ixs3);
@@ -147,7 +147,7 @@ fn main() {
 //     fs::write("segments_intersection_results_brute_sort_double.json", &serialized).unwrap();
 // 	println!("Saved segments_intersection_results_brute_sort_double.json.");
 
-	let mut ixs5 = intersections::brute_sort_double2(&mut segments, &mut segments2);
+	let ixs5 = intersections::brute_sort_double_threaded(&mut segments, &mut segments2);
 	dbg!(&ixs5);
 
 //     let a = Point::random();
