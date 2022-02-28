@@ -8,8 +8,9 @@ use std::fs;
 use std::cmp::Ordering;
 use std::cmp;
 use std::collections::HashSet;
+use rayon::prelude::*; // multi-threading iterator
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, PartialOrd, Clone)]
 pub struct IntersectionResult {
   pub ix: Point,
   pub s1_id: String,
@@ -145,45 +146,40 @@ pub fn brute_sort_single(segments: &mut Vec<Segment>) -> Vec<IntersectionResult>
 // faster to use slice than to use for j in start_j..ln!
 // Using HashSet appears slower for most cases
 pub fn brute_sort_single2(segments: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	let mut ixs: Vec<IntersectionResult> = Vec::new();
-
 	// sort the segments by the a point (ne or min_xy)
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
-	let mut skipped = HashSet::new();
+	let ln = segments.len();
+	let result: Vec<_> = (0..ln).into_par_iter().map(|i| {
+		let mut thread_ixs: Vec<IntersectionResult> = Vec::new();
+		let segments_slice = &segments[(i + 1)..];
+		let si = &segments[i];
 
-	for (i, si) in segments.iter().enumerate() {
-		let start_j = i + 1;
-		let segments_slice = &segments[start_j..];
+		for sj in segments_slice {
+			// if we have not yet reached the left end of this segment, we can skip
+			let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
+			if left_res == Ordering::Less { continue; }
 
-	    for (j, sj) in segments_slice.iter().enumerate() {
-	    	//if i <= j { continue; }
+			// if we reach the right end of this segment, we can skip the rest
+			let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
+			if right_res == Ordering::Greater { break; }
 
-	    	if skipped.contains(&(start_j + j)) { continue; }
+			if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
 
-	    	// if we have not yet reached the left end of this segment, we can skip
-	    	let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-	    	if left_res == Ordering::Less {
-	    		skipped.insert(start_j + j);
-	    		continue;
-	    	}
+			let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
+			thread_ixs.push(IntersectionResult {
+				ix,
+				s1_id: si.id.clone(),
+				s2_id: sj.id.clone(),
+			});
+		}
+		thread_ixs
+	}).collect();
 
-	    	// if we reach the right end of this segment, we can skip the rest
-	    	let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
-	    	if right_res == Ordering::Greater { break; }
-
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
-
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
-	  	}
-	}
-
-   	ixs
+// 	result
+	// both concat and flatten are slowish but concat may be slightly faster
+	result.concat()
+// 	result.into_iter().flatten().collect()
 }
 
 

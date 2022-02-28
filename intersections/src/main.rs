@@ -121,15 +121,15 @@ fn main() {
 //     ixs2.sort_by(|a, b| a.partial_cmp(b).unwrap());
 //     dbg!(&ixs2);
 //
-//     let mut ixs3 = intersections::brute_sort_single(&mut segments);
-//     ixs3.iter_mut().for_each(|i| i.order_ids());
-//     ixs3.sort_by(|a, b| a.partial_cmp(b).unwrap());
-//     dbg!(&ixs3);
+    let mut ixs3 = intersections::brute_sort_single2(&mut segments);
+    ixs3.iter_mut().for_each(|i| i.order_ids());
+    ixs3.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    dbg!(&ixs3);
 //
-    let mut ixs4 = intersections::brute_sort_double(&mut segments, &mut segments2);
+//     let mut ixs4 = intersections::brute_sort_double(&mut segments, &mut segments2);
 //     ixs4.iter_mut().for_each(|i| i.order_ids());
 //     ixs4.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    dbg!(&ixs4);
+//     dbg!(&ixs4);
 //
 //     let serialized = serde_json::to_string_pretty(&ixs).unwrap();
 //     fs::write("segments_intersection_results_brute_single.json", &serialized).unwrap();
