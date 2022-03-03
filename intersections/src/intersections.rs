@@ -15,7 +15,7 @@ use crate::{
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct IntersectionResult {
 	pub ix: PointFloat,
 // 	pub id1: String,
@@ -78,6 +78,30 @@ pub fn brute_single(js_walls: Vec<JsValue>) -> Array {
 	}
 
 	ixs.iter().map(|&pt| JsValue::from(pt)).collect()
+}
+
+#[wasm_bindgen]
+pub fn brute_single_serde(val: &JsValue) -> JsValue {
+	let segments: Vec<SegmentFloat> = val.into_serde().unwrap();
+
+	let mut ixs: Vec<PointFloat> = Vec::new();
+	for (i, si) in segments.iter().enumerate() {
+		let segments_slice = &segments[(i + 1)..]; // faster than if i <= j { continue; }
+		for (j, sj) in segments_slice.iter().enumerate() {
+			// if i <= j { continue; } // don't need to compare the same segments twice
+			if !point::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
+
+			let ix = point::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
+			ixs.push(ix);
+			//IntersectionResult {
+// 				ix,
+// 				id1: si.id.clone(),
+// 				id2: sj.id.clone(),
+// 			});
+		}
+	}
+
+	JsValue::from_serde(&ixs).unwrap()
 }
 
 
