@@ -6,7 +6,7 @@ use rand::Rng;
 //use std::cmp::Ordering;
 use std::fmt;
 
-use num::Num; // https://stackoverflow.com/questions/37296351/is-there-any-trait-that-specifies-numeric-functionality
+// use num::Num; // https://stackoverflow.com/questions/37296351/is-there-any-trait-that-specifies-numeric-functionality
 
 use wasm_bindgen::prelude::*;
 
@@ -29,17 +29,17 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
-pub struct Point<T> {
-	pub x: T,
-  	pub y: T,
+pub struct Point {
+	pub x: f64,
+  	pub y: f64,
 }
 
 // Don't use trait bound in struct definition above.
 // See https://stackoverflow.com/questions/49229332/should-trait-bounds-be-duplicated-in-struct-and-impl
 #[wasm_bindgen]
-impl <T: Num> Point<T> {
+impl Point {
 	#[wasm_bindgen(constructor)]
-	pub fn new(x: T, y: T) -> Self {
+	pub fn new(x: f64, y: f64) -> Self {
 		Self { x, y }
 	}
 
@@ -107,7 +107,7 @@ impl fmt::Display for Point {
 /// Negative value if the points are in clockwise order.
 /// Zero if the points are collinear.
 #[wasm_bindgen]
-pub fn orient2d(a: &Point<T>, b: &Point<U>, c: &Point<V>) -> f64 {
+pub fn orient2d(a: &Point, b: &Point, c: &Point) -> f64 {
   (a.y - c.y) * (b.x - c.x) - (a.x - c.x) * (b.y - c.y)
 }
 
@@ -124,7 +124,7 @@ pub fn orient2d(a: &Point<T>, b: &Point<U>, c: &Point<V>) -> f64 {
 /// ## Returns
 /// True if the lines segments intersect.
 #[wasm_bindgen]
-pub fn line_segment_intersects(a: &Point<T>, b: &Point<U>, c: &Point<V>, d: &Point<W>) -> bool {
+pub fn line_segment_intersects(a: &Point, b: &Point, c: &Point, d: &Point) -> bool {
 	let xa = orient2d(a, b, c);
 	let xb = orient2d(a, b, d);
 
@@ -147,7 +147,7 @@ pub fn line_segment_intersects(a: &Point<T>, b: &Point<U>, c: &Point<V>, d: &Poi
 /// ## Returns
 /// Coordinates of the intersection.
 #[wasm_bindgen]
-pub fn line_line_intersection(a: &Point<T>, b: &Point<U>, c: &Point<V>, d: &Point<W>) -> Point<X> {
+pub fn line_line_intersection(a: &Point, b: &Point, c: &Point, d: &Point) -> Point {
 	let dx1 = b.x - a.x;
   	let dx2 = d.x - c.x;
   	let dy1 = b.y - a.y;
