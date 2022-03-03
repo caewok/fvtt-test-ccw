@@ -27,53 +27,84 @@ use wasm_bindgen::prelude::*;
 /// for simplicity. (So either two floats, or two integers.)
 // Cannot use Point<T> with wasm_bindgen: structs with #[wasm_bindgen] cannot have lifetime or type parameters currently
 
+
+
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
-pub struct Point {
+pub struct PointFloat {
 	pub x: f64,
   	pub y: f64,
 }
 
-// Don't use trait bound in struct definition above.
-// See https://stackoverflow.com/questions/49229332/should-trait-bounds-be-duplicated-in-struct-and-impl
 #[wasm_bindgen]
-impl Point {
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+pub struct PointInt {
+	pub x: i64,
+  	pub y: i64,
+}
+
+#[wasm_bindgen]
+pub enum Point {
+	PointInt(PointInt),
+	PointFloat(PointFloat),
+}
+
+pub enum Num {
+	Int(i64),
+	Float(f64),
+}
+
+impl PointFloat {
 	#[wasm_bindgen(constructor)]
 	pub fn new(x: f64, y: f64) -> Self {
 		Self { x, y }
 	}
 
-	/// Construct a random point with an optional maximum amount.
-	/// If negative is true, the max will also serve as the floor.
-	/// Otherwise, floor is 0.
-	/// Useful for testing intersections where you need segments that could possibly
-	/// overlap with greater frequency than using random alone.
-	pub fn random_ceil(max: f64, negative: bool) -> Point {
-		let mut rng = rand::thread_rng();
+	pub fn random() -> PointFloat {
+		let mut rng = rand::thread_rng::<f64>();
+		Self { x: rng.gen(), y: rng.gen() }
+	}
+
+	pub fn random_ceiling(max: f64, negative: bool) -> PointFloat {
+		let mut rng = rand::thread_rng::<f64>();
 
 		if negative {
-		  	Point {
-		 		x: rng.gen_range(-max..max),
-		 		y: rng.gen_range(-max..max),
-		 	}
+			Self { 	x: rng.gen_range(-max..max),
+					y: rng.gen_range(-max..max), }
 		} else {
-			Point {
-		 		x: rng.gen_range(0.0..max),
-		 		y: rng.gen_range(0.0..max),
-		 	}
+			Self { 	x: rng.gen_range(0.0..max),
+					y: rng.gen_range(0.0..max), }
 		}
-	}
 
-	/// Construct a random point
-	pub fn random() -> Point {
-	  	let mut rng = rand::thread_rng();
-	  	Point {
-	    	x: rng.gen(),
-			y: rng.gen(),
-	  	}
 	}
-
 }
+
+impl PointInt {
+	#[wasm_bindgen(constructor)]
+	pub fn new(x: i64, y: i64) -> Self {
+		Self {x, y }
+	}
+
+	pub fn random() -> PointInt {
+		let mut rng = rand::thread_rng::<f64>();
+		Self { x: rng.gen(), y: rng.gen() }
+	}
+
+	pub fn random_ceiling(max: i64, negative: bool) -> PointInt {
+		let mut rng = rand::thread_rng::<i64>();
+
+		if negative {
+			Self { 	x: rng.gen_range(-max..max),
+					y: rng.gen_range(-max..max), }
+		} else {
+			Self { 	x: rng.gen_range(0..max),
+					y: rng.gen_range(0..max), }
+		}
+
+	}
+}
+
+
 
 // impl From<&JsPoint> for Point {
 // 	fn from(point: &JsPoint) -> Self {
@@ -107,8 +138,16 @@ impl fmt::Display for Point {
 /// Negative value if the points are in clockwise order.
 /// Zero if the points are collinear.
 #[wasm_bindgen]
-pub fn orient2d(a: &Point, b: &Point, c: &Point) -> f64 {
-  (a.y - c.y) * (b.x - c.x) - (a.x - c.x) * (b.y - c.y)
+pub fn orient2d(a: &Point, b: &Point, c: &Point) -> Num<i64, f64> {
+  	let res = (a.y - c.y) * (b.x - c.x) - (a.x - c.x) * (b.y - c.y);
+
+	if Point:PointFloat == a ||
+	   Point::PointFloat == b ||
+	   Point::PointFloat == c {
+		Num::Float(res)
+	} else {
+		Num::Int(res)
+	}
 }
 
 
