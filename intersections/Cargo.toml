@@ -14,6 +14,7 @@ getrandom = { version = "0.2.5", features = ["js"] }
 #rayon = "1.5"
 wasm-bindgen="0.2.79"
 #num = "0.4.0"
+js-sys = "0.3.56"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -12,8 +12,16 @@ use std::fmt;
 
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+extern "C" {
+	pub type JsPoint;
 
+	#[wasm_bindgen(method, getter)]
+	fn x(this: &JsPoint) -> f64;
 
+	#[wasm_bindgen(method, getter)]
+	fn y(this: &JsPoint) -> f64;
+}
 
 // #[wasm_bindgen]
 // extern "C" {
@@ -219,12 +227,41 @@ impl From<PointFloat> for PointInt {
 	}
 }
 
+impl From<&JsPoint> for PointFloat {
+	fn from(point: &JsPoint) -> Self {
+		Self::new(point.x(), point.y())
+	}
+}
+
+impl From<JsPoint> for PointFloat {
+	fn from(point: JsPoint) -> Self {
+		Self::new(point.x(), point.y())
+	}
+}
+
+impl From<&JsPoint> for PointInt {
+	fn from(point: &JsPoint) -> Self {
+		Self::from(PointFloat::new(point.x(), point.y()))
+	}
+}
+
+impl From<JsPoint> for PointInt {
+	fn from(point: JsPoint) -> Self {
+		Self::from(PointFloat::new(point.x(), point.y()))
+	}
+}
+
 // impl From<&JsPoint> for Point {
 // 	fn from(point: &JsPoint) -> Self {
 // 		Self::new(point.x(), point.y())
 // 	}
 // }
 
+// impl From<&PointFloat> for JsPoint {
+// 	fn from(point: &PointFloat) -> Self {
+// 		JsPoint{ x: point.x, y: point.y }
+// 	}
+// }
 
 impl fmt::Display for PointFloat {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

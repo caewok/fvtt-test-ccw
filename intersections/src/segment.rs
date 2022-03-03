@@ -8,6 +8,17 @@ use crate::{
 
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+extern "C" {
+	pub type JsWall;
+	pub type JsWallData;
+
+	#[wasm_bindgen(method, getter)]
+	fn data(this: &JsWall) -> JsWallData;
+
+	#[wasm_bindgen(method, getter)]
+	fn c(this: &JsWallData) -> Vec<f64>;
+}
 
 /// Segments have ordered points, such that a is new (<= x, <= y) than b
 #[wasm_bindgen]
@@ -15,6 +26,9 @@ use wasm_bindgen::prelude::*;
 pub struct SegmentInt {
 	pub a: PointInt,
 	pub b: PointInt,
+
+// 	#[serde(default)]
+// 	pub id: String,
 }
 
 #[wasm_bindgen]
@@ -22,6 +36,9 @@ pub struct SegmentInt {
 pub struct SegmentFloat {
 	pub a: PointFloat,
 	pub b: PointFloat,
+
+// 	#[serde(default)]
+// 	pub id: String,
 }
 
 #[wasm_bindgen]
@@ -49,6 +66,8 @@ impl SegmentInt {
 
 #[wasm_bindgen]
 impl SegmentFloat {
+
+
 	#[wasm_bindgen(constructor)]
 	pub fn new(a: PointFloat, b: PointFloat) -> Self {
 		// a: nw (min_xy) and b: se (max_xy)
@@ -67,6 +86,15 @@ impl SegmentFloat {
 
 	pub fn random() -> Self {
 		Self::new(PointFloat::random(), PointFloat::random())
+	}
+
+	pub fn from_js(wall: &JsWall) -> Self {
+		let data = wall.data();
+		let c = data.c();
+		Self::new(
+			PointFloat::new(c[0], c[1]),
+			PointFloat::new(c[2], c[3]),
+		)
 	}
 }
 
