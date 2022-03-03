@@ -104,6 +104,30 @@ pub fn brute_single_serde(val: &JsValue) -> JsValue {
 	JsValue::from_serde(&ixs).unwrap()
 }
 
+#[wasm_bindgen]
+pub fn brute_single_serde_native(val: JsValue) -> JsValue {
+	let segments: Vec<SegmentFloat> = serde_wasm_bindgen::from_value(val).unwrap();
+
+	let mut ixs: Vec<PointFloat> = Vec::new();
+	for (i, si) in segments.iter().enumerate() {
+		let segments_slice = &segments[(i + 1)..]; // faster than if i <= j { continue; }
+		for (j, sj) in segments_slice.iter().enumerate() {
+			// if i <= j { continue; } // don't need to compare the same segments twice
+			if !point::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
+
+			let ix = point::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
+			ixs.push(ix);
+			//IntersectionResult {
+// 				ix,
+// 				id1: si.id.clone(),
+// 				id2: sj.id.clone(),
+// 			});
+		}
+	}
+
+	serde_wasm_bindgen::to_value(&ixs).unwrap()
+}
+
 
 // 	pub fn brute_single_int<I>(segments: I) -> Vec<IntersectionResult>
 // 	where
