@@ -15,9 +15,7 @@ getrandom = { version = "0.2.5", features = ["js"] }
 #rayon = "1.5"
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"] }
 #num = "0.4.0"
-num-traits = "0.2.14"
 js-sys = "0.3.56"
-geo = { version = "0.19.0", features = ["use-serde"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
