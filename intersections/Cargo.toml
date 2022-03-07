@@ -19,6 +19,7 @@ authors = ["Michael Enion <caewok_2000@yahoo.com"]
 rand = "0.8.5"
 geo = { version = "0.19.0", features = ["use-serde"] }
 num-traits = "0.2.14"
+robust = "0.2.3"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

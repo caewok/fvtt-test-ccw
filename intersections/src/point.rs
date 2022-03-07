@@ -1,72 +1,170 @@
 /*
-Represent a 2-D point using geo crate.
-Add traits and methods to:
-- Create random points
-- Convert between integer and numeric points
-- Simple orientation that uses integers
-- Simple intersection methods that uses integers
+Represent a 2-D point without using geo crate
+
 */
 
 // #![feature(core_intrinsics)]
 
 use rand::Rng;
-use rand::prelude::Distribution;
-use rand::distributions::Standard;
-use geo::{ Point, CoordNum};
 use geo::algorithm::kernels::Orientation;
+use geo::{Coordinate};
+use num_traits::Zero;
 
-pub trait RandomPoint
-{
-	type CoordType;
+#[derive(Debug, Copy, Clone)]
+pub enum Point {
+	Float(PointFloat),
+	Int(PointInt),
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+pub struct PointFloat {
+	pub x: f64,
+	pub y: f64,
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+pub struct PointInt {
+	pub x: i64,
+	pub y: i64,
+}
+
+impl PointFloat {
+	fn new(x: f64, y: f64) -> Self { PointFloat { x, y }}
+
+	fn x_y(&self) -> (f64, f64) { (self.x, self.y) }
+}
+
+impl PointInt {
+	fn new(x: i64, y: i64) -> Self { PointInt { x, y }}
+
+	fn x_y(&self) -> (i64, i64) { (self.x, self.y) }
+}
+
+impl From<PointInt> for PointFloat {
+	fn from(item: PointInt) -> Self {
+		Self { x: item.x as f64, y: item.y as f64 }
+	}
+}
+
+impl From<PointFloat> for PointInt {
+	fn from(item: PointFloat) -> Self {
+		// round to nearest integer coordinates
+		Self { x: item.x.round() as i64, y: item.y.round() as i64 }
+	}
+}
+
+// impl From<Coordinate<T>> for PointFloat {
+// 	fn from(item: Coordinate<T>) -> Self {
+// 		Self { x: item.x as f64, y: item.y as f64 }
+// 	}
+// }
+//
+// impl From<Coordinate<T>> for PointInt {
+// 	fn from(item: Coordinate<T>) -> Self {
+// 		Self { x: item.x.round() as i64, y: item.y.round() as i64 }
+// 	}
+// }
+
+pub trait GenerateRandom {
+	type MaxType;
 
 	fn random() -> Self;
 
-	fn random_ceil(max: Self::CoordType) -> Self;
+	fn random_ceil(max: Self::MaxType) -> Self;
+
+	fn random_pos(max: Self::MaxType) -> Self;
 }
 
-impl<T> RandomPoint for Point<T>
-	// where T: num_traits::SaturatingSub + num_traits::Zero + CoordNum + rand::distributions::uniform::SampleUniform, Standard: Distribution<T>,
-	where T: CoordNum + rand::distributions::uniform::SampleUniform, Standard: Distribution<T>,
-{
-	type CoordType = T;
+impl GenerateRandom for PointFloat {
+	type MaxType = f64;
 
-	fn random() -> Point<T> {
+	fn random() -> Self {
 		let mut rng = rand::thread_rng();
-		Point::new(rng.gen(), rng.gen())
+		Self::new(rng.gen(), rng.gen())
 	}
 
-	fn random_ceil(max: T) -> Point<T>
-	{
-
+	fn random_ceil(max: Self::MaxType) -> Self {
 		let mut rng = rand::thread_rng();
-		let min = std::intrinsics::saturating_sub(T::zero(), max); // -max
-		Point::new(rng.gen_range(min..=max),
-				   rng.gen_range(min..=max))
+		let min = -max;
+		Self::new(rng.gen_range(min..=max), rng.gen_range(min..=max))
+	}
+
+	fn random_pos(max: Self::MaxType) -> Self {
+		let mut rng = rand::thread_rng();
+		let min = num_traits::zero();
+		Self::new(rng.gen_range(min..=max), rng.gen_range(min..=max))
 	}
 }
+
+impl GenerateRandom for PointInt {
+	type MaxType = i64;
+
+	fn random() -> Self {
+		let mut rng = rand::thread_rng();
+		Self::new(rng.gen(), rng.gen())
+	}
+
+	fn random_ceil(max: Self::MaxType) -> Self {
+		let mut rng = rand::thread_rng();
+		let min = -max;
+		Self::new(rng.gen_range(min..=max), rng.gen_range(min..=max))
+	}
+
+	fn random_pos(max: Self::MaxType) -> Self {
+		let mut rng = rand::thread_rng();
+		let min = num_traits::zero();
+		Self::new(rng.gen_range(min..=max), rng.gen_range(min..=max))
+	}
+}
+
 
 pub trait SimpleOrient<A = Self, B = Self, C = Self> {
 	fn orient2d(a: A, b: B, c: C) -> Orientation;
 }
 
+// see https://docs.rs/geo/0.19.0/src/geo/algorithm/kernels/robust.rs.html#12
+impl SimpleOrient for PointFloat {
+	fn orient2d(a: PointFloat, b: PointFloat, c: PointFloat) -> Orientation {
+		use robust::{orient2d, Coord};
+		let orientation = robust::orient2d(
+			Coord {
+				x: a.x,
+				y: a.y,
+			},
+			Coord {
+				x: b.x,
+				y: b.y,
+			},
+			Coord {
+				x: c.x,
+				y: c.y,
+			},
+		);
 
-impl<T> SimpleOrient<Point<T>, Point<T>, Point<T>> for Point<T>
-	where T: CoordNum,
-{
-	fn orient2d(a: Point<T>, b: Point<T>, c: Point<T>) -> Orientation {
+		if orientation < 0. {
+			Orientation::Clockwise
+		} else if orientation > 0. {
+			Orientation::CounterClockwise
+		} else {
+			Orientation::Collinear
+		}
+	}
+}
+
+impl SimpleOrient for PointInt {
+	fn orient2d(a: PointInt, b: PointInt, c: PointInt) -> Orientation {
 		let (ax, ay) = a.x_y();
 		let (bx, by) = b.x_y();
 		let (cx, cy) = c.x_y();
 
-		let x1 = std::intrinsics::saturating_sub(ay, cy) * std::intrinsics::saturating_sub(bx, cx);
-		let x2 = std::intrinsics::saturating_sub(ax, cx) * std::intrinsics::saturating_sub(by, cy);
+		let diag1 = (ay - cy) * (bx - cx);
+		let diag2 = (ax - cx) * (by - cy);
+		let res = diag1 - diag2;
 
-		// Positive: CCW
-		// Negative: CW
-		if x1 < x2 {
-			Orientation::Clockwise
-		} else if x1 > x2 {
+		if res > Zero::zero() {
 			Orientation::CounterClockwise
+		} else if res < Zero::zero() {
+			Orientation::Clockwise
 		} else {
 			Orientation::Collinear
 		}
