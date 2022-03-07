@@ -242,11 +242,13 @@ impl SimpleOrient for Point {
 // 		} else {
 // 			PointFloat::orient2d(p1.into(), p2.into(), p3.into())
 // 		}
-		if std::mem::discriminant(&a) == std::mem::discriminant(&b) &&
-		   std::mem::discriminant(&a) == std::mem::discriminant(&c) {
-	    	PointInt::orient2d(a.into(), b.into(), c.into())
-		} else {
-			PointFloat::orient2d(a.into(), b.into(), c.into())
+// 		match (a, b, c) {
+// 			(Point::Int(p1), Point::Int(p2), Point::Int(p3)) => PointInt::orient2d(p1, p2, p3),
+// 			(_,_,_) => PointFloat::orient2d(PointFloat::from(a), PointFloat::from(b), PointFloat::from(c)),
+// 		}
+		match (a, b, c) {
+			(Point::Int(p1), Point::Int(p2), Point::Int(p3)) => PointInt::orient2d(p1, p2, p3),
+			(p1,p2,p3) => PointFloat::orient2d(PointFloat::from(p1), PointFloat::from(p2), PointFloat::from(p3)),
 		}
 	}
 }

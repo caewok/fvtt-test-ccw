@@ -2,6 +2,7 @@ use crate::point::*;
 use std::fmt;
 use geo::algorithm::kernels::Orientation;
 
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Segment {
 	Float(SegmentFloat),
 	Int(SegmentInt),
@@ -151,12 +152,28 @@ impl GenerateRandom for SegmentInt {
 }
 
 pub trait SimpleIntersect<B = Self> {
-	fn intersects(&self, other: B) -> bool;
-	fn line_intersection(&self, other: B) -> Option<PointFloat>;
+	fn intersects(self, other: B) -> bool;
+	fn line_intersection(self, other: B) -> Option<PointFloat>;
+}
+
+impl SimpleIntersect for Segment {
+	fn intersects(self, other: Segment) -> bool {
+		match (self, other) {
+			(Segment::Int(s1), Segment::Int(s2)) => s1.intersects(s2),
+			(s1, s2) => SegmentFloat::from(s1).intersects(SegmentFloat::from(s2))
+		}
+	}
+
+	fn line_intersection(self, other: Segment) -> Option<PointFloat> {
+		match (self, other) {
+			(Segment::Int(s1), Segment::Int(s2)) => s1.line_intersection(s2),
+			(s1, s2) => SegmentFloat::from(s1).line_intersection(SegmentFloat::from(s2))
+		}
+	}
 }
 
 impl SimpleIntersect for SegmentFloat {
-	fn intersects(&self, other: SegmentFloat) -> bool {
+	fn intersects(self, other: SegmentFloat) -> bool {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -174,7 +191,7 @@ impl SimpleIntersect for SegmentFloat {
 		return false;
 	}
 
-	fn line_intersection(&self, other: SegmentFloat) -> Option<PointFloat> {
+	fn line_intersection(self, other: SegmentFloat) -> Option<PointFloat> {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -224,7 +241,7 @@ impl SimpleIntersect for SegmentFloat {
 // - Collinear (left to user to determine; may be none)
 // - None
 impl SimpleIntersect for SegmentInt {
-	fn intersects(&self, other: SegmentInt) -> bool {
+	fn intersects(self, other: SegmentInt) -> bool {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -242,7 +259,7 @@ impl SimpleIntersect for SegmentInt {
 		return false;
 	}
 
-	fn line_intersection(&self, other: SegmentInt) -> Option<PointFloat> {
+	fn line_intersection(self, other: SegmentInt) -> Option<PointFloat> {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -265,10 +282,10 @@ impl SimpleIntersect for SegmentInt {
 // 		let x_dnm = dy1 * dx2 - dy2 * dx1;
 // 		let y_dnm = dx1 * dy2 - dx2 * dy1;
 
-		let x_dnm = (d1.y * d2.x - d2.y * d1.x);
+		let x_dnm = d1.y * d2.x - d2.y * d1.x;
 		if x_dnm == 0 { return None; }
 
-		let y_dnm = (d1.x * d2.y - d2.x * d1.y);
+		let y_dnm = d1.x * d2.y - d2.x * d1.y;
 		if y_dnm == 0 { return None; }
 
 		let x_num = (ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x) as f64;
@@ -277,6 +294,8 @@ impl SimpleIntersect for SegmentInt {
 		Some(PointFloat { x: x_num / x_dnm as f64, y: y_num / y_dnm as f64 })
 	}
 }
+
+
 
 mod tests {
 	use super::*;
@@ -385,7 +404,24 @@ mod tests {
 
 	#[test]
 	fn intersects_mixed_works() {
+		let p0 = PointInt::new(2300, 1900);
+		let p1 = PointInt::new(4200, 1900);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
 
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = Segment::Int(SegmentInt::new(p0, p1));
+		let s1 = Segment::Float(SegmentFloat::new(p2, p3));
+		let s3 = Segment::Float(SegmentFloat::new(p2, p4));
+		let s4 = Segment::Float(SegmentFloat::new(p3, p5));
+
+		assert!(s0.intersects(s1));
+		assert!(s0.intersects(s3));
+		assert!(!s0.intersects(s4));
 	}
 
 // ---------------- SEGMENT LINE INTERSECTION
@@ -458,7 +494,36 @@ mod tests {
 
 	#[test]
 	fn line_intersection_mixed_works() {
+		let p0 = PointInt::new(2300, 1900);
+		let p1 = PointInt::new(4200, 1900);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
 
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = Segment::Int(SegmentInt::new(p0, p1));
+		let s1 = Segment::Float(SegmentFloat::new(p2, p3));
+		let s3 = Segment::Float(SegmentFloat::new(p2, p4));
+		let s4 = Segment::Float(SegmentFloat::new(p3, p5));
+
+		let res01 = PointFloat::new(2469.866666666667, 1900.); // s0 x s1
+		let res03 = PointFloat::new(3200., 1900.); // s0 x s3
+		// s0 x s4: null
+		let res13 = p2; // s1 x s3 intersect at p2
+		let res14 = p3; // s1 x s4 intersect at p3
+		let res34 = PointFloat::new(3495.6363636363635, 2100.); // s3 x s4
+
+
+		assert_eq!(s0.line_intersection(s1), Some(res01));
+		assert_eq!(s0.line_intersection(s3), Some(res03));
+		assert_eq!(s0.line_intersection(s4), None);
+
+		assert_eq!(s1.line_intersection(s3), Some(res13));
+		assert_eq!(s1.line_intersection(s4), Some(res14));
+		assert_eq!(s3.line_intersection(s4), Some(res34));
 	}
 
 
