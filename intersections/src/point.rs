@@ -4,10 +4,12 @@ Represent a 2-D point without using geo crate
 */
 
 // #![feature(core_intrinsics)]
-
+use std::fmt;
 use rand::Rng;
+use rand::distributions::Standard;
+use rand::distributions::Distribution;
 use geo::algorithm::kernels::Orientation;
-use geo::{Coordinate};
+// use geo::{Coordinate};
 use num_traits::Zero;
 
 #[derive(Debug, Copy, Clone)]
@@ -29,15 +31,15 @@ pub struct PointInt {
 }
 
 impl PointFloat {
-	fn new(x: f64, y: f64) -> Self { PointFloat { x, y }}
+	pub fn new(x: f64, y: f64) -> Self { PointFloat { x, y }}
 
-	fn x_y(&self) -> (f64, f64) { (self.x, self.y) }
+	pub fn x_y(&self) -> (f64, f64) { (self.x, self.y) }
 }
 
 impl PointInt {
-	fn new(x: i64, y: i64) -> Self { PointInt { x, y }}
+	pub fn new(x: i64, y: i64) -> Self { PointInt { x, y }}
 
-	fn x_y(&self) -> (i64, i64) { (self.x, self.y) }
+	pub fn x_y(&self) -> (i64, i64) { (self.x, self.y) }
 }
 
 impl From<PointInt> for PointFloat {
@@ -53,17 +55,37 @@ impl From<PointFloat> for PointInt {
 	}
 }
 
-// impl From<Coordinate<T>> for PointFloat {
-// 	fn from(item: Coordinate<T>) -> Self {
-// 		Self { x: item.x as f64, y: item.y as f64 }
-// 	}
-// }
-//
-// impl From<Coordinate<T>> for PointInt {
-// 	fn from(item: Coordinate<T>) -> Self {
-// 		Self { x: item.x.round() as i64, y: item.y.round() as i64 }
-// 	}
-// }
+impl From<Point> for PointInt {
+	fn from(item: Point) -> Self {
+		match item {
+			Point::Int(p1) => p1,
+			Point::Float(p1) => p1.into(),
+		}
+	}
+}
+
+impl From<Point> for PointFloat {
+	fn from(item: Point) -> Self {
+		match item {
+			Point::Int(p1) => p1.into(),
+			Point::Float(p1) => p1,
+		}
+	}
+}
+
+impl fmt::Display for PointFloat {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		// Point x,y
+        write!(f, "{:.5},{:.5}", self.x, self.y)
+    }
+}
+
+impl fmt::Display for PointInt {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		// Point x,y
+        write!(f, "{},{}", self.x, self.y)
+    }
+}
 
 pub trait GenerateRandom {
 	type MaxType;
@@ -79,8 +101,8 @@ impl GenerateRandom for PointFloat {
 	type MaxType = f64;
 
 	fn random() -> Self {
-		let mut rng = rand::thread_rng();
-		Self::new(rng.gen(), rng.gen())
+		let (base_x, base_y) = rand::random::<(f64, f64)>();
+		Self::new(base_x, base_y)
 	}
 
 	fn random_ceil(max: Self::MaxType) -> Self {
@@ -100,8 +122,8 @@ impl GenerateRandom for PointInt {
 	type MaxType = i64;
 
 	fn random() -> Self {
-		let mut rng = rand::thread_rng();
-		Self::new(rng.gen(), rng.gen())
+		let (x, y) = rand::random::<(i64, i64)>();
+		Self::new(x, y)
 	}
 
 	fn random_ceil(max: Self::MaxType) -> Self {
@@ -120,6 +142,33 @@ impl GenerateRandom for PointInt {
 
 pub trait SimpleOrient<A = Self, B = Self, C = Self> {
 	fn orient2d(a: A, b: B, c: C) -> Orientation;
+}
+
+impl SimpleOrient for Point {
+	fn orient2d(a: Point, b: Point, c: Point) -> Orientation {
+		// if any are floats, convert all to float
+// 		match (a, b, c) {
+// 			(Point::Int(p1), Point::Int(p2), Point::Int(p3)) => PointInt::orient2d(p1, p2, p3),
+// 			(Point::Float(p1), Point::Int(p2), Point::Int(p3)) => PointFloat::orient2d(p1, p2.into(), p3.into()),
+// 			(Point::Int(p1), Point::Float(p2), Point::Int(p3)) => PointFloat::orient2d(p1.into(), p2, p3.into()),
+// 			(Point::Int(p1), Point::Int(p2), Point::Float(p3)) => PointFloat::orient2d(p1.into(), p2.into(), p3),
+// 			(Point::Float(p1), Point::Float(p2), Point::Int(p3)) => PointFloat::orient2d(p1, p2, p3.into()),
+// 			(Point::Float(p1), Point::Int(p2), Point::Float(p3)) => PointFloat::orient2d(p1, p2.into(), p3),
+// 			(Point::Int(p1), Point::Float(p2), Point::Float(p3)) => PointFloat::orient2d(p1.into(), p2, p3),
+// 			(Point::Float(p1), Point::Float(p2), Point::Float(p3)) => PointFloat::orient2d(p1, p2, p3),
+// 		}
+// 		if let (Point::Int(p1) = a & Point::Int(p2) = b & Point::Int(p3) = c) {
+// 			PointInt::orient2d(p1, p2, p3)
+// 		} else {
+// 			PointFloat::orient2d(p1.into(), p2.into(), p3.into())
+// 		}
+		if std::mem::discriminant(&a) == std::mem::discriminant(&b) &&
+		   std::mem::discriminant(&a) == std::mem::discriminant(&c) {
+	    	PointInt::orient2d(a.into(), b.into(), c.into())
+		} else {
+			PointFloat::orient2d(a.into(), b.into(), c.into())
+		}
+	}
 }
 
 // see https://docs.rs/geo/0.19.0/src/geo/algorithm/kernels/robust.rs.html#12
@@ -141,9 +190,11 @@ impl SimpleOrient for PointFloat {
 			},
 		);
 
-		if orientation < 0. {
+		// robust orientation flipped b/c y-axis is flipped
+
+		if orientation > 0. {
 			Orientation::Clockwise
-		} else if orientation > 0. {
+		} else if orientation < 0. {
 			Orientation::CounterClockwise
 		} else {
 			Orientation::Collinear
@@ -157,18 +208,151 @@ impl SimpleOrient for PointInt {
 		let (bx, by) = b.x_y();
 		let (cx, cy) = c.x_y();
 
-		let diag1 = (ay - cy) * (bx - cx);
-		let diag2 = (ax - cx) * (by - cy);
-		let res = diag1 - diag2;
+		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
 
-		if res > Zero::zero() {
+		if res > 0 {
 			Orientation::CounterClockwise
-		} else if res < Zero::zero() {
+		} else if res < 0 {
 			Orientation::Clockwise
 		} else {
 			Orientation::Collinear
 		}
 	}
+}
+
+
+mod tests {
+	use super::*;
+	use geo::algorithm::kernels::Orientation;
+
+// ---------------- POINT CREATION
+ 	#[test]
+	fn create_float_works() {
+		let p = PointFloat::random();
+
+		assert!(p.x <= 1.);
+		assert!(p.y <= 1.);
+		assert!(p.x >= 0.);
+		assert!(p.y >= 0.);
+
+		let (x, y) = p.x_y();
+		let p_dupe = PointFloat { x, y };
+		assert_eq!(p, p_dupe);
+	}
+
+ 	#[test]
+	fn create_int_works() {
+		let p = PointInt::random();
+		let (x, y) = p.x_y();
+		let p_dupe = PointInt { x, y };
+		assert_eq!(p, p_dupe);
+	}
+
+// ---------------- POINT COERCION
+	#[test]
+	fn coerce_works() {
+		let p_float = PointFloat::random_ceil(100.);
+
+		assert!(p_float.x <= 100.);
+		assert!(p_float.y <= 100.);
+		assert!(p_float.x >= -100.);
+		assert!(p_float.y >= -100.);
+
+		let p_int: PointInt = p_float.into();
+		assert_eq!(p_float.x.round() as i64, p_int.x);
+		assert_eq!(p_float.y.round() as i64, p_int.y);
+
+		let p_float: PointFloat = p_int.into();
+		assert_eq!(p_int.x as f64, p_float.x);
+		assert_eq!(p_int.y as f64, p_float.y);
+	}
+
+
+// ---------------- ORIENTATION
+	#[test]
+	fn orient_int_works() {
+		let p1 = PointInt::new(0, 0);
+		let p2 = PointInt::new(1, 1);
+		let p3 = PointInt::new(0, 1); // cw
+		let p4 = PointInt::new(1, 0); // ccw
+		let p5 = PointInt::new(2, 2); // collinear
+
+		assert_eq!(PointInt::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(PointInt::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(PointInt::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+	#[test]
+	fn orient_float_works() {
+		let p1 = PointFloat::new(0., 0.);
+		let p2 = PointFloat::new(1., 1.);
+		let p3 = PointFloat::new(0., 1.); // cw
+		let p4 = PointFloat::new(1., 0.); // ccw
+		let p5 = PointFloat::new(2., 2.); // collinear
+
+		assert_eq!(PointFloat::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(PointFloat::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(PointFloat::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+// ---------------- USING POINT ENUM
+	#[test]
+	fn orient_point_int_works() {
+		let p1 = PointInt::new(0, 0);
+		let p2 = PointInt::new(1, 1);
+		let p3 = PointInt::new(0, 1); // cw
+		let p4 = PointInt::new(1, 0); // ccw
+		let p5 = PointInt::new(2, 2); // collinear
+
+		let p1 = Point::Int(p1);
+		let p2 = Point::Int(p2);
+		let p3 = Point::Int(p3);
+		let p4 = Point::Int(p4);
+		let p5 = Point::Int(p5);
+
+		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+	#[test]
+	fn orient_point_float_works() {
+		let p1 = PointFloat::new(0., 0.);
+		let p2 = PointFloat::new(1., 1.);
+		let p3 = PointFloat::new(0., 1.); // cw
+		let p4 = PointFloat::new(1., 0.); // ccw
+		let p5 = PointFloat::new(2., 2.); // collinear
+
+		let p1 = Point::Float(p1);
+		let p2 = Point::Float(p2);
+		let p3 = Point::Float(p3);
+		let p4 = Point::Float(p4);
+		let p5 = Point::Float(p5);
+
+		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+	#[test]
+	fn orient_point_mixed_works() {
+		let p1 = PointFloat::new(0., 0.);
+		let p2 = PointInt::new(1, 1);
+		let p3 = PointInt::new(0, 1); // cw
+		let p4 = PointInt::new(1, 0); // ccw
+		let p5 = PointFloat::new(2., 2.); // collinear
+
+		let p1 = Point::Float(p1);
+		let p2 = Point::Int(p2);
+		let p3 = Point::Int(p3);
+		let p4 = Point::Int(p4);
+		let p5 = Point::Float(p5);
+
+		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
 }
 
 
