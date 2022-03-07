@@ -2,6 +2,7 @@
 
 mod point;
 mod segment;
+mod intersections;
 
 
 use point::*;
@@ -90,7 +91,7 @@ fn main() {
 	dbg!(Point::orient2d(p1, p2_int, p3_int));
 
 
-
+	let s: Segment = Segment::Float(SegmentFloat::new());
 
 
 }

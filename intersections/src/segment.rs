@@ -1,5 +1,6 @@
-use crate::point::*;
+use crate::point::{PointFloat, PointInt, GenerateRandom, SimpleOrient};
 use std::fmt;
+use std::cmp::Ordering;
 use geo::algorithm::kernels::Orientation;
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
@@ -8,20 +9,29 @@ pub enum Segment {
 	Int(SegmentInt),
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 pub struct SegmentFloat {
 	pub a: PointFloat,
 	pub b: PointFloat,
+	pub id: String,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct SegmentInt {
 	pub a: PointInt,
 	pub b: PointInt,
+	pub id: String,
 }
 
 impl SegmentFloat {
-	pub fn new(a: PointFloat, b: PointFloat) -> Self { SegmentFloat { a, b }}
+	pub fn new(a: PointFloat, b: PointFloat) -> Self {
+		let order = a.partial_cmp(&b).unwrap();
+		match order {
+			Ordering::Less => Self { a, b },
+			Ordering::Equal => Self { a, b },
+			Ordering::Greater => Self { a: b, b: a },
+		}
+	}
 
 	pub fn a_b(&self) -> (PointFloat, PointFloat) { (self.a, self.b) }
 
@@ -37,7 +47,14 @@ impl SegmentFloat {
 }
 
 impl SegmentInt {
-	pub fn new(a: PointInt, b: PointInt) -> Self { SegmentInt { a, b }}
+	pub fn new(a: PointInt, b: PointInt) -> Self {
+		let order = a.partial_cmp(&b).unwrap();
+		match order {
+			Ordering::Less => Self { a, b },
+			Ordering::Equal => Self { a, b },
+			Ordering::Greater => Self { a: b, b: a },
+		}
+	}
 
 	pub fn a_b(&self) -> (PointInt, PointInt) { (self.a, self.b) }
 
@@ -192,8 +209,8 @@ impl SimpleIntersect for SegmentFloat {
 	}
 
 	fn line_intersection(self, other: SegmentFloat) -> Option<PointFloat> {
-		let (a, b) = self.a_b();
-		let (c, d) = other.a_b();
+		let (a, _b) = self.a_b();
+		let (c, _d) = other.a_b();
 
 		let (ax, ay) = a.x_y();
 // 		let (bx, by) = b.x_y();
@@ -260,8 +277,8 @@ impl SimpleIntersect for SegmentInt {
 	}
 
 	fn line_intersection(self, other: SegmentInt) -> Option<PointFloat> {
-		let (a, b) = self.a_b();
-		let (c, d) = other.a_b();
+		let (a, _b) = self.a_b();
+		let (c, _d) = other.a_b();
 
 		let (ax, ay) = a.x_y();
 // 		let (bx, by) = b.x_y();
@@ -296,7 +313,7 @@ impl SimpleIntersect for SegmentInt {
 }
 
 
-
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::point::{PointFloat, PointInt};

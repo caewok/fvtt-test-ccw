@@ -305,7 +305,7 @@ impl SimpleOrient for PointInt {
 	}
 }
 
-
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use geo::algorithm::kernels::Orientation;
