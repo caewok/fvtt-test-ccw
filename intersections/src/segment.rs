@@ -152,7 +152,7 @@ impl GenerateRandom for SegmentInt {
 
 pub trait SimpleIntersect<B = Self> {
 	fn intersects(&self, other: B) -> bool;
-	fn line_intersection(&self, other: B) -> PointFloat;
+	fn line_intersection(&self, other: B) -> Option<PointFloat>;
 }
 
 impl SimpleIntersect for SegmentFloat {
@@ -174,7 +174,7 @@ impl SimpleIntersect for SegmentFloat {
 		return false;
 	}
 
-	fn line_intersection(&self, other: SegmentFloat) -> PointFloat {
+	fn line_intersection(&self, other: SegmentFloat) -> Option<PointFloat> {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -197,17 +197,32 @@ impl SimpleIntersect for SegmentFloat {
 // 		let x_dnm = dy1 * dx2 - dy2 * dx1;
 // 		let y_dnm = dx1 * dy2 - dx2 * dy1;
 
+		let x_dnm = d1.y * d2.x - d2.y * d1.x;
+		if x_dnm == 0. { return None; }
+
+		let y_dnm = d1.x * d2.y - d2.x * d1.y;
+		if y_dnm == 0. { return None; }
 
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
-		let x_dnm = d1.y * d2.x - d2.y * d1.x;
-		let y_dnm = d1.x * d2.y - d2.x * d1.y;
-
-		PointFloat { x: x_num / x_dnm, y: y_num / y_dnm }
+		Some(PointFloat { x: x_num / x_dnm, y: y_num / y_dnm })
 	}
 }
 
+// pub enum Intersection {
+// 	Proper(PointFloat),
+// 	Improper(PointFloat),
+// 	Collinear,
+// 	None,
+// }
+
+// TO-DO: Do we care about Collinear or proper (non-endpoint) intersections?
+// Could create an enum to handle:
+// - ProperIx (will hold ix)
+// - ImproperIx (will hold ix)
+// - Collinear (left to user to determine; may be none)
+// - None
 impl SimpleIntersect for SegmentInt {
 	fn intersects(&self, other: SegmentInt) -> bool {
 		let (a, b) = self.a_b();
@@ -227,7 +242,7 @@ impl SimpleIntersect for SegmentInt {
 		return false;
 	}
 
-	fn line_intersection(&self, other: SegmentInt) -> PointFloat {
+	fn line_intersection(&self, other: SegmentInt) -> Option<PointFloat> {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -250,14 +265,16 @@ impl SimpleIntersect for SegmentInt {
 // 		let x_dnm = dy1 * dx2 - dy2 * dx1;
 // 		let y_dnm = dx1 * dy2 - dx2 * dy1;
 
+		let x_dnm = (d1.y * d2.x - d2.y * d1.x);
+		if x_dnm == 0 { return None; }
+
+		let y_dnm = (d1.x * d2.y - d2.x * d1.y);
+		if y_dnm == 0 { return None; }
 
 		let x_num = (ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x) as f64;
 		let y_num = (ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y) as f64;
 
-		let x_dnm = (d1.y * d2.x - d2.y * d1.x) as f64;
-		let y_dnm = (d1.x * d2.y - d2.x * d1.y) as f64;
-
-		PointFloat { x: x_num / x_dnm, y: y_num / y_dnm }
+		Some(PointFloat { x: x_num / x_dnm as f64, y: y_num / y_dnm as f64 })
 	}
 }
 
@@ -397,13 +414,13 @@ mod tests {
 		let res34 = PointFloat::new(3495.6363636363635, 2100.); // s3 x s4
 
 
-		assert_eq!(s0.line_intersection(s1), res01);
-		assert_eq!(s0.line_intersection(s3), res03);
-		assert_ne!(s0.line_intersection(s4), res01);
+		assert_eq!(s0.line_intersection(s1), Some(res01));
+		assert_eq!(s0.line_intersection(s3), Some(res03));
+		assert_eq!(s0.line_intersection(s4), None);
 
-		assert_eq!(s1.line_intersection(s3), res13);
-		assert_eq!(s1.line_intersection(s4), res14);
-		assert_eq!(s3.line_intersection(s4), res34);
+		assert_eq!(s1.line_intersection(s3), Some(res13));
+		assert_eq!(s1.line_intersection(s4), Some(res14));
+		assert_eq!(s3.line_intersection(s4), Some(res34));
 	}
 
 	#[test]
@@ -430,13 +447,13 @@ mod tests {
 		let res14 = PointFloat::from(p3); // s1 x s4 intersect at p3
 		let res34 = PointFloat::new(3495.6363636363635, 2100.); // s3 x s4
 
-		assert_eq!(s0.line_intersection(s1), res01);
-		assert_eq!(s0.line_intersection(s3), res03);
-		assert_ne!(s0.line_intersection(s4), res01);
+		assert_eq!(s0.line_intersection(s1), Some(res01));
+		assert_eq!(s0.line_intersection(s3), Some(res03));
+		assert_eq!(s0.line_intersection(s4), None);
 
-		assert_eq!(s1.line_intersection(s3), res13);
-		assert_eq!(s1.line_intersection(s4), res14);
-		assert_eq!(s3.line_intersection(s4), res34);
+		assert_eq!(s1.line_intersection(s3), Some(res13));
+		assert_eq!(s1.line_intersection(s4), Some(res14));
+		assert_eq!(s3.line_intersection(s4), Some(res34));
 	}
 
 	#[test]
