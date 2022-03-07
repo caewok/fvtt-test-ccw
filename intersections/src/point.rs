@@ -5,14 +5,15 @@ Represent a 2-D point without using geo crate
 
 // #![feature(core_intrinsics)]
 use std::fmt;
+use std::ops::{Add, Sub};
 use rand::Rng;
 use rand::distributions::Standard;
 use rand::distributions::Distribution;
 use geo::algorithm::kernels::Orientation;
 // use geo::{Coordinate};
-use num_traits::Zero;
+// use num_traits::Zero;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Point {
 	Float(PointFloat),
 	Int(PointInt),
@@ -58,8 +59,8 @@ impl From<PointFloat> for PointInt {
 impl From<Point> for PointInt {
 	fn from(item: Point) -> Self {
 		match item {
-			Point::Int(p1) => p1,
-			Point::Float(p1) => p1.into(),
+			Point::Int(p) => p,
+			Point::Float(p) => p.into(),
 		}
 	}
 }
@@ -67,8 +68,8 @@ impl From<Point> for PointInt {
 impl From<Point> for PointFloat {
 	fn from(item: Point) -> Self {
 		match item {
-			Point::Int(p1) => p1.into(),
-			Point::Float(p1) => p1,
+			Point::Int(p) => p.into(),
+			Point::Float(p) => p,
 		}
 	}
 }
@@ -85,6 +86,85 @@ impl fmt::Display for PointInt {
 		// Point x,y
         write!(f, "{},{}", self.x, self.y)
     }
+}
+
+impl fmt::Display for Point {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Point::Int(p) => p.fmt(f),
+			Point::Float(p) => p.fmt(f),
+		}
+    }
+}
+
+impl Add<PointFloat> for PointFloat {
+	type Output = PointFloat;
+
+	fn add(self, other: Self) -> Self {
+		Self {
+			x: self.x + other.x,
+			y: self.y + other.y,
+		}
+	}
+}
+
+impl Add<PointInt> for PointInt {
+	type Output = PointInt;
+
+	fn add(self, other: Self) -> Self {
+		Self {
+			x: self.x + other.x,
+			y: self.y + other.y,
+		}
+	}
+}
+
+impl Add<Point> for Point {
+	type Output = Point;
+
+	fn add(self, other: Self) -> Self {
+		match (self, other) {
+			(Point::Int(a), Point::Int(b)) => Point::Int(a + b),
+			(Point::Float(a), Point::Float(b)) => Point::Float(a + b),
+			(Point::Int(a), Point::Float(b)) => Point::Float(PointFloat::from(a) + b),
+			(Point::Float(a), Point::Int(b)) => Point::Float(a + PointFloat::from(b)),
+		}
+	}
+}
+
+impl Sub<PointFloat> for PointFloat {
+	type Output = PointFloat;
+
+	fn sub(self, other: Self) -> Self {
+		Self {
+			x: self.x - other.x,
+			y: self.y - other.y,
+		}
+	}
+}
+
+impl Sub<PointInt> for PointInt {
+	type Output = PointInt;
+
+	fn sub(self, other: Self) -> Self {
+		Self {
+			x: self.x - other.x,
+			y: self.y - other.y,
+		}
+	}
+}
+
+impl Sub<Point> for Point {
+	type Output = Point;
+
+	fn sub(self, other: Self) -> Self {
+		match (self, other) {
+			(Point::Int(a), Point::Int(b)) => Point::Int(a - b),
+			(Point::Float(a), Point::Float(b)) => Point::Float(a - b),
+			(Point::Int(a), Point::Float(b)) => Point::Float(PointFloat::from(a) - b),
+			(Point::Float(a), Point::Int(b)) => Point::Float(a - PointFloat::from(b)),
+		}
+	}
 }
 
 pub trait GenerateRandom {
@@ -204,11 +284,14 @@ impl SimpleOrient for PointFloat {
 
 impl SimpleOrient for PointInt {
 	fn orient2d(a: PointInt, b: PointInt, c: PointInt) -> Orientation {
-		let (ax, ay) = a.x_y();
-		let (bx, by) = b.x_y();
-		let (cx, cy) = c.x_y();
+// 		let (ax, ay) = a.x_y();
+// 		let (bx, by) = b.x_y();
+// 		let (cx, cy) = c.x_y();
+// 		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
 
-		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
+		let dac = a - c;
+		let dbc = b - c;
+		let res = dac.y * dbc.x - dac.x * dbc.y;
 
 		if res > 0 {
 			Orientation::CounterClockwise
@@ -351,6 +434,76 @@ mod tests {
 		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
 		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
 		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+// ---------------- ADDITION
+	#[test]
+	fn add_int_works() {
+		let p1 = PointInt::new(1, 2);
+		let p2 = PointInt::new(3, 4);
+		assert_eq!(p1 + p2, PointInt::new(1 + 3, 2 + 4));
+	}
+
+	#[test]
+	fn add_float_works() {
+		let p1 = PointFloat::new(1., 2.);
+		let p2 = PointFloat::new(3., 4.);
+		assert_eq!(p1 + p2, PointFloat::new(1. + 3., 2. + 4.));
+	}
+
+	#[test]
+	fn add_point_works() {
+		let p1 = PointInt::new(1, 2);
+		let p1 = Point::Int(p1);
+
+		let p2 = PointInt::new(3, 4);
+		let p2 = Point::Int(p2);
+
+		let p3 = PointFloat::new(1., 2.);
+		let p3 = Point::Float(p3);
+
+		let p4 = PointFloat::new(3., 4.);
+		let p4 = Point::Float(p4);
+
+		assert_eq!(p1 + p2, Point::Int(PointInt::new(1 + 3, 2 + 4)));
+		assert_eq!(p3 + p4, Point::Float(PointFloat::new(1. + 3., 2. + 4.)));
+		assert_eq!(p1 + p4, Point::Float(PointFloat::new(1. + 3., 2. + 4.)));
+		assert_eq!(p3 + p2, Point::Float(PointFloat::new(1. + 3., 2. + 4.)));
+	}
+
+// ---------------- SUBTRACTION
+	#[test]
+	fn sub_int_works() {
+		let p1 = PointInt::new(1, 2);
+		let p2 = PointInt::new(3, 4);
+		assert_eq!(p1 - p2, PointInt::new(1 - 3, 2 - 4));
+	}
+
+	#[test]
+	fn sub_float_works() {
+		let p1 = PointFloat::new(1., 2.);
+		let p2 = PointFloat::new(3., 4.);
+		assert_eq!(p1 - p2, PointFloat::new(1. - 3., 2. - 4.));
+	}
+
+	#[test]
+	fn sub_point_works() {
+		let p1 = PointInt::new(1, 2);
+		let p1 = Point::Int(p1);
+
+		let p2 = PointInt::new(3, 4);
+		let p2 = Point::Int(p2);
+
+		let p3 = PointFloat::new(1., 2.);
+		let p3 = Point::Float(p3);
+
+		let p4 = PointFloat::new(3., 4.);
+		let p4 = Point::Float(p4);
+
+		assert_eq!(p1 - p2, Point::Int(PointInt::new(1 - 3, 2 - 4)));
+		assert_eq!(p3 - p4, Point::Float(PointFloat::new(1. - 3., 2. - 4.)));
+		assert_eq!(p1 - p4, Point::Float(PointFloat::new(1. - 3., 2. - 4.)));
+		assert_eq!(p3 - p2, Point::Float(PointFloat::new(1. - 3., 2. - 4.)));
 	}
 
 }
