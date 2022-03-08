@@ -13,25 +13,26 @@ use geo::algorithm::kernels::Orientation;
 // use geo::{Coordinate};
 // use num_traits::Zero;
 
+use serde::{Serialize, Deserialize};
 
 // TO-DO: Use key as id
 // For segments, store i64 with the a, b keys?
 // Or store m, y as key for segment?
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Point {
 	Float(PointFloat),
 	Int(PointInt),
 }
 
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct PointFloat {
 	pub x: f64,
 	pub y: f64,
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct PointInt {
 	pub x: i64,
 	pub y: i64,
@@ -297,31 +298,46 @@ impl SimpleOrient for Point {
 // see https://docs.rs/geo/0.19.0/src/geo/algorithm/kernels/robust.rs.html#12
 impl SimpleOrient for PointFloat {
 	fn orient2d(a: PointFloat, b: PointFloat, c: PointFloat) -> Orientation {
-		use robust::{orient2d, Coord};
-		let orientation = robust::orient2d(
-			Coord {
-				x: a.x,
-				y: a.y,
-			},
-			Coord {
-				x: b.x,
-				y: b.y,
-			},
-			Coord {
-				x: c.x,
-				y: c.y,
-			},
-		);
+// 		use robust::{orient2d, Coord};
+// 		let orientation = robust::orient2d(
+// 			Coord {
+// 				x: a.x,
+// 				y: a.y,
+// 			},
+// 			Coord {
+// 				x: b.x,
+// 				y: b.y,
+// 			},
+// 			Coord {
+// 				x: c.x,
+// 				y: c.y,
+// 			},
+// 		);
+//
+// 		// robust orientation flipped b/c y-axis is flipped
+//
+// 		if orientation > 0. {
+// 			Orientation::Clockwise
+// 		} else if orientation < 0. {
+// 			Orientation::CounterClockwise
+// 		} else {
+// 			Orientation::Collinear
+// 		}
 
-		// robust orientation flipped b/c y-axis is flipped
+	// non-robust version
 
-		if orientation > 0. {
-			Orientation::Clockwise
-		} else if orientation < 0. {
+		let dac = a - c;
+		let dbc = b - c;
+		let res = dac.y * dbc.x - dac.x * dbc.y;
+
+		if res > 0. {
 			Orientation::CounterClockwise
+		} else if res < 0. {
+			Orientation::Clockwise
 		} else {
 			Orientation::Collinear
 		}
+
 	}
 }
 

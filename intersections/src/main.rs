@@ -1,9 +1,10 @@
 // #![feature(core_intrinsics)]
+#![feature(test)]
 
 mod point;
 mod segment;
 mod intersections;
-mod bench_ix.rs;
+// mod bench_ix;
 
 
 use crate::point::*;
@@ -97,42 +98,42 @@ fn main() {
 	println!("segment is {} with key {}", s, s.key());
 	dbg!(s.key());
 
-			let p0 = PointInt::new(2300, 1900);
-		let p1 = PointInt::new(4200, 1900);
-		let p2 = PointFloat::new(2387., 1350.);
-		let p3 = PointFloat::new(2500., 2100.);
-		let p4 = PointFloat::new(3200., 1900.);
-		let p5 = PointFloat::new(2900., 2100.);
-
-		// s0|s1 intersect
-		// s0|s3 intersect
-		// s0|s4 do not intersect
-		let s0 = SegmentInt::new(p0, p1);
-		let s0 = Segment::Int(s0);
-
-		let s1 = SegmentFloat::new(p2, p3);
-		let s1 = Segment::Float(s1);
-
-		let s3 = SegmentFloat::new(p2, p4);
-		let s3 = Segment::Float(s3);
-
-		let s4 = SegmentFloat::new(p3, p5);
-		let s4 = Segment::Float(s4);
-
-		let segments = vec![s0, s1, s4];
-		let res = vec![IxResult {
-				   	ix: PointFloat::new(2469.866666666667, 1900.),
-		            s1: &s0,
-		            s2: &s1,
-		            },
-		           IxResult {
-					ix: PointFloat::new(2500., 2100.),
-		            s1: &s1,
-		            s2: &s4,
-		           },
-		      ];
-		dbg!(res);
-
-		let ixs = ix_brute_single(&segments);
-		dbg!(ixs);
+// 			let p0 = PointInt::new(2300, 1900);
+// 		let p1 = PointInt::new(4200, 1900);
+// 		let p2 = PointFloat::new(2387., 1350.);
+// 		let p3 = PointFloat::new(2500., 2100.);
+// 		let p4 = PointFloat::new(3200., 1900.);
+// 		let p5 = PointFloat::new(2900., 2100.);
+//
+// 		// s0|s1 intersect
+// 		// s0|s3 intersect
+// 		// s0|s4 do not intersect
+// 		let s0 = SegmentInt::new(p0, p1);
+// 		let s0 = Segment::Int(s0);
+//
+// 		let s1 = SegmentFloat::new(p2, p3);
+// 		let s1 = Segment::Float(s1);
+//
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+//
+// 		let s4 = SegmentFloat::new(p3, p5);
+// 		let s4 = Segment::Float(s4);
+//
+// // 		let segments = vec![s0, s1, s4];
+// // 		let res = vec![IxResult {
+// // 				   	ix: PointFloat::new(2469.866666666667, 1900.),
+// // 		            s1: &s0,
+// // 		            s2: &s1,
+// // 		            },
+// // 		           IxResult {
+// // 					ix: PointFloat::new(2500., 2100.),
+// // 		            s1: &s1,
+// // 		            s2: &s4,
+// // 		           },
+// // 		      ];
+// // 		dbg!(res);
+// //
+// // 		let ixs = ix_brute_single(&segments);
+// // 		dbg!(ixs);
 }

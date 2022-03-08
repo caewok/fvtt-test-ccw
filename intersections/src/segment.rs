@@ -2,23 +2,56 @@ use crate::point::{PointFloat, PointInt, GenerateRandom, SimpleOrient};
 use std::fmt;
 use std::cmp::Ordering;
 use geo::algorithm::kernels::Orientation;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Segment {
 	Float(SegmentFloat),
 	Int(SegmentInt),
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct SegmentFloat {
 	pub a: PointFloat,
 	pub b: PointFloat,
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct SegmentInt {
 	pub a: PointInt,
 	pub b: PointInt,
+}
+
+impl Segment {
+	pub fn key(&self) -> i128 {
+		match self {
+			Segment::Float(s) => s.key(),
+			Segment::Int(s) => s.key(),
+		}
+	}
+
+	// self is completely to the left of other, meaning self.b < other.a
+	// (recall that Segment a is ordered < b)
+	pub fn is_left(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Segment::Float(s1), Segment::Float(s2)) => s1.is_left(s2),
+			(Segment::Int(s1), Segment::Float(s2)) => SegmentFloat::from(*s1).is_left(s2),
+			(Segment::Float(s1), Segment::Int(s2)) => s1.is_left(&SegmentFloat::from(*s2)),
+			(Segment::Int(s1), Segment::Int(s2)) => s1.is_left(s2),
+		}
+	}
+
+	// self is completely to the right of other, meaning self.a > other.b
+	// (recall that Segment a is ordered < b)
+	pub fn is_right(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Segment::Float(s1), Segment::Float(s2)) => s1.is_right(s2),
+			(Segment::Int(s1), Segment::Float(s2)) => SegmentFloat::from(*s1).is_right(s2),
+			(Segment::Float(s1), Segment::Int(s2)) => s1.is_right(&SegmentFloat::from(*s2)),
+			(Segment::Int(s1), Segment::Int(s2)) => s1.is_right(s2),
+		}
+	}
 }
 
 
@@ -45,6 +78,20 @@ impl SegmentFloat {
 	pub fn dx(&self) -> f64 { self.b.x - self.a.x }
 	pub fn dy(&self) -> f64 { self.b.y - self.a.y }
 	pub fn slope(&self) -> f64 { self.dy() / self.dx() }
+
+	// self is completely to the left of other, meaning self.b < other.a
+	// (recall that Segment a is ordered < b)
+	pub fn is_left(&self, other: &Self) -> bool {
+		let res = self.b.partial_cmp(&other.a).unwrap();
+		res == Ordering::Less
+	}
+
+	// self is completely to the right of other, meaning self.a > other.b
+	// (recall that Segment a is ordered < b)
+	pub fn is_right(&self, other: &Self) -> bool {
+		let res = self.a.partial_cmp(&other.b).unwrap();
+		res == Ordering::Greater
+	}
 }
 
 impl SegmentInt {
@@ -70,6 +117,20 @@ impl SegmentInt {
 	pub fn dx(&self) -> i64 { self.b.x - self.a.x }
 	pub fn dy(&self) -> i64 { self.b.y - self.a.y }
 	pub fn slope(&self) -> f64 { self.dy() as f64 / self.dx() as f64 }
+
+	// self is completely to the left of other, meaning self.b < other.a
+	// (recall that Segment a is ordered < b)
+	pub fn is_left(&self, other: &Self) -> bool {
+		let res = self.b.partial_cmp(&other.a).unwrap();
+		res == Ordering::Less
+	}
+
+	// self is completely to the right of other, meaning self.a > other.b
+	// (recall that Segment a is ordered < b)
+	pub fn is_right(&self, other: &Self) -> bool {
+		let res = self.a.partial_cmp(&other.b).unwrap();
+		res == Ordering::Greater
+	}
 }
 
 

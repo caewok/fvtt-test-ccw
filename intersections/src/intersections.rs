@@ -1,15 +1,25 @@
-use crate::segment::{ Segment, SimpleIntersect };
+// #![feature(test)]
+
+use crate::segment::{ Segment, SimpleIntersect, SegmentFloat, SegmentInt };
 use crate::point::PointFloat;
 use std::cmp::Ordering;
+use std::fs;
+use serde_json;
+
+extern crate test;
+use test::Bencher;
 
 #[derive(Debug, PartialEq, PartialOrd)]
-pub struct IxResult<'a> {
+pub struct IxResult {
 	pub ix: PointFloat,
-	pub s1: &'a Segment,
-	pub s2: &'a Segment,
+	pub key1: i128,
+	pub key2: i128,
+	// referencing the segments works in theory, but fails when benchmarking
+	// pub s1: &'a Segment,
+// 	pub s2: &'a Segment,
 }
 
-pub fn ix_brute_single<'a>(segments: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
+pub fn ix_brute_single(segments: &Vec<Segment>) -> Vec<IxResult> {
 	let mut ixs: Vec<IxResult> = Vec::new();
 	for(i, si) in segments.iter().enumerate() {
 		for sj in &segments[(i + 1)..] {
@@ -18,8 +28,10 @@ pub fn ix_brute_single<'a>(segments: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
 			if let Some(ix) = res {
 				ixs.push( IxResult {
 					ix,
-					s1: &si,
-					s2: &sj,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
 				});
 			}
 		}
@@ -28,17 +40,20 @@ pub fn ix_brute_single<'a>(segments: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
 	ixs
 }
 
-pub fn ix_brute_double<'a>(segments1: &'a Vec<Segment>, segments2: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
+pub fn ix_brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<IxResult> {
 	let mut ixs: Vec<IxResult> = Vec::new();
 	for si in segments1 {
 		for sj in segments2 {
 			if !si.intersects(*sj) { continue; }
 			let res = si.line_intersection(*sj);
+
 			if let Some(ix) = res {
 				ixs.push( IxResult {
 					ix,
-					s1: &si,
-					s2: &sj,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
 				});
 			}
 		}
@@ -47,7 +62,7 @@ pub fn ix_brute_double<'a>(segments1: &'a Vec<Segment>, segments2: &'a Vec<Segme
 	ixs
 }
 
-pub fn ix_sort_single<'a>(segments: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
+pub fn ix_sort_single(segments: &mut Vec<Segment>) -> Vec<IxResult> {
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
 	let mut ixs: Vec<IxResult> = Vec::new();
@@ -56,34 +71,21 @@ pub fn ix_sort_single<'a>(segments: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
 
 		for (j, sj) in segments_slice.iter().enumerate() {
 			// if we have not yet reached the left end, we can skip
-			let left_res = match (si, *sj) {
-				(Segment::Float(s1), Segment::Float(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
-				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.b).partial_cmp(&s1.a).unwrap(),
-				(Segment::Int(s1), Segment::Float(s2)) => s2.b.partial_cmp(&(PointFloat::from(s1.a))).unwrap(),
-				(Segment::Int(s1), Segment::Int(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
-			};
-
-// 			let left_res = *sj.b.partial_cmp(&si.a).unwrap();
-			if left_res == Ordering::Less { continue; }
+			if sj.is_left(si) { continue; }
 
 			// if we reach the right end, we can skip the rest
-			let right_res = match(si, *sj) {
-				(Segment::Float(s1), Segment::Float(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
-				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.a).partial_cmp(&s1.b).unwrap(),
-				(Segment::Int(s1), Segment::Float(s2)) => s2.a.partial_cmp(&(PointFloat::from(s1.b))).unwrap(),
-				(Segment::Int(s1), Segment::Int(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
-			};
-
-// 			let right_res = *sj.a.partial_cmp(&si.b).unwrap();
-			if right_res == Ordering::Greater { break; }
+			if sj.is_right(si) { break; }
 
 			if !si.intersects(*sj) { continue; }
 			let res = si.line_intersection(*sj);
+
 			if let Some(ix) = res {
 				ixs.push( IxResult {
 					ix,
-					s1: &si,
-					s2: &sj,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
 				});
 			}
 		}
@@ -92,7 +94,7 @@ pub fn ix_sort_single<'a>(segments: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
 	ixs
 }
 
-pub fn ix_sort_double<'a>(segments1: &'a mut Vec<Segment>, segments2: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
+pub fn ix_sort_double(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>) -> Vec<IxResult> {
 	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -124,11 +126,14 @@ pub fn ix_sort_double<'a>(segments1: &'a mut Vec<Segment>, segments2: &'a mut Ve
 
 			if !si.intersects(*sj) { continue; }
 			let res = si.line_intersection(*sj);
+
 			if let Some(ix) = res {
 				ixs.push( IxResult {
 					ix,
-					s1: &si,
-					s2: &sj,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
 				});
 			}
 		}
@@ -139,11 +144,236 @@ pub fn ix_sort_double<'a>(segments1: &'a mut Vec<Segment>, segments2: &'a mut Ve
 
 
 
+// Benchmark intersections
+// run using cargo +nightly bench
+
+
+
+struct BenchInt {
+	x10_0: Vec<Segment>,
+	x100_0: Vec<Segment>,
+	x1000_0: Vec<Segment>,
+
+	x10_1: Vec<Segment>,
+	x100_1: Vec<Segment>,
+	x1000_1: Vec<Segment>,
+}
+
+struct BenchFloat {
+	x10_0: Vec<Segment>,
+	x100_0: Vec<Segment>,
+	x1000_0: Vec<Segment>,
+
+	x10_1: Vec<Segment>,
+	x100_1: Vec<Segment>,
+	x1000_1: Vec<Segment>,
+}
+
+
+
+struct BenchSetup {
+	int: BenchInt,
+	float: BenchFloat,
+}
+
+impl BenchSetup {
+	fn new() -> Self {
+		let str10_1 = fs::read_to_string("segments_random_10_1000_neg1.json").unwrap();
+		let str10_2 = fs::read_to_string("segments_random_10_1000_neg2.json").unwrap();
+		let str100_1 = fs::read_to_string("segments_random_100_2000_neg1.json").unwrap();
+		let str100_2 = fs::read_to_string("segments_random_100_2000_neg2.json").unwrap();
+		let str1000_1 = fs::read_to_string("segments_random_1000_4000_neg1.json").unwrap();
+		let str1000_2 = fs::read_to_string("segments_random_1000_4000_neg2.json").unwrap();
+
+
+		let segments_10_1: Vec<SegmentFloat> = serde_json::from_str(&str10_1).unwrap();
+		let segments_10_2: Vec<SegmentFloat> = serde_json::from_str(&str10_2).unwrap();
+		let segments_100_1: Vec<SegmentFloat> = serde_json::from_str(&str100_1).unwrap();
+		let segments_100_2: Vec<SegmentFloat> = serde_json::from_str(&str100_2).unwrap();
+		let segments_1000_1: Vec<SegmentFloat> = serde_json::from_str(&str1000_1).unwrap();
+		let segments_1000_2: Vec<SegmentFloat> = serde_json::from_str(&str1000_2).unwrap();
+
+		Self {
+			int: BenchInt {
+				x10_0: segments_10_1.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+				x10_1: segments_10_2.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+
+				x100_0: segments_100_1.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+				x100_1: segments_100_2.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+
+				x1000_0: segments_1000_1.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+				x1000_1: segments_1000_2.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
+			},
+
+			float: BenchFloat {
+				x10_0: segments_10_1.clone().iter().map(|s| Segment::Float(*s)).collect(),
+				x10_1: segments_10_2.clone().iter().map(|s| Segment::Float(*s)).collect(),
+
+				x100_0: segments_100_1.clone().iter().map(|s| Segment::Float(*s)).collect(),
+				x100_1: segments_100_2.clone().iter().map(|s| Segment::Float(*s)).collect(),
+
+				x1000_0: segments_1000_1.clone().iter().map(|s| Segment::Float(*s)).collect(),
+				x1000_1: segments_1000_2.clone().iter().map(|s| Segment::Float(*s)).collect(),
+			},
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::point::{PointFloat, PointInt};
 	use crate::segment::{Segment, SegmentInt, SegmentFloat};
+// 	use test::Bencher;
+
+// ---------------- BENCHMARK INTEGER VERSIONS
+	#[bench]
+	fn bench_10_single_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.int.x10_0));
+	}
+
+	#[bench]
+	fn bench_10_double_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.int.x10_0, &setup.int.x10_1));
+	}
+
+	#[bench]
+	fn bench_10_single_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.int.x10_0));
+	}
+
+	#[bench]
+	fn bench_10_double_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x10_0, &mut setup.int.x10_1));
+	}
+
+	#[bench]
+	fn bench_100_single_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.int.x100_0));
+	}
+
+	#[bench]
+	fn bench_100_double_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.int.x100_0, &setup.int.x100_1));
+	}
+
+	#[bench]
+	fn bench_100_single_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.int.x100_0));
+	}
+
+	#[bench]
+	fn bench_100_double_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x100_0, &mut setup.int.x100_1));
+	}
+
+	#[bench]
+	fn bench_1000_single_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.int.x1000_0));
+	}
+
+	#[bench]
+	fn bench_1000_double_int_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.int.x1000_0, &setup.int.x1000_1));
+	}
+
+	#[bench]
+	fn bench_1000_single_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.int.x1000_0));
+	}
+
+	#[bench]
+	fn bench_1000_double_int_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x1000_0, &mut setup.int.x1000_1));
+	}
+
+// ---------------- BENCHMARK FLOAT VERSIONS
+	#[bench]
+	fn bench_10_single_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x10_0));
+	}
+
+	#[bench]
+	fn bench_10_double_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x10_0, &setup.float.x10_1));
+	}
+
+	#[bench]
+	fn bench_10_single_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x10_0));
+	}
+
+	#[bench]
+	fn bench_10_double_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x10_0, &mut setup.float.x10_1));
+	}
+
+	#[bench]
+	fn bench_100_single_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x100_0));
+	}
+
+	#[bench]
+	fn bench_100_double_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x100_0, &setup.float.x100_1));
+	}
+
+	#[bench]
+	fn bench_100_single_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x100_0));
+	}
+
+	#[bench]
+	fn bench_100_double_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x100_0, &mut setup.float.x100_1));
+	}
+
+	#[bench]
+	fn bench_1000_single_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x1000_0));
+	}
+
+	#[bench]
+	fn bench_1000_double_float_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x1000_0, &setup.float.x1000_1));
+	}
+
+	#[bench]
+	fn bench_1000_single_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x1000_0));
+	}
+
+	#[bench]
+	fn bench_1000_double_float_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x1000_0, &mut setup.float.x1000_1));
+	}
+
+
+// ---------------- TESTING
 
 	// following use same points as with segment test
 	#[test]
@@ -173,13 +403,17 @@ mod tests {
 		let segments = vec![s0, s1, s4];
 		let res = vec![IxResult {
 				   	ix: PointFloat::new(2469.866666666667, 1900.),
-		            s1: &s0,
-		            s2: &s1,
+				   	key1: s0.key(),
+				   	key2: s1.key(),
+// 		            s1: &s0,
+// 		            s2: &s1,
 		            },
 		           IxResult {
 					ix: PointFloat::new(2500., 2100.),
-		            s1: &s1,
-		            s2: &s4,
+					key1: s1.key(),
+					key2: s4.key(),
+// 		            s1: &s1,
+// 		            s2: &s4,
 		           },
 		      ];
 
@@ -217,23 +451,31 @@ mod tests {
 		// repeats s0|s1, s1|s0 b/c this is double
 		let res = vec![	IxResult {
 				   			ix: PointFloat::new(2469.866666666667, 1900.),
-		            		s1: &s0,
-		            		s2: &s1,
+							key1: s0.key(),
+							key2: s1.key(),
+// 		            		s1: &s0,
+// 		            		s2: &s1,
 		            	},
 		            	IxResult {
 				   			ix: PointFloat::new(2469.866666666667, 1900.),
-		            		s1: &s1,
-		            		s2: &s0,
+							key1: s1.key(),
+							key2: s0.key(),
+// 		            		s1: &s1,
+// 		            		s2: &s0,
 		            	},
 		               	IxResult {
 							ix: PointFloat::new(2500., 2100.),
-		            		s1: &s1,
-		            		s2: &s4,
+							key1: s1.key(),
+							key2: s4.key(),
+// 		            		s1: &s1,
+// 		            		s2: &s4,
 		           		},
 		           		IxResult {
 							ix: PointFloat::new(2500., 2100.),
-		            		s1: &s4,
-		            		s2: &s1,
+							key1: s4.key(),
+							key2: s1.key(),
+// 		            		s1: &s4,
+// 		            		s2: &s1,
 		           		},
 		     		 ];
 
@@ -272,13 +514,17 @@ mod tests {
 		let res = vec![
 			IxResult {
 					ix: PointFloat::new(2500., 2100.),
-		            s1: &s1,
-		            s2: &s4,
+				   	key1: s1.key(),
+				   	key2: s4.key(),
+// 		            s1: &s1,
+// 		            s2: &s4,
 		           },
 			IxResult {
 				   	ix: PointFloat::new(2469.866666666667, 1900.),
-		            s1: &s1,
-		            s2: &s0,
+				   	key1: s1.key(),
+				   	key2: s0.key(),
+// 		            s1: &s1,
+// 		            s2: &s0,
 		            },
 
 		      ];
@@ -319,24 +565,32 @@ mod tests {
 		let res = vec![
 			IxResult {
 				ix: PointFloat::new(2500., 2100.),
-		        s1: &s1,
-		        s2: &s4,
+				key1: s1.key(),
+				key2: s4.key(),
+// 		        s1: &s1,
+// 		        s2: &s4,
 		    },
 			IxResult {
 				ix: PointFloat::new(2469.866666666667, 1900.),
-				s1: &s1,
-				s2: &s0,
+				key1: s1.key(),
+				key2: s0.key(),
+// 				s1: &s1,
+// 				s2: &s0,
 			},
 			IxResult {
 				ix: PointFloat::new(2500., 2100.),
-				s1: &s4,
-				s2: &s1,
+				key1: s4.key(),
+				key2: s1.key(),
+// 				s1: &s4,
+// 				s2: &s1,
 			},
 
 			IxResult {
 				ix: PointFloat::new(2469.866666666667, 1900.),
-				s1: &s0,
-				s2: &s1,
+				key1: s0.key(),
+				key2: s1.key(),
+// 				s1: &s0,
+// 				s2: &s1,
 			},
 		 ];
 
