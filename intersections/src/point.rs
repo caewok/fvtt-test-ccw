@@ -1,6 +1,6 @@
 use geo::{Point, CoordNum};
-// use geo::algorithm::kernels::Orientation;
-// use num_traits::{ Num, Signed };
+use geo::algorithm::kernels::Orientation;
+use num_traits::{ Signed };
 // use std::ops::Neg;
 // use std::num::Saturating;
 use rand::prelude::Distribution;
@@ -39,3 +39,28 @@ impl<T> GenerateRandom for Point<T>
 		Self::new(rng.gen_range(min..=max), rng.gen_range(min..=max))
 	}
 }
+
+pub trait SimpleOrient<A = Self, B = Self, C = Self> {
+	fn orient2d(a: A, b: B, c: C) -> Orientation;
+}
+
+impl<T> SimpleOrient for Point<T>
+	where T: CoordNum + Signed,
+{
+	fn orient2d(a: Point<T>, b: Point<T>, c: Point<T>) -> Orientation {
+		let dac = a - c;
+		let dbc = b - c;
+
+		let res = dac.y() * dbc.x() - dac.x() * dbc.y();
+		let z:T = num_traits::zero();
+
+		if res > z {
+			Orientation::CounterClockwise
+		} else if res < z {
+			Orientation::Clockwise
+		} else {
+			Orientation::Collinear
+		}
+	}
+}
+

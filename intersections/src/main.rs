@@ -13,7 +13,7 @@
 
 mod point;
 
-use crate::point::GenerateRandom;
+use crate::point::{GenerateRandom, SimpleOrient};
 use geo::Point;
 
 
@@ -43,4 +43,9 @@ fn main() {
 	dbg!(p_f);
 	dbg!(p_i);
 	dbg!(p_u);
+
+	let p1: Point<f64> = Point::random_range(-100., 100.);
+	let p2: Point<f64> = Point::random_range(-100., 100.);
+	let p3: Point<f64> = Point::random_range(-100., 100.);
+	dbg!(Point::orient2d(p1, p2, p3));
 }
