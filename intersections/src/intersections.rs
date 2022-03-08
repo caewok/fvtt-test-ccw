@@ -36,7 +36,26 @@ pub fn ix_brute_single(segments: &Vec<Segment>) -> Vec<IxResult> {
 			}
 		}
 	}
+	ixs
+}
 
+pub fn ix_brute_single_float(segments: &Vec<SegmentFloat>) -> Vec<IxResult> {
+	let mut ixs: Vec<IxResult> = Vec::new();
+	for(i, si) in segments.iter().enumerate() {
+		for sj in &segments[(i + 1)..] {
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
+				});
+			}
+		}
+	}
 	ixs
 }
 
@@ -58,7 +77,6 @@ pub fn ix_brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Ve
 			}
 		}
 	}
-
 	ixs
 }
 
@@ -90,7 +108,37 @@ pub fn ix_sort_single(segments: &mut Vec<Segment>) -> Vec<IxResult> {
 			}
 		}
 	}
+	ixs
+}
 
+pub fn ix_sort_single_float(segments: &mut Vec<SegmentFloat>) -> Vec<IxResult> {
+	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+	let mut ixs: Vec<IxResult> = Vec::new();
+	for(i, si) in segments.iter().enumerate() {
+		let segments_slice = &segments[(i + 1)..];
+
+		for (j, sj) in segments_slice.iter().enumerate() {
+			// if we have not yet reached the left end, we can skip
+			if sj.is_left(si) { continue; }
+
+			// if we reach the right end, we can skip the rest
+			if sj.is_right(si) { break; }
+
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					key1: si.key(),
+					key2: sj.key(),
+// 					s1: &si,
+// 					s2: &sj,
+				});
+			}
+		}
+	}
 	ixs
 }
 
@@ -149,7 +197,7 @@ pub fn ix_sort_double(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>
 
 
 
-struct BenchInt {
+struct BenchSegment {
 	x10_0: Vec<Segment>,
 	x100_0: Vec<Segment>,
 	x1000_0: Vec<Segment>,
@@ -160,20 +208,31 @@ struct BenchInt {
 }
 
 struct BenchFloat {
-	x10_0: Vec<Segment>,
-	x100_0: Vec<Segment>,
-	x1000_0: Vec<Segment>,
+	x10_0: Vec<SegmentFloat>,
+	x100_0: Vec<SegmentFloat>,
+	x1000_0: Vec<SegmentFloat>,
 
-	x10_1: Vec<Segment>,
-	x100_1: Vec<Segment>,
-	x1000_1: Vec<Segment>,
+	x10_1: Vec<SegmentFloat>,
+	x100_1: Vec<SegmentFloat>,
+	x1000_1: Vec<SegmentFloat>,
+}
+
+struct BenchInt {
+	x10_0: Vec<SegmentInt>,
+	x100_0: Vec<SegmentInt>,
+	x1000_0: Vec<SegmentInt>,
+
+	x10_1: Vec<SegmentInt>,
+	x100_1: Vec<SegmentInt>,
+	x1000_1: Vec<SegmentInt>,
 }
 
 
 
 struct BenchSetup {
-	int: BenchInt,
-	float: BenchFloat,
+	int: BenchSegment,
+	float: BenchSegment,
+	segfloat: BenchFloat,
 }
 
 impl BenchSetup {
@@ -194,7 +253,7 @@ impl BenchSetup {
 		let segments_1000_2: Vec<SegmentFloat> = serde_json::from_str(&str1000_2).unwrap();
 
 		Self {
-			int: BenchInt {
+			int: BenchSegment {
 				x10_0: segments_10_1.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
 				x10_1: segments_10_2.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
 
@@ -205,7 +264,7 @@ impl BenchSetup {
 				x1000_1: segments_1000_2.clone().iter().map(|s| Segment::Int(SegmentInt::from(*s))).collect(),
 			},
 
-			float: BenchFloat {
+			float: BenchSegment {
 				x10_0: segments_10_1.clone().iter().map(|s| Segment::Float(*s)).collect(),
 				x10_1: segments_10_2.clone().iter().map(|s| Segment::Float(*s)).collect(),
 
@@ -214,6 +273,17 @@ impl BenchSetup {
 
 				x1000_0: segments_1000_1.clone().iter().map(|s| Segment::Float(*s)).collect(),
 				x1000_1: segments_1000_2.clone().iter().map(|s| Segment::Float(*s)).collect(),
+			},
+
+			segfloat: BenchFloat {
+				x10_0: segments_10_1.clone(),
+				x10_1: segments_10_2.clone(),
+
+				x100_0: segments_100_1.clone(),
+				x100_1: segments_100_2.clone(),
+
+				x1000_0: segments_1000_1.clone(),
+				x1000_1: segments_1000_2.clone(),
 			},
 		}
 	}
@@ -225,6 +295,20 @@ mod tests {
 	use crate::point::{PointFloat, PointInt};
 	use crate::segment::{Segment, SegmentInt, SegmentFloat};
 // 	use test::Bencher;
+
+
+// ---------------- BENCHMARK ALTERNATIVE NON-ENUM VERSIONS
+	#[bench]
+	fn bench_1000_single_float_nonenum_brute(b: &mut Bencher) {
+		let setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_brute_single_float(&setup.segfloat.x1000_0));
+	}
+
+	#[bench]
+	fn bench_1000_single_float_nonenum_sort(b: &mut Bencher) {
+		let mut setup: BenchSetup = BenchSetup::new();
+		b.iter(|| ix_sort_single_float(&mut setup.segfloat.x1000_0));
+	}
 
 // ---------------- BENCHMARK INTEGER VERSIONS
 	#[bench]
@@ -423,6 +507,49 @@ mod tests {
 	}
 
 	#[test]
+	fn brute_single_float_works() {
+		let p0 = PointFloat::new(2300., 1900.);
+		let p1 = PointFloat::new(4200., 1900.);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
+
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = SegmentFloat::new(p0, p1);
+
+		let s1 = SegmentFloat::new(p2, p3);
+
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+
+		let s4 = SegmentFloat::new(p3, p5);
+
+		let segments = vec![s0, s1, s4];
+		let res = vec![IxResult {
+				   	ix: PointFloat::new(2469.866666666667, 1900.),
+				   	key1: s0.key(),
+				   	key2: s1.key(),
+// 		            s1: &s0,
+// 		            s2: &s1,
+		            },
+		           IxResult {
+					ix: PointFloat::new(2500., 2100.),
+					key1: s1.key(),
+					key2: s4.key(),
+// 		            s1: &s1,
+// 		            s2: &s4,
+		           },
+		      ];
+
+		let ixs = ix_brute_single_float(&segments);
+
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
 	fn brute_double_works() {
 		let p0 = PointInt::new(2300, 1900);
 		let p1 = PointInt::new(4200, 1900);
@@ -530,6 +657,54 @@ mod tests {
 		      ];
 
 		let ixs = ix_sort_single(&mut segments);
+
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_single_float_works() {
+		let p0 = PointFloat::new(2300., 1900.);
+		let p1 = PointFloat::new(4200., 1900.);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
+
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = SegmentFloat::new(p0, p1);
+
+		let s1 = SegmentFloat::new(p2, p3);
+
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+
+		let s4 = SegmentFloat::new(p3, p5);
+
+		let mut segments = vec![s0, s1, s4];
+
+		// sort will find them in different order than above
+		let res = vec![
+			IxResult {
+				   	ix: PointFloat::new(2469.866666666667, 1900.),
+				   	key1: s0.key(),
+				   	key2: s1.key(),
+// 		            s1: &s1,
+// 		            s2: &s0,
+		            },
+		    IxResult {
+					ix: PointFloat::new(2500., 2100.),
+				   	key1: s1.key(),
+				   	key2: s4.key(),
+// 		            s1: &s1,
+// 		            s2: &s4,
+		           },
+
+
+		      ];
+
+		let ixs = ix_sort_single_float(&mut segments);
 
 		assert_eq!(ixs, res);
 	}

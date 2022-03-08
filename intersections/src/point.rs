@@ -12,6 +12,7 @@ use rand::Rng;
 use geo::algorithm::kernels::Orientation;
 // use geo::{Coordinate};
 // use num_traits::Zero;
+use num_traits::Num;
 
 use serde::{Serialize, Deserialize};
 
@@ -68,6 +69,41 @@ dec2binBig(key64)//'110010000000000000000000000001010011010'
 
 
 */
+
+// trait ExtractCoords<Ret> {
+// 	type Output;
+// 	fn x(&self) -> Self::Output;
+// }
+//
+// impl ExtractCoords<Point> for Point {
+// 	type Output = i64;
+// 	fn x(&self) -> Self::Output {
+// 		match self {
+// 			Point::Int(p) => p.x,
+// 			Point::Float(p) => p.x as i64,
+// 		}
+// 	}
+// }
+//
+// impl ExtractCoords<Point> for Point {
+// 	type Output = f64;
+// 	fn x(&self) -> Self::Output {
+// 		match self {
+// 			Point::Int(p) => p.x as f64,
+// 			Point::Float(p) => p.x,
+// 		}
+// 	}
+// }
+
+
+// impl Point {
+// 	pub fn x<T:Num>(&self) -> T {
+// 		match self {
+// 			Point::Int(p) => p.x as dyn Num,
+// 			Point::Float(p) => p.x as dyn Num,
+// 		}
+// 	}
+// }
 
 impl PointFloat {
 	pub fn new(x: f64, y: f64) -> Self { PointFloat { x, y }}

@@ -86,6 +86,8 @@ fn main() {
 	let p2_int: Point = Point::Int(PointInt::random_ceil(1000));
 	let p3_int: Point = Point::Int(PointInt::random_ceil(1000));
 
+	println!("{}", p1.0);
+
 	println!("p1: {}, p2: {}, p3: {}", p1, p2, p3);
 	println!("Int p1: {}, p2: {}, p3: {}", p1_int, p2_int, p3_int);
 
