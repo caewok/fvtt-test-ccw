@@ -1,97 +1,136 @@
-use crate::segment::{ Segment, SegmentFloat };
+use crate::segment::{ Segment, SimpleIntersect };
+use crate::point::PointFloat;
 use std::cmp::Ordering;
 
-#[derive(Debug)]
-pub struct IxResult {
-	pub ix: SegmentFloat,
-	pub id1: String,
-	pub id2: String,
+#[derive(Debug, PartialEq, PartialOrd)]
+pub struct IxResult<'a> {
+	pub ix: PointFloat,
+	pub s1: &'a Segment,
+	pub s2: &'a Segment,
 }
 
-
-pub fn ix_brute_single(segments: &Vec<Segment>) -> Vec<IxResult> {
+pub fn ix_brute_single<'a>(segments: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
 	let mut ixs: Vec<IxResult> = Vec::new();
 	for(i, si) in segments.iter().enumerate() {
 		for sj in &segments[(i + 1)..] {
-			if !si.intersects(sj) { continue; }
-			let ix = si.line_intersection(sj);
-			ixs.push(IxResult{
-				ix,
-				id1: si.id.clone(),
-				id2: sj.id.clone(),
-			});
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					s1: &si,
+					s2: &sj,
+				});
+			}
 		}
 	}
 
 	ixs
 }
 
-pub fn ix_brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<IxResult> {
+pub fn ix_brute_double<'a>(segments1: &'a Vec<Segment>, segments2: &'a Vec<Segment>) -> Vec<IxResult<'a>> {
 	let mut ixs: Vec<IxResult> = Vec::new();
 	for si in segments1 {
 		for sj in segments2 {
-			if !si.intersects(sj) { continue; }
-			let ix = si.line_intersection(sj);
-			ixs.push(IxResult{
-				ix,
-				id1: si.id.clone(),
-				id2: sj.id.clone(),
-			});
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					s1: &si,
+					s2: &sj,
+				});
+			}
 		}
 	}
 
 	ixs
 }
 
-pub fn ix_sort_single(segments: &mut Vec<Segment>) -> Vec<IxResult> {
+pub fn ix_sort_single<'a>(segments: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
 	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
 	let mut ixs: Vec<IxResult> = Vec::new();
 	for(i, si) in segments.iter().enumerate() {
-		for sj in &segments[(i + 1)..] {
+		let segments_slice = &segments[(i + 1)..];
+
+		for (j, sj) in segments_slice.iter().enumerate() {
 			// if we have not yet reached the left end, we can skip
-			let left_res = sj.b.partial_cmp(&si.a).unwrap();
+			let left_res = match (si, *sj) {
+				(Segment::Float(s1), Segment::Float(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
+				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.b).partial_cmp(&s1.a).unwrap(),
+				(Segment::Int(s1), Segment::Float(s2)) => s2.b.partial_cmp(&(PointFloat::from(s1.a))).unwrap(),
+				(Segment::Int(s1), Segment::Int(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
+			};
+
+// 			let left_res = *sj.b.partial_cmp(&si.a).unwrap();
 			if left_res == Ordering::Less { continue; }
 
 			// if we reach the right end, we can skip the rest
-			let right_res = sj.a.partial_cmp(&si.b).unwrap();
+			let right_res = match(si, *sj) {
+				(Segment::Float(s1), Segment::Float(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
+				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.a).partial_cmp(&s1.b).unwrap(),
+				(Segment::Int(s1), Segment::Float(s2)) => s2.a.partial_cmp(&(PointFloat::from(s1.b))).unwrap(),
+				(Segment::Int(s1), Segment::Int(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
+			};
+
+// 			let right_res = *sj.a.partial_cmp(&si.b).unwrap();
 			if right_res == Ordering::Greater { break; }
 
-			if !si.intersects(sj) { continue; }
-			let ix = si.line_intersection(sj);
-			ixs.push(IxResult{
-				ix,
-				id1: si.id.clone(),
-				id2: sj.id.clone(),
-			});
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					s1: &si,
+					s2: &sj,
+				});
+			}
 		}
 	}
 
 	ixs
 }
 
-pub fn ix_sort_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<IxResult> {
+pub fn ix_sort_double<'a>(segments1: &'a mut Vec<Segment>, segments2: &'a mut Vec<Segment>) -> Vec<IxResult<'a>> {
 	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
 	let mut ixs: Vec<IxResult> = Vec::new();
-	for si in segments1 {
-		for sj in segments2 {
+	for (i, si) in segments1.iter().enumerate() {
+		for (j, sj) in segments2.iter().enumerate() {
 			// if we have not yet reached the left end, we can skip
-			let left_res = sj.b.partial_cmp(&si.a).unwrap();
+			let left_res = match (si, *sj) {
+				(Segment::Float(s1), Segment::Float(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
+				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.b).partial_cmp(&s1.a).unwrap(),
+				(Segment::Int(s1), Segment::Float(s2)) => s2.b.partial_cmp(&(PointFloat::from(s1.a))).unwrap(),
+				(Segment::Int(s1), Segment::Int(s2)) => s2.b.partial_cmp(&s1.a).unwrap(),
+			};
+
+// 			let left_res = *sj.b.partial_cmp(&si.a).unwrap();
 			if left_res == Ordering::Less { continue; }
 
+
+			let right_res = match(si, *sj) {
+				(Segment::Float(s1), Segment::Float(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
+				(Segment::Float(s1), Segment::Int(s2)) => PointFloat::from(s2.a).partial_cmp(&s1.b).unwrap(),
+				(Segment::Int(s1), Segment::Float(s2)) => s2.a.partial_cmp(&(PointFloat::from(s1.b))).unwrap(),
+				(Segment::Int(s1), Segment::Int(s2)) => s2.a.partial_cmp(&s1.b).unwrap(),
+			};
+
 			// if we reach the right end, we can skip the rest
-			let right_res = sj.a.partial_cmp(&si.b).unwrap();
+// 			let right_res = *sj.a.partial_cmp(&si.b).unwrap();
 			if right_res == Ordering::Greater { break; }
 
-			if !si.intersects(sj) { continue; }
-			let ix = si.line_intersection(sj);
-			ixs.push(IxResult{
-				ix,
-				id1: si.id.clone(),
-				id2: sj.id.clone(),
-			});
+			if !si.intersects(*sj) { continue; }
+			let res = si.line_intersection(*sj);
+			if let Some(ix) = res {
+				ixs.push( IxResult {
+					ix,
+					s1: &si,
+					s2: &sj,
+				});
+			}
 		}
 	}
 
@@ -104,7 +143,7 @@ pub fn ix_sort_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec
 mod tests {
 	use super::*;
 	use crate::point::{PointFloat, PointInt};
-	use crate::segment::{Segment, SegmentFloat, SegmentInt};
+	use crate::segment::{Segment, SegmentInt, SegmentFloat};
 
 	// following use same points as with segment test
 	#[test]
@@ -120,49 +159,191 @@ mod tests {
 		// s0|s3 intersect
 		// s0|s4 do not intersect
 		let s0 = SegmentInt::new(p0, p1);
-		s0.id = "s0";
 		let s0 = Segment::Int(s0);
 
-		let s1 = SegmentInt::new(p2, p3);
-		s1.id = "s1";
-		let s1 = Segment::Int(s1);
+		let s1 = SegmentFloat::new(p2, p3);
+		let s1 = Segment::Float(s1);
 
-		let s3 = SegmentInt::new(p2, p4);
-		s3.id = "s3";
-		let s3 = Segment::Int(s3);
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
 
-		let s4 = SegmentInt::new(p3, p5);
-		s4.id = "s4";
-		let s4 = Segment::Int(s4);
+		let s4 = SegmentFloat::new(p3, p5);
+		let s4 = Segment::Float(s4);
 
-		let segments = [s0, s1, s4];
-		let res = [IxResult {
+		let segments = vec![s0, s1, s4];
+		let res = vec![IxResult {
 				   	ix: PointFloat::new(2469.866666666667, 1900.),
-		            s1: "s0",
-		            s2: "s1",
+		            s1: &s0,
+		            s2: &s1,
 		            },
 		           IxResult {
 					ix: PointFloat::new(2500., 2100.),
-		            s1: "s1",
-		            s2: "s4",
+		            s1: &s1,
+		            s2: &s4,
 		           },
 		      ];
 
-		assert_eq!(ix_brute_single(&segments), res);
+		let ixs = ix_brute_single(&segments);
+
+		assert_eq!(ixs, res);
 	}
 
-// 	fn brute_double_works() {
-//
-// 	}
-//
-// 	fn sort_single_works() {
-//
-// 	}
-//
-// 	fn sort_double_works() {
-//
-// 	}
+	#[test]
+	fn brute_double_works() {
+		let p0 = PointInt::new(2300, 1900);
+		let p1 = PointInt::new(4200, 1900);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
 
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = SegmentInt::new(p0, p1);
+		let s0 = Segment::Int(s0);
+
+		let s1 = SegmentFloat::new(p2, p3);
+		let s1 = Segment::Float(s1);
+
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+
+		let s4 = SegmentFloat::new(p3, p5);
+		let s4 = Segment::Float(s4);
+
+		let segments = vec![s0, s1, s4];
+
+		// repeats s0|s1, s1|s0 b/c this is double
+		let res = vec![	IxResult {
+				   			ix: PointFloat::new(2469.866666666667, 1900.),
+		            		s1: &s0,
+		            		s2: &s1,
+		            	},
+		            	IxResult {
+				   			ix: PointFloat::new(2469.866666666667, 1900.),
+		            		s1: &s1,
+		            		s2: &s0,
+		            	},
+		               	IxResult {
+							ix: PointFloat::new(2500., 2100.),
+		            		s1: &s1,
+		            		s2: &s4,
+		           		},
+		           		IxResult {
+							ix: PointFloat::new(2500., 2100.),
+		            		s1: &s4,
+		            		s2: &s1,
+		           		},
+		     		 ];
+
+		let ixs = ix_brute_double(&segments, &segments);
+
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_single_works() {
+		let p0 = PointInt::new(2300, 1900);
+		let p1 = PointInt::new(4200, 1900);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
+
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = SegmentInt::new(p0, p1);
+		let s0 = Segment::Int(s0);
+
+		let s1 = SegmentFloat::new(p2, p3);
+		let s1 = Segment::Float(s1);
+
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+
+		let s4 = SegmentFloat::new(p3, p5);
+		let s4 = Segment::Float(s4);
+
+		let mut segments = vec![s0, s1, s4];
+
+		// sort will find them in different order than above
+		let res = vec![
+			IxResult {
+					ix: PointFloat::new(2500., 2100.),
+		            s1: &s1,
+		            s2: &s4,
+		           },
+			IxResult {
+				   	ix: PointFloat::new(2469.866666666667, 1900.),
+		            s1: &s1,
+		            s2: &s0,
+		            },
+
+		      ];
+
+		let ixs = ix_sort_single(&mut segments);
+
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_double_works() {
+		let p0 = PointInt::new(2300, 1900);
+		let p1 = PointInt::new(4200, 1900);
+		let p2 = PointFloat::new(2387., 1350.);
+		let p3 = PointFloat::new(2500., 2100.);
+		let p4 = PointFloat::new(3200., 1900.);
+		let p5 = PointFloat::new(2900., 2100.);
+
+		// s0|s1 intersect
+		// s0|s3 intersect
+		// s0|s4 do not intersect
+		let s0 = SegmentInt::new(p0, p1);
+		let s0 = Segment::Int(s0);
+
+		let s1 = SegmentFloat::new(p2, p3);
+		let s1 = Segment::Float(s1);
+
+// 		let s3 = SegmentFloat::new(p2, p4);
+// 		let s3 = Segment::Float(s3);
+
+		let s4 = SegmentFloat::new(p3, p5);
+		let s4 = Segment::Float(s4);
+
+		let mut segments1 = vec![s0, s1, s4];
+		let mut segments2 = segments1.clone();
+
+		// repeats s0|s1, s1|s0 b/c this is double
+		let res = vec![
+			IxResult {
+				ix: PointFloat::new(2500., 2100.),
+		        s1: &s1,
+		        s2: &s4,
+		    },
+			IxResult {
+				ix: PointFloat::new(2469.866666666667, 1900.),
+				s1: &s1,
+				s2: &s0,
+			},
+			IxResult {
+				ix: PointFloat::new(2500., 2100.),
+				s1: &s4,
+				s2: &s1,
+			},
+
+			IxResult {
+				ix: PointFloat::new(2469.866666666667, 1900.),
+				s1: &s0,
+				s2: &s1,
+			},
+		 ];
+
+		let ixs = ix_sort_double(&mut segments1, &mut segments2);
+
+		assert_eq!(ixs, res);
+	}
 
 }
 

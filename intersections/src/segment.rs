@@ -9,19 +9,18 @@ pub enum Segment {
 	Int(SegmentInt),
 }
 
-#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct SegmentFloat {
 	pub a: PointFloat,
 	pub b: PointFloat,
-	pub id: String,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct SegmentInt {
 	pub a: PointInt,
 	pub b: PointInt,
-	pub id: String,
 }
+
 
 impl SegmentFloat {
 	pub fn new(a: PointFloat, b: PointFloat) -> Self {
@@ -32,6 +31,8 @@ impl SegmentFloat {
 			Ordering::Greater => Self { a: b, b: a },
 		}
 	}
+
+	pub fn key(&self) -> i128 { ((self.a.key() as i128) << 64) ^ (self.b.key() as i128) }
 
 	pub fn a_b(&self) -> (PointFloat, PointFloat) { (self.a, self.b) }
 
@@ -55,6 +56,8 @@ impl SegmentInt {
 			Ordering::Greater => Self { a: b, b: a },
 		}
 	}
+
+	pub fn key(&self) -> i128 { ((self.a.key() as i128) << 64) ^ (self.b.key() as i128) }
 
 	pub fn a_b(&self) -> (PointInt, PointInt) { (self.a, self.b) }
 
@@ -169,28 +172,28 @@ impl GenerateRandom for SegmentInt {
 }
 
 pub trait SimpleIntersect<B = Self> {
-	fn intersects(self, other: B) -> bool;
-	fn line_intersection(self, other: B) -> Option<PointFloat>;
+	fn intersects(&self, other: B) -> bool;
+	fn line_intersection(&self, other: B) -> Option<PointFloat>;
 }
 
 impl SimpleIntersect for Segment {
-	fn intersects(self, other: Segment) -> bool {
+	fn intersects(&self, other: Segment) -> bool {
 		match (self, other) {
 			(Segment::Int(s1), Segment::Int(s2)) => s1.intersects(s2),
-			(s1, s2) => SegmentFloat::from(s1).intersects(SegmentFloat::from(s2))
+			(s1, s2) => SegmentFloat::from(*s1).intersects(SegmentFloat::from(s2))
 		}
 	}
 
-	fn line_intersection(self, other: Segment) -> Option<PointFloat> {
+	fn line_intersection(&self, other: Segment) -> Option<PointFloat> {
 		match (self, other) {
 			(Segment::Int(s1), Segment::Int(s2)) => s1.line_intersection(s2),
-			(s1, s2) => SegmentFloat::from(s1).line_intersection(SegmentFloat::from(s2))
+			(s1, s2) => SegmentFloat::from(*s1).line_intersection(SegmentFloat::from(s2))
 		}
 	}
 }
 
 impl SimpleIntersect for SegmentFloat {
-	fn intersects(self, other: SegmentFloat) -> bool {
+	fn intersects(&self, other: SegmentFloat) -> bool {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -208,7 +211,7 @@ impl SimpleIntersect for SegmentFloat {
 		return false;
 	}
 
-	fn line_intersection(self, other: SegmentFloat) -> Option<PointFloat> {
+	fn line_intersection(&self, other: SegmentFloat) -> Option<PointFloat> {
 		let (a, _b) = self.a_b();
 		let (c, _d) = other.a_b();
 
@@ -258,7 +261,7 @@ impl SimpleIntersect for SegmentFloat {
 // - Collinear (left to user to determine; may be none)
 // - None
 impl SimpleIntersect for SegmentInt {
-	fn intersects(self, other: SegmentInt) -> bool {
+	fn intersects(&self, other: SegmentInt) -> bool {
 		let (a, b) = self.a_b();
 		let (c, d) = other.a_b();
 
@@ -276,7 +279,7 @@ impl SimpleIntersect for SegmentInt {
 		return false;
 	}
 
-	fn line_intersection(self, other: SegmentInt) -> Option<PointFloat> {
+	fn line_intersection(&self, other: SegmentInt) -> Option<PointFloat> {
 		let (a, _b) = self.a_b();
 		let (c, _d) = other.a_b();
 

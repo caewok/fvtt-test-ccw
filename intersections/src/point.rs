@@ -7,17 +7,23 @@ Represent a 2-D point without using geo crate
 use std::fmt;
 use std::ops::{Add, Sub};
 use rand::Rng;
-use rand::distributions::Standard;
-use rand::distributions::Distribution;
+// use rand::distributions::Standard;
+// use rand::distributions::Distribution;
 use geo::algorithm::kernels::Orientation;
 // use geo::{Coordinate};
 // use num_traits::Zero;
+
+
+// TO-DO: Use key as id
+// For segments, store i64 with the a, b keys?
+// Or store m, y as key for segment?
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Point {
 	Float(PointFloat),
 	Int(PointInt),
 }
+
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
 pub struct PointFloat {
@@ -31,16 +37,51 @@ pub struct PointInt {
 	pub y: i64,
 }
 
+/*
+In Javascript, can use different keys with or without BigInt.
+1. Without
+function dec2bin(dec) {
+  return (dec >>> 0).toString(2);
+}
+
+x = 100
+y = 666
+key = (x << 16) ^ y // 6554266
+dec2bin(x) //   '1100100'
+dec2bin(y) //                '1010011010'
+dec2bin(key) // '11001000000001010011010'
+
+2. With BigInt
+function dec2binBig(dec) {
+  return (dec >> 0n).toString(2);
+}
+x = 100n
+y = 666n
+key32 = (x << 16n) ^ y // 6554266n
+dec2binBig(x) //   '1100100'
+dec2binBig(y) //                                '1010011010'
+dec2binBig(key) // '110010000000000000000000000001010011010'
+
+key64 = (x << 32n) ^ y // 429496730266n
+dec2binBig(key64)//'110010000000000000000000000001010011010'
+
+
+*/
+
 impl PointFloat {
 	pub fn new(x: f64, y: f64) -> Self { PointFloat { x, y }}
 
 	pub fn x_y(&self) -> (f64, f64) { (self.x, self.y) }
+
+	pub fn key(&self) -> i64 { ((self.x.round() as i64) << 32) ^ (self.y.round() as i64) }
 }
 
 impl PointInt {
 	pub fn new(x: i64, y: i64) -> Self { PointInt { x, y }}
 
 	pub fn x_y(&self) -> (i64, i64) { (self.x, self.y) }
+
+	pub fn key(&self) -> i64 { (self.x << 32) ^ self.y }
 }
 
 impl From<PointInt> for PointFloat {
