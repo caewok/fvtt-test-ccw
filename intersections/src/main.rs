@@ -12,11 +12,23 @@
 // extern crate test;
 
 mod point;
-mod segment;
+// mod segment;
 
 use crate::point::{ GenerateRandom, orient2d, orient2drobust };
-use crate::segment::{ OrderedSegment };
+// use crate::segment::{ OrderedSegment };
 use geo::{Point, Coordinate};
+//use num_traits::AsPrimitive;
+
+fn test_conversion<T>(p: Point<T>) -> Point<i64>
+	where T: geo::CoordNum,// + num_traits::cast::NumCast,
+{
+	let (x, y) = p.x_y();
+
+	let x: i64 = num_traits::cast(x).unwrap();
+	let y: i64 = num_traits::cast(y).unwrap();
+
+	Point::new(x, y)
+}
 
 
 fn main() {
@@ -66,13 +78,27 @@ fn main() {
 
 // 	dbg!(Coordinate::from(p1).partial_cmp(&Coordinate::from(p2))); // fails
 
-	let s1: OrderedSegment<i64> = OrderedSegment::new(p1.0, p2.0);
-	dbg!(p1);
-	dbg!(p2);
-	dbg!(s1);
-	dbg!(s1.coords());
+// 	let s1: OrderedSegment<i64> = OrderedSegment::new(p1.0, p2.0);
+// 	dbg!(p1);
+// 	dbg!(p2);
+// 	dbg!(s1);
+// 	dbg!(s1.coords());
+//
+// 	dbg!(OrderedSegment::compare_xy(p1, p2));
+// 	dbg!(OrderedSegment::compare_xy(Coordinate::from(p1), Coordinate::from(p2)));
 
-	dbg!(OrderedSegment::compare_xy(p1, p2));
-	dbg!(OrderedSegment::compare_xy(Coordinate::from(p1), Coordinate::from(p2)));
+	println!("{} as integer is {}", 1.4, 1.4 as i32);
+	println!("{} as integer is {}", 1.6, 1.6 as i32);
+
+	println!("{} as integer is {}", p1.x(), p1.x() as i32);
+
+	let p1: Point<f64> = Point::random_range(-100., 100.);
+	dbg!(p1);
+	dbg!(test_conversion(p1));
+
+	let p1: Point<i64> = Point::random_range(-100, 100);
+	dbg!(p1);
+	dbg!(test_conversion(p1));
+
 
 }

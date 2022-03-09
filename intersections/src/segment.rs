@@ -1,11 +1,13 @@
 use geo::{CoordNum, Point, Coordinate};
-// use crate::point::{orient2d};
+use geo::algorithm::kernels::Orientation;
+use crate::point::{orient2d};
 use std::cmp::Ordering;
+use num_traits::{Signed, Num};
 
 // Create a simple struct for an ordered Line, where a is ne of b
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct OrderedSegment<T>
-	where T: CoordNum,
+	where T: CoordNum + Num,
 {
 	pub start: Coordinate<T>,
 	pub end: Coordinate<T>,
@@ -106,19 +108,68 @@ impl<T> OrderedSegment<T>
 	}
 }
 
-//
-// pub trait SimpleIntersect<B = Self> {
-// 	fn intersects(&self, other: &B) -> bool;
-// 	fn line_intersection(&self, other: &B) -> Option<PointFloat>;
-// }
-//
-// impl<T> SimpleIntersect for OrderedSegment<T> {
-// 	fn intersects(&self, other: &Self) -> bool {
-// 		let (a, b) = self.points();
-// 		let (c, d) = other.points();
-//
-// 		let xa = orient2d(a, b, c);
-//
-// 	}
-//
-// }
+
+pub trait SimpleIntersect<T: CoordNum, B = Self>
+	where T: CoordNum
+{
+	fn intersects(&self, other: &B) -> bool;
+	fn line_intersection(&self, other: &B) -> Option<Point<T>>;
+}
+
+impl<T: CoordNum + Signed> SimpleIntersect<T> for OrderedSegment<T> {
+	fn intersects(&self, other: &Self) -> bool {
+		let (a, b) = self.points();
+		let (c, d) = other.points();
+
+		let xa = orient2d(a.into(), b.into(), c.into());
+		let xb = orient2d(a.into(), b.into(), d.into());
+
+		// may intersect in an overlapping line or not intersect at all
+		if xa == Orientation::Collinear && xb == Orientation::Collinear { return false; }
+
+		let xc = orient2d(c.into(), d.into(), a.into());
+		let xd = orient2d(c.into(), d.into(), b.into());
+
+		if xa != xb && xc != xd { return true; }
+
+		return false;
+	}
+
+	fn line_intersection(&self, other: &Self) -> Option<Point<T>> {
+		let (a, _b) = self.points();
+		let (c, _d) = other.points();
+
+		let (ax, ay) = a.x_y();
+		let (cx, cy) = c.x_y();
+
+		let d1 = self.delta();
+		let d2 = other.delta();
+
+		let z:T = num_traits::zero();
+
+		let x_dnm = d1.y * d2.x - d2.y * d1.x;
+		if x_dnm == z { return None; }
+
+		let y_dnm = d1.x * d2.y - d2.x * d1.y;
+		if y_dnm == z { return None; }
+
+		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
+		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
+
+		let x: f64 = x_num.into();
+		let y: f64 = y_num.into();
+
+// 		let x:f64 = x_num as f64 / x_dnm as f64;
+// 		let y:f64 = y_num as f64 / y_dnm as f64;
+
+		if (x == (x as T) as f64) &&
+		   (y == (y as T) as f64) {
+			return Some(Point::new(x_num / x_dnm, y_num / y_dnm));
+		   }
+
+		let x = x.round();
+		let y = y.round();
+		Some(Point::new(x as T, y as T))
+	}
+
+}
