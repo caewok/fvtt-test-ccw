@@ -18,39 +18,49 @@ use crate::point::{ GenerateRandom, orient2d, orient2drobust };
 // use crate::segment::{ OrderedSegment };
 use geo::{Point, Coordinate};
 //use num_traits::AsPrimitive;
-// use num_traits::ops::checked::CheckedDiv;
+// use num_traits::ops::checked::{CheckedDiv, CheckedRem};
+use fraction::GenericFraction;
+
 
 fn test_conversion<T>(p: Point<T>) -> Point<T>
 	where T: geo::CoordNum + std::fmt::Display,// + num_traits::cast::NumCast,
 {
 	let (x, y) = p.x_y();
 
-	// divide by number -- if that result is the same as converting to float, then use orig
-	let divisor: T = num_traits::cast(2).unwrap();
+	let div: T = num_traits::cast(2).unwrap();
 
-	// test division using float
-	let x_f: f64 = num_traits::cast(x).unwrap();
-	let y_f: f64 = num_traits::cast(y).unwrap();
-	let divisor_f: f64 = num_traits::cast(divisor).unwrap();
-	let x_f = x_f / divisor_f;
-	let y_f = y_f / divisor_f;
+	let x = GenericFraction::new(x, div);
+	let y = GenericFraction::new(y, div);
 
-	let test_xf: T = num_traits::cast(x_f).unwrap();
-	let test_yf: T = num_traits::cast(y_f).unwrap();
+	let x:T = x.into();
+	let y:T = y.into();
 
-	let test_xf: f64 = num_traits::cast(test_xf).unwrap();
-	let test_yf: f64 = num_traits::cast(test_yf).unwrap();
-
-	if x_f == test_xf && y_f == test_yf {
-		println!("Using original x,y {},{}", x_f, x_f);
-		return Point::new(num_traits::cast(x_f).unwrap(), num_traits::cast(x_f).unwrap());
-	}
-
-	let x = num_traits::cast(x_f.round()).unwrap();
-	let y = num_traits::cast(y_f.round()).unwrap();
-
-// 	let x: i64 = num_traits::cast(x).unwrap();
-// 	let y: i64 = num_traits::cast(y).unwrap();
+	// // divide by number -- if that result is the same as converting to float, then use orig
+// 	let divisor: T = num_traits::cast(2).unwrap();
+//
+// 	// test division using float
+// 	let x_f: f64 = num_traits::cast(x).unwrap();
+// 	let y_f: f64 = num_traits::cast(y).unwrap();
+// 	let divisor_f: f64 = num_traits::cast(divisor).unwrap();
+// 	let x_f = x_f / divisor_f;
+// 	let y_f = y_f / divisor_f;
+//
+// 	let test_xf: T = num_traits::cast(x_f).unwrap();
+// 	let test_yf: T = num_traits::cast(y_f).unwrap();
+//
+// 	let test_xf: f64 = num_traits::cast(test_xf).unwrap();
+// 	let test_yf: f64 = num_traits::cast(test_yf).unwrap();
+//
+// 	if x_f == test_xf && y_f == test_yf {
+// 		println!("Using original x,y {},{}", x_f, x_f);
+// 		return Point::new(num_traits::cast(x_f).unwrap(), num_traits::cast(x_f).unwrap());
+// 	}
+//
+// 	let x = num_traits::cast(x_f.round()).unwrap();
+// 	let y = num_traits::cast(y_f.round()).unwrap();
+//
+// // 	let x: i64 = num_traits::cast(x).unwrap();
+// // 	let y: i64 = num_traits::cast(y).unwrap();
 
 
 	Point::new(x, y)
@@ -127,4 +137,12 @@ fn main() {
 	dbg!(test_conversion(p1));
 
 
+	let a: i32 = 20;
+	let b: i32 = 8;
+
+	dbg!(a.checked_div(b));
+	dbg!(a.checked_div(0));
+
+	dbg!(a.checked_rem(8));
+	dbg!(a.checked_rem(5));
 }
