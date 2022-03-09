@@ -1,4 +1,4 @@
-use geo::{Point, CoordNum};
+use geo::{Point, CoordNum, Coordinate};
 use geo::algorithm::kernels::Orientation;
 use num_traits::{ Signed };
 // use std::ops::Neg;
@@ -41,13 +41,13 @@ impl<T> GenerateRandom for Point<T>
 	}
 }
 
-pub fn orient2d<T>(a: Point<T>, b: Point<T>, c: Point<T>) -> Orientation
+pub fn orient2d<T>(a: Coordinate<T>, b: Coordinate<T>, c: Coordinate<T>) -> Orientation
 	where T: CoordNum + Signed,
 {
 	let dac = a - c;
 	let dbc = b - c;
 
-	let res = dac.y() * dbc.x() - dac.x() * dbc.y();
+	let res = dac.y * dbc.x - dac.x * dbc.y;
 	let z:T = num_traits::zero();
 
 	if res > z {
@@ -59,21 +59,21 @@ pub fn orient2d<T>(a: Point<T>, b: Point<T>, c: Point<T>) -> Orientation
 	}
 }
 
-pub fn orient2drobust<T>(a: Point<T>, b: Point<T>, c: Point<T>) -> Orientation
+pub fn orient2drobust<T>(a: Coordinate<T>, b: Coordinate<T>, c: Coordinate<T>) -> Orientation
 	where T: CoordNum + Signed, f64: From<T>,
 {
 	let orientation = robust::orient2d(
 		robust::Coord {
-			x: a.x(),
-			y: a.y(),
+			x: a.x,
+			y: a.y,
 		},
 		robust::Coord {
-			x: b.x(),
-			y: b.y(),
+			x: b.x,
+			y: b.y,
 		},
 		robust::Coord {
-			x: c.x(),
-			y: c.y(),
+			x: c.x,
+			y: c.y,
 		},
 	);
 	// robust orientation flipped b/c y-axis is flipped
@@ -100,9 +100,9 @@ mod tests {
 		let p4: Point<i64> = Point::new(1, 0); // ccw
 		let p5: Point<i64> = Point::new(2, 2); // collinear
 
-		assert_eq!(orient2d(p1, p2, p3), Orientation::Clockwise);
-		assert_eq!(orient2d(p1, p2, p4), Orientation::CounterClockwise);
-		assert_eq!(orient2d(p1, p2, p5), Orientation::Collinear);
+		assert_eq!(orient2d(p1.into(), p2.into(), p3.into()), Orientation::Clockwise);
+		assert_eq!(orient2d(p1.into(), p2.into(), p4.into()), Orientation::CounterClockwise);
+		assert_eq!(orient2d(p1.into(), p2.into(), p5.into()), Orientation::Collinear);
 	}
 
 	#[test]
@@ -113,9 +113,9 @@ mod tests {
 		let p4: Point<f64> = Point::new(1., 0.); // ccw
 		let p5: Point<f64> = Point::new(2., 2.); // collinear
 
-		assert_eq!(orient2d(p1, p2, p3), Orientation::Clockwise);
-		assert_eq!(orient2d(p1, p2, p4), Orientation::CounterClockwise);
-		assert_eq!(orient2d(p1, p2, p5), Orientation::Collinear);
+		assert_eq!(orient2d(p1.into(), p2.into(), p3.into()), Orientation::Clockwise);
+		assert_eq!(orient2d(p1.into(), p2.into(), p4.into()), Orientation::CounterClockwise);
+		assert_eq!(orient2d(p1.into(), p2.into(), p5.into()), Orientation::Collinear);
 	}
 
 	#[test]
@@ -126,9 +126,9 @@ mod tests {
 		let p4: Point<i32> = Point::new(1, 0); // ccw
 		let p5: Point<i32> = Point::new(2, 2); // collinear
 
-		assert_eq!(orient2drobust(p1, p2, p3), Orientation::Clockwise);
-		assert_eq!(orient2drobust(p1, p2, p4), Orientation::CounterClockwise);
-		assert_eq!(orient2drobust(p1, p2, p5), Orientation::Collinear);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p3.into()), Orientation::Clockwise);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p4.into()), Orientation::CounterClockwise);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p5.into()), Orientation::Collinear);
 	}
 
 	#[test]
@@ -139,9 +139,9 @@ mod tests {
 		let p4: Point<f64> = Point::new(1., 0.); // ccw
 		let p5: Point<f64> = Point::new(2., 2.); // collinear
 
-		assert_eq!(orient2drobust(p1, p2, p3), Orientation::Clockwise);
-		assert_eq!(orient2drobust(p1, p2, p4), Orientation::CounterClockwise);
-		assert_eq!(orient2drobust(p1, p2, p5), Orientation::Collinear);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p3.into()), Orientation::Clockwise);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p4.into()), Orientation::CounterClockwise);
+		assert_eq!(orient2drobust(p1.into(), p2.into(), p5.into()), Orientation::Collinear);
 	}
 }
 

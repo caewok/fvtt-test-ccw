@@ -47,13 +47,13 @@ fn main() {
 	let p1: Point<f64> = Point::random_range(-100., 100.);
 	let p2: Point<f64> = Point::random_range(-100., 100.);
 	let p3: Point<f64> = Point::random_range(-100., 100.);
-	dbg!(orient2d(p1, p2, p3));
-	dbg!(orient2drobust(p1, p2, p3));
+	dbg!(orient2d(p1.into(), p2.into(), p3.into()));
+	dbg!(orient2drobust(p1.into(), p2.into(), p3.into()));
 
 	let p1: Point<i64> = Point::random_range(-100, 100);
 	let p2: Point<i64> = Point::random_range(-100, 100);
 	let p3: Point<i64> = Point::random_range(-100, 100);
-	dbg!(orient2d(p1, p2, p3));
+	dbg!(orient2d(p1.into(), p2.into(), p3.into()));
 // 	dbg!(orient2drobust(p1, p2, p3)); // fails to build as expected
 
 }
