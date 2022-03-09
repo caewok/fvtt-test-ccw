@@ -12,9 +12,11 @@
 // extern crate test;
 
 mod point;
+mod segment;
 
-use crate::point::{GenerateRandom, orient2d, orient2drobust};
-use geo::Point;
+use crate::point::{ GenerateRandom, orient2d, orient2drobust };
+use crate::segment::{ OrderedSegment };
+use geo::{Point, Coordinate};
 
 
 fn main() {
@@ -55,5 +57,22 @@ fn main() {
 	let p3: Point<i64> = Point::random_range(-100, 100);
 	dbg!(orient2d(p1.into(), p2.into(), p3.into()));
 // 	dbg!(orient2drobust(p1, p2, p3)); // fails to build as expected
+
+	dbg!(p1.x().cmp(&p1.y()));
+
+	let x1 = Coordinate::from(p1).x;
+	let x2 = Coordinate::from(p2).x;
+	dbg!(x1.cmp(&x2));
+
+// 	dbg!(Coordinate::from(p1).partial_cmp(&Coordinate::from(p2))); // fails
+
+	let s1: OrderedSegment<i64> = OrderedSegment::new(p1.0, p2.0);
+	dbg!(p1);
+	dbg!(p2);
+	dbg!(s1);
+	dbg!(s1.coords());
+
+	dbg!(OrderedSegment::compare_xy(p1, p2));
+	dbg!(OrderedSegment::compare_xy(Coordinate::from(p1), Coordinate::from(p2)));
 
 }
