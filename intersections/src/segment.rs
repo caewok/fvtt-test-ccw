@@ -116,7 +116,9 @@ pub trait SimpleIntersect<T: CoordNum, B = Self>
 	fn line_intersection(&self, other: &B) -> Option<Point<T>>;
 }
 
-impl<T: CoordNum + Signed> SimpleIntersect<T> for OrderedSegment<T> {
+impl<T> SimpleIntersect<T> for OrderedSegment<T>
+	where T: CoordNum + Signed,
+ {
 	fn intersects(&self, other: &Self) -> bool {
 		let (a, b) = self.points();
 		let (c, d) = other.points();
@@ -156,20 +158,39 @@ impl<T: CoordNum + Signed> SimpleIntersect<T> for OrderedSegment<T> {
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
-		let x: f64 = x_num.into();
-		let y: f64 = y_num.into();
+		// If x_num / x_dnm or y_num / y_dnm must be expressed as a float,
+		// then round the result if necessary
+		// TO-DO: Handle errors / None
+		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
+		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
 
-// 		let x:f64 = x_num as f64 / x_dnm as f64;
-// 		let y:f64 = y_num as f64 / y_dnm as f64;
+		let x_num:f64 = num_traits::cast(x_num).unwrap();
+		let y_num:f64 = num_traits::cast(y_num).unwrap();
 
-		if (x == (x as T) as f64) &&
-		   (y == (y as T) as f64) {
-			return Some(Point::new(x_num / x_dnm, y_num / y_dnm));
-		   }
+		let x_float = x_num / x_dnm;
+		let y_float = y_num / y_dnm;
+
+		let x:f64 = num_traits::cast(x_dnm).unwrap();
+		let y:f64 = num_traits::cast(y_dnm).unwrap();
+
+		let x_conv:T = num_traits::cast(x_float).unwrap();
+		let y_conv:T = num_traits::cast(y_float).unwrap();
+
+		let x_conv:f64 = num_traits::cast(x_conv).unwrap();
+		let y_conv:f64 = num_traits::cast(y_conv).unwrap();
+
+		if x == x_conv && y == y_conv {
+			return Some(Point::new())
+		}
+
+// 		if (x == (x as T) as f64) &&
+// 		   (y == (y as T) as f64) {
+// 			return Some(Point::new(x_num / x_dnm, y_num / y_dnm));
+// 		   }
 
 		let x = x.round();
 		let y = y.round();
-		Some(Point::new(x as T, y as T))
+		Some(Point::new(x.into(), y.into()))
 	}
 
 }
