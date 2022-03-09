@@ -42,6 +42,9 @@ impl<T> GenerateRandom for Point<T>
 
 pub trait SimpleOrient<A = Self, B = Self, C = Self> {
 	fn orient2d(a: A, b: B, c: C) -> Orientation;
+
+	// TO-DO: robust version using y in correct orientation (y decreases moving up)
+	// flip the robust orientation from Point?
 }
 
 impl<T> SimpleOrient for Point<T>
@@ -61,6 +64,39 @@ impl<T> SimpleOrient for Point<T>
 		} else {
 			Orientation::Collinear
 		}
+	}
+}
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+// ---------------- ORIENTATION
+	#[test]
+	fn orient_point_int_works() {
+		let p1: Point<i64> = Point::new(0, 0);
+		let p2: Point<i64> = Point::new(1, 1);
+		let p3: Point<i64> = Point::new(0, 1); // cw
+		let p4: Point<i64> = Point::new(1, 0); // ccw
+		let p5: Point<i64> = Point::new(2, 2); // collinear
+
+		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
+	}
+
+	#[test]
+	fn orient_point_float_works() {
+		let p1: Point<f64> = Point::new(0., 0.);
+		let p2: Point<f64> = Point::new(1., 1.);
+		let p3: Point<f64> = Point::new(0., 1.); // cw
+		let p4: Point<f64> = Point::new(1., 0.); // ccw
+		let p5: Point<f64> = Point::new(2., 2.); // collinear
+
+		assert_eq!(Point::orient2d(p1, p2, p3), Orientation::Clockwise);
+		assert_eq!(Point::orient2d(p1, p2, p4), Orientation::CounterClockwise);
+		assert_eq!(Point::orient2d(p1, p2, p5), Orientation::Collinear);
 	}
 }
 
