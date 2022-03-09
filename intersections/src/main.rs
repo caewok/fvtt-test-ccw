@@ -19,41 +19,83 @@ use crate::point::{ GenerateRandom, orient2d, orient2drobust };
 use geo::{Point, Coordinate};
 //use num_traits::AsPrimitive;
 // use num_traits::ops::checked::CheckedDiv;
+use castaway::{cast, match_type};
 
-fn test_conversion<T>(p: Point<T>) -> Point<T>
+fn test_conversion<T: 'static>(p: Point<T>) -> Point<T>
 	where T: geo::CoordNum + std::fmt::Display,// + num_traits::cast::NumCast,
 {
 	let (x, y) = p.x_y();
 
-	// divide by number -- if that result is the same as converting to float, then use orig
-	let divisor: T = num_traits::cast(2).unwrap();
-
-	// test division using float
-	let x_f: f64 = num_traits::cast(x).unwrap();
-	let y_f: f64 = num_traits::cast(y).unwrap();
-	let divisor_f: f64 = num_traits::cast(divisor).unwrap();
-	let x_f = x_f / divisor_f;
-	let y_f = y_f / divisor_f;
-
-	let test_xf: T = num_traits::cast(x_f).unwrap();
-	let test_yf: T = num_traits::cast(y_f).unwrap();
-
-	let test_xf: f64 = num_traits::cast(test_xf).unwrap();
-	let test_yf: f64 = num_traits::cast(test_yf).unwrap();
-
-	if x_f == test_xf && y_f == test_yf {
-		println!("Using original x,y {},{}", x_f, x_f);
-		return Point::new(num_traits::cast(x_f).unwrap(), num_traits::cast(x_f).unwrap());
+	let divisor = num_traits::cast(3).unwrap();
+	let z:T = num_traits::zero();
+	if x % divisor == z && y % divisor == z {
+		println!("No rounding!");
+		return Point::new(x / divisor, y / divisor);
 	}
 
-	let x = num_traits::cast(x_f.round()).unwrap();
-	let y = num_traits::cast(y_f.round()).unwrap();
+	// T is either an integer that does not evenly divide or a float
+	// if T is a float, can simply divide and return
+	// if T is an integer, we must round the floating point result
 
-// 	let x: i64 = num_traits::cast(x).unwrap();
-// 	let y: i64 = num_traits::cast(y).unwrap();
+	let xf: f64 = num_traits::cast(x).unwrap();
+	let yf: f64 = num_traits::cast(y).unwrap();
+	let divisorf: f64 = num_traits::cast(divisor).unwrap();
+
+	let xout = xf / divisorf;
+	let yout = yf / divisorf;
+
+	let is_int = match_type!(x, {
+		i128 as _ => true,
+		i64 as _ => true,
+		i32 as _ => true,
+		i16 as _ => true,
+		i8 as _ => true,
+		_ => false,
+	});
+
+	if is_int {
+		let xout: T = num_traits::cast(xout.round()).unwrap();
+		let yout: T = num_traits::cast(yout.round()).unwrap();
+		Point::new(xout, yout)
+	} else {
+		let xout: T = num_traits::cast(xout).unwrap();
+		let yout: T = num_traits::cast(yout).unwrap();
+		Point::new(xout, yout)
+	}
+
+// 	Point::new((x / divisor).into(), (y / divisor).into())
 
 
-	Point::new(x, y)
+
+// 	// divide by number -- if that result is the same as converting to float, then use orig
+// 	let divisor: T = num_traits::cast(2).unwrap();
+//
+// 	// test division using float
+// 	let x_f: f64 = num_traits::cast(x).unwrap();
+// 	let y_f: f64 = num_traits::cast(y).unwrap();
+// 	let divisor_f: f64 = num_traits::cast(divisor).unwrap();
+// 	let x_f = x_f / divisor_f;
+// 	let y_f = y_f / divisor_f;
+//
+// 	let test_xf: T = num_traits::cast(x_f).unwrap();
+// 	let test_yf: T = num_traits::cast(y_f).unwrap();
+//
+// 	let test_xf: f64 = num_traits::cast(test_xf).unwrap();
+// 	let test_yf: f64 = num_traits::cast(test_yf).unwrap();
+//
+// 	if x_f == test_xf && y_f == test_yf {
+// 		println!("Using original x,y {},{}", x_f, x_f);
+// 		return Point::new(num_traits::cast(x_f).unwrap(), num_traits::cast(x_f).unwrap());
+// 	}
+//
+// 	let x = num_traits::cast(x_f.round()).unwrap();
+// 	let y = num_traits::cast(y_f.round()).unwrap();
+//
+// // 	let x: i64 = num_traits::cast(x).unwrap();
+// // 	let y: i64 = num_traits::cast(y).unwrap();
+
+
+// 	Point::new(x, y)
 }
 
 
@@ -126,5 +168,28 @@ fn main() {
 	dbg!(p1);
 	dbg!(test_conversion(p1));
 
+	let p1: Point<i64> = Point::new(32, 66);
+	dbg!(p1);
+	dbg!(test_conversion(p1));
+
+	let p1: Point<f64> = Point::new(3., 6.);
+	dbg!(p1);
+	dbg!(test_conversion(p1));
+
+	dbg!(1.1f64.trunc());
+	dbg!(4.1 % 2.);
+// 	dbg!(1i32.trunc());
+	dbg!(1.0f64.trunc());
+
+	dbg!(1.1f64.round());
+// 	dbg!(1i32.round());
+
+	let f: f64 = 10.;
+	let i: i64 = 11;
+	dbg!(cast!(f, f64));
+	dbg!(cast!(f, i64));
+	dbg!(cast!(i, i64));
+	dbg!(cast!(i, i32));
+// 	dbg!(cast!(i, num_traits::Num));
 
 }

@@ -113,7 +113,8 @@ pub trait SimpleIntersect<T: CoordNum, B = Self>
 	where T: CoordNum
 {
 	fn intersects(&self, other: &B) -> bool;
-	fn line_intersection(&self, other: &B) -> Option<Point<T>>;
+	fn line_intersection(&self, other: &B) -> Option<Point<f64>>;
+	fn line_intersection_int(&self, other: &B) -> Option<Point<T>>;
 }
 
 impl<T> SimpleIntersect<T> for OrderedSegment<T>
@@ -137,7 +138,7 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		return false;
 	}
 
-	fn line_intersection(&self, other: &Self) -> Option<Point<T>> {
+	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
 		let (a, _b) = self.points();
 		let (c, _d) = other.points();
 
@@ -158,8 +159,7 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
-		// If x_num / x_dnm or y_num / y_dnm must be expressed as a float,
-		// then round the result if necessary
+		// cast to float for division
 		// TO-DO: Handle errors / None
 		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
 		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
@@ -167,30 +167,45 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let x_num:f64 = num_traits::cast(x_num).unwrap();
 		let y_num:f64 = num_traits::cast(y_num).unwrap();
 
-		let x_float = x_num / x_dnm;
-		let y_float = y_num / y_dnm;
+		let res_x = x_num / x_dnm;
+		let res_y = y_num / y_dnm;
 
-		let x:f64 = num_traits::cast(x_dnm).unwrap();
-		let y:f64 = num_traits::cast(y_dnm).unwrap();
+		Some(Point::new(res_x.into(), res_y.into()))
+	}
 
-		let x_conv:T = num_traits::cast(x_float).unwrap();
-		let y_conv:T = num_traits::cast(y_float).unwrap();
+	fn line_intersection_int(&self, other: &Self) -> Option<Point<f64>> {
+		let (a, _b) = self.points();
+		let (c, _d) = other.points();
 
-		let x_conv:f64 = num_traits::cast(x_conv).unwrap();
-		let y_conv:f64 = num_traits::cast(y_conv).unwrap();
+		let (ax, ay) = a.x_y();
+		let (cx, cy) = c.x_y();
 
-		if x == x_conv && y == y_conv {
-			return Some(Point::new())
-		}
+		let d1 = self.delta();
+		let d2 = other.delta();
 
-// 		if (x == (x as T) as f64) &&
-// 		   (y == (y as T) as f64) {
-// 			return Some(Point::new(x_num / x_dnm, y_num / y_dnm));
-// 		   }
+		let z:T = num_traits::zero();
 
-		let x = x.round();
-		let y = y.round();
-		Some(Point::new(x.into(), y.into()))
+		let x_dnm = d1.y * d2.x - d2.y * d1.x;
+		if x_dnm == z { return None; }
+
+		let y_dnm = d1.x * d2.y - d2.x * d1.y;
+		if y_dnm == z { return None; }
+
+		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
+		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
+
+		// cast to float for division
+		// TO-DO: Handle errors / None
+		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
+		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
+
+		let x_num:f64 = num_traits::cast(x_num).unwrap();
+		let y_num:f64 = num_traits::cast(y_num).unwrap();
+
+		let res_x = x_num / x_dnm;
+		let res_y = y_num / y_dnm;
+
+		Some(Point::new(res_x.into(), res_y.into()))
 	}
 
 }
