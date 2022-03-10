@@ -1,562 +1,716 @@
-// extern crate test;
-
-use crate::geometry::{Point, Segment};
-use crate::geometry;
-use serde::{Serialize, Deserialize};
+use geo::{Point, CoordNum};
+use crate::segment::{OrderedSegment, SimpleIntersect};
+use num_traits::{Signed};
 use serde_json;
 use std::fs;
-use std::cmp::Ordering;
-use std::cmp;
-use rayon::prelude::*; // multi-threading iterator
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, PartialOrd, Clone)]
-pub struct IntersectionResult {
-  pub ix: Point,
-  pub s1_id: String,
-  pub s2_id: String,
+extern crate test;
+use test::Bencher;
+
+#[derive(Debug, PartialEq)]
+pub struct IxResultFloat {
+	pub ix: Point<f64>,
+// 	pub s1: <u64>,
+// 	pub s2: <u64>,
 }
 
-impl IntersectionResult {
-	pub fn order_ids(&mut self) {
-		let order = self.s1_id.cmp(&self.s2_id);//.unwrap();
-		if order == Ordering::Less {
-			println!("String ids {} {} less!", self.s1_id, self.s2_id);
+#[derive(Debug, PartialEq)]
+pub struct IxResult<T>
+	where T: CoordNum,
+{
+	pub ix: Point<T>,
+// 	pub s1: <u64>,
+// 	pub s2: <u64>,
+}
 
-		} else if order == Ordering::Greater {
-			println!("String ids {} {} greater!", self.s1_id, self.s2_id);
-			let s1_id = self.s1_id.clone();
-			self.s1_id = self.s2_id.clone();
-			self.s2_id = s1_id;
+// Need enum to store different IxResults
+// #[derive(Debug, PartialEq)]
+// pub enum IxResultEnum {
+// 	Float(IxResult<f64>),
+// 	Int(IxResult<i64>),
+// }
 
-		} else if order == Ordering::Equal {
-			println!("String ids {} {} equal!", self.s1_id, self.s2_id);
+pub fn ix_brute_single<T: 'static>(segments: &Vec<OrderedSegment<T>>) -> Vec<IxResultFloat>
+	where T: CoordNum + Signed,
+{
+		let mut ixs: Vec<IxResultFloat> = Vec::new();
+		for(i, si) in segments.iter().enumerate() {
+			for sj in &segments[(i + 1)..] {
+				if !si.intersects(&sj) { continue; }
+				let res = si.line_intersection(&sj);
+				if let Some(ix) = res {
+					ixs.push( IxResultFloat {
+						ix,
+					});
+				}
+			}
 		}
-	}
+
+		ixs
 }
 
-
-/// Detect intersections in a single array of segments.
-/// Uses a brute-force algorithm, comparing each segment to every other segment.
-///
-/// ## Arguments
-/// *segments* Array of segments to test. Each should be a Segment made up of 2 Points.
-///
-/// ## Returns
-/// Array of intersections and segment indices.
-pub fn brute_single(segments: &Vec<Segment>) -> Vec<IntersectionResult> {
-    let mut ixs: Vec<IntersectionResult> = Vec::new();
-
-	for (i, si) in segments.iter().enumerate() {
-		let segments_slice = &segments[(i + 1)..]; // faster than if i <= j { continue; }
-	    for sj in segments_slice {
-	      	// if i <= j { continue; } // don't need to compare the same segments twice
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
-
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
-	  	}
-	}
-
-   	ixs
-}
-
-/// Detect intersections between two array of segments.
-/// Uses a brute-force algorithm, comparing each segment to every other segment.
-///
-/// ## Arguments
-/// *segments1* Array of Segments to test.
-/// *segments2* Array of Segments to compare against the first array.
-///
-/// ## Returns
-/// Array of intersections and segment indices.
-pub fn brute_double(segments1: &Vec<Segment>, segments2: &Vec<Segment>) -> Vec<IntersectionResult> {
-    let mut ixs: Vec<IntersectionResult> = Vec::new();
-
+pub fn ix_brute_double<T: 'static>(segments1: &Vec<OrderedSegment<T>>, segments2: &Vec<OrderedSegment<T>>) -> Vec<IxResultFloat>
+	where T: CoordNum + Signed,
+{
+	let mut ixs: Vec<IxResultFloat> = Vec::new();
 	for si in segments1 {
-	    for sj in segments2 {
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
+		for sj in segments2 {
+			if !si.intersects(&sj) { continue; }
+			let res = si.line_intersection(&sj);
 
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-	      	//if ix.x.is_nan() || ix.y.is_nan() { continue; } // likely the same segment
-
-          	ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
-	  	}
-	}
-
-   	ixs
-}
-
-/// Detect intersections in a set of segments.
-/// Sort the segments based on the left point
-/// Only test segments that fall within the x value of the current segment being tested.
-///
-/// ## Arguments
-/// *segments* Array of segments to test. Each should be a Segment made up of 2 Points.
-///
-/// ## Returns
-/// Array of intersections and segment indices.
-
-// Use impl Segment fn new to identify ne/sw points?
-// Use a fast sort mechanism?
-pub fn brute_sort_single(segments: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	let mut ixs: Vec<IntersectionResult> = Vec::new();
-
-	// sort the segments by the a point (ne or min_xy)
-	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-
-	for (i, si) in segments.iter().enumerate() {
-		let segments_slice = &segments[(i + 1)..];
-
-	    for sj in segments_slice {
-// 	    	if i <= j { continue; }
-
-	    	// if we have not yet reached the left end of this segment, we can skip
-	    	let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-	    	if left_res == Ordering::Less { continue; }
-
-	    	// if we reach the right end of this segment, we can skip the rest
-	    	let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
-	    	if right_res == Ordering::Greater { break; }
-
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
-
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
-	  	}
-	}
-
-   	ixs
-}
-
-// slower when tracking skipped with HashSet
-// faster to use slice than to use for j in start_j..ln!
-// Using HashSet appears slower for most cases
-pub fn brute_sort_single_threaded(segments: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	// sort the segments by the a point (ne or min_xy)
-	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-
-	let ln = segments.len();
-	let result: Vec<_> = (0..ln).into_par_iter().map(|i| {
-		let mut thread_ixs: Vec<IntersectionResult> = Vec::new();
-		let segments_slice = &segments[(i + 1)..];
-		let si = &segments[i];
-
-		for sj in segments_slice {
-			// if we have not yet reached the left end of this segment, we can skip
-			let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-			if left_res == Ordering::Less { continue; }
-
-			// if we reach the right end of this segment, we can skip the rest
-			let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
-			if right_res == Ordering::Greater { break; }
-
-			if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
-
-			let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-			thread_ixs.push(IntersectionResult {
-				ix,
-				s1_id: si.id.clone(),
-				s2_id: sj.id.clone(),
-			});
+			if let Some(ix) = res {
+				ixs.push( IxResultFloat {
+					ix,
+				});
+			}
 		}
-		thread_ixs
-	}).collect();
-
-// 	result
-	// both concat and flatten are slowish but concat may be slightly faster
-	result.concat()
-// 	result.into_iter().flatten().collect()
-}
-
-
-
-/// Detect intersections between two array of segments.
-/// Sort the segments based on the left point
-/// Only test segments that fall within the x value of the current segment being tested.
-///
-/// ## Arguments
-/// *segments1* Array of Segments to test.
-/// *segments2* Array of Segments to compare against the first array.
-///
-/// ## Returns
-/// Array of intersections and segment indices.
-pub fn brute_sort_double(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	let mut ixs: Vec<IntersectionResult> = Vec::new();
-
-	// sort the segments by the a point (ne or min_xy)
-	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-// 	dbg!(&segments1);
-// 	dbg!(&segments2);
-
-	for si in segments1 {
-	    for sj in segments2.iter() {
-// 	    	println!("i {}, j {}", i, j);
-// 	    	println!("si: {}", si);
-// 	    	println!("sj: {}", sj);
-
-	    	// if we have not yet reached the left end of this segment, we can skip
-	    	let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-	    	if left_res == Ordering::Less {
-// 	    		println!("skipping i {}, j {}", i, j);
-// 	    		println!("");
-	    		continue;
-	    	}
-
-	    	// if we reach the right end of this segment, we can skip the rest
-	    	let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
-	    	if right_res == Ordering::Greater {
-// 	    		println!("breaking right at i {}, j {}", i, j);
-// 	    		println!("");
-	    		break;
-	    	}
-
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) {
-// 	      		println!("No intersection.");
-// 	      		println!("");
-	      		continue;
-	      	}
-
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
-//          	println!("Intersection {}!", ix);
-//          	println!("");
-	  	}
 	}
 
-   	ixs
+	ixs
 }
 
-// threaded appears much faster for 1000 segments, not for 100
-// see https://github.com/GoogleChromeLabs/wasm-bindgen-rayon for using with wasm
+// pub fn ix_brute_single_mixed<T: 'static>(segments: &Vec<OrderedSegment<T>>) -> Vec<IxResultEnum>
+// 	where T: CoordNum + Signed,
+// {
+// 		let mut ixs: Vec<IxResult<T>> = Vec::new();
+// 		for(i, si) in segments.iter().enumerate() {
+// 			for sj in &segments[(i + 1)..] {
+// 				if !si.intersects(&sj) { continue; }
+// 				let res = si.line_intersection_mixed(&sj);
+// 				if let Some(ix) = res {
+// 					ixs.push(
+// 						IxResultEnum(
+// 							IxResult {
+// 								ix,
+// 							}
+// 						)
+// 					);
+// 				}
+// 			}
+// 		}
+//
+// 		ixs
+// }
+//
+// pub fn ix_brute_double_mixed<T: 'static>(segments1: &Vec<OrderedSegment<T>>, segments2: &Vec<OrderedSegment<T>>) -> Vec<IxResultEnum>
+// 	where T: CoordNum + Signed,
+// {
+// 	let mut ixs: Vec<IxResult<T>> = Vec::new();
+// 	for si in segments1 {
+// 		for sj in segments2 {
+// 			if !si.intersects(&sj) { continue; }
+// 			let res = si.line_intersection_mixed(&sj);
+//
+// 			if let Some(ix) = res {
+// 				ixs.push(
+// 					IxResultEnum(
+// 						IxResult {
+// 							ix,
+// 						}
+// 					)
+// 				);
+// 			}
+// 		}
+// 	}
+//
+// 	ixs
+// }
 
-pub fn brute_sort_double_threaded(segments1: &mut Vec<Segment>, segments2: &mut Vec<Segment>) -> Vec<IntersectionResult> {
-	// sort the segments by the a point (ne or min_xy)
-	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+pub fn ix_sort_single<T: 'static>(segments: &mut Vec<OrderedSegment<T>>) -> Vec<IxResultFloat>
+	where T: CoordNum + Signed,
+{
+	segments.sort_unstable_by(|a, b| a.cmp_segments(&b));
 
-	let ln1 = segments1.len();
-	let result: Vec<_> = (0..ln1).into_par_iter().map(|i| {
-		let si = &segments1[i];
-		let segments_slice = &segments2[..];
-		let mut thread_ixs: Vec<IntersectionResult> = Vec::new();
-		for sj in segments_slice {
-	    	// if we have not yet reached the left end of this segment, we can skip
-	    	let left_res = sj.b.partial_cmp(&si.a).unwrap(); // Segment::compare_xy(&sj.b, &si.a);
-	    	if left_res == Ordering::Less { continue; }
+	let mut ixs: Vec<IxResultFloat> = Vec::new();
+	for(i, si) in segments.iter().enumerate() {
+		for (j, sj) in (&segments[(i + 1)..]).iter().enumerate() {
+			// if we have not yet reached the left end, we can skip
+			if sj.is_left(&si) { continue; }
 
-	    	// if we reach the right end of this segment, we can skip the rest
-	    	let right_res = sj.a.partial_cmp(&si.b).unwrap(); // Segment::compare_xy(&sj.a, &si.b);
-	    	if right_res == Ordering::Greater { break; }
+			// if we reach the right end, we can skip the rest
+			if sj.is_right(&si) { break; }
 
-	      	if !geometry::line_segment_intersects(&si.a, &si.b, &sj.a, &sj.b) { continue; }
-
-	      	let ix = geometry::line_line_intersection(&si.a, &si.b, &sj.a, &sj.b);
-          	thread_ixs.push(IntersectionResult {
-              	ix,
-              	s1_id: si.id.clone(),
-              	s2_id: sj.id.clone(),
-         	});
+			if !si.intersects(&sj) { continue; }
+			let res = si.line_intersection(&sj);
+			if let Some(ix) = res {
+				ixs.push( IxResultFloat {
+					ix,
+				});
+			}
 		}
-		thread_ixs
-	}).collect();
+	}
 
-   	result.concat()
+	ixs
 }
 
+pub fn ix_sort_double<T: 'static>(segments1: &mut Vec<OrderedSegment<T>>, segments2: &mut Vec<OrderedSegment<T>>) -> Vec<IxResultFloat>
+	where T: CoordNum + Signed,
+{
+	segments1.sort_unstable_by(|a, b| a.cmp_segments(&b));
+	segments2.sort_unstable_by(|a, b| a.cmp_segments(&b));
 
-// // using j_done alone, incrementing +1 (probably same as using max, might be better at small end)
-// test intersections::tests::test_1000_double      ... bench:   6,832,479 ns/iter (+/- 334,995)
-// test intersections::tests::test_1000_single      ... bench:   6,573,012 ns/iter (+/- 332,609)
-// test intersections::tests::test_1000_sort_double ... bench:   5,621,283 ns/iter (+/- 271,983)
-// test intersections::tests::test_1000_sort_single ... bench:   3,112,295 ns/iter (+/- 213,510)
-// test intersections::tests::test_100_double       ... bench:      31,627 ns/iter (+/- 2,469)
-// test intersections::tests::test_100_single       ... bench:      42,084 ns/iter (+/- 5,219)
-// test intersections::tests::test_100_sort_double  ... bench:      35,609 ns/iter (+/- 5,609)
-// test intersections::tests::test_100_sort_single  ... bench:      17,941 ns/iter (+/- 2,869)
-// test intersections::tests::test_10_double        ... bench:         415 ns/iter (+/- 14)
-// test intersections::tests::test_10_single        ... bench:         379 ns/iter (+/- 17)
-// test intersections::tests::test_10_sort_double   ... bench:         345 ns/iter (+/- 17)
-// test intersections::tests::test_10_sort_single   ... bench:         252 ns/iter (+/- 7)
-//
-// // using j_done and max(i+1, j_done)
-// test intersections::tests::test_1000_double      ... bench:   6,863,879 ns/iter (+/- 450,158)
-// test intersections::tests::test_1000_single      ... bench:   6,689,633 ns/iter (+/- 502,524)
-// test intersections::tests::test_1000_sort_double ... bench:   5,599,604 ns/iter (+/- 124,314)
-// test intersections::tests::test_1000_sort_single ... bench:   3,109,184 ns/iter (+/- 141,403)
-// test intersections::tests::test_100_double       ... bench:      31,582 ns/iter (+/- 237)
-// test intersections::tests::test_100_single       ... bench:      45,000 ns/iter (+/- 1,161)
-// test intersections::tests::test_100_sort_double  ... bench:      37,516 ns/iter (+/- 1,291)
-// test intersections::tests::test_100_sort_single  ... bench:      16,835 ns/iter (+/- 199)
-// test intersections::tests::test_10_double        ... bench:         439 ns/iter (+/- 14)
-// test intersections::tests::test_10_single        ... bench:         387 ns/iter (+/- 9)
-// test intersections::tests::test_10_sort_double   ... bench:         355 ns/iter (+/- 7)
-// test intersections::tests::test_10_sort_single   ... bench:         263 ns/iter (+/- 7)
-//
-// // no use of j_done
-// test intersections::tests::test_1000_double      ... bench:   7,269,924 ns/iter (+/- 145,187)
-// test intersections::tests::test_1000_single      ... bench:   6,504,945 ns/iter (+/- 101,959)
-// test intersections::tests::test_1000_sort_double ... bench:   7,364,033 ns/iter (+/- 130,160)
-// test intersections::tests::test_1000_sort_single ... bench:   3,148,268 ns/iter (+/- 47,163)
-// test intersections::tests::test_100_double       ... bench:      31,736 ns/iter (+/- 791)
-// test intersections::tests::test_100_single       ... bench:      41,778 ns/iter (+/- 8,292)
-// test intersections::tests::test_100_sort_double  ... bench:      41,775 ns/iter (+/- 1,590)
-// test intersections::tests::test_100_sort_single  ... bench:      15,894 ns/iter (+/- 1,752)
-// test intersections::tests::test_10_double        ... bench:         409 ns/iter (+/- 10)
-// test intersections::tests::test_10_single        ... bench:         375 ns/iter (+/- 14)
-// test intersections::tests::test_10_sort_double   ... bench:         393 ns/iter (+/- 24)
-// test intersections::tests::test_10_sort_single   ... bench:         263 ns/iter (+/- 4)
+	let mut ixs: Vec<IxResultFloat> = Vec::new();
+	for (i, si) in segments1.iter().enumerate() {
+		for (j, sj) in segments2.iter().enumerate() {
+			// if we have not yet reached the left end, we can skip
+			if sj.is_left(&si) { continue; }
 
+			// if we reach the right end, we can skip the rest
+			if sj.is_right(&si) { break; }
+
+			if !si.intersects(&sj) { continue; }
+			let res = si.line_intersection(&sj);
+
+			if let Some(ix) = res {
+				ixs.push( IxResultFloat {
+					ix,
+				});
+			}
+		}
+	}
+
+	ixs
+}
+
+struct BenchSegmentInt {
+	x10_0: Vec<OrderedSegment<i64>>,
+	x100_0: Vec<OrderedSegment<i64>>,
+	x1000_0: Vec<OrderedSegment<i64>>,
+
+	x10_1: Vec<OrderedSegment<i64>>,
+	x100_1: Vec<OrderedSegment<i64>>,
+	x1000_1: Vec<OrderedSegment<i64>>,
+}
+
+struct BenchSegmentFloat {
+	x10_0: Vec<OrderedSegment<f64>>,
+	x100_0: Vec<OrderedSegment<f64>>,
+	x1000_0: Vec<OrderedSegment<f64>>,
+
+	x10_1: Vec<OrderedSegment<f64>>,
+	x100_1: Vec<OrderedSegment<f64>>,
+	x1000_1: Vec<OrderedSegment<f64>>,
+}
 
 struct BenchSetup {
-	segments_10_1: Vec<Segment>,
-	segments_10_2: Vec<Segment>,
-	segments_100_1: Vec<Segment>,
-	segments_100_2: Vec<Segment>,
-	segments_1000_1: Vec<Segment>,
-	segments_1000_2: Vec<Segment>,
-
+	int: BenchSegmentInt,
+	float: BenchSegmentFloat,
 }
 
 impl BenchSetup {
 	fn new() -> Self {
-	   	let str2 = fs::read_to_string("segments_random_10_1000_neg1.json").unwrap();
-	  	let str3 = fs::read_to_string("segments_random_10_1000_neg2.json").unwrap();
-	   	let str4 = fs::read_to_string("segments_random_100_2000_neg1.json").unwrap();
-	   	let str5 = fs::read_to_string("segments_random_100_2000_neg2.json").unwrap();
-	   	let str6 = fs::read_to_string("segments_random_1000_4000_neg1.json").unwrap();
-	   	let str7 = fs::read_to_string("segments_random_1000_4000_neg2.json").unwrap();
+		// the copy versions have start/end
+		let str10_1 = fs::read_to_string("segments_random_10_1000_neg1 copy.json").unwrap();
+		let str10_2 = fs::read_to_string("segments_random_10_1000_neg2 copy.json").unwrap();
+		let str100_1 = fs::read_to_string("segments_random_100_2000_neg1 copy.json").unwrap();
+		let str100_2 = fs::read_to_string("segments_random_100_2000_neg2 copy.json").unwrap();
+		let str1000_1 = fs::read_to_string("segments_random_1000_4000_neg1 copy.json").unwrap();
+		let str1000_2 = fs::read_to_string("segments_random_1000_4000_neg2 copy.json").unwrap();
 
-		Self {
-			segments_10_1: serde_json::from_str(&str2).unwrap(),
-			segments_10_2: serde_json::from_str(&str3).unwrap(),
-			segments_100_1: serde_json::from_str(&str4).unwrap(),
-			segments_100_2: serde_json::from_str(&str5).unwrap(),
-			segments_1000_1: serde_json::from_str(&str6).unwrap(),
-			segments_1000_2: serde_json::from_str(&str7).unwrap(),
+		let f = BenchSegmentFloat {
+			x10_0: serde_json::from_str(&str10_1).unwrap(),
+			x100_0: serde_json::from_str(&str10_2).unwrap(),
+			x1000_0: serde_json::from_str(&str100_1).unwrap(),
+
+			x10_1: serde_json::from_str(&str100_2).unwrap(),
+			x100_1: serde_json::from_str(&str1000_1).unwrap(),
+			x1000_1: serde_json::from_str(&str1000_2).unwrap(),
+		};
+
+		let i = BenchSegmentInt {
+			x10_0: f.x10_0.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+			x100_0: f.x100_0.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+			x1000_0: f.x1000_0.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+
+			x10_1: f.x10_1.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+			x100_1: f.x100_1.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+			x1000_1: f.x1000_1.iter().map(|s| OrderedSegment::<i64>::from(*s)).collect(),
+		};
+
+		BenchSetup {
+			int: i,
+			float: f,
 		}
 	}
 }
 
-struct TestSetup {
-	segments: Vec<Segment>,
-	results_single: Vec<IntersectionResult>,
-	results_double: Vec<IntersectionResult>,
-}
-
-impl TestSetup {
-	fn new() -> Self {
-		let test_str = fs::read_to_string("segments_intersection_test.json").unwrap();
-		let results_single_str = fs::read_to_string("segments_intersection_results_brute_single.json").unwrap();
-		let results_double_str = fs::read_to_string("segments_intersection_results_brute_double.json").unwrap();
-
-		// sort the segments so that the intersection algorithms
-		// report the data in the same order
-		let mut segments: Vec<Segment> = serde_json::from_str(&test_str).unwrap();
-		segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-
-		Self {
-			segments,
-			results_single: serde_json::from_str(&results_single_str).unwrap(),
-			results_double: serde_json::from_str(&results_double_str).unwrap(),
-		}
-	}
-}
-
-
-// run test using cargo +nightly bench
-// must first install nightly: rustup install nightly
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use test::Bencher;
 
-	/* ----------- TESTS -------------- */
+// ---------------- BENCHMARK FLOAT VERSIONS
 
+// ---------------- TESTING
+
+// ---------------- BRUTE
 	#[test]
-	fn brute_single_works() {
-	    let setup = TestSetup::new();
-	    let mut ixs = brute_single(&setup.segments);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_single);
-	}
+	fn brute_single_float_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
 
-	#[test]
-	fn brute_double_works() {
-	    let setup = TestSetup::new();
-	    let segments2 = setup.segments.clone();
+		let segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
 
-	    let mut ixs = brute_double(&setup.segments, &segments2);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_double);
-	}
-
-	#[test]
-	fn brute_sort_single_works() {
-	    let mut setup = TestSetup::new();
-	    let mut ixs = brute_sort_single(&mut setup.segments);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_single);
+		let ixs = ix_brute_single(&segments);
+		assert_eq!(ixs, res);
 	}
 
 	#[test]
-	fn brute_sort_single_threaded_works() {
-	    let mut setup = TestSetup::new();
-	    let mut ixs = brute_sort_single_threaded(&mut setup.segments);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_single);
+	fn brute_double_float_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		let segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_brute_double(&segments, &segments);
+		assert_eq!(ixs, res);
 	}
 
 	#[test]
-	fn brute_sort_double_works() {
-	    let mut setup = TestSetup::new();
-	    let mut segments2 = setup.segments.clone();
+	fn brute_single_int_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
 
-	    let mut ixs = brute_sort_double(&mut setup.segments, &mut segments2);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_double);
+		let segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_brute_single(&segments);
+		assert_eq!(ixs, res);
 	}
 
 	#[test]
-	fn brute_sort_double_threaded_works() {
-	    let mut setup = TestSetup::new();
-	    let mut segments2 = setup.segments.clone();
+	fn brute_double_int_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
 
-	    let mut ixs = brute_sort_double_threaded(&mut setup.segments, &mut segments2);
-    	ixs.iter_mut().for_each(|i| i.order_ids());
-    	ixs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    	assert_eq!(ixs, setup.results_double);
+		let segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_brute_double(&segments, &segments);
+		assert_eq!(ixs, res);
 	}
 
-	/* ----------- BENCHMARKS --------- */
+// ---------------- BRUTE MIXED
+// 	#[test]
+// 	fn brute_single_mixed_float_works() {
+// 		// s0|s1 intersect
+// 		// s0|s2 do not intersect
+// 		// s1|s2 intersect at endpoint
+// 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+// 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+// 		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+//
+// 		let segments = vec![s0, s1, s2];
+// 		let res = vec![
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 		];
+//
+// 		let ixs = ix_brute_single_mixed(&segments);
+// 		assert_eq!(ixs, res);
+// 	}
+//
+// 	#[test]
+// 	fn brute_double_mixed_float_works() {
+// 		// s0|s1 intersect
+// 		// s0|s2 do not intersect
+// 		// s1|s2 intersect at endpoint
+// 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+// 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+// 		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+//
+// 		let segments = vec![s0, s1, s2];
+// 		let res = vec![
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 		];
+//
+// 		let ixs = ix_brute_double_mixed(&segments, &segments);
+// 		assert_eq!(ixs, res);
+// 	}
+//
+// 	#[test]
+// 	fn brute_single_mixed_int_works() {
+// 		// s0|s1 intersect
+// 		// s0|s2 do not intersect
+// 		// s1|s2 intersect at endpoint
+// 		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+// 		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+// 		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+//
+// 		let segments = vec![s0, s1, s2];
+// 		let res = vec![
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 		];
+//
+// 		let ixs = ix_brute_single_mixed(&segments);
+// 		assert_eq!(ixs, res);
+// 	}
+//
+// 	#[test]
+// 	fn brute_double_mixed_int_works() {
+// 		// s0|s1 intersect
+// 		// s0|s2 do not intersect
+// 		// s1|s2 intersect at endpoint
+// 		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+// 		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+// 		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+//
+// 		let segments = vec![s0, s1, s2];
+// 		let res = vec![
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 			IxResult {
+// 				ix: Point::<i64>::new(2500, 2100),
+// 			},
+// 		];
+//
+// 		let ixs = ix_brute_double_mixed(&segments, &segments);
+// 		assert_eq!(ixs, res);
+// 	}
+
+// ---------------- SORT
+	#[test]
+	fn sort_single_float_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		let mut segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_sort_single(&mut segments);
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_double_float_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		let mut segments1 = vec![s0, s1, s2];
+		let mut segments2 = segments1.clone();
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_sort_double(&mut segments1, &mut segments2);
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_single_int_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+
+		let mut segments = vec![s0, s1, s2];
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_sort_single(&mut segments);
+		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_double_int_works() {
+		// s0|s1 intersect
+		// s0|s2 do not intersect
+		// s1|s2 intersect at endpoint
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+
+		let mut segments1 = vec![s0, s1, s2];
+		let mut segments2 = segments1.clone();
+		let res = vec![
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2469.866666666667, 1900.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+			IxResultFloat {
+				ix: Point::new(2500., 2100.),
+			},
+		];
+
+		let ixs = ix_sort_double(&mut segments1, &mut segments2);
+		assert_eq!(ixs, res);
+	}
+
+// ---------------- BENCHMARKING
+
+// ---------------- BENCHMARK BRUTE INTEGER VERSIONS
+
 	#[bench]
-	fn test_10_single(b: &mut Bencher) {
+	fn bench_10_single_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_single(&setup.segments_10_1));
+		b.iter(|| ix_brute_single(&setup.int.x10_0));
 	}
 
 	#[bench]
-	fn test_10_sort_single(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single(&mut setup.segments_10_1));
-	}
-
-	#[bench]
-	fn test_10_sort_single_threaded(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single_threaded(&mut setup.segments_10_1));
-	}
-
-	#[bench]
-	fn test_10_double(b: &mut Bencher) {
+	fn bench_100_single_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_double(&setup.segments_10_1, &setup.segments_10_2));
+		b.iter(|| ix_brute_single(&setup.int.x100_0));
 	}
 
 	#[bench]
-	fn test_10_sort_double(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double(&mut setup.segments_10_1, &mut setup.segments_10_2));
-	}
-
-	#[bench]
-	fn test_10_sort_double_threaded(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double_threaded(&mut setup.segments_10_1, &mut setup.segments_10_2));
-	}
-
-	#[bench]
-	fn test_100_single(b: &mut Bencher) {
+	fn bench_1000_single_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_single(&setup.segments_100_1));
+		b.iter(|| ix_brute_single(&setup.int.x1000_0));
 	}
 
 	#[bench]
-	fn test_100_sort_single(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single(&mut setup.segments_100_1));
-	}
-
-	#[bench]
-	fn test_100_sort_single_threaded(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single_threaded(&mut setup.segments_100_1));
-	}
-
-	#[bench]
-	fn test_100_double(b: &mut Bencher) {
+	fn bench_10_double_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_double(&setup.segments_100_1, &setup.segments_100_2));
+		b.iter(|| ix_brute_double(&setup.int.x10_0, &setup.int.x10_1));
 	}
 
 	#[bench]
-	fn test_100_sort_double(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double(&mut setup.segments_100_1, &mut setup.segments_100_2));
-	}
-
-	#[bench]
-	fn test_100_sort_double_threaded(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double_threaded(&mut setup.segments_100_1, &mut setup.segments_100_2));
-	}
-
-	#[bench]
-	fn test_1000_single(b: &mut Bencher) {
+	fn bench_100_double_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_single(&setup.segments_1000_1));
+		b.iter(|| ix_brute_double(&setup.int.x100_0, &setup.int.x100_1));
 	}
 
 	#[bench]
-	fn test_1000_sort_single(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single(&mut setup.segments_1000_1));
-	}
-
-	#[bench]
-	fn test_1000_sort_single_threaded(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_single_threaded(&mut setup.segments_1000_1));
-	}
-
-	#[bench]
-	fn test_1000_double(b: &mut Bencher) {
+	fn bench_1000_double_int_brute(b: &mut Bencher) {
 		let setup = BenchSetup::new();
-		b.iter(|| brute_double(&setup.segments_1000_1, &setup.segments_1000_2));
+		b.iter(|| ix_brute_double(&setup.int.x1000_0, &setup.int.x1000_1));
+	}
+
+// ---------------- BENCHMARK BRUTE FLOAT VERSIONS
+	#[bench]
+	fn bench_10_single_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x10_0));
 	}
 
 	#[bench]
-	fn test_1000_sort_double(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double(&mut setup.segments_1000_1, &mut setup.segments_1000_2));
+	fn bench_100_single_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x100_0));
 	}
 
 	#[bench]
-	fn test_1000_sort_double_threaded(b: &mut Bencher) {
+	fn bench_1000_single_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_single(&setup.float.x1000_0));
+	}
+
+	#[bench]
+	fn bench_10_double_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x10_0, &setup.float.x10_1));
+	}
+
+	#[bench]
+	fn bench_100_double_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x100_0, &setup.float.x100_1));
+	}
+
+	#[bench]
+	fn bench_1000_double_float_brute(b: &mut Bencher) {
+		let setup = BenchSetup::new();
+		b.iter(|| ix_brute_double(&setup.float.x1000_0, &setup.float.x1000_1));
+	}
+
+// ---------------- BENCHMARK SORT INTEGER VERSIONS
+
+	#[bench]
+	fn bench_10_single_int_sort(b: &mut Bencher) {
 		let mut setup = BenchSetup::new();
-		b.iter(|| brute_sort_double_threaded(&mut setup.segments_1000_1, &mut setup.segments_1000_2));
+		b.iter(|| ix_sort_single(&mut setup.int.x10_0));
+	}
+
+	#[bench]
+	fn bench_100_single_int_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.int.x100_0));
+	}
+
+	#[bench]
+	fn bench_1000_single_int_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.int.x1000_0));
+	}
+
+	#[bench]
+	fn bench_10_double_int_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x10_0, &mut setup.int.x10_1));
+	}
+
+	#[bench]
+	fn bench_100_double_int_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x100_0, &mut setup.int.x100_1));
+	}
+
+	#[bench]
+	fn bench_1000_double_int_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.int.x1000_0, &mut setup.int.x1000_1));
+	}
+
+// ---------------- BENCHMARK SORT FLOAT VERSIONS
+
+	#[bench]
+	fn bench_10_single_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x10_0));
+	}
+
+	#[bench]
+	fn bench_100_single_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x100_0));
+	}
+
+	#[bench]
+	fn bench_1000_single_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_single(&mut setup.float.x1000_0));
+	}
+
+	#[bench]
+	fn bench_10_double_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x10_0, &mut setup.float.x10_1));
+	}
+
+	#[bench]
+	fn bench_100_double_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x100_0, &mut setup.float.x100_1));
+	}
+
+	#[bench]
+	fn bench_1000_double_float_sort(b: &mut Bencher) {
+		let mut setup = BenchSetup::new();
+		b.iter(|| ix_sort_double(&mut setup.float.x1000_0, &mut setup.float.x1000_1));
 	}
 
 }

@@ -10,6 +10,12 @@ authors = ["Michael Enion <caewok_2000@yahoo.com"]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.8.5"
-rayon = "1.5"
+geo = { version = "0.19.0", features = ["use-serde"] }
+num-traits = "0.2.14"
+robust = "0.2.3"
+castaway = "0.1.2"
 
+# no perceived change using LTO
+#[profile.release]
+#lto = true # link-time optimization
 
