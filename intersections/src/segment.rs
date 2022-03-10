@@ -2,7 +2,8 @@ use geo::{CoordNum, Point, Coordinate};
 use geo::algorithm::kernels::Orientation;
 use crate::point::{orient2d};
 use std::cmp::Ordering;
-use num_traits::{Signed, Num};
+use num_traits::{Signed, Num, NumCast};
+use castaway::{match_type};
 
 // Create a simple struct for an ordered Line, where a is ne of b
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -117,7 +118,7 @@ pub trait SimpleIntersect<T: CoordNum, B = Self>
 	fn line_intersection_int(&self, other: &B) -> Option<Point<T>>;
 }
 
-impl<T> SimpleIntersect<T> for OrderedSegment<T>
+impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
 	where T: CoordNum + Signed,
  {
 	fn intersects(&self, other: &Self) -> bool {
@@ -173,7 +174,7 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		Some(Point::new(res_x.into(), res_y.into()))
 	}
 
-	fn line_intersection_int(&self, other: &Self) -> Option<Point<f64>> {
+	fn line_intersection_int(&self, other: &Self) -> Option<Point<T>> {
 		let (a, _b) = self.points();
 		let (c, _d) = other.points();
 
@@ -194,18 +195,43 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
-		// cast to float for division
-		// TO-DO: Handle errors / None
-		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
-		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
+		let res_x = divide_robust(x_num, x_dnm);
+		let res_y = divide_robust(y_num, y_dnm);
 
-		let x_num:f64 = num_traits::cast(x_num).unwrap();
-		let y_num:f64 = num_traits::cast(y_num).unwrap();
-
-		let res_x = x_num / x_dnm;
-		let res_y = y_num / y_dnm;
-
-		Some(Point::new(res_x.into(), res_y.into()))
+		Some(Point::new(res_x, res_y))
 	}
 
+}
+
+pub fn divide_robust<T: 'static>(num: T, denom: T) -> T
+	where T: Num + NumCast + Copy,
+{
+	let z: T = num_traits::zero();
+	if num % denom == z {
+		return num / denom;
+	}
+
+	// T is either an integer that does not evenly divide or a float
+	// - if T is a float, can simply divide and return
+	// - if T is an integer, we must round the floating point result
+	let numf: f64 = num_traits::cast(num).unwrap();
+	let denomf: f64 = num_traits::cast(denom).unwrap();
+	let ratio = numf / denomf;
+
+	let is_int = match_type!(num, {
+		i128 as _ => true,
+		i64 as _ => true,
+		i32 as _ => true,
+		i16 as _ => true,
+		i8 as _ => true,
+		_ => false,
+	});
+
+	if is_int {
+		let out: T = num_traits::cast(ratio.round()).unwrap();
+		out
+	} else {
+		let out: T = num_traits::cast(ratio).unwrap();
+		out
+	}
 }

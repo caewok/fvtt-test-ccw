@@ -12,14 +12,50 @@
 // extern crate test;
 
 mod point;
-// mod segment;
+mod segment;
 
 use crate::point::{ GenerateRandom, orient2d, orient2drobust };
-// use crate::segment::{ OrderedSegment };
+use crate::segment::{ OrderedSegment, divide_robust };
 use geo::{Point, Coordinate};
 //use num_traits::AsPrimitive;
 // use num_traits::ops::checked::CheckedDiv;
+use num_traits::{NumCast};
 use castaway::{cast, match_type};
+//
+// fn divide_robust<T: 'static>(num: T, denom: T) -> T
+// 	where T: Num + NumCast + Copy,
+// {
+// 	let z: T = num_traits::zero();
+// 	if num % denom == z {
+// 		return num / denom;
+// 	}
+//
+// 	// T is either an integer that does not evenly divide or a float
+// 	// - if T is a float, can simply divide and return
+// 	// - if T is an integer, we must round the floating point result
+// 	let numf: f64 = num_traits::cast(num).unwrap();
+// 	let denomf: f64 = num_traits::cast(denom).unwrap();
+// 	let ratio = numf / denomf;
+//
+// 	let is_int = match_type!(num, {
+// 		i128 as _ => true,
+// 		i64 as _ => true,
+// 		i32 as _ => true,
+// 		i16 as _ => true,
+// 		i8 as _ => true,
+// 		_ => false,
+// 	});
+//
+// 	if is_int {
+// 		let out: T = num_traits::cast(ratio.round()).unwrap();
+// 		out
+// 	} else {
+// 		let out: T = num_traits::cast(ratio).unwrap();
+// 		out
+// 	}
+// }
+
+
 
 fn test_conversion<T: 'static>(p: Point<T>) -> Point<T>
 	where T: geo::CoordNum + std::fmt::Display,// + num_traits::cast::NumCast,
@@ -146,14 +182,14 @@ fn main() {
 
 // 	dbg!(Coordinate::from(p1).partial_cmp(&Coordinate::from(p2))); // fails
 
-// 	let s1: OrderedSegment<i64> = OrderedSegment::new(p1.0, p2.0);
-// 	dbg!(p1);
-// 	dbg!(p2);
-// 	dbg!(s1);
-// 	dbg!(s1.coords());
-//
-// 	dbg!(OrderedSegment::compare_xy(p1, p2));
-// 	dbg!(OrderedSegment::compare_xy(Coordinate::from(p1), Coordinate::from(p2)));
+	let s1: OrderedSegment<i64> = OrderedSegment::new(p1.0, p2.0);
+	dbg!(p1);
+	dbg!(p2);
+	dbg!(s1);
+	dbg!(s1.coords());
+
+	dbg!(OrderedSegment::compare_xy(p1, p2));
+	dbg!(OrderedSegment::compare_xy(Coordinate::from(p1), Coordinate::from(p2)));
 
 	println!("{} as integer is {}", 1.4, 1.4 as i32);
 	println!("{} as integer is {}", 1.6, 1.6 as i32);
@@ -192,4 +228,10 @@ fn main() {
 	dbg!(cast!(i, i32));
 // 	dbg!(cast!(i, num_traits::Num));
 
+	dbg!(divide_robust(100., 3.));
+	dbg!(divide_robust(8., 3.));
+	dbg!(divide_robust(100, 3));
+	dbg!(divide_robust(8, 3));
+	dbg!(divide_robust(66, 3));
+	dbg!(divide_robust(66., 3.));
 }
