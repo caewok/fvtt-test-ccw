@@ -105,6 +105,11 @@ impl<T> OrderedSegment<T>
 		(self.start.x, self.start.y, self.end.x, self.end.y)
 	}
 
+	// use compare_xy to determine if one segment is to the left of the other
+	pub fn cmp_segments(&self, other: &Self) -> Ordering {
+		OrderedSegment::compare_xy(self.end, other.start)
+	}
+
 	// segment is completely left of the other, meaning self.end < other.start
 	pub fn is_left(&self, other: &Self) -> bool {
 		let res = OrderedSegment::compare_xy(self.end, other.start);
@@ -115,6 +120,21 @@ impl<T> OrderedSegment<T>
 	pub fn is_right(&self, other: &Self) -> bool {
 		let res = OrderedSegment::compare_xy(self.start, other.end);
 		res == Ordering::Greater
+	}
+}
+
+impl From<OrderedSegment<f64>> for OrderedSegment<i64> {
+	fn from(item: OrderedSegment<f64>) -> Self {
+		let (ax, ay, bx, by) = item.coords();
+		Self::new((ax.round() as i64, ay.round() as i64),
+		          (bx.round() as i64, by.round() as i64))
+	}
+}
+
+impl From<OrderedSegment<i64>> for OrderedSegment<f64> {
+	fn from(item: OrderedSegment<i64>) -> Self {
+		let (ax, ay, bx, by) = item.coords();
+		Self::new((ax as f64, ay as f64), (bx as f64, by as f64))
 	}
 }
 
