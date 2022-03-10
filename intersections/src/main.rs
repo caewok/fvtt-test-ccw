@@ -6,20 +6,21 @@
 // cargo +nightly benchmark
 // cargo +nightly run
 
-//#![feature(test)]
+#![feature(test)]
 //#![feature(saturating_int_impl)]
 
 // extern crate test;
 
 mod point;
 mod segment;
+mod intersections;
 
 use crate::point::{ GenerateRandom, orient2d, orient2drobust };
 use crate::segment::{ OrderedSegment, divide_robust, SimpleIntersect };
 use geo::{Point, Coordinate};
 //use num_traits::AsPrimitive;
 // use num_traits::ops::checked::CheckedDiv;
-use num_traits::{NumCast};
+// use num_traits::{NumCast};
 use castaway::{cast, match_type};
 //
 // fn divide_robust<T: 'static>(num: T, denom: T) -> T

@@ -7,9 +7,13 @@ use castaway::{match_type};
 use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
+use serde::{Serialize, Deserialize};
+
+extern crate test;
+use test::Bencher;
 
 // Create a simple struct for an ordered Line, where a is ne of b
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrderedSegment<T>
 	where T: CoordNum + Num,
 {
@@ -416,4 +420,59 @@ mod tests {
 		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
 	}
 
+// ---------------- BENCHMARK INTERSECTS
+	#[bench]
+	fn intersects_float(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			s0.intersects(&s1)
+		});
+	}
+
+	#[bench]
+	fn intersects_int(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			s0.intersects(&s1)
+		});
+	}
+
+// ---------------- BENCHMARK INTERSECTION
+	#[bench]
+	fn line_intersection_float(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			s0.line_intersection(&s1)
+		});
+	}
+
+	#[bench]
+	fn line_intersects_int(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			s0.line_intersection(&s1)
+		});
+	}
+
+	#[bench]
+	fn line_intersection_mixed_float(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
+			s0.line_intersection_mixed(&s1)
+		});
+	}
+
+	#[bench]
+	fn line_intersects_mixed_int(b: &mut Bencher) {
+		b.iter(|| {
+			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
+			s0.line_intersection_mixed(&s1)
+		});
+	}
 }
