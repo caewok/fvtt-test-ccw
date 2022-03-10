@@ -8,6 +8,9 @@ use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use rand::Rng;
 
+extern crate test;
+use test::Bencher;
+
 
 pub trait GenerateRandom {
 	type MaxType;
@@ -143,5 +146,96 @@ mod tests {
 		assert_eq!(orient2drobust(p1.into(), p2.into(), p4.into()), Orientation::CounterClockwise);
 		assert_eq!(orient2drobust(p1.into(), p2.into(), p5.into()), Orientation::Collinear);
 	}
+
+// ---------------- BENCHMARK
+	#[bench]
+	fn orient_float(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<f64> = Point::random_range(-1000., 1000.);
+			let p2: Point<f64> = Point::random_range(-1000., 1000.);
+			let p3: Point<f64> = Point::random_range(-1000., 1000.);
+			orient2d(p1.into(), p2.into(), p3.into())
+			}
+		);
+	}
+
+	fn orient_float32(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<f32> = Point::random_range(-1000., 1000.);
+			let p2: Point<f32> = Point::random_range(-1000., 1000.);
+			let p3: Point<f32> = Point::random_range(-1000., 1000.);
+			orient2d(p1.into(), p2.into(), p3.into())
+			}
+		);
+	}
+
+	#[bench]
+	fn orient_int(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<i64> = Point::random_range(-1000, 1000);
+			let p2: Point<i64> = Point::random_range(-1000, 1000);
+			let p3: Point<i64> = Point::random_range(-1000, 1000);
+			orient2d(p1.into(), p2.into(), p3.into());
+			}
+		);
+	}
+
+	#[bench]
+	fn orient_int32(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<i32> = Point::random_range(-1000, 1000);
+			let p2: Point<i32> = Point::random_range(-1000, 1000);
+			let p3: Point<i32> = Point::random_range(-1000, 1000);
+			orient2d(p1.into(), p2.into(), p3.into());
+			}
+		);
+	}
+
+	#[bench]
+	fn orient_float_robust(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<f64> = Point::random_range(-1000., 1000.);
+			let p2: Point<f64> = Point::random_range(-1000., 1000.);
+			let p3: Point<f64> = Point::random_range(-1000., 1000.);
+			orient2drobust(p1.into(), p2.into(), p3.into());
+			}
+		);
+	}
+
+	#[bench]
+	fn orient_float32_robust(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<f32> = Point::random_range(-1000., 1000.);
+			let p2: Point<f32> = Point::random_range(-1000., 1000.);
+			let p3: Point<f32> = Point::random_range(-1000., 1000.);
+			orient2drobust(p1.into(), p2.into(), p3.into());
+			}
+		);
+	}
+
+//  cannot convert i64 to f64 for robust fn
+// 	#[bench]
+// 	fn orient_int_robust(b: &mut Bencher) {
+// 		b.iter(|| {
+// 			let p1: Point<i64> = Point::random_range(-1000, 1000);
+// 			let p2: Point<i64> = Point::random_range(-1000, 1000);
+// 			let p3: Point<i64> = Point::random_range(-1000, 1000);
+// 			orient2drobust(p1.into(), p2.into(), p3.into());
+// 			}
+// 		);
+// 	}
+
+	#[bench]
+	fn orient_int32_robust(b: &mut Bencher) {
+		b.iter(|| {
+			let p1: Point<i32> = Point::random_range(-1000, 1000);
+			let p2: Point<i32> = Point::random_range(-1000, 1000);
+			let p3: Point<i32> = Point::random_range(-1000, 1000);
+			orient2drobust(p1.into(), p2.into(), p3.into())
+			}
+		);
+	}
+
+
 }
 
