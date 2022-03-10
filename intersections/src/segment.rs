@@ -1,9 +1,12 @@
 use geo::{CoordNum, Point, Coordinate};
 use geo::algorithm::kernels::Orientation;
-use crate::point::{orient2d};
+use crate::point::{orient2d, GenerateRandom};
 use std::cmp::Ordering;
 use num_traits::{Signed, Num, NumCast};
 use castaway::{match_type};
+use rand::prelude::Distribution;
+use rand::distributions::Standard;
+use rand::distributions::uniform::SampleUniform;
 
 // Create a simple struct for an ordered Line, where a is ne of b
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -106,6 +109,24 @@ impl<T> OrderedSegment<T>
 	pub fn is_right(&self, other: &Self) -> bool {
 		let res = OrderedSegment::compare_xy(self.start, other.end);
 		res == Ordering::Greater
+	}
+}
+
+impl<T> GenerateRandom for OrderedSegment<T>
+	where T: CoordNum + SampleUniform, Standard: Distribution<T>,
+{
+	type MaxType = T;
+
+	fn random() -> Self {
+		Self::new(Point::random(), Point::random())
+	}
+
+	fn random_range(min: T, max: T) -> Self {
+		Self::new(Point::random_range(min, max), Point::random_range(min, max))
+	}
+
+	fn random_pos(max: T) -> Self {
+		Self::new(Point::random_pos(max), Point::random_pos(max))
 	}
 }
 
@@ -233,5 +254,45 @@ pub fn divide_robust<T: 'static>(num: T, denom: T) -> T
 	} else {
 		let out: T = num_traits::cast(ratio).unwrap();
 		out
+	}
+}
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+// ---------------- SEGMENT CREATION
+	#[cfg(test)]
+	fn create_float_works() {
+		let s: OrderedSegment<f64> = OrderedSegment::random();
+		let (ax, ay, bx, by) = s.coords();
+
+		assert!(ax <= 1.);
+		assert!(ay <= 1.);
+		assert!(bx <= 1.);
+		assert!(by <= 1.);
+
+		assert!(ax >= 0.);
+		assert!(ay >= 0.);
+		assert!(bx >= 0.);
+		assert!(by >= 0.);
+
+		assert!(ax < bx || ax == bx && ay <= by);
+
+		let (a, b) = s.points();
+		let s_dupe = OrderedSegment::new(a, b);
+		assert_eq!(s, s_dupe);
+	}
+
+	#[cfg(test)]
+	fn create_int_works() {
+		let s: OrderedSegment<i64> = OrderedSegment::random();
+		let (ax, ay, bx, by) = s.coords();
+		assert!(ax < bx || ax == bx && ay <= by);
+
+		let (a, b) = s.points();
+		let s_dupe = OrderedSegment::new(a, b);
+		assert_eq!(s, s_dupe);
 	}
 }
