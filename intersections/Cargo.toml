@@ -19,3 +19,13 @@ castaway = "0.1.2"
 #[profile.release]
 #lto = true # link-time optimization
 
+[dev-dependencies]
+criterion = "0.3" # benchmarking with criterion https://bheisler.github.io/criterion.rs/book/getting_started.html
+
+[[bench]]
+name = "my_benchmark"
+harness = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
