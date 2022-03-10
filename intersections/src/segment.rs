@@ -136,7 +136,7 @@ pub trait SimpleIntersect<T: CoordNum, B = Self>
 {
 	fn intersects(&self, other: &B) -> bool;
 	fn line_intersection(&self, other: &B) -> Option<Point<f64>>;
-	fn line_intersection_int(&self, other: &B) -> Option<Point<T>>;
+	fn line_intersection_mixed(&self, other: &B) -> Option<Point<T>>;
 }
 
 impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
@@ -195,7 +195,7 @@ impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
 		Some(Point::new(res_x.into(), res_y.into()))
 	}
 
-	fn line_intersection_int(&self, other: &Self) -> Option<Point<T>> {
+	fn line_intersection_mixed(&self, other: &Self) -> Option<Point<T>> {
 		let (a, _b) = self.points();
 		let (c, _d) = other.points();
 
@@ -263,7 +263,7 @@ mod tests {
 	use super::*;
 
 // ---------------- SEGMENT CREATION
-	#[cfg(test)]
+	#[test]
 	fn create_float_works() {
 		let s: OrderedSegment<f64> = OrderedSegment::random();
 		let (ax, ay, bx, by) = s.coords();
@@ -285,7 +285,7 @@ mod tests {
 		assert_eq!(s, s_dupe);
 	}
 
-	#[cfg(test)]
+	#[test]
 	fn create_int_works() {
 		let s: OrderedSegment<i64> = OrderedSegment::random();
 		let (ax, ay, bx, by) = s.coords();
@@ -295,4 +295,125 @@ mod tests {
 		let s_dupe = OrderedSegment::new(a, b);
 		assert_eq!(s, s_dupe);
 	}
+
+// ---------------- SEGMENT INTERSECTS
+	#[test]
+	fn intersects_float_works() {
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
+		let s3: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		assert!(s0.intersects(&s1));
+		assert!(s0.intersects(&s2));
+		assert!(!s0.intersects(&s3));
+	}
+
+	#[test]
+	fn intersects_int_works() {
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
+		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+
+		assert!(s0.intersects(&s1));
+		assert!(s0.intersects(&s2));
+		assert!(!s0.intersects(&s3));
+	}
+
+// ---------------- SEGMENT LINE INTERSECTION
+	#[test]
+	fn line_intersection_float_works() {
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
+		let s3: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		let res01: Point<f64> = Point::new(2469.866666666667, 1900.); // s0 x s1
+		let res02: Point<f64> = Point::new(3200., 1900.); // s0 x s2
+		// s0 x s3: null
+		let res12: Point<f64> = Point::new(2387., 1350.); // s1 x s2 intersect at p2
+		let res13: Point<f64> = Point::new(2500., 2100.); //s1 x s4 intersect
+		let res23: Point<f64> = Point::new(3495.6363636363635, 2100.);
+
+		assert_eq!(s0.line_intersection(&s1), Some(res01));
+		assert_eq!(s0.line_intersection(&s2), Some(res02));
+		assert_eq!(s0.line_intersection(&s3), None);
+
+		assert_eq!(s1.line_intersection(&s2), Some(res12));
+		assert_eq!(s1.line_intersection(&s3), Some(res13));
+		assert_eq!(s2.line_intersection(&s3), Some(res23));
+	}
+
+	#[test]
+	fn line_intersection_int_works() {
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
+		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+
+		let res01: Point<f64> = Point::new(2469.866666666667, 1900.); // s0 x s1
+		let res02: Point<f64> = Point::new(3200., 1900.); // s0 x s2
+		// s0 x s3: null
+		let res12: Point<f64> = Point::new(2387., 1350.); // s1 x s2 intersect at p2
+		let res13: Point<f64> = Point::new(2500., 2100.); //s1 x s4 intersect
+		let res23: Point<f64> = Point::new(3495.6363636363635, 2100.);
+
+		assert_eq!(s0.line_intersection(&s1), Some(res01));
+		assert_eq!(s0.line_intersection(&s2), Some(res02));
+		assert_eq!(s0.line_intersection(&s3), None);
+
+		assert_eq!(s1.line_intersection(&s2), Some(res12));
+		assert_eq!(s1.line_intersection(&s3), Some(res13));
+		assert_eq!(s2.line_intersection(&s3), Some(res23));
+	}
+
+
+// ---------------- SEGMENT LINE INT INTERSECTION
+	#[test]
+	fn line_intersection_mixed_float_works() {
+		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
+		let s3: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+		let res01: Point<f64> = Point::new(2469.866666666667, 1900.); // s0 x s1
+		let res02: Point<f64> = Point::new(3200., 1900.); // s0 x s2
+		// s0 x s3: null
+		let res12: Point<f64> = Point::new(2387., 1350.); // s1 x s2 intersect at p2
+		let res13: Point<f64> = Point::new(2500., 2100.); //s1 x s4 intersect
+		let res23: Point<f64> = Point::new(3495.6363636363635, 2100.);
+
+		assert_eq!(s0.line_intersection_mixed(&s1), Some(res01));
+		assert_eq!(s0.line_intersection_mixed(&s2), Some(res02));
+		assert_eq!(s0.line_intersection_mixed(&s3), None);
+
+		assert_eq!(s1.line_intersection_mixed(&s2), Some(res12));
+		assert_eq!(s1.line_intersection_mixed(&s3), Some(res13));
+		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
+	}
+
+	#[test]
+	fn line_intersection_mixed_int_works() {
+		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
+		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+
+		let res01: Point<i64> = Point::new(2470, 1900); // s0 x s1
+		let res02: Point<i64> = Point::new(3200, 1900); // s0 x s2
+		// s0 x s3: null
+		let res12: Point<i64> = Point::new(2387, 1350); // s1 x s2 intersect at p2
+		let res13: Point<i64> = Point::new(2500, 2100); //s1 x s4 intersect
+		let res23: Point<i64> = Point::new(3496, 2100);
+
+		assert_eq!(s0.line_intersection_mixed(&s1), Some(res01));
+		assert_eq!(s0.line_intersection_mixed(&s2), Some(res02));
+		assert_eq!(s0.line_intersection_mixed(&s3), None);
+
+		assert_eq!(s1.line_intersection_mixed(&s2), Some(res12));
+		assert_eq!(s1.line_intersection_mixed(&s3), Some(res13));
+		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
+	}
+
 }

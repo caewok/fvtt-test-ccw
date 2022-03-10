@@ -15,7 +15,7 @@ mod point;
 mod segment;
 
 use crate::point::{ GenerateRandom, orient2d, orient2drobust };
-use crate::segment::{ OrderedSegment, divide_robust };
+use crate::segment::{ OrderedSegment, divide_robust, SimpleIntersect };
 use geo::{Point, Coordinate};
 //use num_traits::AsPrimitive;
 // use num_traits::ops::checked::CheckedDiv;
@@ -234,4 +234,14 @@ fn main() {
 	dbg!(divide_robust(8, 3));
 	dbg!(divide_robust(66, 3));
 	dbg!(divide_robust(66., 3.));
+
+	let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
+	let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
+	let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
+	let s3: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+
+	dbg!(s0.intersects(&s1));
+	dbg!(s0.intersects(&s2));
+	dbg!(!s0.intersects(&s3));
+
 }
