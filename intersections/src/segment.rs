@@ -21,6 +21,8 @@ pub struct OrderedSegment<T>
 	pub end: Coordinate<T>,
 }
 
+
+
 impl<T> OrderedSegment<T>
 	where T: CoordNum,
 {
