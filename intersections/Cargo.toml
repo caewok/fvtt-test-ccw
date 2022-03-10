@@ -15,3 +15,7 @@ num-traits = "0.2.14"
 robust = "0.2.3"
 castaway = "0.1.2"
 
+# no perceived change using LTO
+#[profile.release]
+#lto = true # link-time optimization
+
