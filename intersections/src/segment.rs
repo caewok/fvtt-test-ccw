@@ -2,8 +2,7 @@ use geo::{CoordNum, Point, Coordinate};
 use geo::algorithm::kernels::Orientation;
 use crate::point::{orient2d, GenerateRandom};
 use std::cmp::Ordering;
-use num_traits::{Signed, Num, NumCast};
-use castaway::{match_type};
+use num_traits::{Signed, Num};
 use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
@@ -217,6 +216,15 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
+		// check for whether we need to cast to float for division
+		// omitted for speed; just cast everything to f64 before dividing
+// 		let z: T = num_traits::zero();
+// 		if x_num % x_dnm == z && y_num % y_dnm == z {
+// 			let ratio_x: f64 = num_traits::cast(x_num / x_dnm).unwrap();
+// 			let ratio_y: f64 = num_traits::cast(y_num / y_dnm).unwrap();
+// 			return Some(Point::new(ratio_x, ratio_y));
+// 		}
+
 		// cast to float for division
 		// TO-DO: Handle errors / None
 		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
@@ -225,10 +233,10 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let x_num:f64 = num_traits::cast(x_num).unwrap();
 		let y_num:f64 = num_traits::cast(y_num).unwrap();
 
-		let res_x = x_num / x_dnm;
-		let res_y = y_num / y_dnm;
+		let ratio_x = x_num / x_dnm;
+		let ratio_y = y_num / y_dnm;
 
-		Some(Point::new(res_x, res_y))
+		Some(Point::new(ratio_x, ratio_y))
 	}
 }
 
