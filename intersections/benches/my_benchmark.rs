@@ -294,9 +294,75 @@ fn bench_segment_intersection(c: &mut Criterion) {
 	group.finish();
 }
 
-fn bench_ixs(c: &mut Criterion) {
-	let mut group = c.benchmark_group("ixs");
+fn bench_ixs_double(c: &mut Criterion) {
+	let mut group = c.benchmark_group("ixs_double");
+	let data = BenchSegment::new();
 
+	group.throughput(Throughput::Elements(10 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_float", "x10"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.float.x10_0, &i.float.x10_1))
+	});
+
+	group.throughput(Throughput::Elements(100 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_float", "x100"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.float.x100_0, &i.float.x100_1))
+	});
+
+	group.throughput(Throughput::Elements(1000 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_float", "x1000"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.float.x1000_0, &i.float.x1000_1))
+	});
+
+	group.throughput(Throughput::Elements(10 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_int", "x10"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.int.x10_0, &i.int.x10_1))
+	});
+
+	group.throughput(Throughput::Elements(100 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_int", "x100"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.int.x100_0, &i.int.x100_1))
+	});
+
+	group.throughput(Throughput::Elements(1000 as u64));
+	group.bench_with_input(BenchmarkId::new("brute_double_int", "x1000"), &data, |b, i| {
+		b.iter(|| ix_brute_double(&i.int.x1000_0, &i.int.x1000_1))
+	});
+
+	group.throughput(Throughput::Elements(10 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_float", "x10"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x10_0, &mut data.float.x10_1), BatchSize::SmallInput)
+	});
+
+	group.throughput(Throughput::Elements(100 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_float", "x100"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x100_0, &mut data.float.x100_1), BatchSize::SmallInput)
+	});
+
+	group.throughput(Throughput::Elements(1000 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_float", "x1000"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x1000_0, &mut data.float.x1000_1), BatchSize::SmallInput)
+	});
+
+	group.throughput(Throughput::Elements(10 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_int", "x10"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x10_0, &mut data.int.x10_1), BatchSize::SmallInput)
+	});
+
+	group.throughput(Throughput::Elements(100 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_int", "x100"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x100_0, &mut data.int.x100_1), BatchSize::SmallInput)
+	});
+
+	group.throughput(Throughput::Elements(1000 as u64));
+	group.bench_with_input(BenchmarkId::new("sort_double_int", "x1000"), &data, |b, data| {
+		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x1000_0, &mut data.int.x1000_1), BatchSize::SmallInput)
+	});
+
+	group.finish();
+}
+
+fn bench_ixs_single(c: &mut Criterion) {
+	let mut group = c.benchmark_group("ixs_single");
 	let data = BenchSegment::new();
 
 	group.throughput(Throughput::Elements(10 as u64));
@@ -330,36 +396,6 @@ fn bench_ixs(c: &mut Criterion) {
 	});
 
 	group.throughput(Throughput::Elements(10 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_float", "x10"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.float.x10_0, &i.float.x10_1))
-	});
-
-	group.throughput(Throughput::Elements(100 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_float", "x100"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.float.x100_0, &i.float.x100_1))
-	});
-
-	group.throughput(Throughput::Elements(1000 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_float", "x1000"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.float.x1000_0, &i.float.x1000_1))
-	});
-
-	group.throughput(Throughput::Elements(10 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_int", "x10"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.int.x10_0, &i.int.x10_1))
-	});
-
-	group.throughput(Throughput::Elements(100 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_int", "x100"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.int.x100_0, &i.int.x100_1))
-	});
-
-	group.throughput(Throughput::Elements(1000 as u64));
-	group.bench_with_input(BenchmarkId::new("brute_double_int", "x1000"), &data, |b, i| {
-		b.iter(|| ix_brute_double(&i.int.x1000_0, &i.int.x1000_1))
-	});
-
-	group.throughput(Throughput::Elements(10 as u64));
 	group.bench_with_input(BenchmarkId::new("sort_single_float", "x10"), &data, |b, data| {
 		b.iter_batched_ref(|| data.clone(), |data| ix_sort_single(&mut data.float.x10_0), BatchSize::SmallInput)
 	});
@@ -372,21 +408,6 @@ fn bench_ixs(c: &mut Criterion) {
 	group.throughput(Throughput::Elements(1000 as u64));
 	group.bench_with_input(BenchmarkId::new("sort_single_float", "x1000"), &data, |b, data| {
 		b.iter_batched_ref(|| data.clone(), |data| ix_sort_single(&mut data.float.x1000_0), BatchSize::SmallInput)
-	});
-
-	group.throughput(Throughput::Elements(10 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_float", "x10"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x10_0, &mut data.float.x10_1), BatchSize::SmallInput)
-	});
-
-	group.throughput(Throughput::Elements(100 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_float", "x100"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x100_0, &mut data.float.x100_1), BatchSize::SmallInput)
-	});
-
-	group.throughput(Throughput::Elements(1000 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_float", "x1000"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.float.x1000_0, &mut data.float.x1000_1), BatchSize::SmallInput)
 	});
 
 	group.throughput(Throughput::Elements(10 as u64));
@@ -404,21 +425,6 @@ fn bench_ixs(c: &mut Criterion) {
 		b.iter_batched_ref(|| data.clone(), |data| ix_sort_single(&mut data.int.x1000_0), BatchSize::SmallInput)
 	});
 
-	group.throughput(Throughput::Elements(10 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_int", "x10"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x10_0, &mut data.int.x10_1), BatchSize::SmallInput)
-	});
-
-	group.throughput(Throughput::Elements(100 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_int", "x100"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x100_0, &mut data.int.x100_1), BatchSize::SmallInput)
-	});
-
-	group.throughput(Throughput::Elements(1000 as u64));
-	group.bench_with_input(BenchmarkId::new("sort_double_int", "x1000"), &data, |b, data| {
-		b.iter_batched_ref(|| data.clone(), |data| ix_sort_double(&mut data.int.x1000_0, &mut data.int.x1000_1), BatchSize::SmallInput)
-	});
-
 	group.finish();
 }
 
@@ -429,6 +435,7 @@ criterion_group!(
 	bench_orient2d,
 	bench_segment_intersects,
 	bench_segment_intersection,
-	bench_ixs);
+	bench_ixs_single,
+	bench_ixs_double);
 
 criterion_main!(benches);
