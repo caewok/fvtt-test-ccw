@@ -5,17 +5,8 @@ use num_traits::{Signed};
 #[derive(Debug, PartialEq)]
 pub struct IxResultFloat {
 	pub ix: Point<f64>,
-// 	pub s1: <u64>,
-// 	pub s2: <u64>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct IxResult<T>
-	where T: CoordNum,
-{
-	pub ix: Point<T>,
-// 	pub s1: <u64>,
-// 	pub s2: <u64>,
+	pub idx1: usize,
+	pub idx2: usize,
 }
 
 // Need enum to store different IxResults
@@ -36,6 +27,8 @@ pub fn ix_brute_single<T>(segments: &[OrderedSegment<T>]) -> Vec<IxResultFloat>
 				if let Some(ix) = res {
 					ixs.push( IxResultFloat {
 						ix,
+						idx1: si.idx,
+						idx2: sj.idx,
 					});
 				}
 			}
@@ -56,6 +49,8 @@ pub fn ix_brute_double<T>(segments1: &[OrderedSegment<T>], segments2: &[OrderedS
 			if let Some(ix) = res {
 				ixs.push( IxResultFloat {
 					ix,
+					idx1: si.idx,
+					idx2: sj.idx,
 				});
 			}
 		}
@@ -131,6 +126,8 @@ pub fn ix_sort_single<T>(segments: &mut [OrderedSegment<T>]) -> Vec<IxResultFloa
 			if let Some(ix) = res {
 				ixs.push( IxResultFloat {
 					ix,
+					idx1: si.idx,
+					idx2: sj.idx,
 				});
 			}
 		}
@@ -164,6 +161,8 @@ pub fn ix_sort_double<T>(segments1: &mut [OrderedSegment<T>], segments2: &mut [O
 			if let Some(ix) = res {
 				ixs.push( IxResultFloat {
 					ix,
+					idx1: si.idx,
+					idx2: sj.idx
 				});
 			}
 		}
@@ -186,17 +185,21 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+		let s0: OrderedSegment<f64> = OrderedSegment::new_with_idx((2300., 1900.), (4200., 1900.), 0);
+		let s1: OrderedSegment<f64> = OrderedSegment::new_with_idx((2387., 1350.), (2500., 2100.), 1);
+		let s2: OrderedSegment<f64> = OrderedSegment::new_with_idx((2500., 2100.), (2900., 2100.), 2);
 
 		let segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 		];
 
@@ -209,23 +212,31 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+		let s0: OrderedSegment<f64> = OrderedSegment::new_with_idx((2300., 1900.), (4200., 1900.), 0);
+		let s1: OrderedSegment<f64> = OrderedSegment::new_with_idx((2387., 1350.), (2500., 2100.), 1);
+		let s2: OrderedSegment<f64> = OrderedSegment::new_with_idx((2500., 2100.), (2900., 2100.), 2);
 
 		let segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 1,
+				idx2: 0,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 2,
+				idx2: 1,
 			},
 		];
 
@@ -238,17 +249,21 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+		let s0: OrderedSegment<i64> = OrderedSegment::new_with_idx((2300, 1900), (4200, 1900), 0);
+		let s1: OrderedSegment<i64> = OrderedSegment::new_with_idx((2387, 1350), (2500, 2100), 1);
+		let s2: OrderedSegment<i64> = OrderedSegment::new_with_idx((2500, 2100), (2900, 2100), 2);
 
 		let segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 		];
 
@@ -261,23 +276,31 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+		let s0: OrderedSegment<i64> = OrderedSegment::new_with_idx((2300, 1900), (4200, 1900), 0);
+		let s1: OrderedSegment<i64> = OrderedSegment::new_with_idx((2387, 1350), (2500, 2100), 1);
+		let s2: OrderedSegment<i64> = OrderedSegment::new_with_idx((2500, 2100), (2900, 2100), 2);
 
 		let segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 1,
+				idx2: 0,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 2,
+				idx2: 1,
 			},
 		];
 
@@ -285,110 +308,6 @@ mod tests {
 		assert_eq!(ixs, res);
 	}
 
-// ---------------- BRUTE MIXED
-// 	#[test]
-// 	fn brute_single_mixed_float_works() {
-// 		// s0|s1 intersect
-// 		// s0|s2 do not intersect
-// 		// s1|s2 intersect at endpoint
-// 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-// 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-// 		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
-//
-// 		let segments = vec![s0, s1, s2];
-// 		let res = vec![
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 		];
-//
-// 		let ixs = ix_brute_single_mixed(&segments);
-// 		assert_eq!(ixs, res);
-// 	}
-//
-// 	#[test]
-// 	fn brute_double_mixed_float_works() {
-// 		// s0|s1 intersect
-// 		// s0|s2 do not intersect
-// 		// s1|s2 intersect at endpoint
-// 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-// 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-// 		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
-//
-// 		let segments = vec![s0, s1, s2];
-// 		let res = vec![
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 		];
-//
-// 		let ixs = ix_brute_double_mixed(&segments, &segments);
-// 		assert_eq!(ixs, res);
-// 	}
-//
-// 	#[test]
-// 	fn brute_single_mixed_int_works() {
-// 		// s0|s1 intersect
-// 		// s0|s2 do not intersect
-// 		// s1|s2 intersect at endpoint
-// 		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-// 		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-// 		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
-//
-// 		let segments = vec![s0, s1, s2];
-// 		let res = vec![
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 		];
-//
-// 		let ixs = ix_brute_single_mixed(&segments);
-// 		assert_eq!(ixs, res);
-// 	}
-//
-// 	#[test]
-// 	fn brute_double_mixed_int_works() {
-// 		// s0|s1 intersect
-// 		// s0|s2 do not intersect
-// 		// s1|s2 intersect at endpoint
-// 		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-// 		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-// 		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
-//
-// 		let segments = vec![s0, s1, s2];
-// 		let res = vec![
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<f64>::new(2469.866666666667, 1900.),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 			IxResult {
-// 				ix: Point::<i64>::new(2500, 2100),
-// 			},
-// 		];
-//
-// 		let ixs = ix_brute_double_mixed(&segments, &segments);
-// 		assert_eq!(ixs, res);
-// 	}
 
 // ---------------- SORT
 	#[test]
@@ -396,17 +315,21 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+		let s0: OrderedSegment<f64> = OrderedSegment::new_with_idx((2300., 1900.), (4200., 1900.), 0);
+		let s1: OrderedSegment<f64> = OrderedSegment::new_with_idx((2387., 1350.), (2500., 2100.), 1);
+		let s2: OrderedSegment<f64> = OrderedSegment::new_with_idx((2500., 2100.), (2900., 2100.), 2);
 
 		let mut segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 		];
 
@@ -419,24 +342,32 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-		let s2: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
+		let s0: OrderedSegment<f64> = OrderedSegment::new_with_idx((2300., 1900.), (4200., 1900.), 0);
+		let s1: OrderedSegment<f64> = OrderedSegment::new_with_idx((2387., 1350.), (2500., 2100.), 1);
+		let s2: OrderedSegment<f64> = OrderedSegment::new_with_idx((2500., 2100.), (2900., 2100.), 2);
 
 		let mut segments1 = vec![s0, s1, s2];
 		let mut segments2 = segments1.clone();
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 1,
+				idx2: 0,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 2,
+				idx2: 1,
 			},
 		];
 
@@ -449,17 +380,21 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+		let s0: OrderedSegment<i64> = OrderedSegment::new_with_idx((2300, 1900), (4200, 1900), 0);
+		let s1: OrderedSegment<i64> = OrderedSegment::new_with_idx((2387, 1350), (2500, 2100), 1);
+		let s2: OrderedSegment<i64> = OrderedSegment::new_with_idx((2500, 2100), (2900, 2100), 2);
 
 		let mut segments = vec![s0, s1, s2];
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 		];
 
@@ -472,24 +407,32 @@ mod tests {
 		// s0|s1 intersect
 		// s0|s2 do not intersect
 		// s1|s2 intersect at endpoint
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+		let s0: OrderedSegment<i64> = OrderedSegment::new_with_idx((2300, 1900), (4200, 1900), 0);
+		let s1: OrderedSegment<i64> = OrderedSegment::new_with_idx((2387, 1350), (2500, 2100), 1);
+		let s2: OrderedSegment<i64> = OrderedSegment::new_with_idx((2500, 2100), (2900, 2100), 2);
 
 		let mut segments1 = vec![s0, s1, s2];
 		let mut segments2 = segments1.clone();
 		let res = vec![
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 0,
+				idx2: 1,
 			},
 			IxResultFloat {
 				ix: Point::new(2469.866666666667, 1900.),
+				idx1: 1,
+				idx2: 0,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 1,
+				idx2: 2,
 			},
 			IxResultFloat {
 				ix: Point::new(2500., 2100.),
+				idx1: 2,
+				idx2: 1,
 			},
 		];
 

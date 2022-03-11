@@ -15,6 +15,9 @@ pub struct OrderedSegment<T>
 {
 	pub start: Coordinate<T>,
 	pub end: Coordinate<T>,
+
+	#[serde(default)]
+	pub idx: usize, // needed to easily track intersections
 }
 
 
@@ -22,7 +25,7 @@ pub struct OrderedSegment<T>
 impl<T> OrderedSegment<T>
 	where T: CoordNum,
 {
-	pub fn new<C>(start: C, end: C) -> OrderedSegment<T>
+	pub fn new_with_idx<C>(start: C, end: C, idx: usize) -> OrderedSegment<T>
 		where C: Into<Coordinate<T>>
 	{
 		let start: Coordinate<T> = start.into();
@@ -30,10 +33,29 @@ impl<T> OrderedSegment<T>
 		let order = OrderedSegment::compare_xy(start, end);
 
 		match order {
-			Ordering::Less => Self { start, end },
-			Ordering::Equal => Self { start, end },
-			Ordering::Greater => Self { start: end, end: start },
+			Ordering::Less => Self { start, end, idx },
+			Ordering::Equal => Self { start, end, idx },
+			Ordering::Greater => Self { start: end, end: start, idx },
 		}
+	}
+
+	pub fn new<C>(start: C, end: C) -> OrderedSegment<T>
+		where C: Into<Coordinate<T>>
+	{
+		let start: Coordinate<T> = start.into();
+		let end: Coordinate<T> = end.into();
+		let order = OrderedSegment::compare_xy(start, end);
+		let idx: usize = 0;
+
+		match order {
+			Ordering::Less => Self { start, end, idx },
+			Ordering::Equal => Self { start, end, idx },
+			Ordering::Greater => Self { start: end, end: start, idx },
+		}
+	}
+
+	pub fn set_idx(&mut self, idx: usize) {
+		self.idx = idx;
 	}
 
 	pub fn compare_xy<C>(start: C, end: C) -> Ordering
