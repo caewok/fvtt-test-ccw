@@ -219,21 +219,28 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		// check for whether we need to cast to float for division
 		// omitted for speed; just cast everything to f64 before dividing
 // 		let z: T = num_traits::zero();
-// 		if x_num % x_dnm == z && y_num % y_dnm == z {
-// 			let ratio_x: f64 = num_traits::cast(x_num / x_dnm).unwrap();
-// 			let ratio_y: f64 = num_traits::cast(y_num / y_dnm).unwrap();
-// 			return Some(Point::new(ratio_x, ratio_y));
-// 		}
-
-		// cast to float for division
-		// TO-DO: Handle errors / None
-		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
-		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
+// 		let ratio_x: f64 = if x_num % x_dnm == z {
+// 				num_traits::cast(x_num / x_dnm).unwrap()
+// 			} else {
+// 				let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
+// 				let x_num:f64 = num_traits::cast(x_num).unwrap();
+// 				x_num / x_dnm
+// 			};
+//
+// 		let ratio_y: f64 = if y_num % y_dnm == z {
+// 				num_traits::cast(y_num / y_dnm).unwrap()
+// 			} else {
+// 				let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
+// 				let y_num:f64 = num_traits::cast(y_num).unwrap();
+// 				y_num / y_dnm
+// 			};
 
 		let x_num:f64 = num_traits::cast(x_num).unwrap();
-		let y_num:f64 = num_traits::cast(y_num).unwrap();
-
+		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
 		let ratio_x = x_num / x_dnm;
+
+		let y_num:f64 = num_traits::cast(y_num).unwrap();
+		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
 		let ratio_y = y_num / y_dnm;
 
 		Some(Point::new(ratio_x, ratio_y))
