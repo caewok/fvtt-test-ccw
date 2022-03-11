@@ -9,9 +9,6 @@ use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use serde::{Serialize, Deserialize};
 
-// extern crate test;
-// use test::Bencher;
-
 // Create a simple struct for an ordered Line, where a is ne of b
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrderedSegment<T>
@@ -63,12 +60,11 @@ impl<T> OrderedSegment<T>
 			} else {
 				Ordering::Greater
 			}
+		} else if ax < bx {
+			Ordering::Less
+
 		} else {
-			if ax < bx {
-				Ordering::Less
-			} else {
-				Ordering::Greater
-			}
+			Ordering::Greater
 		}
 	}
 
@@ -198,7 +194,7 @@ impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
 
 		if xa != xb && xc != xd { return true; }
 
-		return false;
+		false
 	}
 
 	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
@@ -233,7 +229,7 @@ impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
 		let res_x = x_num / x_dnm;
 		let res_y = y_num / y_dnm;
 
-		Some(Point::new(res_x.into(), res_y.into()))
+		Some(Point::new(res_x, res_y))
 	}
 
 	fn line_intersection_mixed(&self, other: &Self) -> Option<Point<T>> {
@@ -456,60 +452,4 @@ mod tests {
 		assert_eq!(s1.line_intersection_mixed(&s3), Some(res13));
 		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
 	}
-
-// ---------------- BENCHMARK INTERSECTS
-// 	#[bench]
-// 	fn intersects_float(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			s0.intersects(&s1)
-// 		});
-// 	}
-//
-// 	#[bench]
-// 	fn intersects_int(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			s0.intersects(&s1)
-// 		});
-// 	}
-//
-// // ---------------- BENCHMARK INTERSECTION
-// 	#[bench]
-// 	fn line_intersection_float(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			s0.line_intersection(&s1)
-// 		});
-// 	}
-//
-// 	#[bench]
-// 	fn line_intersects_int(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			s0.line_intersection(&s1)
-// 		});
-// 	}
-//
-// 	#[bench]
-// 	fn line_intersection_mixed_float(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			let s1: OrderedSegment<f64> = OrderedSegment::random_pos(5000.);
-// 			s0.line_intersection_mixed(&s1)
-// 		});
-// 	}
-//
-// 	#[bench]
-// 	fn line_intersects_mixed_int(b: &mut Bencher) {
-// 		b.iter(|| {
-// 			let s0: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			let s1: OrderedSegment<i64> = OrderedSegment::random_pos(5000);
-// 			s0.line_intersection_mixed(&s1)
-// 		});
-// 	}
 }

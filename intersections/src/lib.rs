@@ -6,7 +6,7 @@
 // cargo +nightly benchmark
 // cargo +nightly run
 
-#![feature(test)]
+// #![feature(test)]
 //#![feature(saturating_int_impl)]
 
 // extern crate test;
