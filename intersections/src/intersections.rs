@@ -115,6 +115,7 @@ pub fn ix_sort_single<T: 'static>(segments: &mut [OrderedSegment<T>]) -> Vec<IxR
 	where T: CoordNum + Signed,
 {
 	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
+	let segments = segments; // no longer need mutability
 
 	let mut ixs: Vec<IxResultFloat> = Vec::new();
 	for(i, si) in segments.iter().enumerate() {
@@ -143,6 +144,10 @@ pub fn ix_sort_double<T: 'static>(segments1: &mut [OrderedSegment<T>], segments2
 {
 	segments1.sort_unstable_by(|a, b| a.cmp_segments(b));
 	segments2.sort_unstable_by(|a, b| a.cmp_segments(b));
+
+	// no longer need mutability after the sort
+	let segments1 = segments1;
+	let segments2 = segments2;
 
 	let mut ixs: Vec<IxResultFloat> = Vec::new();
 	for si in segments1 {
