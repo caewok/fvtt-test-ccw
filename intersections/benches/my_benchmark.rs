@@ -14,6 +14,7 @@ use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use std::fs;
 
+// cargo bench -- ixs to filter to intersections
 // open -a "Google Chrome" target/criterion/report/index.html
 // #[derive(Debug, Clone)]
 struct BenchData<T>
@@ -255,38 +256,6 @@ fn bench_segment_intersection(c: &mut Criterion) {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
 				data.s0.line_intersection(&data.s1);
-		},
-		BatchSize::SmallInput)
-	});
-
-	group.bench_function("mixed_f64", move |b| {
-		b.iter_batched(|| BenchData::<f64>::new(),
-		|data| {
-				data.s0.line_intersection_mixed(&data.s1);
-		},
-		BatchSize::SmallInput)
-	});
-
-	group.bench_function("mixed_i64", move |b| {
-		b.iter_batched(|| BenchData::<i64>::new(),
-		|data| {
-				data.s0.line_intersection_mixed(&data.s1);
-		},
-		BatchSize::SmallInput)
-	});
-
-	group.bench_function("mixed_f32", move |b| {
-		b.iter_batched(|| BenchData::<f32>::new(),
-		|data| {
-				data.s0.line_intersection_mixed(&data.s1);
-		},
-		BatchSize::SmallInput)
-	});
-
-	group.bench_function("mixed_i32", move |b| {
-		b.iter_batched(|| BenchData::<i32>::new(),
-		|data| {
-				data.s0.line_intersection_mixed(&data.s1);
 		},
 		BatchSize::SmallInput)
 	});

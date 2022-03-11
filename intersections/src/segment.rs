@@ -173,10 +173,9 @@ pub trait SimpleIntersect<T: CoordNum, B = Self>
 {
 	fn intersects(&self, other: &B) -> bool;
 	fn line_intersection(&self, other: &B) -> Option<Point<f64>>;
-	fn line_intersection_mixed(&self, other: &B) -> Option<Point<T>>;
 }
 
-impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
+impl<T> SimpleIntersect<T> for OrderedSegment<T>
 	where T: CoordNum + Signed,
  {
 	fn intersects(&self, other: &Self) -> bool {
@@ -231,69 +230,7 @@ impl<T: 'static> SimpleIntersect<T> for OrderedSegment<T>
 
 		Some(Point::new(res_x, res_y))
 	}
-
-	fn line_intersection_mixed(&self, other: &Self) -> Option<Point<T>> {
-		let (a, _b) = self.points();
-		let (c, _d) = other.points();
-
-		let (ax, ay) = a.x_y();
-		let (cx, cy) = c.x_y();
-
-		let d1 = self.delta();
-		let d2 = other.delta();
-
-		let z:T = num_traits::zero();
-
-		let x_dnm = d1.y * d2.x - d2.y * d1.x;
-		if x_dnm == z { return None; }
-
-		let y_dnm = d1.x * d2.y - d2.x * d1.y;
-		if y_dnm == z { return None; }
-
-		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
-		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
-
-		let res_x = divide_robust(x_num, x_dnm);
-		let res_y = divide_robust(y_num, y_dnm);
-
-		Some(Point::new(res_x, res_y))
-	}
-
 }
-
-pub fn divide_robust<T: 'static>(num: T, denom: T) -> T
-	where T: Num + NumCast + Copy,
-{
-	let z: T = num_traits::zero();
-	if num % denom == z {
-		return num / denom;
-	}
-
-	// T is either an integer that does not evenly divide or a float
-	// - if T is a float, can simply divide and return
-	// - if T is an integer, we must round the floating point result
-	let numf: f64 = num_traits::cast(num).unwrap();
-	let denomf: f64 = num_traits::cast(denom).unwrap();
-	let ratio = numf / denomf;
-
-	let is_int = match_type!(num, {
-		i128 as _ => true,
-		i64 as _ => true,
-		i32 as _ => true,
-		i16 as _ => true,
-		i8 as _ => true,
-		_ => false,
-	});
-
-	if is_int {
-		let out: T = num_traits::cast(ratio.round()).unwrap();
-		out
-	} else {
-		let out: T = num_traits::cast(ratio).unwrap();
-		out
-	}
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -403,53 +340,5 @@ mod tests {
 		assert_eq!(s1.line_intersection(&s2), Some(res12));
 		assert_eq!(s1.line_intersection(&s3), Some(res13));
 		assert_eq!(s2.line_intersection(&s3), Some(res23));
-	}
-
-
-// ---------------- SEGMENT LINE INT INTERSECTION
-	#[test]
-	fn line_intersection_mixed_float_works() {
-		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
-		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
-		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
-		let s3: OrderedSegment<f64> = OrderedSegment::new((2500., 2100.), (2900., 2100.));
-
-		let res01: Point<f64> = Point::new(2469.866666666667, 1900.); // s0 x s1
-		let res02: Point<f64> = Point::new(3200., 1900.); // s0 x s2
-		// s0 x s3: null
-		let res12: Point<f64> = Point::new(2387., 1350.); // s1 x s2 intersect at p2
-		let res13: Point<f64> = Point::new(2500., 2100.); //s1 x s4 intersect
-		let res23: Point<f64> = Point::new(3495.6363636363635, 2100.);
-
-		assert_eq!(s0.line_intersection_mixed(&s1), Some(res01));
-		assert_eq!(s0.line_intersection_mixed(&s2), Some(res02));
-		assert_eq!(s0.line_intersection_mixed(&s3), None);
-
-		assert_eq!(s1.line_intersection_mixed(&s2), Some(res12));
-		assert_eq!(s1.line_intersection_mixed(&s3), Some(res13));
-		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
-	}
-
-	#[test]
-	fn line_intersection_mixed_int_works() {
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
-		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
-
-		let res01: Point<i64> = Point::new(2470, 1900); // s0 x s1
-		let res02: Point<i64> = Point::new(3200, 1900); // s0 x s2
-		// s0 x s3: null
-		let res12: Point<i64> = Point::new(2387, 1350); // s1 x s2 intersect at p2
-		let res13: Point<i64> = Point::new(2500, 2100); //s1 x s4 intersect
-		let res23: Point<i64> = Point::new(3496, 2100);
-
-		assert_eq!(s0.line_intersection_mixed(&s1), Some(res01));
-		assert_eq!(s0.line_intersection_mixed(&s2), Some(res02));
-		assert_eq!(s0.line_intersection_mixed(&s3), None);
-
-		assert_eq!(s1.line_intersection_mixed(&s2), Some(res12));
-		assert_eq!(s1.line_intersection_mixed(&s3), Some(res13));
-		assert_eq!(s2.line_intersection_mixed(&s3), Some(res23));
 	}
 }

@@ -25,7 +25,7 @@ pub struct IxResult<T>
 // 	Int(IxResult<i64>),
 // }
 
-pub fn ix_brute_single<T: 'static>(segments: &[OrderedSegment<T>]) -> Vec<IxResultFloat>
+pub fn ix_brute_single<T>(segments: &[OrderedSegment<T>]) -> Vec<IxResultFloat>
 	where T: CoordNum + Signed,
 {
 		let mut ixs: Vec<IxResultFloat> = Vec::new();
@@ -44,7 +44,7 @@ pub fn ix_brute_single<T: 'static>(segments: &[OrderedSegment<T>]) -> Vec<IxResu
 		ixs
 }
 
-pub fn ix_brute_double<T: 'static>(segments1: &[OrderedSegment<T>], segments2: &[OrderedSegment<T>]) -> Vec<IxResultFloat>
+pub fn ix_brute_double<T>(segments1: &[OrderedSegment<T>], segments2: &[OrderedSegment<T>]) -> Vec<IxResultFloat>
 	where T: CoordNum + Signed,
 {
 	let mut ixs: Vec<IxResultFloat> = Vec::new();
@@ -111,7 +111,7 @@ pub fn ix_brute_double<T: 'static>(segments1: &[OrderedSegment<T>], segments2: &
 // 	ixs
 // }
 
-pub fn ix_sort_single<T: 'static>(segments: &mut [OrderedSegment<T>]) -> Vec<IxResultFloat>
+pub fn ix_sort_single<T>(segments: &mut [OrderedSegment<T>]) -> Vec<IxResultFloat>
 	where T: CoordNum + Signed,
 {
 	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
@@ -139,7 +139,7 @@ pub fn ix_sort_single<T: 'static>(segments: &mut [OrderedSegment<T>]) -> Vec<IxR
 	ixs
 }
 
-pub fn ix_sort_double<T: 'static>(segments1: &mut [OrderedSegment<T>], segments2: &mut [OrderedSegment<T>]) -> Vec<IxResultFloat>
+pub fn ix_sort_double<T>(segments1: &mut [OrderedSegment<T>], segments2: &mut [OrderedSegment<T>]) -> Vec<IxResultFloat>
 	where T: CoordNum + Signed,
 {
 	segments1.sort_unstable_by(|a, b| a.cmp_segments(b));
