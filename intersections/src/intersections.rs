@@ -564,153 +564,153 @@ mod tests {
 
 // ---------------- BENCHMARK BRUTE INTEGER VERSIONS
 
-	#[bench]
-	fn bench_10_single_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.int.x10_0));
-	}
-
-	#[bench]
-	fn bench_100_single_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.int.x100_0));
-	}
-
-	#[bench]
-	fn bench_1000_single_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.int.x1000_0));
-	}
-
-	#[bench]
-	fn bench_10_double_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.int.x10_0, &setup.int.x10_1));
-	}
-
-	#[bench]
-	fn bench_100_double_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.int.x100_0, &setup.int.x100_1));
-	}
-
-	#[bench]
-	fn bench_1000_double_int_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.int.x1000_0, &setup.int.x1000_1));
-	}
-
-// ---------------- BENCHMARK BRUTE FLOAT VERSIONS
-	#[bench]
-	fn bench_10_single_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.float.x10_0));
-	}
-
-	#[bench]
-	fn bench_100_single_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.float.x100_0));
-	}
-
-	#[bench]
-	fn bench_1000_single_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_single(&setup.float.x1000_0));
-	}
-
-	#[bench]
-	fn bench_10_double_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.float.x10_0, &setup.float.x10_1));
-	}
-
-	#[bench]
-	fn bench_100_double_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.float.x100_0, &setup.float.x100_1));
-	}
-
-	#[bench]
-	fn bench_1000_double_float_brute(b: &mut Bencher) {
-		let setup = BenchSetup::new();
-		b.iter(|| ix_brute_double(&setup.float.x1000_0, &setup.float.x1000_1));
-	}
-
-// ---------------- BENCHMARK SORT INTEGER VERSIONS
-
-	#[bench]
-	fn bench_10_single_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.int.x10_0));
-	}
-
-	#[bench]
-	fn bench_100_single_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.int.x100_0));
-	}
-
-	#[bench]
-	fn bench_1000_single_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.int.x1000_0));
-	}
-
-	#[bench]
-	fn bench_10_double_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.int.x10_0, &mut setup.int.x10_1));
-	}
-
-	#[bench]
-	fn bench_100_double_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.int.x100_0, &mut setup.int.x100_1));
-	}
-
-	#[bench]
-	fn bench_1000_double_int_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.int.x1000_0, &mut setup.int.x1000_1));
-	}
-
-// ---------------- BENCHMARK SORT FLOAT VERSIONS
-
-	#[bench]
-	fn bench_10_single_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.float.x10_0));
-	}
-
-	#[bench]
-	fn bench_100_single_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.float.x100_0));
-	}
-
-	#[bench]
-	fn bench_1000_single_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_single(&mut setup.float.x1000_0));
-	}
-
-	#[bench]
-	fn bench_10_double_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.float.x10_0, &mut setup.float.x10_1));
-	}
-
-	#[bench]
-	fn bench_100_double_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.float.x100_0, &mut setup.float.x100_1));
-	}
-
-	#[bench]
-	fn bench_1000_double_float_sort(b: &mut Bencher) {
-		let mut setup = BenchSetup::new();
-		b.iter(|| ix_sort_double(&mut setup.float.x1000_0, &mut setup.float.x1000_1));
-	}
+	// #[bench]
+// 	fn bench_10_single_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.int.x10_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_single_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.int.x100_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_single_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.int.x1000_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_10_double_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.int.x10_0, &setup.int.x10_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_double_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.int.x100_0, &setup.int.x100_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_double_int_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.int.x1000_0, &setup.int.x1000_1));
+// 	}
+//
+// // ---------------- BENCHMARK BRUTE FLOAT VERSIONS
+// 	#[bench]
+// 	fn bench_10_single_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.float.x10_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_single_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.float.x100_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_single_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_single(&setup.float.x1000_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_10_double_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.float.x10_0, &setup.float.x10_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_double_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.float.x100_0, &setup.float.x100_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_double_float_brute(b: &mut Bencher) {
+// 		let setup = BenchSetup::new();
+// 		b.iter(|| ix_brute_double(&setup.float.x1000_0, &setup.float.x1000_1));
+// 	}
+//
+// // ---------------- BENCHMARK SORT INTEGER VERSIONS
+//
+// 	#[bench]
+// 	fn bench_10_single_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.int.x10_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_single_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.int.x100_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_single_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.int.x1000_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_10_double_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.int.x10_0, &mut setup.int.x10_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_double_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.int.x100_0, &mut setup.int.x100_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_double_int_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.int.x1000_0, &mut setup.int.x1000_1));
+// 	}
+//
+// // ---------------- BENCHMARK SORT FLOAT VERSIONS
+//
+// 	#[bench]
+// 	fn bench_10_single_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.float.x10_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_single_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.float.x100_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_single_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_single(&mut setup.float.x1000_0));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_10_double_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.float.x10_0, &mut setup.float.x10_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_100_double_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.float.x100_0, &mut setup.float.x100_1));
+// 	}
+//
+// 	#[bench]
+// 	fn bench_1000_double_float_sort(b: &mut Bencher) {
+// 		let mut setup = BenchSetup::new();
+// 		b.iter(|| ix_sort_double(&mut setup.float.x1000_0, &mut setup.float.x1000_1));
+// 	}
 
 }

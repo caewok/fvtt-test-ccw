@@ -138,6 +138,21 @@ impl From<OrderedSegment<i64>> for OrderedSegment<f64> {
 	}
 }
 
+impl From<OrderedSegment<f64>> for OrderedSegment<i32> {
+	fn from(item: OrderedSegment<f64>) -> Self {
+		let (ax, ay, bx, by) = item.coords();
+		Self::new((ax.round() as i32, ay.round() as i32),
+		          (bx.round() as i32, by.round() as i32))
+	}
+}
+
+impl From<OrderedSegment<i32>> for OrderedSegment<f64> {
+	fn from(item: OrderedSegment<i32>) -> Self {
+		let (ax, ay, bx, by) = item.coords();
+		Self::new((ax as f64, ay as f64), (bx as f64, by as f64))
+	}
+}
+
 impl<T> GenerateRandom for OrderedSegment<T>
 	where T: CoordNum + SampleUniform, Standard: Distribution<T>,
 {
