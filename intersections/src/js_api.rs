@@ -27,6 +27,23 @@ use wasm_bindgen::prelude::*;
 // - u32 of intersection indices
 
 
+// Setup log to javascript
+// https://rustwasm.github.io/wasm-bindgen/examples/console-log.html
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+macro_rules! console_log {
+    // Note that this is using the `log` function imported above
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
+
+
 #[derive(Debug, Copy, Clone)]
 pub enum JsBytesUnit {
 	F64 = 1,
@@ -192,19 +209,28 @@ pub fn alloc_float64_arr(len: usize) -> *mut f64 {
 
 
 #[no_mangle]
-pub unsafe fn brute_i32_mem(segments_ptr: *mut i32, n_segments: usize) -> *mut JsBytesDouble {
-	let n_coords = n_segments * 4;
-	let data = Vec::from_raw_parts(segments_ptr, n_coords, n_coords);
+pub unsafe fn brute_i32_mem(segments_ptr: *mut JsBytes) -> *mut JsBytesDouble {
+	let boxed: Box<JsBytes> = Box::from_raw(segments_ptr);
+	let n_coords = boxed.len as usize;
+	console_log!("Num coords is {} with cap {}", n_coords, boxed.cap as usize);
+
+	let data = Vec::from_raw_parts(boxed.ptr as *mut i32, n_coords, boxed.cap as usize);
+
+	console_log!("Data has length {}", data.len());
 
 	// build segments
-	let mut segments = Vec::with_capacity(n_segments);
+	let mut segments = Vec::with_capacity(n_coords / 4);
 	for i in (0..n_coords).step_by(4) {
+		console_log!("Pushing coordinates {},{}|{},{}", data[i], data[i+1], data[i+2], data[i+3]);
+
 		segments.push(OrderedSegment::new_with_idx((data[i], data[i+1]), (data[i+2], data[i+3]), i / 4));
 	}
 
 
 	let ixs = ix_brute_single(&segments[..]);
 	let ixs_ln = ixs.len();
+
+	console_log!("Found {} intersections!", ixs_ln);
 
 // 	return ixs[0].ix.x().try_into().unwrap(); // works
 
