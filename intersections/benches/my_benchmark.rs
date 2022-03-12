@@ -79,7 +79,7 @@ impl BenchSegment {
 		let str10_1 = fs::read_to_string("segments_random_10_1000_neg1 copy.json").unwrap();
 		let str10_2 = fs::read_to_string("segments_random_10_1000_neg2 copy.json").unwrap();
 		let str100_1 = fs::read_to_string("segments_random_100_2000_neg1 copy.json").unwrap();
-		let str100_2 = fs::read_to_string("segments_random_100_2000_neg2 copy.json").unwrap();
+		let str100_2 = fs::read_	to_string("segments_random_100_2000_neg2 copy.json").unwrap();
 		let str1000_1 = fs::read_to_string("segments_random_1000_4000_neg1 copy.json").unwrap();
 		let str1000_2 = fs::read_to_string("segments_random_1000_4000_neg2 copy.json").unwrap();
 

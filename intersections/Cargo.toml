@@ -15,6 +15,8 @@ num-traits = "0.2.14"
 robust = "0.2.3"
 castaway = "0.1.2"
 smallvec = "1.8.0"
+wasm-bindgen = "0.2.79"
+getrandom = { version = "0.2.5", features = ["js"] }
 
 # no perceived change using LTO
 #[profile.release]
