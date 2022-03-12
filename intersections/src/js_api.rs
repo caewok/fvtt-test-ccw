@@ -15,41 +15,121 @@ use wasm_bindgen::prelude::*;
 // https://gist.github.com/thomas-jeepe/ff938fe2eff616f7bbe4bd3dca91a550
 // https://stackoverflow.com/questions/45725975/getting-an-array-in-javascript-from-rust-compiled-to-emscripten
 
+// Create specific structs for passing vectors to/from Javascript
+// Take in a single vector of segment coordinates
+// i16 (-32767 to 32767)
+// u16 (0 to 65535)
+// i32 (-2_147_483_647 to 2_147_483_647)
+// Likely able to make do with either u16 or i32
+//
+// Return two vectors:
+// - f64 of intersection coordinates
+// - u32 of intersection indices
+
+
+#[derive(Debug, Copy, Clone)]
+pub enum JsBytesUnit {
+	F64 = 1,
+	U32 = 2,
+	I32 = 3,
+	U16 = 4,
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct JsBytes {
     ptr: u32,
     len: u32,
     cap: u32,
+    units: JsBytesUnit, // may need to be u32, but might be okay if just read from rust?
 }
 
-impl JsBytes
-{
-    pub fn new<T: Num>(mut bytes: Vec<T>) -> *mut JsBytes {
+#[repr(C)]
+#[derive(Debug)]
+pub struct JsBytesDouble {
+	ptr0: u32,
+	len0: u32,
+	cap0: u32,
+	units0: JsBytesUnit,
+
+	ptr1: u32,
+	len1: u32,
+	cap1: u32,
+	units1: JsBytesUnit,
+}
+
+impl JsBytes {
+    pub fn new<T: Num>(mut bytes: Vec<T>, units: JsBytesUnit) -> *mut JsBytes {
         let ptr = bytes.as_mut_ptr() as u32;
         let len = bytes.len() as u32;
         let cap = bytes.capacity() as u32;
         std::mem::forget(bytes);
-        let boxed = Box::new(JsBytes { ptr, len, cap });
+        let boxed = Box::new(JsBytes { ptr, len, cap, units });
         Box::into_raw(boxed)
     }
+}
+
+impl JsBytesDouble {
+	pub fn new<T: Num, U: Num>(mut bytes0: Vec<T>, units0: JsBytesUnit,
+	     					   mut bytes1: Vec<U>, units1: JsBytesUnit) -> *mut JsBytesDouble {
+		let ptr0 = bytes0.as_mut_ptr() as u32;
+        let len0 = bytes0.len() as u32;
+        let cap0 = bytes0.capacity() as u32;
+
+		let ptr1 = bytes1.as_mut_ptr() as u32;
+        let len1 = bytes1.len() as u32;
+        let cap1 = bytes1.capacity() as u32;
+
+        std::mem::forget(bytes0);
+        std::mem::forget(bytes1);
+
+		let boxed = Box::new(JsBytesDouble { ptr0, len0, cap0, units0, ptr1, len1, cap1, units1 });
+		Box::into_raw(boxed)
+	}
 }
 
 #[no_mangle]
 pub fn drop_bytes(ptr: *mut JsBytes) {
     unsafe {
         let boxed: Box<JsBytes> = Box::from_raw(ptr);
-        Vec::from_raw_parts(boxed.ptr as *mut u8, boxed.len as usize, boxed.cap as usize);
+        match boxed.units {
+        	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr as *mut f64, boxed.len as usize, boxed.cap as usize); },
+        	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr as *mut u32, boxed.len as usize, boxed.cap as usize); },
+        	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr as *mut i32, boxed.len as usize, boxed.cap as usize); },
+        	JsBytesUnit::U16 => { Vec::from_raw_parts(boxed.ptr as *mut u16, boxed.len as usize, boxed.cap as usize); },
+        };
+
     }
 }
 
-fn returns_vec() -> Vec<i8> {
+#[no_mangle]
+pub fn drop_bytes_double(ptr: *mut JsBytesDouble) {
+    unsafe {
+        let boxed: Box<JsBytesDouble> = Box::from_raw(ptr);
+
+       match boxed.units0 {
+        	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr0 as *mut f64, boxed.len0 as usize, boxed.cap0 as usize); },
+        	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr0 as *mut u32, boxed.len0 as usize, boxed.cap0 as usize); },
+        	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr0 as *mut i32, boxed.len0 as usize, boxed.cap0 as usize); },
+        	JsBytesUnit::U16 => { Vec::from_raw_parts(boxed.ptr0 as *mut u16, boxed.len0 as usize, boxed.cap0 as usize); },
+        }
+
+       match boxed.units1 {
+        	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr1 as *mut f64, boxed.len1 as usize, boxed.cap1 as usize); },
+        	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr1 as *mut u32, boxed.len1 as usize, boxed.cap1 as usize); },
+        	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr1 as *mut i32, boxed.len1 as usize, boxed.cap1 as usize); },
+        	JsBytesUnit::U16 => { Vec::from_raw_parts(boxed.ptr1 as *mut u16, boxed.len1 as usize, boxed.cap1 as usize); },
+        }
+    }
+}
+
+fn returns_vec() -> Vec<i32> {
     vec![1, -2, 3]
 }
 
 #[no_mangle]
 pub fn bytes() -> *mut JsBytes {
-    JsBytes::new(returns_vec())
+    JsBytes::new(returns_vec(), JsBytesUnit::I32)
 }
 
 
@@ -81,9 +161,25 @@ pub fn alloc_int32_arr(len: usize) -> *mut i32 {
 }
 
 #[no_mangle]
-pub fn alloc_int32_arr_js(len: usize) -> *mut JsBytes {
-	JsBytes::new(Vec::<i32>::with_capacity(len))
+pub fn alloc_i32_arr_js(len: usize) -> *mut JsBytes {
+	JsBytes::new(Vec::<i32>::with_capacity(len), JsBytesUnit::I32)
 }
+
+#[no_mangle]
+pub fn alloc_f64_arr_js(len: usize) -> *mut JsBytes {
+	JsBytes::new(Vec::<f64>::with_capacity(len), JsBytesUnit::F64)
+}
+
+#[no_mangle]
+pub fn alloc_u32_arr_js(len: usize) -> *mut JsBytes {
+	JsBytes::new(Vec::<u32>::with_capacity(len), JsBytesUnit::U32)
+}
+
+#[no_mangle]
+pub fn alloc_u16_arr_js(len: usize) -> *mut JsBytes {
+	JsBytes::new(Vec::<u16>::with_capacity(len), JsBytesUnit::U16)
+}
+
 
 #[no_mangle]
 pub fn alloc_float64_arr(len: usize) -> *mut f64 {
@@ -93,15 +189,17 @@ pub fn alloc_float64_arr(len: usize) -> *mut f64 {
 	return ptr;
 }
 
+
+
 #[no_mangle]
-pub unsafe fn brute_i32_mem(segments_ptr: *mut i32, n_segments: usize) -> *mut JsBytes { //*mut f64 {
+pub unsafe fn brute_i32_mem(segments_ptr: *mut i32, n_segments: usize) -> *mut JsBytesDouble {
 	let n_coords = n_segments * 4;
 	let data = Vec::from_raw_parts(segments_ptr, n_coords, n_coords);
 
 	// build segments
 	let mut segments = Vec::with_capacity(n_segments);
 	for i in (0..n_coords).step_by(4) {
-		segments.push(OrderedSegment::new_with_idx((data[i], data[i+1]), (data[i+2], data[i+3]), i % 4));
+		segments.push(OrderedSegment::new_with_idx((data[i], data[i+1]), (data[i+2], data[i+3]), i / 4));
 	}
 
 
@@ -116,42 +214,16 @@ pub unsafe fn brute_i32_mem(segments_ptr: *mut i32, n_segments: usize) -> *mut J
 	// store x, y, so double length of the intersections, + 1 to give length
 
 	let mut buf = Vec::<f64>::with_capacity(ixs_ln * 2);  // need x, y for each ix
+	let mut indices_buf = Vec::<u32>::with_capacity(ixs_ln * 2); // need s1, s2 for each
 	for obj in ixs {
 		buf.push(obj.ix.x());
 		buf.push(obj.ix.y());
+		indices_buf.push(obj.idx1 as u32);
+		indices_buf.push(obj.idx2 as u32);
 	}
+	JsBytesDouble::new(buf, JsBytesUnit::F64, indices_buf, JsBytesUnit::U32)
+// 	JsBytes::new(indices_buf, JsBytesUnit::U32)
 
-	JsBytes::new(buf)
-
-// 	return buf[0];
-
-// 	let ptr = buf.as_mut_ptr() as u32;
-// 	let len = buf.len() as u32;
-// 	let cap = buf.capacity() as u32;
-// 	std::mem::forget(buf);
-// 	let boxed = Box::new(JsBytes { ptr, len, cap });
-// 	Box::into_raw(boxed)
-// 	JsBytes::new(buf)
-
-
-// 	let buf_ln = (ixs_ln * 2) + 1;
-// 	let mut buf = Vec::with_capacity(buf_ln as usize);
-// 	buf[0] = ixs_ln as f64;
-// 	let ptr = buf.as_mut_ptr();
-// 	ptr
-
-
-// 	buf[0] = ixs_ln as f64;
-// 	for i in (0..buf_ln).step_by(2) {
-// 		let ixs_i = (i % 2);
-// 		assert!(ixs_i < ixs_ln);
-//
-// 		buf[i] = ixs[ixs_i].ix.x();
-// 		buf[i+1] = ixs[ixs_i + 1].ix.y();
-// 	}
-
-// 	std::mem::forget(buf);
-// 	return ptr;
 }
 
 
