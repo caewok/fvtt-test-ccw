@@ -8,7 +8,7 @@ use crate::intersections::{ix_brute_single};
 use crate::point::{orient2d};
 use crate::segment::OrderedSegment;
 use geo::algorithm::kernels::Orientation;
-use num_traits::Num;
+use num_traits::{Num, ToPrimitive, FromPrimitive};
 
 use wasm_bindgen::prelude::*;
 
@@ -44,7 +44,7 @@ macro_rules! console_log {
 
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, FromPrimitive, ToPrimitive)]
 pub enum JsBytesUnit {
 	F64 = 1,
 	U32 = 2,
@@ -52,13 +52,15 @@ pub enum JsBytesUnit {
 	U16 = 4,
 }
 
+
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct JsBytes {
     ptr: u32,
     len: u32,
     cap: u32,
-    units: JsBytesUnit, // may need to be u32, but might be okay if just read from rust?
+    units: u32, // seems to need u32 so these fields are all aligned
 }
 
 #[repr(C)]
@@ -67,12 +69,12 @@ pub struct JsBytesDouble {
 	ptr0: u32,
 	len0: u32,
 	cap0: u32,
-	units0: JsBytesUnit,
+	units0: u32,
 
 	ptr1: u32,
 	len1: u32,
 	cap1: u32,
-	units1: JsBytesUnit,
+	units1: u32,
 }
 
 impl JsBytes {
@@ -80,6 +82,7 @@ impl JsBytes {
         let ptr = bytes.as_mut_ptr() as u32;
         let len = bytes.len() as u32;
         let cap = bytes.capacity() as u32;
+        let units = ToPrimitive::to_u32(&units).unwrap();
         std::mem::forget(bytes);
         let boxed = Box::new(JsBytes { ptr, len, cap, units });
         Box::into_raw(boxed)
@@ -92,10 +95,12 @@ impl JsBytesDouble {
 		let ptr0 = bytes0.as_mut_ptr() as u32;
         let len0 = bytes0.len() as u32;
         let cap0 = bytes0.capacity() as u32;
+        let units0 = ToPrimitive::to_u32(&units0).unwrap();
 
 		let ptr1 = bytes1.as_mut_ptr() as u32;
         let len1 = bytes1.len() as u32;
         let cap1 = bytes1.capacity() as u32;
+        let units1 = ToPrimitive::to_u32(&units1).unwrap();
 
         std::mem::forget(bytes0);
         std::mem::forget(bytes1);
@@ -109,7 +114,8 @@ impl JsBytesDouble {
 pub fn drop_bytes(ptr: *mut JsBytes) {
     unsafe {
         let boxed: Box<JsBytes> = Box::from_raw(ptr);
-        match boxed.units {
+        let units: JsBytesUnit = FromPrimitive::from_u32(boxed.units).unwrap();
+        match units {
         	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr as *mut f64, boxed.len as usize, boxed.cap as usize); },
         	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr as *mut u32, boxed.len as usize, boxed.cap as usize); },
         	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr as *mut i32, boxed.len as usize, boxed.cap as usize); },
@@ -122,16 +128,18 @@ pub fn drop_bytes(ptr: *mut JsBytes) {
 #[no_mangle]
 pub fn drop_bytes_double(ptr: *mut JsBytesDouble) {
     unsafe {
-        let boxed: Box<JsBytesDouble> = Box::from_raw(ptr);
+    	let boxed: Box<JsBytesDouble> = Box::from_raw(ptr);
 
-       match boxed.units0 {
+		let units0: JsBytesUnit = FromPrimitive::from_u32(boxed.units0).unwrap();
+		match units0 {
         	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr0 as *mut f64, boxed.len0 as usize, boxed.cap0 as usize); },
         	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr0 as *mut u32, boxed.len0 as usize, boxed.cap0 as usize); },
         	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr0 as *mut i32, boxed.len0 as usize, boxed.cap0 as usize); },
         	JsBytesUnit::U16 => { Vec::from_raw_parts(boxed.ptr0 as *mut u16, boxed.len0 as usize, boxed.cap0 as usize); },
         }
 
-       match boxed.units1 {
+		let units1: JsBytesUnit = FromPrimitive::from_u32(boxed.units1).unwrap();
+		match units1 {
         	JsBytesUnit::F64 => { Vec::from_raw_parts(boxed.ptr1 as *mut f64, boxed.len1 as usize, boxed.cap1 as usize); },
         	JsBytesUnit::U32 => { Vec::from_raw_parts(boxed.ptr1 as *mut u32, boxed.len1 as usize, boxed.cap1 as usize); },
         	JsBytesUnit::I32 => { Vec::from_raw_parts(boxed.ptr1 as *mut i32, boxed.len1 as usize, boxed.cap1 as usize); },
@@ -209,7 +217,7 @@ pub fn alloc_float64_arr(len: usize) -> *mut f64 {
 
 
 #[no_mangle]
-pub unsafe fn brute_i32_mem(segments_ptr: *mut JsBytes) -> *mut JsBytesDouble {
+pub unsafe fn brute_i32_mem(segments_ptr: *mut JsBytes, indices_ptr: *mut JsBytes) -> *mut JsBytes {
 	let boxed: Box<JsBytes> = Box::from_raw(segments_ptr);
 	let n_coords = boxed.len as usize;
 	console_log!("Num coords is {} with cap {}", n_coords, boxed.cap as usize);
@@ -247,11 +255,20 @@ pub unsafe fn brute_i32_mem(segments_ptr: *mut JsBytes) -> *mut JsBytesDouble {
 		indices_buf.push(obj.idx1 as u32);
 		indices_buf.push(obj.idx2 as u32);
 	}
-	JsBytesDouble::new(buf, JsBytesUnit::F64, indices_buf, JsBytesUnit::U32)
-// 	JsBytes::new(indices_buf, JsBytesUnit::U32)
+
+	console_log!("Updating Indices pointer");
+	let mut idx_boxed: Box<JsBytes> = Box::from_raw(indices_ptr);
+	let _old_idx_data = Vec::from_raw_parts(idx_boxed.ptr as *mut u32, idx_boxed.len as usize, idx_boxed.cap as usize);
+
+	idx_boxed.ptr = indices_buf.as_mut_ptr() as u32;
+	idx_boxed.len = indices_buf.len() as u32;
+	idx_boxed.cap = indices_buf.capacity() as u32;
+	std::mem::forget(indices_buf);
+
+// 	JsBytesDouble::new(buf, JsBytesUnit::F64, indices_buf, JsBytesUnit::U32)
+	JsBytes::new(buf, JsBytesUnit::F64)
 
 }
-
 
 
 #[wasm_bindgen]
