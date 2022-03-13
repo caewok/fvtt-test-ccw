@@ -23,9 +23,14 @@ pub fn ix_brute_single<T>(segments: &[OrderedSegment<T>]) -> SmallVec<[IxResultF
 	let mut ixs = SmallVec::<[IxResultFloat; 4]>::new();
 	for(i, si) in segments.iter().enumerate() {
 		for sj in &segments[(i + 1)..] {
+			println!("ix_brute_single");
+			dbg!(&si);
+			dbg!(&sj);
 			if !si.intersects(sj) { continue; }
 			let res = si.line_intersection(sj);
 			if let Some(ix) = res {
+				println!("Found intersection {},{} at index {},{}", ix.x(), ix.y(), si.idx, sj.idx);
+
 				ixs.push( IxResultFloat {
 					ix,
 					idx1: si.idx,

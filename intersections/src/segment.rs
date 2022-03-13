@@ -203,6 +203,11 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let (a, b) = self.points();
 		let (c, d) = other.points();
 
+		println!("intersects");
+		dbg!(&self);
+		dbg!(&other);
+
+
 		let xa = orient2d(a.into(), b.into(), c.into());
 		let xb = orient2d(a.into(), b.into(), d.into());
 
@@ -221,6 +226,10 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let (a, _b) = self.points();
 		let (c, _d) = other.points();
 
+		println!("intersection self, other");
+		dbg!(&self);
+		dbg!(&other);
+
 		let (ax, ay) = a.x_y();
 		let (cx, cy) = c.x_y();
 
@@ -235,8 +244,20 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 		let y_dnm = d1.x * d2.y - d2.x * d1.y;
 		if y_dnm == z { return None; }
 
+		println!("x_dnm; y_dnm");
+		dbg!(x_dnm);
+		dbg!(y_dnm);
+
+		println!("d1; d2");
+		dbg!(d1);
+		dbg!(d2);
+
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
+
+		println!("x_num; y_num");
+		dbg!(x_num);
+		dbg!(y_num);
 
 		// check for whether we need to cast to float for division
 		// omitted for speed; just cast everything to f64 before dividing

@@ -31,5 +31,11 @@ name = "my_benchmark"
 harness = false
 
 [lib]
+name = "intersections"
+path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "intersections_bin"
+path = "src/main.rs"
 
