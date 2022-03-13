@@ -11,9 +11,6 @@
 
 // extern crate test;
 
-#[macro_use]
-extern crate num_derive;
-
 pub mod point;
 pub mod segment;
 pub mod intersections;
