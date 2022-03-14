@@ -4,6 +4,7 @@ use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use rand::Rng;
+use fraction::{DynaFraction, BigUint};
 
 pub trait GenerateRandom {
 	type MaxType;
@@ -73,17 +74,29 @@ pub trait SimpleOrient<B = Self, C = Self> {
 impl SimpleOrient for Coordinate<f64> {
 	#[inline]
 	fn orient2d(self, b: Self, c: Self) -> Orientation {
-		let dac = self - c;
-		let dbc = b - c;
-     	let right = dac.y * dbc.x;
-     	let left = dac.x * dbc.y;
-     	if right > left {
-     		Orientation::CounterClockwise
-     	} else if right < left {
-     		Orientation::Clockwise
-     	} else {
-     		Orientation::Collinear
-     	}
+// 		let dac = self - c;
+// 		let dbc = b - c;
+		let (ax, ay) = self.x_y();
+		let (bx, by) = b.x_y();
+		let (cx, cy) = c.x_y();
+
+		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
+		if res > 0. {
+			Orientation::CounterClockwise
+		} else if res < 0. {
+			Orientation::Clockwise
+		} else {
+			Orientation::Collinear
+		}
+//      	let right = dac.y * dbc.x;
+//      	let left = dac.x * dbc.y;
+//      	if right > left {
+//      		Orientation::CounterClockwise
+//      	} else if right < left {
+//      		Orientation::Clockwise
+//      	} else {
+//      		Orientation::Collinear
+//      	}
 	}
 }
 
@@ -96,18 +109,40 @@ impl SimpleOrient for Coordinate<i32> {
 		let (bx, by) = b.x_y();
 		let (cx, cy) = c.x_y();
 
+// 		println!("{},{} -> {},{} -> {},{}", ax, ay, bx, by, cx, cy);
+
 		// TO-DO: Any faster or better alternative to i128?
-		// jumping from i32 to i128 is quite limiting
-		let (ax, ay) = (ax as i128, ay as i128);
-		let (bx, by) = (bx as i128, by as i128);
-		let (cx, cy) = (cx as i128, cy as i128);
+// 		let (ax, ay) = (ax as i128, ay as i128);
+// 		let (bx, by) = (bx as i128, by as i128);
+// 		let (cx, cy) = (cx as i128, cy as i128);
+		type D = DynaFraction<u32>;
+
+		let (ax, ay) = (D::from(ax), D::from(ay));
+		let (bx, by) = (D::from(bx), D::from(by));
+		let (cx, cy) = (D::from(cx), D::from(cy));
+
 
 		// right/left version appears slower, perhaps b/c
 		// integer compare to 0 is fast or b/c res calc is streamlined
-		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
-		if res > 0 {
+		let left = (&ay - &cy) * (&bx - &cx);
+		let right = (&ax - &cx) * (&by - &cy);
+		let res = &left - &right;
+// 		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
+
+		// res is ~ twice the signed area of the triangle defined by the three points
+		// for i8, points must be between -128 and 127
+		// Largest triangle is half the plane that is 255 x 255
+		// 2x area of the triangle = area of square = (255 * 255) = 66025 -> w/in i32 but not i16
+		// so doubling the bits is not sufficient.
+		// note: intermediate overflow is acceptable if result is w/in and using
+		// add, sub, mult, left shift, bitwise AND, OR, XOR, complement
+
+		//
+
+		let z = D::from(0u32);
+		if res > z {
 			Orientation::CounterClockwise
-		} else if res < 0 {
+		} else if res < z {
 			Orientation::Clockwise
 		} else {
 			Orientation::Collinear

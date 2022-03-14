@@ -18,6 +18,7 @@ castaway = "0.1.2"
 smallvec = "1.8.0"
 wasm-bindgen = "0.2.79"
 getrandom = { version = "0.2.5", features = ["js"] }
+fraction = "0.10.0"
 
 # no perceived change using LTO
 #[profile.release]
