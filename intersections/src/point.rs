@@ -71,6 +71,7 @@ pub trait SimpleOrient<B = Self, C = Self> {
 }
 
 impl SimpleOrient for Coordinate<f64> {
+	#[inline]
 	fn orient2d(self, b: Self, c: Self) -> Orientation {
 		let dac = self - c;
 		let dbc = b - c;
@@ -87,6 +88,7 @@ impl SimpleOrient for Coordinate<f64> {
 }
 
 impl SimpleOrient for Coordinate<i32> {
+	#[inline]
 	fn orient2d(self, b: Self, c: Self) -> Orientation {
 		// our choices are try w/o conversion using overflow checks or
 		// convert upfront to i64.

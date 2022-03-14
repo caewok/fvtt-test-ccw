@@ -263,6 +263,7 @@ impl SimpleIntersect for OrderedSegment<f64> {
 }
 
 impl SimpleIntersect for OrderedSegment<i32> {
+	#[inline]
 	fn intersects(&self, other: &Self) -> bool {
 		let (a, b) = self.coordinates();
 		let (c, d) = other.coordinates();
@@ -281,6 +282,7 @@ impl SimpleIntersect for OrderedSegment<i32> {
 		false
 	}
 
+	#[inline]
 	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
 		let (ax, ay, bx, by) = self.coords();
 		let (cx, cy, dx, dy) = other.coords();

@@ -191,7 +191,7 @@ fn bench_segment_intersects(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-				data.s0.intersects(&data.s1);
+			data.s0.intersects(&data.s1);
 		},
 		BatchSize::SmallInput)
 	});
@@ -215,7 +215,7 @@ fn bench_segment_intersects(c: &mut Criterion) {
 	group.bench_function("i32", move |b| {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
-				data.s0.intersects(&data.s1);
+			data.s0.intersects(&data.s1);
 		},
 		BatchSize::SmallInput)
 	});
@@ -230,7 +230,7 @@ fn bench_segment_intersection(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-				data.s0.line_intersection(&data.s1);
+			data.s0.line_intersection(&data.s1);
 		},
 		BatchSize::SmallInput)
 	});
@@ -251,13 +251,13 @@ fn bench_segment_intersection(c: &mut Criterion) {
 // 		BatchSize::SmallInput)
 // 	});
 //
-// 	group.bench_function("i32", move |b| {
-// 		b.iter_batched(|| BenchData::<i32>::new(),
-// 		|data| {
-// 				data.s0.line_intersection(&data.s1);
-// 		},
-// 		BatchSize::SmallInput)
-// 	});
+	group.bench_function("i32", move |b| {
+		b.iter_batched(|| BenchData::<i32>::new(),
+		|data| {
+			data.s0.line_intersection(&data.s1);
+		},
+		BatchSize::SmallInput)
+	});
 
 	group.finish();
 }
