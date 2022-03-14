@@ -48,6 +48,24 @@ Cannot just use check overflow functions b/c they are not implemented for floats
 Instead, implement an orientation trait and switch on different coordinate types.
 https://stackoverflow.com/questions/56100579/how-do-i-match-on-the-concrete-type-of-a-generic-parameter
 */
+
+// compare to impl functions
+// no diff
+// pub fn orient2d_f64(a: Coordinate<f64>, b: Coordinate<f64>, c: Coordinate<f64>) -> Orientation {
+// 	let dac = a - c;
+// 	let dbc = b - c;
+// 	let right = dac.y * dbc.x;
+// 	let left = dac.x * dbc.y;
+// 	if right > left {
+// 		Orientation::CounterClockwise
+// 	} else if right < left {
+// 		Orientation::Clockwise
+// 	} else {
+// 		Orientation::Collinear
+// 	}
+// }
+
+
 pub trait SimpleOrient<B = Self, C = Self> {
 	fn orient2d(self, b: B, c: C) -> Orientation;
 }
@@ -56,10 +74,11 @@ impl SimpleOrient for Coordinate<f64> {
 	fn orient2d(self, b: Self, c: Self) -> Orientation {
 		let dac = self - c;
 		let dbc = b - c;
-     	let res = dac.y * dbc.x - dac.x * dbc.y;
-     	if res > 0. {
+     	let right = dac.y * dbc.x;
+     	let left = dac.x * dbc.y;
+     	if right > left {
      		Orientation::CounterClockwise
-     	} else if res < 0. {
+     	} else if right < left {
      		Orientation::Clockwise
      	} else {
      		Orientation::Collinear
@@ -71,14 +90,18 @@ impl SimpleOrient for Coordinate<i32> {
 	fn orient2d(self, b: Self, c: Self) -> Orientation {
 		// our choices are try w/o conversion using overflow checks or
 		// convert upfront to i64.
-		let (ax, ay) = self.x_y().into();
-		let (bx, by) = b.x_y().into();
-		let (cx, cy) = c.x_y().into();
+		let (ax, ay) = self.x_y();
+		let (bx, by) = b.x_y();
+		let (cx, cy) = c.x_y();
 
-		let (ax, ay) = (ax as i64, ay as i64);
-		let (bx, by) = (bx as i64, by as i64);
-		let (cx, cy) = (cx as i64, cy as i64);
+		// TO-DO: Any faster or better alternative to i128?
+		// jumping from i32 to i128 is quite limiting
+		let (ax, ay) = (ax as i128, ay as i128);
+		let (bx, by) = (bx as i128, by as i128);
+		let (cx, cy) = (cx as i128, cy as i128);
 
+		// right/left version appears slower, perhaps b/c
+		// integer compare to 0 is fast or b/c res calc is streamlined
 		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
 		if res > 0 {
 			Orientation::CounterClockwise
@@ -124,16 +147,23 @@ mod tests {
 
 	#[test]
 	fn orient_point_int32_overflow_works() {
-		let p1: Coordinate<i32> = Coordinate { x:i32::MAX - 2, y: i32::MAX - 2 };
-		let p2: Coordinate<i32> = Coordinate { x:i32::MAX - 1, y: i32::MAX - 1 };
-		let p3: Coordinate<i32> = Coordinate { x:i32::MAX - 2, y: i32::MAX - 1 }; // cw
-		let p4: Coordinate<i32> = Coordinate { x:i32::MAX - 1, y: i32::MAX - 2 }; // ccw
-		let p5: Coordinate<i32> = Coordinate { x:i32::MAX, y:i32::MAX }; // collinear
+		let nw = (i32::MIN, i32::MIN);
+		let sw = (i32::MIN, i32::MAX);
+		let ne = (i32::MAX, i32::MIN);
+		let se = (i32::MAX, i32::MAX);
+		let z: (i32, i32) = (0, 0);
 
-		assert_eq!(p1.orient2d(p2, p3), Orientation::Clockwise);
-		assert_eq!(p1.orient2d(p2, p4), Orientation::CounterClockwise);
-		assert_eq!(p1.orient2d(p2, p5), Orientation::Collinear);
+		let nw: Coordinate<i32> = nw.into();
+		let sw: Coordinate<i32> = sw.into();
+		let ne: Coordinate<i32> = ne.into();
+		let se: Coordinate<i32> = se.into();
+		let z:  Coordinate<i32> = z.into();
 
+		assert_eq!(nw.orient2d(se, ne), Orientation::CounterClockwise);
+		assert_eq!(nw.orient2d(se, sw), Orientation::Clockwise);
+		assert_eq!(nw.orient2d(z, se), Orientation::Collinear);
+		assert_eq!(nw.orient2d(sw, se), Orientation::CounterClockwise);
+		assert_eq!(nw.orient2d(ne, se), Orientation::Clockwise);
 	}
 }
 

@@ -1,12 +1,14 @@
 use geo::{CoordNum, Point, Coordinate};
 use geo::algorithm::kernels::Orientation;
-use crate::point::{orient2d, GenerateRandom};
+use crate::point::{SimpleOrient, GenerateRandom};
 use std::cmp::Ordering;
-use num_traits::{Signed, Num};
+use num_traits::{Num};
 use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use serde::{Serialize, Deserialize};
+
+
 
 // Create a simple struct for an ordered Line, where a is ne of b
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -19,6 +21,8 @@ pub struct OrderedSegment<T>
 	#[serde(default)]
 	pub idx: usize, // needed to easily track intersections
 }
+
+
 
 
 
@@ -118,6 +122,10 @@ impl<T> OrderedSegment<T>
 		(self.start_point(), self.end_point())
 	}
 
+	pub fn coordinates(&self) -> (Coordinate<T>, Coordinate<T>) {
+		(self.start, self.end)
+	}
+
 	pub fn coords(&self) -> (T, T, T, T) {
 		(self.start.x, self.start.y, self.end.x, self.end.y)
 	}
@@ -189,33 +197,27 @@ impl<T> GenerateRandom for OrderedSegment<T>
 }
 
 
-pub trait SimpleIntersect<T: CoordNum, B = Self>
-	where T: CoordNum
-{
+
+pub trait SimpleIntersect<B = Self> {
 	fn intersects(&self, other: &B) -> bool;
 	fn line_intersection(&self, other: &B) -> Option<Point<f64>>;
 }
 
-impl<T> SimpleIntersect<T> for OrderedSegment<T>
-	where T: CoordNum + Signed,
- {
+// all intersects are the same but we have not implemented orient2d for all,
+// so just repeat for now
+impl SimpleIntersect for OrderedSegment<f64> {
 	fn intersects(&self, other: &Self) -> bool {
-		let (a, b) = self.points();
-		let (c, d) = other.points();
+		let (a, b) = self.coordinates();
+		let (c, d) = other.coordinates();
 
-		println!("intersects");
-		dbg!(&self);
-		dbg!(&other);
-
-
-		let xa = orient2d(a.into(), b.into(), c.into());
-		let xb = orient2d(a.into(), b.into(), d.into());
+		let xa = a.orient2d(b, c);
+		let xb = a.orient2d(b, d);
 
 		// may intersect in an overlapping line or not intersect at all
 		if xa == Orientation::Collinear && xb == Orientation::Collinear { return false; }
 
-		let xc = orient2d(c.into(), d.into(), a.into());
-		let xd = orient2d(c.into(), d.into(), b.into());
+		let xc = c.orient2d(d, a);
+		let xd = c.orient2d(d, b);
 
 		if xa != xb && xc != xd { return true; }
 
@@ -223,72 +225,132 @@ impl<T> SimpleIntersect<T> for OrderedSegment<T>
 	}
 
 	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
-		let (a, _b) = self.points();
-		let (c, _d) = other.points();
+// 		let (ax, ay, bx, by) = self.coords();
+// 		let (cx, cy, dx, dy) = other.coords();
+// 		println!("\nintersecting {},{}|{},{} x {},{}|{},{}", ax, ay, bx, by, cx, cy, dx, dy);
 
-		println!("intersection self, other");
-		dbg!(&self);
-		dbg!(&other);
-
-		let (ax, ay) = a.x_y();
-		let (cx, cy) = c.x_y();
 
 		let d1 = self.delta();
 		let d2 = other.delta();
 
-		let z:T = num_traits::zero();
-
 		let x_dnm = d1.y * d2.x - d2.y * d1.x;
-		if x_dnm == z { return None; }
+		if x_dnm == 0. { return None; }
 
 		let y_dnm = d1.x * d2.y - d2.x * d1.y;
-		if y_dnm == z { return None; }
+		if y_dnm == 0. { return None; }
 
-		println!("x_dnm; y_dnm");
-		dbg!(x_dnm);
-		dbg!(y_dnm);
+		// dbg!(x_dnm);
+// 		dbg!(y_dnm);
 
-		println!("d1; d2");
-		dbg!(d1);
-		dbg!(d2);
+		let a = self.start;
+		let c = other.start;
+
+		let (ax, ay) = a.x_y();
+		let (cx, cy) = c.x_y();
 
 		let x_num = ax * d1.y * d2.x - cx * d2.y * d1.x + cy * d1.x * d2.x - ay * d1.x * d2.x;
 		let y_num = ay * d1.x * d2.y - cy * d2.x * d1.y + cx * d1.y * d2.y - ax * d1.y * d2.y;
 
-		println!("x_num; y_num");
-		dbg!(x_num);
-		dbg!(y_num);
+		// dbg!(x_num);
+// 		dbg!(y_num);
+// 		println!("");
 
-		// check for whether we need to cast to float for division
-		// omitted for speed; just cast everything to f64 before dividing
-// 		let z: T = num_traits::zero();
-// 		let ratio_x: f64 = if x_num % x_dnm == z {
-// 				num_traits::cast(x_num / x_dnm).unwrap()
-// 			} else {
-// 				let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
-// 				let x_num:f64 = num_traits::cast(x_num).unwrap();
-// 				x_num / x_dnm
-// 			};
-//
-// 		let ratio_y: f64 = if y_num % y_dnm == z {
-// 				num_traits::cast(y_num / y_dnm).unwrap()
-// 			} else {
-// 				let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
-// 				let y_num:f64 = num_traits::cast(y_num).unwrap();
-// 				y_num / y_dnm
-// 			};
-
-		let x_num:f64 = num_traits::cast(x_num).unwrap();
-		let x_dnm:f64 = num_traits::cast(x_dnm).unwrap();
 		let ratio_x = x_num / x_dnm;
-
-		let y_num:f64 = num_traits::cast(y_num).unwrap();
-		let y_dnm:f64 = num_traits::cast(y_dnm).unwrap();
 		let ratio_y = y_num / y_dnm;
 
 		Some(Point::new(ratio_x, ratio_y))
 	}
 }
+
+impl SimpleIntersect for OrderedSegment<i32> {
+	fn intersects(&self, other: &Self) -> bool {
+		let (a, b) = self.coordinates();
+		let (c, d) = other.coordinates();
+
+		let xa = a.orient2d(b, c);
+		let xb = a.orient2d(b, d);
+
+		// may intersect in an overlapping line or not intersect at all
+		if xa == Orientation::Collinear && xb == Orientation::Collinear { return false; }
+
+		let xc = c.orient2d(d, a);
+		let xd = c.orient2d(d, b);
+
+		if xa != xb && xc != xd { return true; }
+
+		false
+	}
+
+	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
+		let (ax, ay, bx, by) = self.coords();
+		let (cx, cy, dx, dy) = other.coords();
+
+		let (ax, ay) = (ax as i128, ay as i128);
+		let (bx, by) = (bx as i128, by as i128);
+		let (cx, cy) = (cx as i128, cy as i128);
+		let (dx, dy) = (dx as i128, dy as i128);
+
+// 		println!("\nintersecting {},{}|{},{} x {},{}|{},{}", ax, ay, bx, by, cx, cy, dx, dy);
+
+		let d1x = bx - ax;
+		let d1y = by - ay;
+		let d2x = dx - cx;
+		let d2y = dy - cy;
+
+		let x_dnm = d1y * d2x - d2y * d1x;
+		if x_dnm == 0 { return None; }
+
+		let y_dnm = d1x * d2y - d2x * d1y;
+		if y_dnm == 0 { return None; }
+
+
+		// dbg!(x_dnm);
+// 		dbg!(y_dnm);
+
+
+		let x_num = ax * d1y * d2x - cx * d2y * d1x + cy * d1x * d2x - ay * d1x * d2x;
+		let y_num = ay * d1x * d2y - cy * d2x * d1y + cx * d1y * d2y - ax * d1y * d2y;
+
+		// d has max value of 2 * i32::MAX
+		// coordinate has max value of i32::MAX
+		// so a * d * d has maximum i32::MAX * 2 * i32::MAX * 2 * i32::MAX = 4 * i32::MAX ^ 3
+		//
+
+		// d1x(cx * d2y + cy * d2x - ay * d2x)
+		// d1y(cx * d2x + cx * d2y - ax * d2y)
+// 		let x_left = ax * d1y * d2x;
+// 		let x_right_paren = cx * d2y + cy * d2x - ay * d2x;
+// 		let x_right = d1x * x_right_paren;
+// 		let x_num = x_left - x_right;
+//
+// 		let y_left = ay * d1x * d2y;
+// 		let y_right_paren = cx * d2x + cx * d2y - ax * d2y;
+// 		let y_right = d1y * y_right_paren;
+// 		let y_num = y_left - y_right;
+
+		// dbg!(x_num);
+// 		dbg!(y_num);
+// 		println!("");
+
+		// euclid: 7 / 3 = 2 rem 1
+		// convert to float: 2 + 1/3
+		let quot_x = x_num.div_euclid(x_dnm);
+		let rem_x = x_num.rem_euclid(x_dnm);
+		let ratio_x = (quot_x as f64) + (rem_x as f64 / x_dnm as f64);
+
+		let quot_y = y_num.div_euclid(y_dnm);
+		let rem_y = y_num.rem_euclid(y_dnm);
+		let ratio_y = (quot_y as f64) + (rem_y as f64 / y_dnm as f64);
+
+
+
+// 		let ratio_x = (x_num as f64) / (x_dnm as f64);
+// 		let ratio_y = (y_num as f64) / (y_dnm as f64);
+
+		Some(Point::new(ratio_x, ratio_y))
+	}
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -330,7 +392,7 @@ mod tests {
 
 // ---------------- SEGMENT INTERSECTS
 	#[test]
-	fn intersects_float_works() {
+	fn intersects_f64_works() {
 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
 		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
@@ -342,20 +404,38 @@ mod tests {
 	}
 
 	#[test]
-	fn intersects_int_works() {
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
-		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+	fn intersects_i32_works() {
+		let s0: OrderedSegment<i32> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i32> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i32> = OrderedSegment::new((2387, 1350), (3200, 1900));
+		let s3: OrderedSegment<i32> = OrderedSegment::new((2500, 2100), (2900, 2100));
 
 		assert!(s0.intersects(&s1));
 		assert!(s0.intersects(&s2));
 		assert!(!s0.intersects(&s3));
+	}
+
+	#[test]
+	fn intersects_i32_overflow_works() {
+		let nw = (i32::MIN, i32::MIN);
+		let sw = (i32::MIN, i32::MAX);
+		let ne = (i32::MAX, i32::MIN);
+		let se = (i32::MAX, i32::MAX);
+// 		let z: (i32, i32) = (0, 0);
+
+		let ne_sw: OrderedSegment<i32> = OrderedSegment::new(ne, sw);
+		let se_nw: OrderedSegment<i32> = OrderedSegment::new(se, nw);
+		let ne_nw: OrderedSegment<i32> = OrderedSegment::new(ne, nw);
+		let se_sw: OrderedSegment<i32> = OrderedSegment::new(se, sw);
+
+		assert!(ne_sw.intersects(&se_nw));
+		assert!(ne_sw.intersects(&ne_nw));
+		assert!(!ne_nw.intersects(&se_sw));
 	}
 
 // ---------------- SEGMENT LINE INTERSECTION
 	#[test]
-	fn line_intersection_float_works() {
+	fn line_intersection_f64_works() {
 		let s0: OrderedSegment<f64> = OrderedSegment::new((2300., 1900.), (4200., 1900.));
 		let s1: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (2500., 2100.));
 		let s2: OrderedSegment<f64> = OrderedSegment::new((2387., 1350.), (3200., 1900.));
@@ -378,11 +458,11 @@ mod tests {
 	}
 
 	#[test]
-	fn line_intersection_int_works() {
-		let s0: OrderedSegment<i64> = OrderedSegment::new((2300, 1900), (4200, 1900));
-		let s1: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (2500, 2100));
-		let s2: OrderedSegment<i64> = OrderedSegment::new((2387, 1350), (3200, 1900));
-		let s3: OrderedSegment<i64> = OrderedSegment::new((2500, 2100), (2900, 2100));
+	fn line_intersection_i32_works() {
+		let s0: OrderedSegment<i32> = OrderedSegment::new((2300, 1900), (4200, 1900));
+		let s1: OrderedSegment<i32> = OrderedSegment::new((2387, 1350), (2500, 2100));
+		let s2: OrderedSegment<i32> = OrderedSegment::new((2387, 1350), (3200, 1900));
+		let s3: OrderedSegment<i32> = OrderedSegment::new((2500, 2100), (2900, 2100));
 
 		let res01: Point<f64> = Point::new(2469.866666666667, 1900.); // s0 x s1
 		let res02: Point<f64> = Point::new(3200., 1900.); // s0 x s2
@@ -398,5 +478,27 @@ mod tests {
 		assert_eq!(s1.line_intersection(&s2), Some(res12));
 		assert_eq!(s1.line_intersection(&s3), Some(res13));
 		assert_eq!(s2.line_intersection(&s3), Some(res23));
+	}
+
+
+	#[test]
+	fn line_intersection_i32_overflow_works() {
+		let nw = (i32::MIN, i32::MIN);
+		let sw = (i32::MIN, i32::MAX);
+		let ne = (i32::MAX, i32::MIN);
+		let se = (i32::MAX, i32::MAX);
+// 		let z: (i32, i32) = (0, 0);
+
+		let ne_sw: OrderedSegment<i32> = OrderedSegment::new(ne, sw);
+		let se_nw: OrderedSegment<i32> = OrderedSegment::new(se, nw);
+		let ne_nw: OrderedSegment<i32> = OrderedSegment::new(ne, nw);
+		let se_sw: OrderedSegment<i32> = OrderedSegment::new(se, sw);
+
+		let res1: Point::<f64> = Point::new(-0.5, -0.5);
+		let res2: Point::<f64> = Point::new(i32::MAX.into(), i32::MIN.into());
+
+		assert_eq!(ne_sw.line_intersection(&se_nw), Some(res1));
+		assert_eq!(ne_sw.line_intersection(&ne_nw), Some(res2));
+		assert_eq!(ne_nw.line_intersection(&se_sw), None);
 	}
 }
