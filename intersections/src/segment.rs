@@ -284,6 +284,8 @@ impl SimpleIntersect for OrderedSegment<i32> {
 
 	#[inline]
 	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
+		use core::num::Wrapping;
+
 		let (ax, ay, bx, by) = self.coords();
 		let (cx, cy, dx, dy) = other.coords();
 
@@ -291,6 +293,69 @@ impl SimpleIntersect for OrderedSegment<i32> {
 		let (bx, by) = (bx as i128, by as i128);
 		let (cx, cy) = (cx as i128, cy as i128);
 		let (dx, dy) = (dx as i128, dy as i128);
+
+// 		let (ax, ay) = (Wrapping(ax), Wrapping(ay));
+// 		let (bx, by) = (Wrapping(bx), Wrapping(by));
+// 		let (cx, cy) = (Wrapping(cx), Wrapping(cy));
+// 		let (dx, dy) = (Wrapping(dx), Wrapping(dy));
+
+
+		// End result will be a coordinate, but with infinite lines the coordinate
+		// intersection conceivably could exceed the coordinate bounds
+		// cannot be infinitely large given integer coordinates.
+		// instead, the largest is if one line is along the canvas border and starts
+		// at the other canvas corner and moves down to the bottom corner - 1.
+		// So worst case should be:
+		// s0: (MIN, MIN),(MIN, MAX)
+		// s1: (MAX, MIN), (MAX - 1, MAX)
+		// if this were i8:
+		// s0: (-128, -128), (-128, 127)
+		// s1: ( 127, -128), ( 126, 127)
+		// ix: (-128, 64897, t0: 255)
+		// if s0: (MIN, MIN), (MIN, MIN + 1) then t0: 65025
+		// so i32 to handle the coordinates
+
+		// But—we don't actually care about intersection locations outside the bounds,
+		// so we could return the max/min in that situation
+		// still need to calculate it without overflow issues!
+
+		// switch to
+		// const dnm = ((d.y - c.y) * (b.x - a.x) - (d.x - c.x) * (b.y - a.y));
+		// const t0 = ((d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x)) / dnm; (dist from a)
+		// x: a.x + t0 * (b.x - a.x),
+		// y: a.y + t0 * (b.y - a.y)
+
+		// (assume we are unlucky and all subtractions become additions)
+		// 2*MAX * 2*MAX ≈ 2^2 * 2^31 * 2^31 ≈ 2^64
+		// 2^64 + 2^64 ≈ 2^1 * 2^64 ≈ 2^65 .. and now we have exceeded i64 (barely)!
+		// worse, we eventually need to multiply below, so more likely to exceed t0
+
+// 		let dnm = (dy - cy) * (bx - ax) - (dx - cx) * (by - ay);
+// 		if dnm == 0 { return None; }
+
+// 		dbg!(dnm);
+
+		// dnm cannot be a fraction, so we know that t0 is the same or smaller magnitude than its numerator
+		// but we are dividing, so we need to switch to float or use euclidean and then switch
+// 		let num = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx);
+// 		dbg!(num);
+
+// 		let t0: f64 = (num as f64) / (dnm as f64);
+// 		dbg!(t0);
+//
+// 		let x = ax as f64 + t0 * (bx - ax) as f64;
+// 		let y = ay as f64 + t0 * (by - ay) as f64;
+
+// 		let x = ax.saturating_add(t0.saturating_mul(bx - ax));
+// 		let y = ay.saturating_add(t0.saturating_mul(by - ay));
+
+// 		Some(Point::new(x as f64, y as f64))
+
+
+		// MAX + 2^39 * (2*2^32) = not w/in i64 --> possibly over but unlikely.
+
+
+
 
 // 		println!("\nintersecting {},{}|{},{} x {},{}|{},{}", ax, ay, bx, by, cx, cy, dx, dy);
 
@@ -309,9 +374,18 @@ impl SimpleIntersect for OrderedSegment<i32> {
 		// dbg!(x_dnm);
 // 		dbg!(y_dnm);
 
+		// MAX
+		// d1x = 2^31 + 2^31 ≈ 2^32
+		// x_num paren = (2^31 * 2^32 * 2^32) ≈ 2^95
+		// x_num = 2^95 + 2^95 + 2^95 + 2^95 ≈ 2^2 * 2^95 ≈ 2^97
+
+		// (cx * d2y + cy * d2x - ay * d2x)
+		// 2^31 * 2^32 + 2^31 * 2^32 + 2^31 * 2^32 ≈ 2^63 + 2^63 + 2^63 ≈ 2^3 * 2^63 ≈ 2^66
+		// 2^32 * 2^66 ≈ 2^98
 
 		let x_num = ax * d1y * d2x - cx * d2y * d1x + cy * d1x * d2x - ay * d1x * d2x;
 		let y_num = ay * d1x * d2y - cy * d2x * d1y + cx * d1y * d2y - ax * d1y * d2y;
+
 
 		// d has max value of 2 * i32::MAX
 		// coordinate has max value of i32::MAX
@@ -336,6 +410,8 @@ impl SimpleIntersect for OrderedSegment<i32> {
 
 		// euclid: 7 / 3 = 2 rem 1
 		// convert to float: 2 + 1/3
+
+		// euclid vs division of float: both are basically same for performance
 		let quot_x = x_num.div_euclid(x_dnm);
 		let rem_x = x_num.rem_euclid(x_dnm);
 		let ratio_x = (quot_x as f64) + (rem_x as f64 / x_dnm as f64);
@@ -343,7 +419,6 @@ impl SimpleIntersect for OrderedSegment<i32> {
 		let quot_y = y_num.div_euclid(y_dnm);
 		let rem_y = y_num.rem_euclid(y_dnm);
 		let ratio_y = (quot_y as f64) + (rem_y as f64 / y_dnm as f64);
-
 
 
 // 		let ratio_x = (x_num as f64) / (x_dnm as f64);
@@ -502,5 +577,18 @@ mod tests {
 		assert_eq!(ne_sw.line_intersection(&se_nw), Some(res1));
 		assert_eq!(ne_sw.line_intersection(&ne_nw), Some(res2));
 		assert_eq!(ne_nw.line_intersection(&se_sw), None);
+	}
+
+	#[test]
+	fn line_intersection_i32_overflow_severe_works() {
+
+		// s0: (MIN, MIN),(MIN, MAX)
+		// s1: (MAX, MIN), (MAX - 1, MAX)
+		let vert: OrderedSegment<i32> = OrderedSegment::new((i32::MIN, i32::MIN), (i32::MIN, i32::MAX));
+		let near_horiz: OrderedSegment<i32> = OrderedSegment::new((i32::MAX, i32::MIN), (i32::MAX - 1, i32::MAX));
+
+		let res1: Point::<f64> = Point::new(-2147483648., 18446744062972133000.);
+
+		assert_eq!(vert.line_intersection(&near_horiz), Some(res1));
 	}
 }
