@@ -98,13 +98,28 @@ impl SimpleOrient for Coordinate<i32> {
 
 		// TO-DO: Any faster or better alternative to i128?
 		// jumping from i32 to i128 is quite limiting
-		let (ax, ay) = (ax as i128, ay as i128);
-		let (bx, by) = (bx as i128, by as i128);
-		let (cx, cy) = (cx as i128, cy as i128);
+		// Orient = ~ area of triangle * 2, which maximum size can exceed i64.
+		// (consider three corner points of a canvas)
 
-		// right/left version appears slower, perhaps b/c
-		// integer compare to 0 is fast or b/c res calc is streamlined
-		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
+		// Hypothesis: Could keep i32 if the result can be tested for sign...
+		// appears to work but is not faster
+		let d1 = ay.overflowing_sub(cy).0;
+		let d2 = bx.overflowing_sub(cx).0;
+		let d3 = ax.overflowing_sub(cx).0;
+		let d4 = by.overflowing_sub(cy).0;
+
+		let left = d1.overflowing_mul(d2).0;
+		let right = d3.overflowing_mul(d4).0;
+		let res = left.saturating_sub(right);
+
+
+// 		let (ax, ay) = (ax as i128, ay as i128);
+// 		let (bx, by) = (bx as i128, by as i128);
+// 		let (cx, cy) = (cx as i128, cy as i128);
+//
+// 		// right/left version appears slower, perhaps b/c
+// 		// integer compare to 0 is fast or b/c res calc is streamlined
+// 		let res = (ay - cy) * (bx - cx) - (ax - cx) * (by - cy);
 		if res > 0 {
 			Orientation::CounterClockwise
 		} else if res < 0 {
