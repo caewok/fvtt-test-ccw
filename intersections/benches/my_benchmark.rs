@@ -11,6 +11,7 @@ use geo::{CoordNum, Coordinate, Point};
 use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
+use criterion::black_box as bb_;
 // use std::fs;
 
 // cargo bench -- ixs to filter to intersections
@@ -118,7 +119,7 @@ fn bench_orient2d(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			data.c0.orient2d(data.c1, data.c2);
+			data.c0.orient2d(bb_(data.c1), bb_(data.c2));
 		},
 		BatchSize::SmallInput)
 	});
@@ -142,7 +143,7 @@ fn bench_orient2d(c: &mut Criterion) {
 	group.bench_function("i32", move |b| {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
-			data.c0.orient2d(data.c1, data.c2);
+			data.c0.orient2d(bb_(data.c1), bb_(data.c2));
 		},
 		BatchSize::SmallInput)
 	});
@@ -191,7 +192,7 @@ fn bench_segment_intersects(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			data.s0.intersects(&data.s1);
+			data.s0.intersects(&bb_(data.s1));
 		},
 		BatchSize::SmallInput)
 	});
@@ -215,7 +216,7 @@ fn bench_segment_intersects(c: &mut Criterion) {
 	group.bench_function("i32", move |b| {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
-			data.s0.intersects(&data.s1);
+			data.s0.intersects(&bb_(data.s1));
 		},
 		BatchSize::SmallInput)
 	});
@@ -230,7 +231,7 @@ fn bench_segment_intersection(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			data.s0.line_intersection(&data.s1);
+			data.s0.line_intersection(&bb_(data.s1));
 		},
 		BatchSize::SmallInput)
 	});
@@ -254,7 +255,7 @@ fn bench_segment_intersection(c: &mut Criterion) {
 	group.bench_function("i32", move |b| {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
-			data.s0.line_intersection(&data.s1);
+			data.s0.line_intersection(&bb_(data.s1));
 		},
 		BatchSize::SmallInput)
 	});
