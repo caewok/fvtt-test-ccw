@@ -119,7 +119,7 @@ fn bench_orient2d(c: &mut Criterion) {
 	group.bench_function("f64", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			bb_(data.c0).orient2d(bb_(data.c1), bb_(data.c2));
+			data.c0.orient2d(bb_(data.c1), bb_(data.c2));
 		},
 		BatchSize::SmallInput)
 	});
@@ -143,7 +143,7 @@ fn bench_orient2d(c: &mut Criterion) {
 	group.bench_function("i32", move |b| {
 		b.iter_batched(|| BenchData::<i32>::new(),
 		|data| {
-			bb_(data.c0).orient2d(bb_(data.c1), bb_(data.c2));
+			data.c0.orient2d(bb_(data.c1), bb_(data.c2));
 		},
 		BatchSize::SmallInput)
 	});
