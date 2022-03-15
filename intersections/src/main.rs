@@ -47,8 +47,8 @@ fn main() {
 		let ne_nw: OrderedSegment<i32> = OrderedSegment::new(ne, nw);
 		let se_sw: OrderedSegment<i32> = OrderedSegment::new(se, sw);
 
-		let res1: Point::<f64> = Point::new(-0.5, -0.5);
-		let res2: Point::<f64> = Point::new(i32::MAX.into(), i32::MIN.into());
+		// let res1: Point::<f64> = Point::new(-0.5, -0.5);
+// 		let res2: Point::<f64> = Point::new(i32::MAX.into(), i32::MIN.into());
 
 		println!("ne_sw x se_nw");
 		dbg!(ne_swf.line_intersection(&se_nwf));

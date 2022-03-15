@@ -284,8 +284,6 @@ impl SimpleIntersect for OrderedSegment<i32> {
 
 	#[inline]
 	fn line_intersection(&self, other: &Self) -> Option<Point<f64>> {
-		use core::num::Wrapping;
-
 		let (ax, ay, bx, by) = self.coords();
 		let (cx, cy, dx, dy) = other.coords();
 
@@ -294,6 +292,7 @@ impl SimpleIntersect for OrderedSegment<i32> {
 		let (cx, cy) = (cx as i128, cy as i128);
 		let (dx, dy) = (dx as i128, dy as i128);
 
+// 		use core::num::Wrapping;
 // 		let (ax, ay) = (Wrapping(ax), Wrapping(ay));
 // 		let (bx, by) = (Wrapping(bx), Wrapping(by));
 // 		let (cx, cy) = (Wrapping(cx), Wrapping(cy));
