@@ -1,0 +1,16 @@
+[package]
+name = "intersections_circle"
+version = "0.1.0"
+edition = "2021"
+authors = ["Michael Enion <caewok_2000@yahoo.com"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+geo = { version = "0.19.0" }
+
+[lib]
+name = "intersections_circle"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
