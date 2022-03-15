@@ -87,6 +87,7 @@ impl SimpleOrient for Coordinate<f64> {
 	}
 }
 
+
 impl SimpleOrient for Coordinate<i32> {
 	#[inline]
 	fn orient2d(self, b: Self, c: Self) -> Orientation {

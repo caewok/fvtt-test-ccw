@@ -18,7 +18,7 @@ import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
-// import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
+import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
 import initWASM, * as WASM from "../wasm/intersections.js";
 
 
@@ -91,10 +91,10 @@ Hooks.once('init', async function() {
     SimplePolygonVertex2: PolygonVertex,
     SimplePolygonEdge2: SimplePolygonEdge2,
 
-//     Intersections: Intersections,
-//     Intersections2: Intersections2,
-//     BruteSortIntersections: BruteSortIntersections,
-//     BruteSortXYIntersections: BruteSortXYIntersections,
+    Intersections: Intersections,
+    Intersections2: Intersections2,
+    BruteSortIntersections: BruteSortIntersections,
+    BruteSortXYIntersections: BruteSortXYIntersections,
 
     sweep: sweep,
     brute: brute,
