@@ -1,41 +1,5 @@
-[package]
-name = "intersections"
-version = "0.1.0"
-edition = "2021"
-authors = ["Michael Enion <caewok_2000@yahoo.com"]
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-rand = "0.8.5"
-geo = { version = "0.19.0", features = ["use-serde"] }
-num-traits = "0.2.14"
-num-derive = "0.3.3"
-robust = "0.2.3"
-castaway = "0.1.2"
-smallvec = "1.8.0"
-wasm-bindgen = "0.2.79"
-getrandom = { version = "0.2.5", features = ["js"] }
-
-# no perceived change using LTO
-#[profile.release]
-#lto = true # link-time optimization
-
-[dev-dependencies]
-criterion = "0.3" # benchmarking with criterion https://bheisler.github.io/criterion.rs/book/getting_started.html
-
-[[bench]]
-name = "my_benchmark"
-harness = false
-
-[lib]
-name = "intersections"
-path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
-
-[[bin]]
-name = "intersections_bin"
-path = "src/main.rs"
-
+members = [
+	"line",
+]

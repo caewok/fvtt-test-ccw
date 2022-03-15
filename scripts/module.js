@@ -19,7 +19,7 @@ import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
 import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
-import initWASM, * as WASM from "../wasm/intersections.js";
+import initWASM, * as WASM from "../wasm/intersections_line.js";
 
 
 

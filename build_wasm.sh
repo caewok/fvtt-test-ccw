@@ -1,7 +1,7 @@
 #/bin/bash
 
 path=$PWD
-build_dir="${PWD}/intersections"
+build_dir="${PWD}/intersections/line"
 out_dir="${PWD}/wasm"
 
 echo $build_dir

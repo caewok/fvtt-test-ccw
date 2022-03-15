@@ -5,7 +5,7 @@
 
 // use intersections::js_api::brute_i32;
 
-use intersections::segment::{OrderedSegment, SimpleIntersect};
+use intersections_line::segment::{OrderedSegment, SimpleIntersect};
 use geo::Point;
 
 fn main() {
