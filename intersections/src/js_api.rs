@@ -4,10 +4,20 @@
 
 // https://radu-matei.com/blog/practical-guide-to-wasm-memory/
 // https://github.com/WebAssembly/design/issues/1231
-use crate::intersections::{ix_brute_single, ix_brute_double, ix_sort_single, ix_sort_double};
-use crate::point::{orient2d};
+use crate::intersections::{
+	ix_brute_single_f64,
+	ix_brute_single_i32,
+	ix_brute_double_f64,
+	ix_brute_double_i32,
+	ix_sort_single_f64,
+	ix_sort_single_i32,
+	ix_sort_double_f64,
+	ix_sort_double_i32,
+	};
+use crate::point::SimpleOrient;
 use crate::segment::OrderedSegment;
 use geo::algorithm::kernels::Orientation;
+use geo::Coordinate;
 use smallvec::SmallVec;
 use crate::intersections::IxResultFloat;
 
@@ -46,7 +56,7 @@ pub fn brute_i32(coordinates: &[i32]) -> Option<Box<[f64]>> {
 
 	println!("Locating intersections...");
 
-	let ixs = ix_brute_single(&segments);
+	let ixs = ix_brute_single_i32(&segments);
 	bundle_ix(ixs)
 }
 
@@ -61,7 +71,7 @@ pub fn brute_f64(coordinates: &[f64]) -> Option<Box<[f64]>> {
 	}
 	let segments = segments; // don't need mutability anymore
 
-	let ixs = ix_brute_single(&segments);
+	let ixs = ix_brute_single_f64(&segments);
 	bundle_ix(ixs)
 }
 
@@ -87,7 +97,7 @@ pub fn brute_double_i32(coordinates0: &[i32], coordinates1: &[i32]) -> Option<Bo
 	let segments0 = segments0; // don't need mutability anymore
 	let segments1 = segments1; // don't need mutability anymore
 
-	let ixs = ix_brute_double(&segments0, &segments1);
+	let ixs = ix_brute_double_i32(&segments0, &segments1);
 	bundle_ix(ixs)
 }
 
@@ -113,7 +123,7 @@ pub fn brute_double_f64(coordinates0: &[f64], coordinates1: &[f64]) -> Option<Bo
 	let segments0 = segments0; // don't need mutability anymore
 	let segments1 = segments1; // don't need mutability anymore
 
-	let ixs = ix_brute_double(&segments0, &segments1);
+	let ixs = ix_brute_double_f64(&segments0, &segments1);
 	bundle_ix(ixs)
 }
 
@@ -127,7 +137,7 @@ pub fn sort_i32(coordinates: &[i32]) -> Option<Box<[f64]>> {
 		segments.push(OrderedSegment::new_with_idx((coordinates[i], coordinates[i+1]), (coordinates[i+2], coordinates[i+3]), i / 4));
 	}
 
-	let ixs = ix_sort_single(&mut segments);
+	let ixs = ix_sort_single_i32(&mut segments);
 	bundle_ix(ixs)
 }
 
@@ -141,7 +151,7 @@ pub fn sort_f64(coordinates: &[f64]) -> Option<Box<[f64]>> {
 		segments.push(OrderedSegment::new_with_idx((coordinates[i], coordinates[i+1]), (coordinates[i+2], coordinates[i+3]), i / 4));
 	}
 
-	let ixs = ix_sort_single(&mut segments);
+	let ixs = ix_sort_single_f64(&mut segments);
 	bundle_ix(ixs)
 }
 
@@ -163,7 +173,7 @@ pub fn sort_double_i32(coordinates0: &[i32], coordinates1: &[i32]) -> Option<Box
 		segments1.push(OrderedSegment::new_with_idx((coordinates1[i], coordinates1[i+1]), (coordinates1[i+2], coordinates1[i+3]), i / 4));
 	}
 
-	let ixs = ix_sort_double(&mut segments0, &mut segments1);
+	let ixs = ix_sort_double_i32(&mut segments0, &mut segments1);
 	bundle_ix(ixs)
 }
 
@@ -185,15 +195,33 @@ pub fn sort_double_f64(coordinates0: &[f64], coordinates1: &[f64]) -> Option<Box
 		segments1.push(OrderedSegment::new_with_idx((coordinates1[i], coordinates1[i+1]), (coordinates1[i+2], coordinates1[i+3]), i / 4));
 	}
 
-	let ixs = ix_sort_double(&mut segments0, &mut segments1);
+	let ixs = ix_sort_double_f64(&mut segments0, &mut segments1);
 	bundle_ix(ixs)
 }
 
 
 
 #[wasm_bindgen]
-pub fn orient2d_js(ax: i32, ay: i32, bx: i32, by: i32, cx: i32, cy: i32) -> i8 {
-	let res = orient2d((ax, ay).into(), (bx, by).into(), (cx, cy).into());
+pub fn orient2d_i32_js(ax: i32, ay: i32, bx: i32, by: i32, cx: i32, cy: i32) -> i8 {
+	let c1: Coordinate<i32> = (ax, ay).into();
+	let c2: Coordinate<i32> = (bx, by).into();
+	let c3: Coordinate<i32> = (cx, cy).into();
+
+	let res = c1.orient2d(c2, c3);
+	match res {
+		Orientation::Clockwise => 1,
+		Orientation::CounterClockwise => -1,
+		Orientation::Collinear => 0
+	}
+}
+
+#[wasm_bindgen]
+pub fn orient2d_f64_js(ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64) -> i8 {
+	let c1: Coordinate<f64> = (ax, ay).into();
+	let c2: Coordinate<f64> = (bx, by).into();
+	let c3: Coordinate<f64> = (cx, cy).into();
+
+	let res = c1.orient2d(c2, c3);
 	match res {
 		Orientation::Clockwise => 1,
 		Orientation::CounterClockwise => -1,
