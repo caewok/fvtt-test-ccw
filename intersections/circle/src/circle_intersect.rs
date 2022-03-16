@@ -1,5 +1,11 @@
 use geo::{ Coordinate, Point, Line, CoordNum };
 use geo::prelude::EuclideanLength;
+use intersections_line::point::GenerateRandom;
+use rand::Rng;
+use rand::prelude::Distribution;
+use rand::distributions::Standard;
+use rand::distributions::uniform::SampleUniform;
+use num_traits::Bounded;
 // use intersections_line::segment::SimpleIntersect;
 
 
@@ -11,8 +17,50 @@ pub struct Circle<T>
 	pub radius: T,
 }
 
+impl<T> Circle<T>
+	where T: CoordNum,
+{
+	pub fn new<C>(center: C, radius: T) -> Self
+		where C: Into<Coordinate<T>>
+	{
+		let center: Coordinate<T> = center.into();
+		Self { center, radius }
+	}
+}
+
+impl<T> GenerateRandom for Circle<T>
+	where T: CoordNum + SampleUniform + Bounded, Standard: Distribution<T>,
+{
+	type MaxType = T;
+
+	fn random() -> Self {
+		let center = rand::random::<(T, T)>();
+		let z: T = num_traits::zero();
+		let max = <T as Bounded>::max_value();
+		let mut rng = rand::thread_rng();
+		let radius = rng.gen_range(z..max);
+		Self::new(center, radius)
+	}
+
+	fn random_range(min: T, max: T) -> Self {
+		let mut rng = rand::thread_rng();
+		let z: T = num_traits::zero();
+		let center = (rng.gen_range(min..=max), rng.gen_range(min..=max));
+		let radius = rng.gen_range(z..=max);
+		Self::new(center, radius)
+	}
+
+	fn random_pos(max: T) -> Self {
+		let mut rng = rand::thread_rng();
+		let z: T = num_traits::zero();
+		let center = (rng.gen_range(z..=max), rng.gen_range(z..=max));
+		let radius = rng.gen_range(z..=max);
+		Self::new(center, radius)
+	}
+}
+
 #[allow(dead_code)]
-fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+pub fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
 	let epsilon = 1.0e-8_f64;
 
 	let r2 = circle.radius.powi(2);
@@ -37,7 +85,7 @@ fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Option<P
 // return true/false for potential intersection -- meaning the discriminant shows
 // intersections are possible.
 #[allow(dead_code)]
-fn quadratic_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> bool {
+pub fn quadratic_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> bool {
 	let epsilon = 1.0e-8_f64;
 	let r2 = circle.radius.powi(2);
 
@@ -72,7 +120,7 @@ fn quadratic_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> boo
 }
 
 #[allow(dead_code)]
-fn quadratic_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+pub fn quadratic_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
 	let epsilon = 1.0e-8_f64;
 
 	let delta_l = line.delta();
@@ -113,7 +161,7 @@ fn quadratic_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Po
 }
 
 #[allow(dead_code)]
-fn geometric_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+pub fn geometric_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
 // 	https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
 	// label A = line start; B = line_end
 	let lab = line.euclidean_length();
@@ -158,7 +206,7 @@ fn geometric_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Po
 }
 
 #[allow(dead_code)]
-fn geometric_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> bool {
+pub fn geometric_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> bool {
 	let epsilon = 1.0e-8_f64;
 	let r2 = circle.radius.powi(2);
 
@@ -196,7 +244,7 @@ fn geometric_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> boo
 }
 
 #[allow(dead_code)]
-fn geometric_area_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+pub fn geometric_area_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
 // 	https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
 	// using triangle ABC area formula, area = bh / 2
 	// choose the segment AB to be the base so that h is the shortest distance from C to line
