@@ -195,6 +195,55 @@ fn geometric_potential_intersects(circle: &Circle<f64>, line: &Line<f64>) -> boo
 	lec2 <= r2 // if equal, it is a tangent
 }
 
+#[allow(dead_code)]
+fn geometric_area_intersections(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+// 	https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+	// using triangle ABC area formula, area = bh / 2
+	// choose the segment AB to be the base so that h is the shortest distance from C to line
+
+	// compute the triangle area times 2 (area = area2 / 2)
+	let delta_l = line.delta();
+	let delta_start = circle.center - line.start;
+
+	let area2 = (delta_l.x * delta_start.y - delta_start.x * delta_l.y).abs();
+
+	// compute the AB segment length
+	// could compute an approximate 1 / LAB: http://betterexplained.com/articles/understanding-quakes-fast-inverse-square-root/
+
+	let lab = line.euclidean_length();
+
+	// compute the triangle height
+	let h = area2 / lab;
+
+	if h >= circle.radius { return (None, None); }
+
+	// compute the line AB direction vetor components
+	let d = delta_l / lab;
+
+	// compute the distance from A towards B of closest point to C
+	let t = d.x * delta_start.x + d.y * delta_start.y;
+
+	// t should equal sqrt((Cx - Ax)^2 + (Cy - Ay)^2 - h2)
+
+	// compute the intersection point distance from t
+	let r2 = circle.radius.powi(2);
+	let dt = (r2 - h.powi(2)).sqrt();
+
+	let t1 = t - dt;
+	let t2 = t + dt;
+
+	// compute points using equation of a line
+	let f = if t1 > 0. && t1 < lab {
+		Some((d * t1 + line.start).into())
+	} else { None };
+
+	let g = if t2 > 0. && t2 < lab {
+		Some((d * t2 + line.start).into())
+	} else { None };
+
+	(f, g)
+}
+
 
 // impl Circle<f64> {
 // 	fn padding(density: usize) {
@@ -477,5 +526,39 @@ mod tests {
 // 			)); // tangent fails for Javascript version as well; floats too inexact
 	}
 
+	#[test]
+	fn geometric_area_intersections_works() {
+		let c: Circle<f64> = Circle {
+			center: Coordinate { x: 0., y: 0. },
+			radius: 100.
+		};
+
+		let l_inside = Line::<f64>::new((-25., -25.), (25., 25.));
+		let l_outside = Line::<f64>::new((-100., 200.), (100., 200.));
+		let l1 = Line::<f64>::new((-200., 0.), (0., 0.));
+		let l1_b = Line::<f64>::new((0., 0.), (200., 0.));
+		let l2 = Line::<f64>::new((-200., 0.), (200., 0.));
+		let l_tan = Line::<f64>::new((-200., 100.), (200., 100.));
+
+		assert_eq!(geometric_area_intersections(&c, &l_inside), (None, None));
+		assert_eq!(geometric_area_intersections(&c, &l_outside), (None, None));
+		assert_eq!(geometric_area_intersections(&c, &l1),
+			( Some(Point::<f64>::new(-100., 0.)),
+			  None,
+			));
+		assert_eq!(geometric_area_intersections(&c, &l1_b),
+			( None,
+			  Some(Point::<f64>::new(100., 0.)),
+			));
+
+		assert_eq!(geometric_area_intersections(&c, &l2),
+			( Some(Point::<f64>::new(-100., 0.)),
+			  Some(Point::<f64>::new(100., 0.)),
+			));
+// 		assert_eq!(geometric_area_intersections(&c, &l_tan),
+// 			( Some(Point::<f64>::new(100., 100.)),
+// 			  None,
+// 			)); // tangent fails for Javascript version as well; floats too inexact
+	}
 }
 
