@@ -59,6 +59,69 @@ impl<T> GenerateRandom for Circle<T>
 	}
 }
 
+// http://cliffle.com/p/dangerust/4/
+#[repr(C)]
+union IntOrFloat {
+	u: u32,
+	f: f32,
+}
+
+impl IntOrFloat {
+	// Return storage as f32
+	pub fn as_float(&self) -> f32 {
+		// Safety: in-memory representation of f64 and u64 is compatible in that
+		// they share the same number of bits, so access to the union members is safe
+		// in any order.
+		unsafe {
+			self.f
+		}
+	}
+
+	// Return storage as u32
+	pub fn as_uint(&self) -> u32 {
+		// Safety: in-memory representation of f64 and u64 is compatible in that
+		// they share the same number of bits, so access to the union members is safe
+		// in any order.
+		unsafe {
+			self.u
+		}
+	}
+
+// 	pub fn uint_to_float(num: u32) -> f32 {
+// 		let convert: Self = IntOrFloat { u: num };
+// 		return convert.as_float();
+// 	}
+//
+// 	pub fn float_to_uint(num: f32) -> u32 {
+// 		let convert: Self = IntOrFloat { f: num };
+// 		return convert.as_uint();
+// 	}
+
+}
+
+//https://betterexplained.com/articles/understanding-quakes-fast-inverse-square-root/
+
+fn inv_sqrt_fast(x: f64) -> f64 {
+	let xhalf: f64 = 0.5 * x;
+	dbg!(xhalf);
+
+	let u = IntOrFloat { f: (xhalf as f32) };
+	let i: u32 = u.as_uint();
+	dbg!(i);
+
+    let i = 0x5f3759df_u32.wrapping_sub(i >> 1); // initial guess for Newton's method
+	dbg!(i);
+
+	let u = IntOrFloat { u: i };
+	let x: f64 = u.as_float() as f64; // convert new bits back to float
+	dbg!(x);
+
+	let x = x * (1.5_f64 - xhalf * x * x); // One round of Newton's method
+	dbg!(x);
+
+	return x;
+}
+
 #[allow(dead_code)]
 pub fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
 	let epsilon = 1.0e-8_f64;
@@ -458,6 +521,14 @@ function intersectionsWithCircleGeometry(l, center, radius) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+// ---------------- SQRT
+	#[test]
+	fn inv_sqrt_fast_works() {
+		assert_eq!(inv_sqrt_fast(2_f64), 1_f64 / 2_f64.sqrt());
+		assert_eq!(inv_sqrt_fast(1_f64), 1_f64 / 1_f64.sqrt());
+		assert_eq!(inv_sqrt_fast(100.5_f64), 1_f64 / 100.5_f64.sqrt());
+	}
 
 // ---------------- INTERSECTS
 	#[test]
