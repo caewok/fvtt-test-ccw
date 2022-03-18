@@ -1,12 +1,18 @@
-use geo::{ Coordinate, Point, Line };
+use geo::{ Point, Line };
 use geo::prelude::EuclideanLength;
-use intersections_line::point::GenerateRandom;
+
 use crate::circle::{Circle};
 // use intersections_line::segment::SimpleIntersect;
 
+pub struct CircleIntersection {
+	pub ixs: (Option<Point<f64>>, Option<Point<f64>>),
+	pub a_inside: bool,
+	pub b_inside: bool,
+}
+
 
 #[allow(dead_code)]
-pub fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Option<Point<f64>>, Option<Point<f64>>) {
+pub fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> CircleIntersection {
 	let epsilon = 1.0e-8_f64;
 
 	let r2 = circle.radius.powi(2);
@@ -22,9 +28,20 @@ pub fn line_circle_intersection(circle: &Circle<f64>, line: &Line<f64>) -> (Opti
 	let b_inside = br2 <= r2 + epsilon;
 
 	// if line segment is completely inside the circle, there is no intersection.
-	if a_inside && b_inside { return (None, None); }
+	if a_inside && b_inside {
+		return CircleIntersection {
+			ixs: (None, None),
+			a_inside: a_inside,
+			b_inside: b_inside,
+		};
+	}
 
-	quadratic_intersections(circle, line)
+	CircleIntersection {
+		ixs: quadratic_intersections(circle, line),
+		a_inside: a_inside,
+		b_inside: b_inside,
+	}
+
 
 }
 
@@ -306,6 +323,7 @@ function intersectionsWithCircleGeometry(l, center, radius) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use geo::{ Line, Point, Coordinate };
 
 // ---------------- INTERSECTS
 	#[test]

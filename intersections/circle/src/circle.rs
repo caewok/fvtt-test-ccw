@@ -1,13 +1,12 @@
-use geo::{Coordinate, CoordNum, Line};
+use geo::{ Coordinate, CoordNum, Line };
 use num_traits::Bounded;
-use intersections_line::point::GenerateRandom;
 use rand::Rng;
 use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
+use intersections_line::point::GenerateRandom;
 // use measurements::angle::Angle;
 use std::f64::consts::PI;
-use num_traits::cast;
 use num_traits::real::Real;
 use num_traits::ToPrimitive;
 
@@ -29,7 +28,7 @@ impl<T> Circle<T>
 		Self { center, radius }
 	}
 
-	fn as_points(&self, from_pt: Coordinate<T>, to_pt: Coordinate<T>, density: usize) -> Vec<Coordinate<T>> {
+	pub fn as_points(&self, from_pt: Coordinate<T>, to_pt: Coordinate<T>, density: usize) -> Vec<Coordinate<T>> {
 		let from_l = Line::new(self.center, from_pt);
 		let to_l = Line::new(self.center, to_pt);
 
@@ -49,16 +48,10 @@ impl<T> Circle<T>
 	// like Projection::project_along_angle but assumes distance radius
 	fn project_on_circle(&self, radians: f64) -> Coordinate<T> {
 		let distance: f64 = self.radius.to_f64().unwrap();
-		dbg!(distance);
 		self.center.project_along_angle(radians, distance)
 	}
 
 	fn as_points_from_angle(&self, from_radians: f64, to_radians: f64, density: usize) -> Vec<Coordinate<T>> {
-		println!("\n as_points_from_angle");
-		dbg!(from_radians);
-		dbg!(to_radians);
-		dbg!(density);
-
 		let density = PI / (density as f64);
 
 		// Determine padding delta
@@ -67,30 +60,17 @@ impl<T> Circle<T>
 			padding_angle = padding_angle + (2. * PI);
 		} // handle cycling past PI
 
-		dbg!(padding_angle);
-		dbg!(density);
-		dbg!(padding_angle / density);
-
 		let num_pad:usize = (padding_angle / density).round().to_usize().unwrap();
-		dbg!(num_pad);
-
 		if num_pad == 0 { return Vec::with_capacity(0); }
 
 		let mut padding: Vec<Coordinate<T>> = Vec::with_capacity(num_pad);
 
 		// construct points based on incrementing angle
 		let delta_angle = padding_angle / (num_pad as f64);
-		dbg!(delta_angle);
 		for i in 1..num_pad {
-
-
 			let new_angle = from_radians + (delta_angle * (i as f64));
-			dbg!(i as f64);
-			dbg!(new_angle);
 			padding.push(self.project_on_circle(new_angle));
 		}
-
-// 		let padding = padding; // remove mutability
 
 		padding
 	}
@@ -105,11 +85,6 @@ impl<T> Projection for Coordinate<T>
 	where T: CoordNum + Real,
 {
 	fn project_along_angle(&self, radians: f64, distance: f64) -> Self {
-// 		let (dy, dx) = angle.sin_cos(); // returns sin(radians), cos(radians)
-		dbg!(self);
-		dbg!(radians);
-		dbg!(distance);
-
 		let x = self.x.to_f64().unwrap();
 		let y = self.y.to_f64().unwrap();
 
@@ -266,6 +241,8 @@ impl<T> GenerateRandom for Circle<T>
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use geo::Coordinate;
+	use intersections_line::point::GenerateRandom;
 
 // ---------------- PADDING
 	#[test]
