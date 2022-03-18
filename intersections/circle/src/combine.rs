@@ -106,7 +106,6 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 	// tradeoff with likely number of points before encountering intersection:
 	// - worst case is every edge but one
 	// - half or 1/4 is likely
-	let mut starting_edges: Vec<Line<f64>> = Vec::with_capacity(poly.0.len() / 2);
 	let mut intersection_data = ProcessedIntersectionData {
 		clockwise,
 		is_tracing_segment: false,
@@ -117,68 +116,91 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 		b_inside: true,
 	};
 
+	let mut edges: Vec<Line<f64>> = poly.lines().collect();
 
-
+	// first, find the first intersecting edge
+	// then loop around until back at the first intersecting edge
+	let max_iterations = edges.len() * 2;
+	let ln = edges.len();
 	let mut first_intersecting_edge_idx: isize = -1;
-	for (i, line) in poly.lines().enumerate() {
+	let mut circled_back = false;
+	for i in 0..max_iterations {
 		println!("\n{}:", i);
-		let ixs_result = line_circle_intersection(&circle, &line);
+		if circled_back {
+			println!("Back to first intersecting edge—breaking out!");
+			break;
+		}
+
+		let edge_idx = i % ln;
+		let edge = edges[edge_idx];
+
+		if edge_idx as isize == first_intersecting_edge_idx {
+			circled_back = true;
+			println!("Breaking after this iteration!");
+		}
+
+		let ixs_result = line_circle_intersection(&circle, &edge);
 		match ixs_result.ixs {
 			(None, None) => {
 				println!("No intersection");
-				if first_intersecting_edge_idx == -1 { starting_edges.push(line); }
+				// if first_intersecting_edge_idx == -1 { starting_edges.push(line); }
 			},
 
 			(Some(ix1), Some(ix2)) => {
 				println!("Handling intersections {},{} and {},{}", ix1.x(), ix1.y(), ix2.x(), ix2.y());
-				if first_intersecting_edge_idx == -1 { first_intersecting_edge_idx = i as isize; }
+				if first_intersecting_edge_idx == -1 {
+					first_intersecting_edge_idx = edge_idx as isize;
+					intersection_data.is_tracing_segment = true;
+				}
 
 				// we must have a outside --> i0 ---> i1 ---> b outside
 				intersection_data.ix = Some(ix1.into());
 				intersection_data.a_inside = ixs_result.a_inside;
 				intersection_data.b_inside = ixs_result.b_inside;
 
-				let mut processed_pts = process_intersection(&circle, &line, &mut intersection_data, false);
+				let mut processed_pts = process_intersection(&circle, &edge, &mut intersection_data, false);
 				pts.append(&mut processed_pts);
 
 				intersection_data.ix = Some(ix2.into());
-				let mut processed_pts = process_intersection(&circle, &line, &mut intersection_data, true);
+				let mut processed_pts = process_intersection(&circle, &edge, &mut intersection_data, true);
 				pts.append(&mut processed_pts);
 			},
 
 			(Some(ix), None) => {
 				println!("Handling intersection {},{}", ix.x(), ix.y());
-				if first_intersecting_edge_idx == -1 { first_intersecting_edge_idx = i as isize; }
+				if first_intersecting_edge_idx == -1 {
+					first_intersecting_edge_idx = edge_idx as isize;
+					intersection_data.is_tracing_segment = true;
+				}
 				intersection_data.ix = Some(ix.into());
 				intersection_data.a_inside = ixs_result.a_inside;
 				intersection_data.b_inside = ixs_result.b_inside;
 
-				let mut processed_pts = process_intersection(&circle, &line, &mut intersection_data, false);
+				let mut processed_pts = process_intersection(&circle, &edge, &mut intersection_data, false);
 				pts.append(&mut processed_pts);
 			}
 
 			(None, Some(ix)) => {
 				println!("Handling intersection {},{}", ix.x(), ix.y());
-				if first_intersecting_edge_idx == -1 { first_intersecting_edge_idx = i as isize; }
+				if first_intersecting_edge_idx == -1 {
+					first_intersecting_edge_idx = edge_idx as isize;
+					intersection_data.is_tracing_segment = true;
+				}
 				intersection_data.ix = Some(ix.into());
 				intersection_data.a_inside = ixs_result.a_inside;
 				intersection_data.b_inside = ixs_result.b_inside;
 
-				let mut processed_pts = process_intersection(&circle, &line, &mut intersection_data, false);
+				let mut processed_pts = process_intersection(&circle, &edge, &mut intersection_data, false);
 				pts.append(&mut processed_pts);
 			},
 		}
 
-		if intersection_data.is_tracing_segment {
+		if intersection_data.is_tracing_segment & !circled_back {
 			// add the edge B vertex to points array
-			pts.push(line.end);
+			println!("Adding endpoint {},{}", edge.end.x, edge.end.y);
+			pts.push(edge.end);
 		}
-	}
 
-	// iterate from start to first intersecting edge if necessary
-	// not necessary if we are just closing the circle?
-	for line in &starting_edges {
-		pts.push(line.end);
 	}
 
 	pts.into()
@@ -282,6 +304,11 @@ mod tests {
 
 	#[test]
 	fn circle_poly_union_works() {
+		// for ccw-oriented polygon:
+		// intersect: clockwise = true
+		// union: clockwise = false
+		let density = 12_usize;
+		let clockwise = false;
 		let c: Circle<f64> = Circle {
 			center: Coordinate { x: 0., y: 0. },
 			radius: 100.,
@@ -296,22 +323,60 @@ mod tests {
 			Coordinate { x: -200., y: 0. } // closed
 		].into();
 
-		// for ccw-oriented polygon:
-		// intersect: clockwise = true?
-		// union: clockwise = false?
-		let res = trace_polygon_border(&ls, &c, true, 12_usize);
 
-		let expected: MultiPoint<f64> = vec![
+		let res = trace_polygon_border(&ls, &c, clockwise, density);
+
+		let mut expected: Vec<Coordinate<f64>> = vec![
+			Coordinate { x: -44.721359549995796, y: 89.44271909999159 },
+		];
+
+
+		expected.append(&mut c.as_points(expected[0], Coordinate { x: -44.721359549995796, y: -89.44271909999159}, density));
+		expected.push(Coordinate { x: -44.721359549995796, y: -89.44271909999159});
+		expected.push(Coordinate { x: -100., y: -200. });
+		expected.push(Coordinate { x: -200., y: 0. });
+		expected.push(Coordinate { x: -100., y: 200. });
+		expected.push(Coordinate { x: -44.721359549995796, y: 89.44271909999159 });
+
+		let expected: MultiPoint<f64> = expected.into();
+		assert_eq!(res, expected); // todo: fix
+	}
+
+	#[test]
+	fn circle_poly_intersect_works() {
+		// for ccw-oriented polygon:
+		// intersect: clockwise = true
+		// union: clockwise = false
+		let density = 12_usize;
+		let clockwise = true;
+		let c: Circle<f64> = Circle {
+			center: Coordinate { x: 0., y: 0. },
+			radius: 100.,
+		};
+
+		// diamond shape with one point at circle center
+		let ls: LineString<f64> = vec![
+			Coordinate { x: -200., y: 0. },
+			Coordinate { x: -100., y: 200. },
+			Coordinate { x: 0., y: 0. },
+			Coordinate { x: -100., y: -200. },
+			Coordinate { x: -200., y: 0. } // closed
+		].into();
+
+
+		let res = trace_polygon_border(&ls, &c, clockwise, density);
+
+		let mut expected: Vec<Coordinate<f64>> = vec![
 			Coordinate { x: -44.721359549995796, y: 89.44271909999159 },
 			Coordinate { x: 0., y: 0. },
 			Coordinate { x: -44.721359549995796, y: -89.44271909999159},
-			Coordinate { x: -100., y: -200. },
-			Coordinate { x: -200., y: 0. },
-			Coordinate { x: -100., y: 200. },
-		].into();
+		];
 
+		expected.append(&mut c.as_points(expected[2], expected[0], density));
+		expected.push(expected[0]);
+
+		let expected: MultiPoint<f64> = expected.into();
 		assert_eq!(res, expected); // todo: fix
-
 	}
 
 }
