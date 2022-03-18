@@ -87,7 +87,7 @@ impl<T> Contains<Coordinate<T>> for Circle<T>
 
 
 
-fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise: bool, density: usize) -> MultiPoint<f64> {
+pub fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise: bool, density: usize) -> MultiPoint<f64> {
 	// walk around the poly border.
 	// for each edge, check for intersection with circle.
 	// could intersect at endpoint or on line
@@ -125,9 +125,9 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 	let mut first_intersecting_edge_idx: isize = -1;
 	let mut circled_back = false;
 	for i in 0..max_iterations {
-		println!("\n{}:", i);
+// 		println!("\n{}:", i);
 		if circled_back {
-			println!("Back to first intersecting edge—breaking out!");
+// 			println!("Back to first intersecting edge—breaking out!");
 			break;
 		}
 
@@ -136,18 +136,18 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 
 		if edge_idx as isize == first_intersecting_edge_idx {
 			circled_back = true;
-			println!("Breaking after this iteration!");
+// 			println!("Breaking after this iteration!");
 		}
 
 		let ixs_result = line_circle_intersection(&circle, &edge);
 		match ixs_result.ixs {
 			(None, None) => {
-				println!("No intersection");
+// 				println!("No intersection");
 				// if first_intersecting_edge_idx == -1 { starting_edges.push(line); }
 			},
 
 			(Some(ix1), Some(ix2)) => {
-				println!("Handling intersections {},{} and {},{}", ix1.x(), ix1.y(), ix2.x(), ix2.y());
+// 				println!("Handling intersections {},{} and {},{}", ix1.x(), ix1.y(), ix2.x(), ix2.y());
 				if first_intersecting_edge_idx == -1 {
 					first_intersecting_edge_idx = edge_idx as isize;
 					intersection_data.is_tracing_segment = true;
@@ -167,7 +167,7 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 			},
 
 			(Some(ix), None) => {
-				println!("Handling intersection {},{}", ix.x(), ix.y());
+// 				println!("Handling intersection {},{}", ix.x(), ix.y());
 				if first_intersecting_edge_idx == -1 {
 					first_intersecting_edge_idx = edge_idx as isize;
 					intersection_data.is_tracing_segment = true;
@@ -181,7 +181,7 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 			}
 
 			(None, Some(ix)) => {
-				println!("Handling intersection {},{}", ix.x(), ix.y());
+// 				println!("Handling intersection {},{}", ix.x(), ix.y());
 				if first_intersecting_edge_idx == -1 {
 					first_intersecting_edge_idx = edge_idx as isize;
 					intersection_data.is_tracing_segment = true;
@@ -197,7 +197,7 @@ fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise:
 
 		if intersection_data.is_tracing_segment & !circled_back {
 			// add the edge B vertex to points array
-			println!("Adding endpoint {},{}", edge.end.x, edge.end.y);
+// 			println!("Adding endpoint {},{}", edge.end.x, edge.end.y);
 			pts.push(edge.end);
 		}
 
@@ -243,7 +243,7 @@ fn process_intersection(circle: &Circle<f64>,
 		(true, true) => panic!("process_intersection encountered a line with both endpoints inside the circle!"),
 	};
 
-	println!("Ix {},{}: Tracing segment: {} (Was tracing: {})", ix.x, ix.y, is_tracing_segment, was_tracing_segment);
+// 	println!("Ix {},{}: Tracing segment: {} (Was tracing: {})", ix.x, ix.y, is_tracing_segment, was_tracing_segment);
 
 	let mut padding: Vec<Coordinate<f64>> =
 		if !was_tracing_segment && is_tracing_segment {
@@ -251,11 +251,11 @@ fn process_intersection(circle: &Circle<f64>,
 
 			let from_pt = ix_data.circle_start.unwrap();
 			ix_data.circle_start = None;
-			println!("Moved from circle to segment; padding from {},{} to {},{}", from_pt.x, from_pt.y, ix.x, ix.y);
+// 			println!("Moved from circle to segment; padding from {},{} to {},{}", from_pt.x, from_pt.y, ix.x, ix.y);
 			circle.as_points(from_pt, ix, ix_data.density)
 		} else if was_tracing_segment && !is_tracing_segment {
 			// we have moved from segment to circle; remember the previous intersection
-			println!("Moved from segment to circle; storing {},{}", ix.x, ix.y);
+// 			println!("Moved from segment to circle; storing {},{}", ix.x, ix.y);
 			ix_data.circle_start = Some(ix);
 			Vec::with_capacity(1)
 		} else {
@@ -268,7 +268,7 @@ fn process_intersection(circle: &Circle<f64>,
 	if was_tracing_segment || is_tracing_segment &&
 	   !(approx_eq!(f64, line.end.x, ix.x, ulps = 2) &&
 	     approx_eq!(f64, line.end.y, ix.y, ulps = 2)) {
-	      println!("Adding ix {},{}", ix.x, ix.y);
+// 	      println!("Adding ix {},{}", ix.x, ix.y);
 		padding.push(ix);
 	};
 
