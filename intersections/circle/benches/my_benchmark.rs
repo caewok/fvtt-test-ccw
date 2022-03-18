@@ -125,7 +125,7 @@ fn bench_poly_circle_union(c: &mut Criterion) {
 	group.bench_function("poly_circle_union", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			trace_polygon_border(bb_(&data.poly.exterior()), bb_(&data.circle), false, 60_usize);
+			trace_polygon_border(bb_( bb_(&data.circle), &data.poly.exterior()), false, 60_usize);
 		},
 		BatchSize::SmallInput)
 	});
@@ -133,7 +133,7 @@ fn bench_poly_circle_union(c: &mut Criterion) {
 	group.bench_function("poly_circle_intersects", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			trace_polygon_border(bb_(&data.poly.exterior()), bb_(&data.circle), true, 60_usize);
+			trace_polygon_border(bb_(bb_(&data.circle), &data.poly.exterior()), true, 60_usize);
 		},
 		BatchSize::SmallInput)
 	});

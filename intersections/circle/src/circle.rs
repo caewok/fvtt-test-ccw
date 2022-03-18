@@ -1,4 +1,4 @@
-use geo::{ Coordinate, CoordNum, Line };
+use geo::{ Coordinate, CoordNum, Line, LineString, Polygon };
 use num_traits::Bounded;
 use rand::Rng;
 use rand::prelude::Distribution;
@@ -26,6 +26,13 @@ impl<T> Circle<T>
 	{
 		let center: Coordinate<T> = center.into();
 		Self { center, radius }
+	}
+
+	pub fn as_polygon(&self, density: usize) -> Polygon<T> {
+		Polygon::new(
+			LineString::from(self.as_points_from_angle(0., 0., density)),
+			vec![],
+		)
 	}
 
 	pub fn as_points(&self, from_pt: Coordinate<T>, to_pt: Coordinate<T>, density: usize) -> Vec<Coordinate<T>> {

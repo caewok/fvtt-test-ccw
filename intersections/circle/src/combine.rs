@@ -1,8 +1,9 @@
 use crate::circle::{Circle};
-use geo::{ CoordNum, Coordinate, Line, LineString, MultiPoint };
+use geo::{ CoordNum, Coordinate, Line, LineString, MultiPoint, Polygon };
 use crate::circle_intersect::{ line_circle_intersection };
 use num_traits::real::Real;
 use float_cmp::approx_eq;
+use geo::prelude::Contains as GeoContains;
 
 pub trait Contains<Other = Self> {
 	// Encompasses means the endpoints of other are completely inside self.
@@ -34,6 +35,82 @@ impl<T> Contains<Coordinate<T>> for Circle<T>
 	fn encompasses(&self, other: &Coordinate<T>) -> bool {
 		self.contains(other)
 	}
+}
+
+impl Contains<Polygon<f64>> for Circle<f64>
+{
+	fn contains(&self, other: &Polygon<f64>) -> bool {
+		// for now, dealing with only exterior of poly
+		// in theory, do we only need to consider the exterior?
+		for coord in other.exterior().coords() {
+			if !self.contains(coord) { return false; }
+		}
+		true
+	}
+
+	fn encompasses(&self, other: &Polygon<f64>) -> bool {
+		if !self.contains(other) { return false; }
+
+		// test intersections--if any lines intersect the circle,
+		// it does not encompass
+		for line in other.exterior().lines() {
+			let ixs_res = line_circle_intersection(self, &line);
+			match ixs_res.ixs {
+				(None, None) => {},
+				(None, Some(_ix)) => { return false; },
+				(Some(_ix), None) => { return false; },
+				(Some(_ix1), Some(_ix2)) => { return false; },
+			}
+		}
+
+		true
+	}
+}
+
+pub fn circle_poly_union(circle: &Circle<f64>, poly: &Polygon<f64>, density: usize) -> Option<Polygon<f64>> {
+	combine(circle, poly, false, density)
+}
+
+pub fn circle_poly_intersect(circle: &Circle<f64>, poly: &Polygon<f64>, density: usize) -> Option<Polygon<f64>> {
+	combine(circle, poly, true, density)
+}
+
+fn combine(circle: &Circle<f64>, poly: &Polygon<f64>, clockwise: bool, density: usize) -> Option<Polygon<f64>> {
+	// ignoring interior polygon holes for now
+	let mp: MultiPoint<f64> = trace_polygon_border(circle, &poly.exterior(), clockwise, density);
+
+	if mp.0.len() == 0 {
+		// if no intersections, either the polygons do not overlap or
+		// one encompasses the other (return the one that encompasses)
+		// we already know from trace_polygon_border that there are no
+		// intersections
+		let union = !clockwise;
+		if circle.contains(poly) {
+			return if union {
+				Some(circle.as_polygon(density))
+			} else {
+				Some(poly.clone())
+			}
+		}
+
+		// already know that the circle does not contain any polygon points
+    	// if circle center is within polygon, polygon must therefore contain the circle.
+  	  // (recall that we already found no intersecting points)
+		if (*poly).contains(&circle.center) {
+			return if union {
+				Some(poly.clone())
+			} else {
+				Some(circle.as_polygon(density))
+			}
+		}
+
+		return None;
+	}
+
+	Some(Polygon::new(
+		LineString::from(mp.0),
+		vec![],
+	))
 }
 
 // impl Contains<Line<T>> for Circle<T>
@@ -87,7 +164,7 @@ impl<T> Contains<Coordinate<T>> for Circle<T>
 
 
 
-pub fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockwise: bool, density: usize) -> MultiPoint<f64> {
+pub fn trace_polygon_border(circle: &Circle<f64>, poly: &LineString<f64>, clockwise: bool, density: usize) -> MultiPoint<f64> {
 	// walk around the poly border.
 	// for each edge, check for intersection with circle.
 	// could intersect at endpoint or on line
@@ -116,7 +193,7 @@ pub fn trace_polygon_border(poly: &LineString<f64>, circle: &Circle<f64>, clockw
 		b_inside: true,
 	};
 
-	let mut edges: Vec<Line<f64>> = poly.lines().collect();
+	let edges: Vec<Line<f64>> = poly.lines().collect();
 
 	// first, find the first intersecting edge
 	// then loop around until back at the first intersecting edge
@@ -324,7 +401,7 @@ mod tests {
 		].into();
 
 
-		let res = trace_polygon_border(&ls, &c, clockwise, density);
+		let res = trace_polygon_border(&c, &ls, clockwise, density);
 
 		let mut expected: Vec<Coordinate<f64>> = vec![
 			Coordinate { x: -44.721359549995796, y: 89.44271909999159 },
@@ -364,7 +441,7 @@ mod tests {
 		].into();
 
 
-		let res = trace_polygon_border(&ls, &c, clockwise, density);
+		let res = trace_polygon_border(&c, &ls, clockwise, density);
 
 		let mut expected: Vec<Coordinate<f64>> = vec![
 			Coordinate { x: -44.721359549995796, y: 89.44271909999159 },
