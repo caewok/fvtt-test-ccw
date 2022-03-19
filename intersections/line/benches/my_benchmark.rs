@@ -1,7 +1,7 @@
 use criterion::*;
-use intersections::point::{GenerateRandom, SimpleOrient};
-use intersections::segment::{OrderedSegment, SimpleIntersect};
-use intersections::intersections::{
+use intersections_line::point::{GenerateRandom, SimpleOrient};
+use intersections_line::segment::{OrderedSegment, SimpleIntersect};
+use intersections_line::intersections::{
 	ix_brute_single_f64,
 	ix_brute_single_i32,
 	ix_brute_double_f64,

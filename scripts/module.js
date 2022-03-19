@@ -19,7 +19,10 @@ import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
 import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
-import initWASM, * as WASM from "../wasm/intersections.js";
+import initWASMLine from "../wasm_line/intersections_line.js";
+import * as WASMLine from "../wasm_line/intersections_line.js";
+import initWASMCircle from "../wasm_circle/intersections_circle.js";
+import * as WASMCircle from "../wasm_circle/intersections_circle.js";
 
 
 
@@ -53,7 +56,8 @@ export function log(...args) {
 // });
 
 Hooks.once('init', async function() {
-	initWASM();
+	initWASMLine();
+	initWASMCircle();
 
   registerPIXIPolygonMethods();
   registerPIXIRectangleMethods();
@@ -100,7 +104,8 @@ Hooks.once('init', async function() {
     brute: brute,
     bush: bush,
 
-    WASM: WASM,
+		WASMLine: WASMLine,
+    WASMCircle: WASMCircle,
     WASM_exports: WASM_exports,
 
     }
