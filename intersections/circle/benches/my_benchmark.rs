@@ -5,6 +5,7 @@
 use criterion::*;
 
 use intersections_line::point::{GenerateRandom};
+use intersections_line::segment::{OrderedSegment};
 use intersections_circle::circle::Circle;
 use intersections_circle::circle_intersect::{
 	quadratic_potential_intersects,
@@ -12,6 +13,8 @@ use intersections_circle::circle_intersect::{
 	geometric_intersections,
 	geometric_potential_intersects,
 	geometric_area_intersections,
+	ix_brute_circle_segments,
+	ix_sort_circle_segments,
 };
 use intersections_circle::combine::trace_polygon_border;
 
@@ -32,6 +35,7 @@ struct BenchData<T>
 	circle: Circle<T>,
 	line: Line<T>,
 	poly: Polygon<T>,
+	segments: Vec<OrderedSegment<T>>,
 }
 
 impl <T> BenchData<T>
@@ -48,10 +52,16 @@ impl <T> BenchData<T>
 		let mut rng = rand::thread_rng();
 		let n: usize = rng.gen_range(n_min..=n_max);
 
+		let mut segments: Vec<OrderedSegment<T>> = Vec::with_capacity(n);
+		for _i in 0..n {
+			segments.push(OrderedSegment::random_range(neg_range, range));
+		}
+
 		BenchData {
 			circle: Circle::random_range(neg_range, range).into(),
 			line: Line::new(start, end),
 			poly: random_simple_poly(n),
+			segments: segments,
 		}
 	}
 }
@@ -125,7 +135,7 @@ fn bench_poly_circle_union(c: &mut Criterion) {
 	group.bench_function("poly_circle_union", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			trace_polygon_border(bb_( bb_(&data.circle), &data.poly.exterior()), false, 60_usize);
+			trace_polygon_border(bb_(&data.circle), bb_(&data.poly.exterior()), false, 60_usize);
 		},
 		BatchSize::SmallInput)
 	});
@@ -133,18 +143,39 @@ fn bench_poly_circle_union(c: &mut Criterion) {
 	group.bench_function("poly_circle_intersects", move |b| {
 		b.iter_batched(|| BenchData::<f64>::new(),
 		|data| {
-			trace_polygon_border(bb_(bb_(&data.circle), &data.poly.exterior()), true, 60_usize);
+			trace_polygon_border(bb_(&data.circle), bb_(&data.poly.exterior()), true, 60_usize);
 		},
 		BatchSize::SmallInput)
 	});
 }
 
+fn bench_circle_segments_intersect(c: &mut Criterion) {
+	let mut group = c.benchmark_group("ix_circle_segments");
+
+	group.bench_function("brute", move |b| {
+		b.iter_batched(|| BenchData::<f64>::new(),
+		|data| {
+			ix_brute_circle_segments(bb_(&data.circle), bb_(&data.segments));
+		},
+		BatchSize::SmallInput)
+	});
+
+	group.bench_function("sort", move |b| {
+		b.iter_batched(|| BenchData::<f64>::new(),
+		|mut data| {
+			ix_sort_circle_segments(bb_(&data.circle), bb_(&mut data.segments));
+		},
+		BatchSize::SmallInput)
+	});
+
+}
 
 
 criterion_group!(
 	benches,
 	bench_line_circle_ix,
 	bench_poly_circle_union,
+	bench_circle_segments_intersect
 	);
 
 criterion_main!(benches);
