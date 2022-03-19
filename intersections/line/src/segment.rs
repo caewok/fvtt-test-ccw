@@ -7,6 +7,7 @@ use rand::prelude::Distribution;
 use rand::distributions::Standard;
 use rand::distributions::uniform::SampleUniform;
 use serde::{Serialize, Deserialize};
+use geo::Line;
 
 
 
@@ -176,6 +177,21 @@ impl From<OrderedSegment<i32>> for OrderedSegment<f64> {
 		let (ax, ay, bx, by) = item.coords();
 		Self::new((ax as f64, ay as f64), (bx as f64, by as f64))
 	}
+}
+
+impl From<Line<f64>> for OrderedSegment<f64> {
+	fn from(item: Line<f64>) -> Self {
+		let (ax, ay) = item.start.x_y();
+		let (bx, by) = item.end.x_y();
+		Self::new((ax, ay), (bx, by))
+ 	}
+}
+
+impl From<OrderedSegment<f64>> for Line<f64> {
+	fn from(item: OrderedSegment<f64>) -> Self {
+		let (ax, ay, bx, by) = item.coords();
+		Self::new((ax, ay), (bx, by))
+ 	}
 }
 
 impl<T> GenerateRandom for OrderedSegment<T>

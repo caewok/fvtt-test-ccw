@@ -1,14 +1,82 @@
-use geo::{ Point, Line };
+use geo::{ Point, Line, Coordinate };
 use geo::prelude::EuclideanLength;
+use intersections_line::segment::OrderedSegment;
+use smallvec::SmallVec;
+use std::cmp::Ordering;
 
 use crate::circle::{Circle};
 // use intersections_line::segment::SimpleIntersect;
 
+#[derive(Debug, PartialEq)]
 pub struct CircleIntersection {
 	pub ixs: (Option<Point<f64>>, Option<Point<f64>>),
 	pub a_inside: bool,
 	pub b_inside: bool,
 }
+
+#[derive(Debug, PartialEq)]
+pub struct CircleIntersectionIndex {
+	pub ixs_result: CircleIntersection,
+	pub idx: usize,
+}
+
+// brute and sort versions of intersecting a set of segments
+pub fn ix_brute_circle_segments(circle: &Circle<f64>, segments: &[OrderedSegment<f64>]) -> SmallVec<[CircleIntersectionIndex; 4]> {
+	let mut ixs = SmallVec::<[CircleIntersectionIndex; 4]>::new();
+	for si in segments {
+		let ixs_result = line_circle_intersection(circle, &Line::<f64>::from(*si));
+
+		match ixs_result.ixs {
+			(None, None) => {},
+			(_, _) => ixs.push(
+				CircleIntersectionIndex{
+					ixs_result: ixs_result,
+					idx: si.idx,
+				})
+		}
+	}
+	ixs
+}
+
+fn segment_is_left_of_circle(circle: &Circle<f64>, segment: &OrderedSegment<f64>) -> bool {
+	// recall that y axis is reversed: y is less as you move up
+	let circle_nw: Coordinate<f64> = Coordinate { x: circle.center.x - circle.radius, y: circle.center.y - circle.radius };
+	let res = OrderedSegment::compare_xy(segment.end, circle_nw);
+	res == Ordering::Less
+}
+
+fn segment_is_right_of_circle(circle: &Circle<f64>, segment: &OrderedSegment<f64>) -> bool {
+	// recall that y axis is reversed: y is less as you move up
+	let circle_se: Coordinate<f64> = Coordinate { x: circle.center.x + circle.radius, y: circle.center.y + circle.radius };
+	let res = OrderedSegment::compare_xy(segment.start, circle_se);
+	res == Ordering::Greater
+}
+
+
+pub fn ix_sort_circle_segments(circle: &Circle<f64>, segments: &mut [OrderedSegment<f64>]) -> SmallVec<[CircleIntersectionIndex; 4]> {
+	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
+	let segments = segments; // no longer need mutability
+
+	let mut ixs = SmallVec::<[CircleIntersectionIndex; 4]>::new();
+	for si in segments {
+		if segment_is_left_of_circle(&circle, &si) { continue; }
+		if segment_is_right_of_circle(&circle, &si) { break; }
+
+		let ixs_result = line_circle_intersection(circle, &Line::<f64>::from(*si));
+
+		match ixs_result.ixs {
+			(None, None) => {},
+			(_, _) => ixs.push(
+				CircleIntersectionIndex{
+					ixs_result: ixs_result,
+					idx: si.idx,
+				})
+		}
+	}
+	ixs
+}
+
+
 
 
 #[allow(dead_code)]
@@ -473,6 +541,116 @@ mod tests {
 // 			( Some(Point::<f64>::new(100., 100.)),
 // 			  None,
 // 			)); // tangent fails for Javascript version as well; floats too inexact
+	}
+
+	#[test]
+	fn ix_brute_circle_segment_works() {
+		let c: Circle<f64> = Circle {
+			center: Coordinate { x: 0., y: 0. },
+			radius: 100.
+		};
+
+		let l_inside = OrderedSegment::<f64>::new_with_idx((-25., -25.), (25., 25.), 0);
+		let l_outside = OrderedSegment::<f64>::new_with_idx((-100., 200.), (100., 200.), 1);
+		let l1 = OrderedSegment::<f64>::new_with_idx((-200., 0.), (0., 0.), 2);
+		let l1_b = OrderedSegment::<f64>::new_with_idx((0., 0.), (200., 0.), 3);
+		let l2 = OrderedSegment::<f64>::new_with_idx((-200., 0.), (200., 0.), 4);
+
+		let segments = vec!(l_inside, l_outside, l1, l1_b, l2);
+		let mut expected = SmallVec::<[CircleIntersectionIndex; 4]>::new();
+
+		// l1
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( Some(Point::<f64>::new(-100., 0.)), None ),
+					a_inside: false,
+					b_inside: true,
+				},
+				idx: 2,
+			}
+		);
+
+		// l1_b
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( None, Some(Point::<f64>::new(100., 0.)) ),
+					a_inside: true,
+					b_inside: false,
+				},
+				idx: 3,
+			}
+		);
+
+		// l2
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( Some(Point::<f64>::new(-100., 0.)), Some(Point::<f64>::new(100., 0.)) ),
+					a_inside: false,
+					b_inside: false,
+				},
+				idx: 4,
+			}
+		);
+
+		assert_eq!(ix_brute_circle_segments(&c, &segments[..]), expected);
+	}
+
+		#[test]
+	fn ix_sort_circle_segment_works() {
+		let c: Circle<f64> = Circle {
+			center: Coordinate { x: 0., y: 0. },
+			radius: 100.
+		};
+
+		let l_inside = OrderedSegment::<f64>::new_with_idx((-25., -25.), (25., 25.), 0);
+		let l_outside = OrderedSegment::<f64>::new_with_idx((-100., 200.), (100., 200.), 1);
+		let l1 = OrderedSegment::<f64>::new_with_idx((-200., 0.), (0., 0.), 2);
+		let l1_b = OrderedSegment::<f64>::new_with_idx((0., 0.), (200., 0.), 3);
+		let l2 = OrderedSegment::<f64>::new_with_idx((-200., 0.), (200., 0.), 4);
+
+		let mut segments = vec!(l_inside, l_outside, l1, l1_b, l2);
+		let mut expected = SmallVec::<[CircleIntersectionIndex; 4]>::new();
+
+		// l1
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( Some(Point::<f64>::new(-100., 0.)), None ),
+					a_inside: false,
+					b_inside: true,
+				},
+				idx: 2,
+			}
+		);
+
+		// l1_b
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( None, Some(Point::<f64>::new(100., 0.)) ),
+					a_inside: true,
+					b_inside: false,
+				},
+				idx: 3,
+			}
+		);
+
+		// l2
+		expected.push(
+			CircleIntersectionIndex {
+				ixs_result: CircleIntersection {
+					ixs: ( Some(Point::<f64>::new(-100., 0.)), Some(Point::<f64>::new(100., 0.)) ),
+					a_inside: false,
+					b_inside: false,
+				},
+				idx: 4,
+			}
+		);
+
+		assert_eq!(ix_sort_circle_segments(&c, &mut segments[..]), expected);
 	}
 }
 

@@ -140,6 +140,7 @@ fn bench_poly_circle_union(c: &mut Criterion) {
 }
 
 
+
 criterion_group!(
 	benches,
 	bench_line_circle_ix,
