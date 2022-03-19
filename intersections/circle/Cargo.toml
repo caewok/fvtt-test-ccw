@@ -14,6 +14,7 @@ num-traits = "0.2.14"
 intersections_line = { path = "../line" }
 #measurements = "0.11.0"
 float-cmp = "0.9.0"
+wasm-bindgen = "0.2.79"
 
 [dev-dependencies]
 criterion = "0.3" # benchmarking with criterion https://bheisler.github.io/criterion.rs/book/getting_started.html

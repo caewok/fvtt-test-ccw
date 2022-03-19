@@ -21,7 +21,7 @@ pub struct Circle<T>
 impl<T> Circle<T>
 	where T: CoordNum + Real,
 {
-	fn new<C>(center: C, radius: T) -> Self
+	pub fn new<C>(center: C, radius: T) -> Self
 		where C: Into<Coordinate<T>>
 	{
 		let center: Coordinate<T> = center.into();
@@ -53,12 +53,12 @@ impl<T> Circle<T>
 	}
 
 	// like Projection::project_along_angle but assumes distance radius
-	fn project_on_circle(&self, radians: f64) -> Coordinate<T> {
+	pub fn project_on_circle(&self, radians: f64) -> Coordinate<T> {
 		let distance: f64 = self.radius.to_f64().unwrap();
 		self.center.project_along_angle(radians, distance)
 	}
 
-	fn as_points_from_angle(&self, from_radians: f64, to_radians: f64, density: usize) -> Vec<Coordinate<T>> {
+	pub fn as_points_from_angle(&self, from_radians: f64, to_radians: f64, density: usize) -> Vec<Coordinate<T>> {
 		let density = PI / (density as f64);
 
 		// Determine padding delta
