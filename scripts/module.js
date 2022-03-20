@@ -31,7 +31,7 @@ import * as Martinez from "./lib/martinez.umd.js";
 
 import * as PolyClipping from "./lib/polygon-clipping.umd.js";
 
-// import * as PolyBool from "./lib/polybool.js";
+import {PolyBool} from "./lib/polybool.js";
 // var PolyBool = import("./lib/polybool.mjs");
 
 
@@ -117,7 +117,7 @@ Hooks.once('init', async function() {
     WASM_exports: WASM_exports,
 
     Martinez: Martinez,
-//     PolyBool: PolyBool,
+    PolyBool: PolyBool,
     PolyClipping: PolyClipping,
 
     }
