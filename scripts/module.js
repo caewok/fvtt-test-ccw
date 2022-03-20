@@ -24,9 +24,15 @@ import * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle from "../wasm_circle/intersections_circle.js";
 import * as WASMCircle from "../wasm_circle/intersections_circle.js";
 
+
+// https://sean.cm/a/polygon-clipping-pt2
 // import * as Martinez from "./lib/martinez.min.js";
 import * as Martinez from "./lib/martinez.umd.js";
 
+import * as PolyClipping from "./lib/polygon-clipping.umd.js";
+
+// import * as PolyBool from "./lib/polybool.js";
+// var PolyBool = import("./lib/polybool.mjs");
 
 
 export const MODULE_ID = 'testccw';
@@ -111,6 +117,8 @@ Hooks.once('init', async function() {
     WASM_exports: WASM_exports,
 
     Martinez: Martinez,
+//     PolyBool: PolyBool,
+    PolyClipping: PolyClipping,
 
     }
 });
