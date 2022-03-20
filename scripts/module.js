@@ -27,10 +27,13 @@ import * as WASMCircle from "../wasm_circle/intersections_circle.js";
 
 // https://sean.cm/a/polygon-clipping-pt2
 // import * as Martinez from "./lib/martinez.min.js";
+// https://github.com/w8r/martinez
 import * as Martinez from "./lib/martinez.umd.js";
 
+// https://github.com/mfogel/polygon-clipping
 import * as PolyClipping from "./lib/polygon-clipping.umd.js";
 
+// https://github.com/velipso/polybooljs
 import {PolyBool} from "./lib/polybool.js";
 // var PolyBool = import("./lib/polybool.mjs");
 
