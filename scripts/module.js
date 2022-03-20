@@ -24,6 +24,8 @@ import * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle from "../wasm_circle/intersections_circle.js";
 import * as WASMCircle from "../wasm_circle/intersections_circle.js";
 
+// import * as Martinez from "./lib/martinez.min.js";
+import * as Martinez from "./lib/martinez.umd.js";
 
 
 
@@ -107,6 +109,8 @@ Hooks.once('init', async function() {
 		WASMLine: WASMLine,
     WASMCircle: WASMCircle,
     WASM_exports: WASM_exports,
+
+    Martinez: Martinez,
 
     }
 });
