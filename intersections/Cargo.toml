@@ -3,4 +3,5 @@
 members = [
 	"line",
 	"circle",
+	"polygon",
 ]
