@@ -131,9 +131,9 @@ impl<T> OrderedSegment<T>
 		(self.start.x, self.start.y, self.end.x, self.end.y)
 	}
 
-	// use compare_xy to determine if one segment is to the left of the other
+	// use compare_xy to determine if one segment is partially to the left of the other
 	pub fn cmp_segments(&self, other: &Self) -> Ordering {
-		OrderedSegment::compare_xy(self.end, other.start)
+		OrderedSegment::compare_xy(self.start, other.start)
 	}
 
 	// segment is completely left of the other, meaning self.end < other.start
