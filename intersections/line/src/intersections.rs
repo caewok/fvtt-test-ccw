@@ -110,7 +110,7 @@ pub fn ix_brute_double_f64(segments1: &[OrderedSegment<f64>], segments2: &[Order
 
 pub fn ix_sort_single_i32(segments: &mut [OrderedSegment<i32>]) -> SmallVec<[IxResultFloat; 4]>
 {
-	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
+	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	let segments = segments; // no longer need mutability
 
 	let mut ixs = SmallVec::<[IxResultFloat; 4]>::new();
@@ -139,7 +139,7 @@ pub fn ix_sort_single_i32(segments: &mut [OrderedSegment<i32>]) -> SmallVec<[IxR
 
 pub fn ix_sort_single_f64(segments: &mut [OrderedSegment<f64>]) -> SmallVec<[IxResultFloat; 4]>
 {
-	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
+	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	let segments = segments; // no longer need mutability
 
 	let mut ixs = SmallVec::<[IxResultFloat; 4]>::new();
@@ -168,8 +168,8 @@ pub fn ix_sort_single_f64(segments: &mut [OrderedSegment<f64>]) -> SmallVec<[IxR
 
 pub fn ix_sort_double_i32(segments1: &mut [OrderedSegment<i32>], segments2: &mut [OrderedSegment<i32>]) -> SmallVec<[IxResultFloat; 4]>
 {
-	segments1.sort_unstable_by(|a, b| a.cmp_segments(b));
-	segments2.sort_unstable_by(|a, b| a.cmp_segments(b));
+	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 
 	// no longer need mutability after the sort
 	let segments1 = segments1;
@@ -202,8 +202,11 @@ pub fn ix_sort_double_i32(segments1: &mut [OrderedSegment<i32>], segments2: &mut
 
 pub fn ix_sort_double_f64(segments1: &mut [OrderedSegment<f64>], segments2: &mut [OrderedSegment<f64>]) -> SmallVec<[IxResultFloat; 4]>
 {
-	segments1.sort_unstable_by(|a, b| a.cmp_segments(b));
-	segments2.sort_unstable_by(|a, b| a.cmp_segments(b));
+	segments1.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+	segments2.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+	dbg!(&segments1);
+	dbg!(&segments2);
 
 	// no longer need mutability after the sort
 	let segments1 = segments1;
@@ -213,15 +216,23 @@ pub fn ix_sort_double_f64(segments1: &mut [OrderedSegment<f64>], segments2: &mut
 	for si in segments1 {
 		for sj in &mut *segments2 {
 			// if we have not yet reached the left end, we can skip
-			if sj.is_left(si) { continue; }
+			if sj.is_left(si) {
+				println!("Continuing at {},{}", si.idx, sj.idx);
+			continue; }
 
 			// if we reach the right end, we can skip the rest
-			if sj.is_right(si) { break; }
+			if sj.is_right(si) {
+				println!("Breaking at {},{}", si.idx, sj.idx);
+			break; }
 
-			if !si.intersects(sj) { continue; }
+			if !si.intersects(sj) {
+				println!("No intersection at {}, {}", si.idx, sj.idx);
+			continue; }
 			let res = si.line_intersection(sj);
 
 			if let Some(ix) = res {
+				println!("Recording ix {},{} at {},{}", ix.x(), ix.y(), si.idx, sj.idx);
+
 				ixs.push( IxResultFloat {
 					ix,
 					idx1: si.idx,
@@ -237,6 +248,7 @@ pub fn ix_sort_double_f64(segments1: &mut [OrderedSegment<f64>], segments2: &mut
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use smallvec::smallvec;
 
 // ---------------- BENCHMARK FLOAT VERSIONS
 
@@ -516,6 +528,156 @@ mod tests {
 
 		let ixs = ix_sort_double_i32(&mut segments1, &mut segments2);
 		assert_eq!(ixs, res);
+	}
+
+	#[test]
+	fn sort_double_float_square_diamond_works() {
+		// square with a rotated square.
+		// 1 shared vertex
+		let p00: Point<f64> = Point::new(100., 100.);
+		let p01: Point<f64> = Point::new(1000., 100.);
+		let p02: Point<f64> = Point::new(1000., 1000.);
+		let p03: Point<f64> = Point::new(100., 1000.);
+
+		let p10: Point<f64> = Point::new(50., 500.);
+		let p11: Point<f64> = Point::new(500., 50.);
+		let p12: Point<f64> = Point::new(1500., 500.);
+		let p13: Point<f64> = Point::new(500., 1500.);
+
+		let mut segments0: Vec<OrderedSegment<f64>> = vec![
+			OrderedSegment::new_with_idx(p00, p01, 0),
+			OrderedSegment::new_with_idx(p01, p02, 1),
+			OrderedSegment::new_with_idx(p02, p03, 2),
+			OrderedSegment::new_with_idx(p03, p00, 3),
+		];
+
+		let mut segments1 = vec![
+			OrderedSegment::new_with_idx(p10, p11, 0),
+			OrderedSegment::new_with_idx(p11, p12, 1),
+			OrderedSegment::new_with_idx(p12, p13, 2),
+			OrderedSegment::new_with_idx(p13, p10, 3),
+		];
+
+		let expected: SmallVec<[IxResultFloat; 4]> = smallvec![
+			IxResultFloat {
+				ix: Point::new(450., 100.),
+				idx1: 0,
+				idx2: 0,
+			},
+			IxResultFloat {
+				ix: Point::new(611.1111111111111, 100.),
+				idx1: 0,
+				idx2: 1,
+			},
+			IxResultFloat {
+				ix: Point::new(100., 450.),
+				idx1: 3,
+				idx2: 0,
+			},
+			IxResultFloat {
+				ix: Point::new(100., 611.1111111111111),
+				idx1: 3,
+				idx2: 3,
+			},
+			IxResultFloat {
+				ix: Point::new(275., 1000.),
+				idx1: 2,
+				idx2: 3,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 1000.),
+				idx1: 2,
+				idx2: 2,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 275.),
+				idx1: 1,
+				idx2: 1,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 1000.),
+				idx1: 1,
+				idx2: 2,
+			},
+		];
+
+		let ixs = ix_sort_double_f64(&mut segments0, &mut segments1);
+		assert_eq!(ixs, expected);
+	}
+
+	#[test]
+	fn brute_double_float_square_diamond_works() {
+		// square with a rotated square.
+		// 1 shared vertex
+		let p00: Point<f64> = Point::new(100., 100.);
+		let p01: Point<f64> = Point::new(1000., 100.);
+		let p02: Point<f64> = Point::new(1000., 1000.);
+		let p03: Point<f64> = Point::new(100., 1000.);
+
+		let p10: Point<f64> = Point::new(50., 500.);
+		let p11: Point<f64> = Point::new(500., 50.);
+		let p12: Point<f64> = Point::new(1500., 500.);
+		let p13: Point<f64> = Point::new(500., 1500.);
+
+		let segments0: Vec<OrderedSegment<f64>> = vec![
+			OrderedSegment::new_with_idx(p00, p01, 0),
+			OrderedSegment::new_with_idx(p01, p02, 1),
+			OrderedSegment::new_with_idx(p02, p03, 2),
+			OrderedSegment::new_with_idx(p03, p00, 3),
+		];
+
+		let segments1 = vec![
+			OrderedSegment::new_with_idx(p10, p11, 0),
+			OrderedSegment::new_with_idx(p11, p12, 1),
+			OrderedSegment::new_with_idx(p12, p13, 2),
+			OrderedSegment::new_with_idx(p13, p10, 3),
+		];
+
+		let expected: SmallVec<[IxResultFloat; 4]> = smallvec![
+			IxResultFloat {
+				ix: Point::new(450., 100.),
+				idx1: 0,
+				idx2: 0,
+			},
+			IxResultFloat {
+				ix: Point::new(611.1111111111111, 100.),
+				idx1: 0,
+				idx2: 1,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 275.),
+				idx1: 1,
+				idx2: 1,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 1000.),
+				idx1: 1,
+				idx2: 2,
+			},
+			IxResultFloat {
+				ix: Point::new(1000., 1000.),
+				idx1: 2,
+				idx2: 2,
+			},
+			IxResultFloat {
+				ix: Point::new(275., 1000.),
+				idx1: 2,
+				idx2: 3,
+			},
+			IxResultFloat {
+				ix: Point::new(100., 450.),
+				idx1: 3,
+				idx2: 0,
+			},
+			IxResultFloat {
+				ix: Point::new(100., 611.1111111111111),
+				idx1: 3,
+				idx2: 3,
+			},
+		];
+
+		let ixs = ix_brute_double_f64(&segments0, &segments1);
+		assert_eq!(ixs, expected);
 	}
 
 }
