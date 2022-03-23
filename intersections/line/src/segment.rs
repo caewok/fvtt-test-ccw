@@ -23,7 +23,13 @@ pub struct OrderedSegment<T>
 	pub idx: usize, // needed to easily track intersections
 }
 
-
+impl<T> PartialOrd for OrderedSegment<T>
+	where T: CoordNum,
+{
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(OrderedSegment::compare_xy(self.start, other.start))
+	}
+}
 
 
 
@@ -131,10 +137,10 @@ impl<T> OrderedSegment<T>
 		(self.start.x, self.start.y, self.end.x, self.end.y)
 	}
 
-	// use compare_xy to determine if one segment is to the left of the other
-	pub fn cmp_segments(&self, other: &Self) -> Ordering {
-		OrderedSegment::compare_xy(self.end, other.start)
-	}
+	// use compare_xy to determine if one segment is partially to the left of the other
+// 	pub fn cmp_segments(&self, other: &Self) -> Ordering {
+// 		OrderedSegment::compare_xy(self.start, other.start)
+// 	}
 
 	// segment is completely left of the other, meaning self.end < other.start
 	pub fn is_left(&self, other: &Self) -> bool {
