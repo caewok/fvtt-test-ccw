@@ -10,26 +10,26 @@ use wasm_bindgen::prelude::*;
 
 // Setup log to javascript
 // https://rustwasm.github.io/wasm-bindgen/examples/console-log.html
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-macro_rules! console_log {
-    // Note that this is using the `log` function imported above
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
+// #[wasm_bindgen]
+// extern "C" {
+//     // Use `js_namespace` here to bind `console.log(..)` instead of just
+//     // `log(..)`
+//     #[wasm_bindgen(js_namespace = console)]
+//     fn log(s: &str);
+// }
+//
+// macro_rules! console_log {
+//     // Note that this is using the `log` function imported above
+//     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+// }
 
 
 #[wasm_bindgen]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MyOperation {
+	Union,
 	Intersection,
 	Difference,
-	Union,
 	Xor,
 }
 

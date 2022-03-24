@@ -54,7 +54,7 @@ fn segment_is_right_of_circle(circle: &Circle<f64>, segment: &OrderedSegment<f64
 
 
 pub fn ix_sort_circle_segments(circle: &Circle<f64>, segments: &mut [OrderedSegment<f64>]) -> SmallVec<[CircleIntersectionIndex; 4]> {
-	segments.sort_unstable_by(|a, b| a.cmp_segments(b));
+	segments.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 	let segments = segments; // no longer need mutability
 
 	let mut ixs = SmallVec::<[CircleIntersectionIndex; 4]>::new();
