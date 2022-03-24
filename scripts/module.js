@@ -42,6 +42,29 @@ import {PolyBool} from "./lib/polybool.js";
 // var PolyBool = import("./lib/polybool.mjs");
 
 
+
+// async function sourceUMD(url, module = {exports:{}})
+// {
+//     const response = await fetch(url);
+//     const script = await response.text();
+//     const func = Function("module", "exports", script)
+//     func.call(module, module, module.exports);
+//     return module.exports;
+// };
+//
+// const ConcaveMan = await sourceUMD("./Data/modules/testccw/scripts/lib/concaveman.bundle.js");
+// import * as ConcaveMan from "./lib/concaveman_lib.js";
+// import("./lib/concaveman.bundle.js")
+// const ConcaveMan = (await import("./lib/concaveman_lib.js"));
+// import("./lib/concaveman_lib.js");
+// console.log(window.lib);
+//
+// import('./lib/concaveman_lib.js').then({default: myUmdModule} => {
+// 	console.log(myUmdModule);
+//  });
+
+import * as ConcaveMan from "./lib/concave_bundle.js";
+
 export const MODULE_ID = 'testccw';
 
 
@@ -128,6 +151,9 @@ Hooks.once('init', async function() {
     Martinez: Martinez,
     PolyBool: PolyBool,
     PolyClipping: PolyClipping,
+
+    ConcaveMan: ConcaveMan,
+
 
     }
 });

@@ -199,11 +199,13 @@ pub fn convex_hull_f64(pts: &[f64]) -> Box<[f64]> {
 pub fn concave_intersection(poly1: &[f64], poly2: &[f64], concavity: f64) -> Box<[f64]> {
 	concave_combine(poly1, poly2, concavity, MyOperation::Intersection)
 }
+
 #[wasm_bindgen]
 pub fn concave_union(poly1: &[f64], poly2: &[f64], concavity: f64) -> Box<[f64]> {
 	concave_combine(poly1, poly2, concavity, MyOperation::Union)
 }
 
+#[wasm_bindgen]
 pub fn concave_combine(poly1: &[f64], poly2: &[f64], concavity: f64, operation: MyOperation) -> Box<[f64]> {
 	let poly1: Polygon<f64> = convert_polygon_input_f64(&poly1);
 	let poly2: Polygon<f64> = convert_polygon_input_f64(&poly2);
@@ -216,44 +218,50 @@ pub fn concave_combine(poly1: &[f64], poly2: &[f64], concavity: f64, operation: 
 	// along with ixs, need every point contained by the other polygon
 	let max_cap = ixs_results.len() + poly1.exterior().0.len() + poly2.exterior().0.len();
 	let mut pts: Vec<Point<f64>> = Vec::with_capacity(max_cap);
-	for res in ixs_results {
-		console_log!("Adding intersection {}, {}", res.ix.x(), res.ix.y());
-		pts.push(res.ix.into());
-	}
+
 
 	if operation == MyOperation::Union {
 
 		for pt in poly1.exterior().points() {
 			if !poly2.contains(&pt) {
-			console_log!("Adding poly1 point {}, {}", pt.x(), pt.y());
-			pts.push(pt); }
+				console_log!("Adding poly1 point {}, {}", pt.x(), pt.y());
+				pts.push(pt);
+			}
 		}
 
 		for pt in poly2.exterior().points() {
 			if !poly1.contains(&pt) {
-			console_log!("Adding poly2 point {}, {}", pt.x(), pt.y());
-			pts.push(pt); }
+				console_log!("Adding poly2 point {}, {}", pt.x(), pt.y());
+				pts.push(pt);
+			}
 		}
 
 	} else if operation == MyOperation::Intersection {
 
 		for pt in poly1.exterior().points() {
 			if poly2.contains(&pt) {
-			console_log!("Adding poly1 point {}, {}", pt.x(), pt.y());
-			pts.push(pt); }
+				console_log!("Adding poly1 point {}, {}", pt.x(), pt.y());
+				pts.push(pt);
+			}
 		}
 
 		for pt in poly2.exterior().points() {
 			if poly1.contains(&pt) {
-			console_log!("Adding poly2 point {}, {}", pt.x(), pt.y());
-			pts.push(pt); }
+				console_log!("Adding poly2 point {}, {}", pt.x(), pt.y());
+				pts.push(pt);
+			}
 		}
 
 	} else {
 		panic!("Operation not supported.")
 	}
 
+	for res in ixs_results {
+		console_log!("Adding intersection {}, {}", res.ix.x(), res.ix.y());
+		pts.push(res.ix.into());
+	}
 
+	console_log!("{} points before concave_hull", pts.len());
 
 	let mp: MultiPoint<f64> = pts.into();
 	let result = mp.concave_hull(concavity);
@@ -262,33 +270,55 @@ pub fn concave_combine(poly1: &[f64], poly2: &[f64], concavity: f64, operation: 
 }
 
 
-// #[cfg(test)]
-// mod tests {
-// 	use super::*;
-//
-// 	#[test]
-// 	fn concave_union_works() {
-// 		pts1: Vec<f64> = vec![
-// 			100., 100.,
-// 			1000., 100.,
-// 			1000., 1000.,
-// 			100., 1000.,
-// 			100., 100.,
-// 		];
-//
-// 		pts2: Vec<f64> = vec![
-// 			50., 500.,
-// 			500., 50.,
-// 			1500., 500.,
-// 			500., 1500.,
-// 			50., 500.,
-// 		];
-//
-// 		expected: Vec<f64> = vec![
-//
-// 		];
-//
-//
-//
-// 	}
-// }
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn concave_function_works() {
+		let mp: MultiPoint<f64> = vec![
+				(450., 100.),
+				(611.1111111111111, 100.),
+				(100., 450.),
+				(100., 611.1111111111111),
+				(275., 1000.),
+				(1000., 1000.),
+				(1000., 275.),
+				(1000., 1000.),
+				(100., 100.),
+				(1000., 100.),
+				(1000., 1000.),
+				(100., 1000.),
+				(100., 100.),
+				(50., 500.),
+				(500., 50.),
+				(1500., 500.),
+				(500., 1500.),
+				(50., 500.),
+			].into();
+
+		let expected: Polygon<f64> = Polygon::new(
+			LineString::from(vec![
+				(100., 100.),
+				(100., 450.),
+				(50., 500.),
+				(100., 611.1111111111111),
+				(100., 1000.),
+				(275., 1000.),
+				(500., 1500.),
+				(1000., 1000.),
+				(1500., 500.),
+				(1000., 275.),
+				(1000., 100.),
+				(611.1111111111111, 100.),
+				(500., 50.),
+				(450., 100.),
+				(100., 100.),
+			]),
+			vec![]);
+
+// 		assert_eq!(mp.convex_hull(), mp.concave_hull(1.));
+		assert_eq!(mp.concave_hull(1.), expected);
+
+	}
+}
