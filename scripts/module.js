@@ -19,18 +19,9 @@ import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
 import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
-// import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
-import initWASMPoly, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
-
-import { circle_union, circle_intersect, _tracePolygon, _tracePolygon2 } from "./CirclePolygonCombine.js";
-
-import initWASMCircle from "../wasm_circle/intersections_circle.js";
-import * as WASMCircle from "../wasm_circle/intersections_circle.js";
-
-import initWASMPolygon from "../wasm_polygon/intersections_polygon.js";
-import * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
+import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
 
 // https://sean.cm/a/polygon-clipping-pt2
 // import * as Martinez from "./lib/martinez.min.js";
@@ -151,14 +142,11 @@ Hooks.once('init', async function() {
     WASMPolygon,
     WASM_exports,
 
-    Martinez: Martinez,
-    PolyBool: PolyBool,
-    PolyClipping: PolyClipping,
+    Martinez,
+    PolyBool,
+    PolyClipping,
 
-    ConcaveMan: ConcaveMan,
-
-
-    circle_union, circle_intersect, _tracePolygon, _tracePolygon2
+    ConcaveMan,
 
     }
 });
