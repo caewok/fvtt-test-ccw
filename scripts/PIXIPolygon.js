@@ -39,19 +39,43 @@ function fromPoints(points) {
     pts.push(pt.x, pt.y);
   }
   const out = new this(...pts);
-  out.close()
+  out.close();
   return out;
 }
 
 /**
  * Iterate over the polygon's {x, y} points in order.
- * Note: last two this.points (n-1, n) equal the first (0, 1)
+ * If the polygon is closed and close is false,
+ * the last two points (which should equal the first two points) will be dropped.
+ * Otherwise, all points will be returned regardless of the close value.
  * @return {x, y} PIXI.Point
- */ 
+ */
 function* iteratePoints({close = true} = {}) {
   const dropped = (!this.isClosed || close) ? 0 : 2;
-  for(let i = 0; i < (this.points.length - dropped); i += 2) {
+  const ln = this.points.length - dropped;
+  for(let i = 0; i < ln; i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
+  }
+}
+
+/**
+ * Iterate over the polygon's edges in order.
+ * If the polygon is closed and close is false,
+ * the last two points (which should equal the first two points) will be dropped and thus
+ * the final edge closing the polygon will be ignored.
+ * Otherwise, all edges, including the closing edge, will be returned regardless of the
+ * close value.
+ * @return Return an object { A: {x, y}, B: {x, y}} for each edge
+ * Edges link, such that edge0.B === edge.1.A.
+ */
+function* iterateEdges({close = true} = {}) {
+  // very similar to iteratePoints
+  const dropped = (!this.isClosed || close) ? 0 : 2;
+  const iter = this.points.length - dropped - 2;
+  for(let i = 0; i < iter; i += 2) {
+    yield { A: { x: this.points[i], y: this.points[i + 1] },
+            B: { x: this.points[i + 2], y: this.points[i + 3] }
+          };
   }
 }
 
@@ -59,7 +83,7 @@ function* iteratePoints({close = true} = {}) {
  * Getter to store the coordinate point set.
  */
 function coordinates() {
-  return this._coordinates || 
+  return this._coordinates ||
          (this._coordinates = [...this.iteratePoints({close: false})]);
 }
 
@@ -70,19 +94,29 @@ function coordinates() {
 function isClosed() {
   if(typeof this._isClosed === "undefined") {
     const ln = this.points.length;
-    this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) && 
-                     this.points[1].almostEqual(this.points[ln - 1])
+    this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) &&
+                     this.points[1].almostEqual(this.points[ln - 1]);
   }
   return this._isClosed;
 }
 
 /**
- * Close the polygon by adding the first point to the end
+ * Close the polygon by adding the first point to the end.
  */
 function close() {
   if(this.isClosed) return;
   this.points.push(this.points[0], this.points[1]);
   this._isClosed = true;
+}
+
+/**
+ * Open the polygon by removing the first point from the end.
+ */
+function open() {
+  if(!this.isClosed) return;
+  this.points.pop();
+  this.points.pop();
+  this._isClosed = false;
 }
 
 /**
@@ -92,7 +126,7 @@ function close() {
  */
 function isConvex() {
   if(typeof this._isConvex === "undefined") {
-    this._isConvex = this.determineConvexity()
+    this._isConvex = this.determineConvexity();
   }
   return this._isConvex;
 }
@@ -101,9 +135,9 @@ function isConvex() {
 /**
  * Measure the polygon convexity
  * https://stackoverflow.com/questions/40738013/how-to-determine-the-type-of-polygon
- * Check sign of the cross product for triplet points. 
+ * Check sign of the cross product for triplet points.
  * Must all be +  or all - to be convex.
- * WARNING: Will not work if the polygon is complex 
+ * WARNING: Will not work if the polygon is complex
  * (meaning it intersects itself, forming 2+ smaller polygons)
  */
 function determineConvexity() {
@@ -111,7 +145,7 @@ function determineConvexity() {
     console.warn(`Convexity is not defined for open polygons.`);
     return false;
   }
-  
+
   // if a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)
   if(this.points.length === 8) return true;
 
@@ -120,19 +154,19 @@ function determineConvexity() {
   let curr_pt = iter.next().value;
   let next_pt = iter.next().value;
   let new_pt;
-  
+
   const sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
-  
+
   // if polygon is a triangle, while loop should be skipped and will always return true
   while( (new_pt = iter.next().value) ) {
     prev_pt = curr_pt;
     curr_pt = next_pt;
     next_pt = new_pt;
     const new_sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
-    
+
     if(sign !== new_sign) return false;
   }
-  return true; 
+  return true;
 }
 
 function isClockwise() {
@@ -157,9 +191,9 @@ function determineOrientation() {
     const curr_pt = iter.next().value;
     const next_pt = iter.next().value;
     return foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt);
-  } 
-  
-  // locate the index of the vertex with the smallest x coordinate. 
+  }
+
+  // locate the index of the vertex with the smallest x coordinate.
   // Break ties with smallest y
   const pts = this.points;
   const ln = this.isClosed ? pts.length - 2 : pts.length; // don't repeat the first point
@@ -169,23 +203,23 @@ function determineOrientation() {
   for(let i = 0; i < ln; i += 2) {
     const curr_x = pts[i];
     const curr_y = pts[i+1];
-    
+
     if(curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
       min_x = curr_x;
       min_y = curr_y;
-      min_i = i;    
-    } 
+      min_i = i;
+    }
   }
-  
+
   // min_x, min_y are the B (the point on the convex hull)
   const curr_pt = { x: min_x, y: min_y };
-  
+
   const prev_i = min_i > 1 ? (min_i - 2) : (ln - 2);
   const prev_pt = { x: pts[prev_i], y: pts[prev_i + 1] };
-  
+
   const next_i = min_i < (ln - 2) ? (min_i + 2) : 0;
   const next_pt = { x: pts[next_i], y: pts[next_i + 1] };
-  
+
   return foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt);
 }
 
@@ -218,13 +252,13 @@ function getBounds() {
       min_y: Math.min(pt.y, prev.min_y),
       max_x: Math.max(pt.x, prev.max_x),
       max_y: Math.max(pt.y, prev.max_y) };
-  
-  }, { min_x: Number.POSITIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY, 
+
+  }, { min_x: Number.POSITIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY,
        min_y: Number.POSITIVE_INFINITY, max_y: Number.NEGATIVE_INFINITY });
-  
-  return new PIXI.Rectangle(bounds.min_x, bounds.min_y, 
+
+  return new PIXI.Rectangle(bounds.min_x, bounds.min_y,
                             bounds.max_x - bounds.min_x,
-                            bounds.max_y - bounds.min_y);     
+                            bounds.max_y - bounds.min_y);
 }
 
 /**
@@ -241,12 +275,12 @@ function getCenter() {
  * Each point will be changed by the formula:
  * pt.x = (pt.x - position_dx) / size_dx;
  * pt.y = (pt.y - position_dy) / size_dy;
- * Typically, dx and dy are the same. Providing different dx and dy 
+ * Typically, dx and dy are the same. Providing different dx and dy
  * will warp the polygon shape accordingly.
  * Default values will not change the points.
- * 
+ *
  * Useful for enlarging or shrinking a polygon, such as an approximate circle.
- * 
+ *
  * @param {number} position_dx
  * @param {number} position_dy
  * @param {number} size_dx
@@ -260,12 +294,12 @@ function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {
     pts[i]   = (pts[i] - position_dx) / size_dx;
     pts[i+1] = (pts[i+1] - position_dy) / size_dy;
   }
-  
+
   const out = new this.constructor(pts);
   out._isClockwise = this._isClockwise;
   out._isConvex = this._isConvex;
   out._isClosed = this._isClosed;
-  
+
   return out;
 }
 
@@ -274,12 +308,12 @@ function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {
  * Each point will be changed by the formula:
  * pt.x = (pt.x * size_dx) + position_dx;
  * pt.y = (pt.y * size_dy) + position_dy;
- * Typically, dx and dy are the same. Providing different dx and dy 
+ * Typically, dx and dy are the same. Providing different dx and dy
  * will warp the polygon shape accordingly.
  * Default values will not change the points.
- * 
+ *
  * Useful for enlarging or shrinking a polygon, such as an approximate circle.
- * 
+ *
  * @param {number} position_dx
  * @param {number} position_dy
  * @param {number} size_dx
@@ -293,16 +327,16 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
     pts[i]   = (pts[i] * size_dx) + position_dx;
     pts[i+1] = (pts[i+1] * size_dy) + position_dy;
   }
-  
+
   const out = new this.constructor(pts);
   out._isClockwise = this._isClockwise;
   out._isConvex = this._isConvex;
   out._isClosed = this._isClosed;
-  
+
   return out;
 }
 
-// 
+//
 
 
 
@@ -325,7 +359,7 @@ function fromClipperPoints(points) {
   }
   const out = new this(...pts);
 
-  
+
   out.close();
   return out;
 }
@@ -340,13 +374,13 @@ function* iterateClipperLibPoints({close = true} = {}) {
   for(let i = 0; i < (this.points.length - dropped); i += 2) {
     yield {X: this.points[i], Y: this.points[i + 1]};
   }
-} 
+}
 
 /**
  * Getter to store the clipper coordinate point set.
  */
 function clipperCoordinates() {
-  return this._clipperCoordinates || 
+  return this._clipperCoordinates ||
          (this._clipperCoordinates = [...this.iterateClipperLibPoints({close: false})]);
 }
 
@@ -356,7 +390,7 @@ function clipperCoordinates() {
  */
 function clipperContains(pt) {
   const path = this.clipperCoordinates;
-  
+
   return ClipperLib.Clipper.PointInPolygon(new ClipperLib.FPoint(pt.x, pt.y), path);
 }
 
@@ -365,7 +399,7 @@ function clipperContains(pt) {
  */
 function clipperIsClockwise() {
   const path = this.clipperCoordinates;
-  return ClipperLib.Clipper.Orientation(path); 
+  return ClipperLib.Clipper.Orientation(path);
 }
 
 /**
@@ -374,10 +408,10 @@ function clipperIsClockwise() {
 function clipperBounds() {
   const path = this.clipperCoordinates;
   const bounds = ClipperLib.JS.BoundsOfPath(path); // returns ClipperLib.FRect
-  
-  return new PIXI.Rectangle(bounds.left, 
-                              bounds.top, 
-                              bounds.right - bounds.left, 
+
+  return new PIXI.Rectangle(bounds.left,
+                              bounds.top,
+                              bounds.right - bounds.left,
                               bounds.bottom - bounds.top);
 }
 
@@ -391,10 +425,10 @@ function clipperClip(poly, { cliptype = ClipperLib.ClipType.ctUnion } = {}) {
 
   const solution = new ClipperLib.Paths();
   const c = new ClipperLib.Clipper();
-  c.AddPath(subj, ClipperLib.PolyType.ptSubject, true) // true to be considered closed
-  c.AddPath(clip, ClipperLib.PolyType.ptClip, true)
+  c.AddPath(subj, ClipperLib.PolyType.ptSubject, true); // true to be considered closed
+  c.AddPath(clip, ClipperLib.PolyType.ptClip, true);
   c.Execute(cliptype, solution);
-  
+
   return PIXI.Polygon.fromClipperPoints(solution[0]);
 }
 
@@ -406,22 +440,28 @@ export function registerPIXIPolygonMethods() {
     value: fromPoints,
     writable: true,
     configurable: true
-  });  
+  });
 
   Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
     value: iteratePoints,
     writable: true,
     configurable: true
   });
-  
+
+  Object.defineProperty(PIXI.Polygon.prototype, "iterateEdges", {
+    value: iterateEdges,
+    writable: true,
+    configurable: true
+  });
+
   Object.defineProperty(PIXI.Polygon.prototype, "coordinates", {
     get: coordinates,
   });
-  
+
   Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
     get: isClosed,
   });
-  
+
 
   Object.defineProperty(PIXI.Polygon.prototype, "isConvex", {
     get: isConvex,
@@ -430,25 +470,31 @@ export function registerPIXIPolygonMethods() {
   Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
     get: isClockwise,
   });
-  
+
   Object.defineProperty(PIXI.Polygon.prototype, "determineConvexity", {
     value: determineConvexity,
     writable: true,
     configurable: true
-  }); 
+  });
 
   Object.defineProperty(PIXI.Polygon.prototype, "determineOrientation", {
     value: determineOrientation,
     writable: true,
     configurable: true
-  });   
+  });
 
   Object.defineProperty(PIXI.Polygon.prototype, "close", {
     value: close,
     writable: true,
     configurable: true
   });
-  
+
+  Object.defineProperty(PIXI.Polygon.prototype, "open", {
+    value: open,
+    writable: true,
+    configurable: true
+  });
+
   Object.defineProperty(PIXI.Polygon.prototype, "reverse", {
     value: reverse,
     writable: true,
@@ -478,20 +524,20 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });
-  
+
 
 // ----------------  CLIPPER LIBRARY METHODS ------------------------
-  
+
   Object.defineProperty(PIXI.Polygon.prototype, "iterateClipperLibPoints", {
     value: iterateClipperLibPoints,
     writable: true,
     configurable: true
-  });  
-  
+  });
+
   Object.defineProperty(PIXI.Polygon.prototype, "clipperCoordinates", {
     get: clipperCoordinates,
   });
-  
+
   Object.defineProperty(PIXI.Polygon, "fromClipperPoints", {
     value: fromClipperPoints,
     writable: true,
@@ -515,12 +561,12 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });
-  
+
   Object.defineProperty(PIXI.Polygon.prototype, "clipperContains", {
     value: clipperContains,
     writable: true,
     configurable: true
   });
-  
-  
+
+
 }

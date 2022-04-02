@@ -19,15 +19,9 @@ import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
 import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
-
-import initWASMLine from "../wasm_line/intersections_line.js";
-import * as WASMLine from "../wasm_line/intersections_line.js";
-
-import initWASMCircle from "../wasm_circle/intersections_circle.js";
-import * as WASMCircle from "../wasm_circle/intersections_circle.js";
-
-import initWASMPolygon from "../wasm_polygon/intersections_polygon.js";
-import * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
+import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
+import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
+import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
 
 // https://sean.cm/a/polygon-clipping-pt2
 // import * as Martinez from "./lib/martinez.min.js";
@@ -118,42 +112,41 @@ Hooks.once('init', async function() {
     debug: false,
 
     benchmark: testCCWBenchmarkSight,
-    MyClockwiseSweepPolygon: MyClockwiseSweepPolygon,
-    MyClockwiseSweepPolygon2: MyClockwiseSweepPolygon2,
-    MyClockwiseSweepPolygon3: MyClockwiseSweepPolygon3,
+    MyClockwiseSweepPolygon,
+    MyClockwiseSweepPolygon2,
+    MyClockwiseSweepPolygon3,
 
-    LinkedPolygon: LinkedPolygon,
-    LinkedPolygonVertex: LinkedPolygonVertex,
-    LinkedPolygonEdge: LinkedPolygonEdge,
+    LinkedPolygon,
+    LinkedPolygonVertex,
+    LinkedPolygonEdge,
 
-    SimplePolygon: SimplePolygon,
+    SimplePolygon,
     SimplePolygonVertex: PolygonVertex,
-    SimplePolygonEdge: SimplePolygonEdge,
+    SimplePolygonEdge,
 
-    SimplePolygon2: SimplePolygon2,
+    SimplePolygon2,
     SimplePolygonVertex2: PolygonVertex,
-    SimplePolygonEdge2: SimplePolygonEdge2,
+    SimplePolygonEdge2,
 
     Intersections: Intersections,
     Intersections2: Intersections2,
     BruteSortIntersections: BruteSortIntersections,
     BruteSortXYIntersections: BruteSortXYIntersections,
 
-    sweep: sweep,
-    brute: brute,
-    bush: bush,
+    sweep,
+    brute,
+    bush,
 
-		WASMLine: WASMLine,
-    WASMCircle: WASMCircle,
-    WASMPolygon: WASMPolygon,
-    WASM_exports: WASM_exports,
+    WASMLine,
+    WASMCircle,
+    WASMPolygon,
+    WASM_exports,
 
-    Martinez: Martinez,
-    PolyBool: PolyBool,
-    PolyClipping: PolyClipping,
+    Martinez,
+    PolyBool,
+    PolyClipping,
 
-    ConcaveMan: ConcaveMan,
-
+    ConcaveMan,
 
     }
 });
