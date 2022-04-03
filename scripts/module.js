@@ -4,11 +4,11 @@
 // import { registerCCW } from "./patching.js";
 import { testCCWBenchmarkSight }  from "./benchmark.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
-import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
-import { LinkedPolygon, LinkedPolygonVertex, LinkedPolygonEdge } from "./LinkedPolygon.js";
-import { SimplePolygon, SimplePolygonEdge } from "./SimplePolygon.js";
-import { SimplePolygon2, SimplePolygonEdge2 } from "./SimplePolygon2.js";
+// import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
+// import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
+
+import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { LimitedAngleSweepObject } from "./LimitedAngle.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -18,7 +18,7 @@ import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
 import * as WASM_exports from "./Intersections.js";
-import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
+import { findIntersectionsSingle, findIntersectionsDouble } from "./Intersections.js";
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
 import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
@@ -113,25 +113,14 @@ Hooks.once('init', async function() {
 
     benchmark: testCCWBenchmarkSight,
     MyClockwiseSweepPolygon,
-    MyClockwiseSweepPolygon2,
-    MyClockwiseSweepPolygon3,
+//     MyClockwiseSweepPolygon2,
+//     MyClockwiseSweepPolygon3,
 
-    LinkedPolygon,
-    LinkedPolygonVertex,
-    LinkedPolygonEdge,
-
-    SimplePolygon,
-    SimplePolygonVertex: PolygonVertex,
     SimplePolygonEdge,
+    LimitedAngleSweepObject,
 
-    SimplePolygon2,
-    SimplePolygonVertex2: PolygonVertex,
-    SimplePolygonEdge2,
-
-    Intersections: Intersections,
-    Intersections2: Intersections2,
-    BruteSortIntersections: BruteSortIntersections,
-    BruteSortXYIntersections: BruteSortXYIntersections,
+    findIntersectionsSingle,
+    findIntersectionsDouble,
 
     sweep,
     brute,
