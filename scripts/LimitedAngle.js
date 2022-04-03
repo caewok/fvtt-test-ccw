@@ -9,10 +9,46 @@ Methods provided to return temporary edges for the two angle walls, a polygon, o
 a bounding box, as appropriate. Edges and bounding box extend at least to the canvas edge
 but likely exceed the canvas edge.
 */
-'use strict'
+
+/* globals
+Ray,
+foundry,
+canvas,
+PIXI,
+ClockwiseSweepPolygon
+*/
+
+'use strict';
+
+/* testing
 
 
-class LimitedAngleSweepObject {
+//
+
+api = game.modules.get(`testccw`).api;
+LimitedAngleSweepObject = api.LimitedAngleSweepObject
+function drawPolygon(poly, color = 0xFF0000) {
+  canvas.controls.debug.lineStyle(1, color).drawShape(poly);
+}
+
+// get data from token
+token = canvas.tokens.controlled[0];
+limitedAngle = new LimitedAngleSweepObject(token.center, token.data.sightAngle, token.data.rotation);
+
+drawPolygon(limitedAngle.getPolygon())
+
+limitedAngle.getEdges()
+limitedAngle.getBounds()
+limitedAngle.containsPoint(token.center)
+
+
+*/
+
+
+import { pixelLineContainsPoint } from "./utilities.js";
+import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+
+export class LimitedAngleSweepObject {
 
  /**
   * @param { PIXI.Point } origin    Origin coordinate of the sweep
@@ -20,48 +56,23 @@ class LimitedAngleSweepObject {
   * @param { number } rotation      Center of the limited angle line, in degrees
   */
   constructor(origin, angle, rotation, { contain_origin = true } = {}) {
+    // token rotation:
+    // north is 180º (3.1415 or π radians)
+    // west is 90º (1.5707 or π/2 radians)
+    // south is 0º (0 radians)
+    // east is 270º (-1.5707 or -π/2 radians)
+
     this.origin = origin;
     this.angle = angle;
     this.rotation = rotation;
 
     if(contain_origin) this._offsetOrigin();
     this._calculateLimitedAngles();
-    this.aMinIx = this._angleCanvasIntersectionPoint(this.aMin);
-    this.aMaxIx = this._angleCanvasIntersectionPoint(this.aMax);
+    this._setBoundaryPoints();
   }
 
 
  // --------------- Getters --------------- //
-
- // Create rays from origin to the four canvas corners
- // Primarily so that we don't repeatedly calculate the angle
- /**
-  * Origin --> Northwest corner
-  */
-  get rayNW() {
-    return this._rNW || ( this._rNW = new Ray(origin, { x: 0, y: 0 }) );
-  }
-
- /**
-  * Origin --> Northeast corner
-  */
-  get rayNE() {
-    return this._rNE || ( this._rNE = new Ray(origin, { x: canvas.dimensions.width, y: 0 }) );
-  }
-
- /**
-  * Origin --> Southeast corner
-  */
-  get raySE() {
-    return this._rSE || ( this._rSE = new Ray(origin, { x: canvas.dimensions.width, y: canvas.dimensions.height }) );
-  }
-
- /**
-  * Origin --> Southwest corner
-  */
-  get raySW() {
-    return this._rSW || ( this._rSW = new Ray(origin, { x: 0, y: canvas.dimensions.height }) );
-  }
 
  /**
   * Move the origin back one pixel to define the start point of the limited angle rays.
@@ -80,84 +91,82 @@ class LimitedAngleSweepObject {
   _calculateLimitedAngles() {
     this.aMin = Math.normalizeRadians(Math.toRadians(this.rotation + 90 - (this.angle / 2)));
     this.aMax = this.aMin + Math.toRadians(this.angle);
+
+    this.rMin = Ray.fromAngle(this.origin.x, this.origin.y, this.aMin, canvas.dimensions.maxR);
+    this.rMax = Ray.fromAngle(this.origin.x, this.origin.y, this.aMax, canvas.dimensions.maxR);
   }
 
  /**
   * Determine where the limited angle rays intersect the canvas edge.
   * (Needed primarily to easily construct a bounding box, but also helpful for
   *  providing edges or a polygon.)
+  * Two options for how to get intersection:
+  * 1. use canvas.dimensions.rect and test _intersectsTop, etc., against rMin/rMax
+  * 2. compare angle of rad to rays from each of the four corners
+  * Going with (1) because we also may need the points in order and need
+  * to know if some corners are included because the angle > 180º.
+  * Easier to do by "walk" around canvas edges
   */
-  _angleCanvasIntersectionPoint(rad) {
-    // aMin and aMax each intersect at one canvas edge
-    // 0 would be due east
-    // π is due west
-    // π / 2 is due south
-    // - π / 2 is due north
+  _setBoundaryPoints() {
+    const origin = this.origin;
+    const rMin = this.rMin;
+    const rMax = this.rMax;
+    const pts = [origin];
+    const boundaries = [...canvas.walls.boundaries];
+    // Find the boundary that intersects rMin and add intersection point.
+    // store i, representing the boundary index.
+    let i;
+    const ln = boundaries.length;
+    for(i = 0; i < ln; i += 1) {
+      const boundary = boundaries[i];
+      if(foundry.utils.lineSegmentIntersects(rMin.A, rMin.B, boundary.A, boundary.B)) {
+        // lineLineIntersection should be slightly faster and we already confirmed
+        // the segments intersect
+        const x = foundry.utils.lineLineIntersection(rMin.A, rMin.B,
+                                                   boundary.A, boundary.B);
+        pts.push(x);
 
-    // simple cases
-    // due east
-    if(rad === 0) return { x: canvas.dimensions.width,  y: this.origin.y };
+        // reset rMin to the correct length to just intersect the canvas border
+        this.rMin = new Ray(origin, x);
+        this.rMin._angle = this.aMin;
 
-    // due west
-    if(rad === Math.PI) return { x: 0, y: this.origin.y };
-
-    // due south
-    if(rad === Math.PI / 2) return { x: this.origin.x, y: canvas.dimensions.height };
-
-    // due north
-    if(rad === -Math.PI / 2) return { x: this.origin.x, y: 0 };
-
-    // Two options for how to get intersection:
-    // 1. use canvas.dimensions.rect and test _intersectsTop, etc., against rMin/rMax
-    // 2. compare angle of rad to rays from each of the four corners
-
-    // compare to rays from origin to the four corners to determine which
-    // border is intersected
-    let rNW = this.rayNW;
-    if(rad === rNW.angle) return { rNW.B; }
-
-    let rNE = this.rayNE;
-    if(rad === rNE.angle) return { rNE.B; }
-
-    if(rad > rNW.angle && rad < rNE.angle) {
-      // intersects the top
-      let adj = 0 - origin.y;
-      let r_rad = Ray.fromAngle(origin.x, origin.y, rad, adj / Math.cos(rad));
-      return r_rad.B;
+        break;
+      }
     }
 
-    let rSE = this.raySE;
-    if(rad === rSE.angle) return { rSE.B; }
-
-    if(rad > rNE.angle && rad < rSE.angle) {
-      // intersects the right
-      let adj = canvas.dimensions.width - origin.x;
-      let r_rad = Ray.fromAngle(origin.x, origin.y, rad, adj / Math.cos(rad));
-      return r_rad.B;
+    // "walk" around the canvas edges
+    // starting with the rMin canvas intersection, check for rMax.
+    // if not intersected, than add the corner point
+    // if greater than 180º angle, don't start with rMin intersection b/c we need to
+    // circle around
+    if(this.angle > 180) {
+      const boundary = boundaries[i];
+      pts.push(boundary.B);
+      i = i + 1;
     }
 
-    let rSW = this.raySW;
-    if(rad === rSW.angle) return { rSW.B; }
+    for(let j = 0; j < ln; j += 1) {
+      const new_i = (i + j) % 4;
+      const boundary = boundaries[new_i];
+      if(foundry.utils.lineSegmentIntersects(rMax.A, rMax.B, boundary.A, boundary.B)) {
+        const x = foundry.utils.lineLineIntersection(rMax.A, rMax.B,
+                                                     boundary.A, boundary.B);
+        pts.push(x);
 
-    if(rad > rSE.angle && rad < rSW.angle) {
-      // intersects the bottom
-      // Math.PI / 2 is angle straight down
-      // adjacent / cosine = hypotenuse
-      let adj = canvas.dimensions.height - origin.y;
-      let r_rad = Ray.fromAngle(origin.x, origin.y, rad, adj / Math.cos(rad));
-      return r_rad.B;
+        // reset rMax to the correct length to just intersect the canvas border
+        this.rMax = new Ray(origin, x);
+        this.rMax._angle = this.aMax;
+
+        break;
+
+      } else {
+        pts.push(boundary.B);
+      }
     }
 
-    // tricky one is when the radians circle from Math.PI to -Math.PI
-    if(rad > rSW.angle && rad < Math.PI ||
-       rad > -Math.PI && rad < rNW.angle) {
-      // intersects the left
-      let adj = 0 - origin.x;
-      let r_rad = Ray.fromAngle(origin.x, origin.y, rad, adj / Math.cos(rad));
-      return r_rad.B;
-    }
-    console.warn("Cannot determine canvas intersection point.")
-    return Ray.fromAngle(this.origin.x, this.origin.y, rad, canvas.dimensions.maxR).B;
+    pts.push(origin);
+
+    this.points = pts;
   }
 
  /**
@@ -165,7 +174,48 @@ class LimitedAngleSweepObject {
   * @return { PIXI.Rectangle }
   */
   getBounds() {
-    const minX = Math.min(this.origin.x, this.aMinIX.x, this.aMaxIX.x)
+    const x_coords = this.points.map(pt => pt.x);
+    const y_coords = this.points.map(pt => pt.y);
+
+    const minX = Math.min(...x_coords);
+    const minY = Math.min(...y_coords);
+
+    const maxX = Math.max(...x_coords);
+    const maxY = Math.max(...y_coords);
+
+    return new PIXI.Rectangle(minX, minY, maxX - minX, maxY - minY);
+  }
+
+ /**
+  * Return two edges, one for each limited angle
+  * @return { SimplePolygonEdge[2] }
+  */
+  getEdges() {
+    return [
+      new SimplePolygonEdge(this.origin, this.rMin.B),
+      new SimplePolygonEdge(this.origin, this.rMax.B)
+    ];
+  }
+
+ /**
+  * Return a polygon representing the limited angle
+  * @return { PIXI.Polygon }
+  */
+  getPolygon() {
+    return PIXI.Polygon.fromPoints(this.points);
+  }
+
+ /**
+  * Test whether a point lies within this limited angle.
+  * Note: does not consider whether it is outside the canvas boundary.
+  * @param {Point} pt   Point to test
+  * @return {boolean}   True if the point is on or within the limited angle
+  */
+  containsPoint(pt) {
+    // keep points within a short distance of the ray, to avoid losing points on the ray
+    return ClockwiseSweepPolygon.pointBetweenRays(pt, this.rMin, this.rMax, this.angle) ||
+           pixelLineContainsPoint(this.rMin, pt, 2) ||
+           pixelLineContainsPoint(this.rMax, pt, 2);
   }
 
 }
