@@ -21,7 +21,7 @@ segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
 
 
-import { compareXY } from "./utilities.js";
+import { compareXY, compareYX } from "./utilities.js";
 
 /**
  * instead of a self-balancing tree, see how we do with just an
@@ -53,10 +53,11 @@ class NotATree {
   insert(segment) {
     // must use a temporary index flag, because we may be switching
     // segments and therefore switching their "y" values temporarily.
-    segment._tmp_y = segment.nw.y;
+    // need the x value for
+    segment._tmp_nw = segment.nw;
 
     // find first element that has larger y than the segment
-    const idx = this.data.findIndex(elem => elem._tmp_y > segment._tmp_y);
+    const idx = this.data.findIndex(elem => compareYX(segment._tmp_nw, elem._tmp_nw) < 0);
 
     if(~idx) {
       // insert event at index
@@ -80,8 +81,8 @@ class NotATree {
       return;
     }
 
-    // change their temporary y values (only *after* finding their current index)
-    [ segment2._tmp_y, segment1._tmp_y ] = [ segment1._tmp_y, segment2._tmp_y ];
+    // change their temporary values (only *after* finding their current index)
+    [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
 
     // change their position
     this.data[idx1] = segment2;
@@ -95,7 +96,7 @@ class NotATree {
     const idx = this.indexOf(segment);
 
     // remove temporary index (only *after* finding the index)
-    segment._tmp_y = undefined;
+    segment._tmp_nw = undefined;
     if(~idx) { this.data.splice(idx, 1); }
   }
 
@@ -125,17 +126,25 @@ class EventQueue {
   }
 
   insert(event) {
-     const idx = this.data.findIndex(elem => compareXY(event.point, elem.point) < 0);
-     if(idx < this.position) console.warn("Inserting e before current position");
-     if(~idx) {
+    const idx = this.data.findIndex(elem => compareXY(event.point, elem.point) < 0);
+    if(idx < this.position) {
+      // if inserting just in front of this.position, we can simply back up
+      if(idx === (this.position - 1)) {
+        this.position -= 1;
+      } else {
+        console.warn("Inserting e before current position");
+      }
+    }
+
+    if(~idx) {
       this.data.splice(idx, undefined, event);
       return idx;
 
-     } else {
+    } else {
       // e has the largest x
       this.data.push(event)
       return this.data.length - 1;
-     }
+    }
   }
 }
 
