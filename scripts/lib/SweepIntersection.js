@@ -13,8 +13,46 @@ foundry
 api = game.modules.get(`testccw`).api;
 SimplePolygonEdge = api.SimplePolygonEdge;
 
+canvas.controls.debug.clear()
 walls = [...canvas.walls.placeables]
 segments = walls.map(w => SimplePolygonEdge.fromWall(w));
+
+Bench
+findIntersectionsSingle = api.findIntersectionsSingle;
+benchmarkLoopFn = api.benchmarkLoopFn
+
+function randomPoint(max_coord) {
+  return { x: Math.floor(Math.random() * max_coord),
+           y: Math.floor(Math.random() * max_coord) };
+}
+function randomSegment(max_coord = 5000) {
+    return new SimplePolygonEdge(randomPoint(max_coord), randomPoint(max_coord));
+}
+
+function applyFn(fn, num_segments, max_coord) {
+  segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
+  return fn(segments);
+}
+
+N = 100
+num_segments = 1000
+max_coord = Math.pow(2, 13)
+await benchmarkLoopFn(N, applyFn, "brute sort", findIntersectionsSingle, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sweep", processIntersections, num_segments, max_coord)
+
+brute sort | 100 iterations | 4.2ms | 0.042ms per
+sweep      | 100 iterations | 7.2ms | 0.07200000000000001ms per
+
+brute sort | 100 iterations | 67ms | 0.67ms per
+sweep      | 100 iterations | 183.6ms | 1.8359999999999999ms per
+
+brute sort | 100 iterations | 5698.5ms | 56.985ms per
+sweep      | 100 iterations | 67360.9ms | 673.6089999999999ms per
+
+canvas.controls.debug.clear()
+segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
+segments.forEach(s => drawEdge(s, COLORS.black))
+processIntersections(segments)
 
 */
 
@@ -22,6 +60,95 @@ segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
 
 import { compareXY, compareYX } from "./utilities.js";
+
+
+export function processIntersections(segments) {
+  // id the segments for testing
+ //  segments.forEach(s => drawEdge(s, COLORS.black))
+//   segments.forEach(s => labelVertex(s.nw, s.id))
+
+  let tracker = new Set(); // to note pairs for which intersection is checked already
+  let tree = new NotATree(); // pretend this is actually a tree
+  let e = new EventQueue(segments);
+
+  let num_ixs = 0; // mainly for testing
+
+  // traverse the queue
+  let curr;
+  while(curr = e.next()) {
+// console.table(tree.data, ["_id"])
+//     curr = e.next()
+//     console.log(`Sweep at x = ${curr.point.x}`);
+
+    // draw vertical sweep line
+//     drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, alpha = .5)
+
+    if(curr.isIx) {
+
+      // report intersection
+      curr.segment1._identifyIntersectionsWith(curr.segment2);
+      //       console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`)
+//       drawVertex(curr.point)
+
+      // swap A, B
+//         console.log(`\tSwapping ${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y} and ${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y}`)
+        let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2);
+        if(typeof new_idx1 !== "undefined") {
+          // undefined should be only when the two segments share a se endpoint
+
+          // check for intersection between the upper segment and above
+          // and between lower segment and below
+          let [bottom_segment, top_segment] = new_idx1 > new_idx2 ?
+              [curr.segment1, curr.segment2] :
+              [curr.segment2, curr.segment1];
+
+          let below = tree.belowIndex(Math.max(new_idx1, new_idx2));
+          let above = tree.aboveIndex(Math.min(new_idx1, new_idx2));
+
+          if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
+          if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
+        }
+
+    } else if (curr.isLeft) {
+     //  console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+//       drawEdge(curr.segment)
+      // get the above and below points
+      let idx = tree.insert(curr.segment, curr.point.x);
+
+      // check if curr intersects with its predecessor and successor
+      // if we already checked this pair, we can skip
+      let below = tree.belowIndex(idx);
+      if(below) { num_ixs += checkForIntersection(below, curr.segment, e, tracker); }
+
+      let above = tree.aboveIndex(idx);
+      if(above) { num_ixs += checkForIntersection(above, curr.segment, e, tracker); }
+
+    } else {
+//       console.log(`\tRight endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+
+      // curr point is right of its segment
+      // check if predecessor and successor intersect with each other
+      let idx = tree.indexOf(curr.segment);
+      if(!~idx) console.error("Segment not found", curr);
+      let below = tree.belowIndex(idx);
+      let above = tree.aboveIndex(idx);
+      if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
+
+//       console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+//       drawEdge(curr.segment, COLORS.red)
+      tree.deleteAtIndex(idx);
+      // do we need to delete associated ix events? (Hopefully not; that may be hard.)
+
+    }
+
+  }
+
+  return num_ixs;
+}
+
+
+
+
 
 /**
  * instead of a self-balancing tree, see how we do with just an
@@ -50,14 +177,23 @@ class NotATree {
 
   // insert
   // return index of the insertion
-  insert(segment) {
+  insert(segment, sweep_x) {
     // must use a temporary index flag, because we may be switching
     // segments and therefore switching their "y" values temporarily.
-    // need the x value for
+    // need the x value for when y values are the same.
+    // need se for when the segments share nw endpoint.
+
+    // when inserting a new object, must also recalculate the x, y based on
+    // current sweep line position and insert accordingly
+    if(typeof sweep_x === "undefined") { console.warn("insert requires sweep_x"); }
+
     segment._tmp_nw = segment.nw;
+    segment._tmp_se = segment.se;
 
     // find first element that has larger y than the segment
-    const idx = this.data.findIndex(elem => compareYX(segment._tmp_nw, elem._tmp_nw) < 0);
+    // note that segmentCompareYX is using the current sweep location to calculate
+    // points of comparison
+    const idx = this.data.findIndex(elem => this._segmentCompareYX(segment, elem, sweep_x));
 
     if(~idx) {
       // insert event at index
@@ -77,12 +213,13 @@ class NotATree {
     const idx2 = this.indexOf(segment2);
 
     if(!~idx1 || !~idx2) {
-      console.warn("swap segments not found.");
-      return;
+//       console.warn("swap segments not found.");
+      return [undefined, undefined];
     }
 
     // change their temporary values (only *after* finding their current index)
     [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
+    [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
 
     // change their position
     this.data[idx1] = segment2;
@@ -101,8 +238,37 @@ class NotATree {
   }
 
   deleteAtIndex(idx) { this.data.splice(idx, 1); }
+
+
+  _segmentCompareYX(segment, elem, sweep_x) {
+    // must use the current sweep location to set nw for each existing element
+    const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
+    if(new_pt_e) elem._tmp_nw = new_pt_e;
+
+    const cmp_nw = compareYX(segment._tmp_nw, elem._tmp_nw);
+    if(cmp_nw) return cmp_nw < 0;
+
+    // segments share nw endpoint. Compare using se endpoint, but
+    // it must be arranged opposite. So more nw means sorted later.
+    // (as if we extended the segments in the nw direction past their endpoints---
+    //  how would they sort given those new nw extended endpoints?)
+    const cmp_se = compareYX(segment._tmp_se, elem._tmp_se);
+    return cmp_se > 0;
+  }
 }
 
+function pointForSegmentGivenX(s, x) {
+  const denom = s.B.x - s.A.x;
+  if(!denom) return undefined;
+
+  return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+}
+
+
+// Needs to approximate a priority queue.
+// In particular, it is possible for an intersection event to be added that would be
+// the very next event, possibly several jumps in front of the current segment event
+// had they been all sorted with the intersection event.
 class EventQueue {
   constructor(segments) {
     // push all points to a vector of events
@@ -113,38 +279,22 @@ class EventQueue {
     })
 
     // sort all events according to x then y coordinate
-    data.sort((a, b) => compareXY(a.point, b.point));
+    // reverse so that we can pop
+    data.sort((a, b) => -compareXY(a.point, b.point));
 
     this.data = data;
-    this.position = 0;
   }
 
   next() {
-    const out = this.data[this.position];
-    this.position += 1;
-    return out;
+    return this.data.pop()
   }
 
   insert(event) {
-    const idx = this.data.findIndex(elem => compareXY(event.point, elem.point) < 0);
-    if(idx < this.position) {
-      // if inserting just in front of this.position, we can simply back up
-      if(idx === (this.position - 1)) {
-        this.position -= 1;
-      } else {
-        console.warn("Inserting e before current position");
-      }
-    }
+    const idx = this.data.findIndex(elem => compareXY(event.point, elem.point) > 0);
 
-    if(~idx) {
-      this.data.splice(idx, undefined, event);
-      return idx;
-
-    } else {
-      // e has the largest x
-      this.data.push(event)
-      return this.data.length - 1;
-    }
+    // if index is -1, then e is the smallest x and is appended to end (will be first)
+    // (this is different than how splice works for -1)
+    ~idx ? this.data.splice(idx, undefined, event) : this.data.push(event);
   }
 }
 
@@ -157,86 +307,14 @@ function hashSegments(s1, s2) {
   return "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key
 }
 
-export function processIntersections(segments) {
-  let tracker = new Set(); // to note pairs for which intersection is checked already
-  let tree = new NotATree(); // pretend this is actually a tree
-  let e = new EventQueue(segments);
-
-  let num_ixs = 0; // mainly for testing
-
-  // traverse the queue
-  let curr;
-  while(curr = e.next()) {
-    console.log(`Sweep at x = ${curr.point.x}`);
-
-    // draw vertical sweep line
-    drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, alpha = .5)
-
-    if(curr.isIx) {
-      console.log(`\tIntersection event ${ix.x},${ix.y}`)
-      // report intersection
-//           curr.segment1._identifyIntersectionsWith(curr.segment2);
-      drawVertex(curr.point)
-
-      // swap A, B
-      console.log(`\tSwapping ${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y} and ${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y}`)
-      let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2);
-
-      // check for intersection between the upper segment and above
-      // and between lower segment and below
-      let [bottom_segment, top_segment] = new_idx1 > new_idx2 ?
-          [curr.segment1, curr.segment2] :
-          [curr.segment2, curr.segment1];
-
-      let below = tree.belowIndex(Math.max(new_idx1, new_idx2));
-      let above = tree.aboveIndex(Math.min(new_idx1, new_idx2));
-
-      if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
-      if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
 
 
-    } else if (curr.isLeft) {
-      console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-      drawEdge(curr.segment)
-      // get the above and below points
-      let idx = tree.insert(curr.segment);
 
-      // check if curr intersects with its predecessor and successor
-      // if we already checked this pair, we can skip
-      let below = tree.belowIndex(idx);
-      if(below) { num_ixs += checkForIntersection(below, curr.segment, e, tracker); }
-
-      let above = tree.aboveIndex(idx);
-      if(above) { num_ixs += checkForIntersection(above, curr.segment, e, tracker); }
-
-    } else {
-      console.log(`\tRight endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-
-      // curr point is right of its segment
-      // check if predecessor and successor intersect with each other
-      let idx = tree.indexOf(curr.segment);
-      if(!~idx) console.error("Segment not found", curr);
-      let below = tree.belowIndex(idx);
-      let above = tree.aboveIndex(idx);
-      if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
-
-      console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-      tree.deleteAtIndex(idx);
-      drawEdge(curr.segment, COLORS.red)
-
-      // do we need to delete associated ix events? (Hopefully not; that may be hard.)
-
-    }
-
-  }
-
-  return num_ixs;
-}
 
 function checkForIntersection(s1, s2, e, tracker) {
   let num_ixs = 0
-  let hash = hashSegments(s1, s2);
-  let hash_rev = hashSegments(s2, s1);
+  const hash = hashSegments(s1, s2);
+  const hash_rev = hashSegments(s2, s1);
   if(!(tracker.has(hash) || tracker.has(hash_rev)) &&
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
     num_ixs += 1;
@@ -245,8 +323,8 @@ function checkForIntersection(s1, s2, e, tracker) {
     // for testing
 
     const ix = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    console.log(`\tIntersection found at ${ix.x},${ix.y}`)
-    drawVertex(ix, COLORS.lightred, .5);
+//     console.log(`\tIntersection found at ${ix.x},${ix.y}`)
+//     drawVertex(ix, COLORS.lightred, .5);
 
     const event_ix = {
       point: ix,
