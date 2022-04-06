@@ -28,7 +28,7 @@ function isRight(edge1, edge2) {
  * Intersections marked in edge.intersectsWith map
  * Comparable to identifyWallIntersections method from WallsLayer Class
  */
-export function findIntersectionsSingle(edges) {
+export function findIntersectionsSortSingle(edges, reportFn = (e1, e2) => {}) {
   const ln = edges.length;
   if(!ln) return;
 
@@ -45,7 +45,9 @@ export function findIntersectionsSingle(edges) {
       // if we reach the right end of this edge, we can skip the rest
       if(isRight(edge2, edge1)) break;
 
-      edge1.identifyIntersectionsWith(edge2)
+      if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
+        reportFn(edge1, edge2);
+      }
     }
   }
 
@@ -59,7 +61,7 @@ export function findIntersectionsSingle(edges) {
  * Intersections marked in the set
  * Comparable to identifyWallIntersections method from WallsLayer Class
  */
-export function findIntersectionsDouble(edges1, edges2) {
+export function findIntersectionsSortRedBlack(edges1, edges2, reportFn = (e1, e2) => {}) {
   const ln1 = edges1.length;
   const ln2 = edges2.length;
   if(!ln1 || !ln2) return;
@@ -69,8 +71,8 @@ export function findIntersectionsDouble(edges1, edges2) {
 
   for(let i = 0; i < ln1; i += 1) {
     const edge1 = edges1[i]
-    for(let j = 0; j < ln; j += 1) {
-      const edge2 = edges[j];
+    for(let j = 0; j < ln2; j += 1) {
+      const edge2 = edges2[j];
 
       // if we have not yet reached the left end of this edge, we can skip
       if(isLeft(edge1, edge2)) continue;
@@ -78,7 +80,9 @@ export function findIntersectionsDouble(edges1, edges2) {
       // if we reach the right end of this edge, we can skip the rest
       if(isRight(edge2, edge1)) break;
 
-      edge1.identifyIntersectionsWith(edge2);
+      if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
+        reportFn(edge1, edge2);
+      }
     }
   }
 }
