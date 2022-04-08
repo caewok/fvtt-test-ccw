@@ -155,8 +155,8 @@ for(i = 0; i < 100; i += 1) {
 // enlarge segments
 orig_segments = [...segments]
 segments = segments.map(s => {
-  return new SimplePolygonEdge({x: s.A.x * 10, y: s.A.y * 10},
-                               {x: s.B.x * 10, y: s.B.y * 10})
+  return new SimplePolygonEdge({x: s.A.x * 20, y: s.A.y * 20},
+                               {x: s.B.x * 20, y: s.B.y * 20})
 
 })
 
@@ -314,7 +314,7 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn, prev_sweep_x)
   }
 
   // swap A, B
-  let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2, prev_sweep_x);
+  let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2, curr.point.x);
   if(typeof new_idx1 !== "undefined") {
     // undefined should be only when the two segments share a se endpoint
 
@@ -349,6 +349,12 @@ function handleRightEvent(curr, e, tree, tracker) {
 //       let idx = tree.indexOf(curr.segment);
 //       let idx = tree.binaryIndexOf(curr.segment, curr.point.x);
   let idx = tree.indexOf(curr.segment)
+
+  let idx_bin = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+
+  if(idx !== idx_bin) {
+    console.warn(`handleRightEvent: idx ${idx} ≠ idx_bin ${idx_bin} for endpoint ${curr.point.x},${curr.point.y}`);
+  }
 
   if(!~idx) console.error("Segment not found", curr);
   let below = tree.belowIndex(idx);
@@ -411,8 +417,21 @@ class NotATree {
       return -1;
     }
 
-    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x);
-    let idx = binaryIndexOf(this.data, segment, (a, b) => this._segmentIndexCompareYXWithUpdate(a, b, sweep_x));
+    // if the segment is vertical, there is a good chance we will not know its location.
+    // A vertical line may have multiple intersections at the same sweep_x.
+    // This will proceed:
+    // - identify intersection
+    // - swap intersection
+    // - identify second intersection
+    // <-- here, the segment has already been swapped but we are still at the same sweep_x,
+    //     so we would need to somehow know that to know where it is in the data array.
+    // - swap second intersection ...
+
+    // Instead, bail out and return a non-binary search instead
+    if(segment.A.x === segment.B.x) { return this.data.indexOf(segment); }
+
+    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment._tmp_nw; // if vertical, use existing
+    let idx = binaryIndexOf(this.data, segment, (a, b) => this._segmentCompare(a, b, sweep_x));
 
 //     if(idx_orig !== idx) {
 //       console.warn(`binaryIndex: idx_orig is ${idx_orig}, not ${idx}`);
@@ -420,6 +439,14 @@ class NotATree {
 //     }
 
     return idx;
+  }
+
+  deletionBinaryIndexOf(segment, sweep_x) {
+    // same as binaryIndexOf but we are comparing from the right (se),
+    // so must use _segmentCompareForDeletion
+    if(!segment._tmp_nw) { return -1 }
+    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment.se; // deleting, so we want the end
+    return binaryIndexOf(this.data, segment, (a, b) => this._segmentCompareForDeletion(a, b, sweep_x));
   }
 
 
@@ -443,7 +470,6 @@ class NotATree {
     if(typeof sweep_x === "undefined") { console.warn("insert requires sweep_x"); }
 
     segment._tmp_nw = segment.nw;
-    segment._tmp_se = segment.se;
 
     // find first element that has larger y than the segment
     // note that segmentCompareYX is using the current sweep location to calculate
@@ -452,7 +478,7 @@ class NotATree {
     let idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
 
     if(idx !== idx_orig) {
-      console.warn(`insert segment indices mismatch: ${idx_orig} vs ${idx}`);
+      console.warn(`insert segment indices mismatch: ${idx_orig} vs ${idx} at sweep ${sweep_x}`);
       idx = idx_orig
     }
 
@@ -477,12 +503,12 @@ class NotATree {
     const idx1 = this.indexOf(segment1);
     const idx2 = this.indexOf(segment2);
 
-//     const idx1_bin = this.binaryIndexOf(segment1);
-//     const idx2_bin = this.binaryIndexOf(segment2);
-//
-//     if(idx1 !== idx1_bin || idx2 !== idx2_bin) {
-//       console.warn(`swap segment index mismatch: ${idx1} vs ${idx1_bin}; ${idx2} vs ${idx2_bin}`)
-//     }
+    const idx1_bin = this.binaryIndexOf(segment1, sweep_x);
+    const idx2_bin = this.binaryIndexOf(segment2, sweep_x);
+
+    if(idx1 !== idx1_bin || idx2 !== idx2_bin) {
+      console.warn(`swap segment index mismatch: ${idx1} vs ${idx1_bin}; ${idx2} vs ${idx2_bin} at sweep ${sweep_x}`)
+    }
 
 //     let idx1 = this.binaryIndexOf(segment1, sweep_x);
 //     let idx2 = this.binaryIndexOf(segment2, sweep_x);
@@ -508,7 +534,6 @@ class NotATree {
     // change their temporary values (only *after* finding their current index)
 
     [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
-    [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
 
     // change their position
     this.data[idx1] = segment2;
@@ -531,44 +556,41 @@ class NotATree {
     }
 
     this.data[idx]._tmp_nw = undefined;
-    this.data[idx]._tmp_se = undefined;
     this.data.splice(idx, 1);
   }
 
-  _segmentIndexCompareYX(s1, s2) {
-    return compareYX(s1._tmp_nw, s2._tmp_nw) || -compareYX(s1._tmp_se, s2._tmp_se);
+  _segmentCompareForDeletion(segment, elem, sweep_x) {
+    // same as this._segmentCompare, but the orientation is flipped b/c we are
+    // comparing segments after potential swap
+     elem._tmp_nw = pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw;
+     return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+            -foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+            -foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
   }
 
-  _segmentIndexCompareYXWithUpdate(s1, elem, sweep_x) {
-    const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
-    if(new_pt_e) elem._tmp_nw = new_pt_e;
-    return compareYX(s1._tmp_nw, elem._tmp_nw) || -compareYX(s1._tmp_se, elem._tmp_se);
-  }
-
-
-  _elemIsAfter(segment, elem, sweep_x) {
+  _segmentCompare(segment, elem, sweep_x) {
     // must use the current sweep location to set nw for each existing element
-    const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
-    if(new_pt_e) elem._tmp_nw = new_pt_e;
+    elem._tmp_nw = pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw; // if vertical keep existing
 
-    // if comp is less than 0, than segment is before elem; return true
-    const cmp_nw = compareYX(segment._tmp_nw, elem._tmp_nw);
-    if(cmp_nw) return cmp_nw < 0;
+    // if compareXY is not 0, use that comparison result.
 
-    // segment and elem share nw endpoint
+    // otherwise, segment and elem share nw endpoint or se endpoint equals _tmp_nw at sweep
     // sort by extending the lines to the nw: whichever is higher in the nw
     // direction is first in the sort.
     // can determine this directly by extending lines from the se, or indirectly by
-    // determining their orientation in the se direction.
-    // imagine that as extended, the segments form an X. We need the orientation to the se
-    // to tell us which is which in the < part of the X, from which we infer the ne
-    // portion of X, the >. Together, we get ><
+    // determining their orientation relative to one another
 
-    // use the segments' actual se point, along with the shared nw endpoint.
-    // (could actually share nw endpoint or one line's endpoint could intersect the other
-    //   line)
-    const orientation = foundry.utils.orient2dFast(elem._tmp_nw, elem.se, segment.se);
-    return orientation < 0;
+    // if they share the nw endpoint, the first orientation will return 0; test again
+    // in opposite direction. So first orientation tests > shape; second tests < shape
+    // of the X.
+
+    return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+           foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+           foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+  }
+
+  _elemIsAfter(segment, elem, sweep_x) {
+    return this._segmentCompare(segment, elem, sweep_x) < 0;
   }
 
 //   _segmentCompareYX(segment, elem, sweep_x) {
@@ -680,17 +702,22 @@ pts.sort((a, b) => compareXY(a, b))
 // if compareXY < 0, a is before b
 let i;
 for(i = 0; i < pts.length; i += 1) {
-  let cmp_pt = pts[i];
-  if(binaryFindIndex(pts, obj => compareXY(cmp_pt, obj) <= 0) !== i) {
-    console.warn(`${cmp_pt.x},${cmp_pt.y} not at ${i}`)
+  let pt = pts[i];
+  let bin_idx1 = binaryFindIndex(pts, obj => compareXY(pt, obj) <= 0);
+  let bin_idx2 = binaryFindIndex(pts, obj => compareXY(obj, pt) > 0);
+  let idx1 = pts.findIndex(obj => compareXY(pt, obj) <= 0);
+  let idx2 = pts.findIndex(obj => compareXY(pt, obj) > 0);
+
+  if(bin_idx1 !== idx1) {
+    // should not fail
+    console.error(`first bin index\t${bin_idx1} ≠ ${idx1}`);
   }
-}
-// or
-for(i = 0; i < pts.length; i += 1) {
-  let cmp_pt = pts[i];
-  if(binaryFindIndex(pts, obj => compareXY(obj, cmp_pt) >= 0) !== i) {
-    console.warn(`${cmp_pt.x},${cmp_pt.y} not at ${i}`)
+
+  if(bin_idx2 !== idx2) {
+    // will fail
+    console.error(`second bin index\t${bin_idx2} ≠ ${idx2}`);
   }
+
 }
 
 */
@@ -702,7 +729,7 @@ function binaryFindIndex(arr, callbackFn) {
 
   // need first index for which callbackFn returns true
   // b/c the array is sorted, once the callbackFn is true for an index,
-  // it will be true for the rest
+  // it is assumed true for the rest
   // so, e.g, [F,F,F, T, T, T, T]
   // progressively check until we have no items left.
 
@@ -748,9 +775,11 @@ pts.sort((a, b) => compareXY(a, b))
 // if compareXY < 0, a is before b
 let i;
 for(i = 0; i < pts.length; i += 1) {
-  let cmp_pt = pts[i];
-  if(binaryIndexOf(pts, cmp_pt, compareXY) !== i) {
-    console.warn(`${cmp_pt.x},${cmp_pt.y} not at ${i}`)
+  let pt = pts[i];
+  let idx = pts.indexOf(pt);
+  let bin_idx = binaryIndexOf(pts, pt, compareXY);
+  if(idx !== bin_idx) {
+    console.error(`binary index ${bin_idx} ≠ ${idx}`);
   }
 }
 */
@@ -811,4 +840,20 @@ function checkForIntersection(s1, s2, e, tracker) {
 }
 
 
+
+/**
+Varieties of lines to test:
+
+vertical line, multiple lines cross
+horizontal line, multiple lines cross
+Asterix *, center is endpoint
+Asterix *, overlap at center point
+Intersect at endpoint: <, >, V, upside down V
+Intersect at endpoint for two co-linear horizontal lines --
+Intersect at endpoint for two co-linear vertical lines
+
+Triangle with overlap
+Triangle intersecting at points
+
+*/
 
