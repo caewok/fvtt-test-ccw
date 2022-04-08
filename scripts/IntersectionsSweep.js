@@ -1,5 +1,11 @@
 /* globals
-foundry
+foundry,
+drawEdge,
+drawVertex,
+COLORS,
+labelVertex,
+clearLabels,
+canvas
 
 */
 
@@ -12,8 +18,51 @@ foundry
 /* testing
 api = game.modules.get(`testccw`).api;
 SimplePolygonEdge = api.SimplePolygonEdge;
-findIntersectionsSingle = api.findIntersectionsSingle;
 benchmarkLoopFn = api.benchmarkLoopFn
+
+let { COLORS, clearDrawings, clearLabels, drawEdge, drawPolygon, drawVertex, labelVertex } = api.Drawing;
+
+findIntersectionsBruteSingle = api.findIntersectionsBruteSingle;
+findIntersectionsSortSingle = api.findIntersectionsSortSingle;
+findIntersectionsSort2Single = api.findIntersectionsSort2Single;
+findIntersectionsSweepSingle = api.findIntersectionsSweepSingle;
+
+reportFn = (e1, e2, ix) => {}
+
+function randomPoint(max_coord) {
+  return { x: Math.floor(Math.random() * max_coord),
+           y: Math.floor(Math.random() * max_coord) };
+}
+function randomSegment(max_coord = 5000) {
+  let a = randomPoint(max_coord);
+  let b = randomPoint(max_coord);
+  while(pointsEqual(a, b)) {
+    // don't create lines of zero length
+    a = randomPoint(max_coord);
+    b = randomPoint(max_coord);
+  }
+  return new SimplePolygonEdge(a, b);
+}
+
+function compareXY(a, b) {
+  const diff_x = a.x - b.x;
+  if(diff_x.almostEqual(0)) {
+    const diff_y = a.y - b.y;
+    return diff_y.almostEqual(0) ? 0 : diff_y;
+  }
+  return diff_x;
+}
+
+function compareYX(a, b) {
+  const diff_y = a.y - b.y;
+  if(diff_y.almostEqual(0)) {
+    const diff_x = a.x - b.x;
+    return diff_x.almostEqual(0) ? 0 : diff_x;
+  }
+  return diff_y;
+}
+
+function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)) }
 
 
 canvas.controls.debug.clear()
@@ -24,15 +73,46 @@ N = 100
 await benchmarkLoopFn(N, findIntersectionsSingle, "brute sort", segments)
 await benchmarkLoopFn(N, processIntersections, "sweep", segments)
 
+
+Test random
+reportFnBrute = (s1, s2) => {
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_brute.push(x); // avoid pushing null
+}
+
+reportFnSort = (s1, s2) => {
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_sort.push(x);
+}
+
+reportFnSweep = (s1, s2, ix) => {
+  reporting_arr_sweep.push(ix);
+}
+
+reporting_arr_brute = []
+reporting_arr_sort = []
+reporting_arr_sweep = []
+
+segments = Array.fromRange(10).map(i => randomSegment(5000))
+canvas.controls.debug.clear()
+segments.forEach(s => drawEdge(s, COLORS.black))
+
+findIntersectionsBruteSingle(segments, reportFnBrute)
+findIntersectionsSortSingle(segments, reportFnSort)
+findIntersectionsSweepSingle(segments, reportFnSweep)
+
+reporting_arr_brute.sort(compareXY)
+reporting_arr_sort.sort(compareXY)
+reporting_arr_sweep.sort(compareXY)
+
+reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))
+reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))
+
+
+
 Bench
 
-function randomPoint(max_coord) {
-  return { x: Math.floor(Math.random() * max_coord),
-           y: Math.floor(Math.random() * max_coord) };
-}
-function randomSegment(max_coord = 5000) {
-    return new SimplePolygonEdge(randomPoint(max_coord), randomPoint(max_coord));
-}
+
 
 function applyFn(fn, num_segments, max_coord) {
   segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
@@ -42,8 +122,45 @@ function applyFn(fn, num_segments, max_coord) {
 N = 100
 num_segments = 1000
 max_coord = Math.pow(2, 13)
-await benchmarkLoopFn(N, applyFn, "brute sort", findIntersectionsSingle, num_segments, max_coord)
-await benchmarkLoopFn(N, applyFn, "sweep", processIntersections, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "brute", findIntersectionsBruteSingle, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sort2", findIntersectionsSort2Single, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+
+let i;
+let segments
+for(i = 0; i < 100; i += 1) {
+  i % 10 !== 0 || console.log(`${i}`);
+
+  reporting_arr_brute = []
+  reporting_arr_sweep = []
+
+  segments = Array.fromRange(10).map(i => randomSegment(5000))
+  findIntersectionsBruteSingle(segments, reportFnBrute)
+  findIntersectionsSweepSingle(segments, reportFnSweep)
+
+  reporting_arr_brute.sort(compareXY)
+  reporting_arr_sweep.sort(compareXY)
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
+
+     console.table(reporting_arr_brute);
+     console.table(reporting_arr_sweep);
+     console.error(`ixs not equal .`, segments)
+     break;
+  }
+}
+
+// enlarge segments
+orig_segments = [...segments]
+segments = segments.map(s => {
+  return new SimplePolygonEdge({x: s.A.x * 10, y: s.A.y * 10},
+                               {x: s.B.x * 10, y: s.B.y * 10})
+
+})
+
+
 
 // with Array.findIndex
 brute sort | 100 iterations | 1.3ms | 0.013000000000000001ms per
@@ -107,12 +224,21 @@ processIntersections(segments)
 import { compareXY, compareYX } from "./utilities.js";
 
 
-export function processIntersections(segments, reportFn = (e1, e2, ix) => {}) {
+
+
+
+
+debug = false;
+
+export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) => {}) {
   // id the segments for testing
- //  canvas.controls.debug.clear()
-//   clearLabels()
-//   segments.forEach(s => drawEdge(s, COLORS.black))
-//   segments.forEach(s => labelVertex(s.nw, s.id))
+
+  if(debug) {
+    canvas.controls.debug.clear();
+    clearLabels();
+    segments.forEach(s => drawEdge(s, COLORS.black));
+    segments.forEach(s => labelVertex(s.nw, s.id));
+  }
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let tree = new NotATree(); // pretend this is actually a tree
@@ -122,82 +248,124 @@ export function processIntersections(segments, reportFn = (e1, e2, ix) => {}) {
 
   // traverse the queue
   let curr;
+  let prev_sweep_x = null;
   while(curr = e.next()) {
 // console.table(tree.data, ["_id"])
 //     curr = e.next()
-//     console.log(`Sweep at x = ${curr.point.x}`);
-//     drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, alpha = .5)
 
-    if(curr.isIx) {
-
-      // report intersection
-      reportFn(curr.segment1, curr.segment2, curr.point)
-//       curr.segment1._identifyIntersectionsWith(curr.segment2);
-//             console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`)
-//       drawVertex(curr.point)
-
-      // swap A, B
-//         console.log(`\tSwapping ${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y} and ${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y}`)
-        let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2);
-        if(typeof new_idx1 !== "undefined") {
-          // undefined should be only when the two segments share a se endpoint
-
-          // check for intersection between the upper segment and above
-          // and between lower segment and below
-          let [bottom_segment, top_segment] = new_idx1 > new_idx2 ?
-              [curr.segment1, curr.segment2] :
-              [curr.segment2, curr.segment1];
-
-          let below = tree.belowIndex(Math.max(new_idx1, new_idx2));
-          let above = tree.aboveIndex(Math.min(new_idx1, new_idx2));
-
-          if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
-          if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
-        }
-
-    } else if (curr.isLeft) {
-      // console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-//       drawEdge(curr.segment)
-      // get the above and below points
-      let idx = tree.insert(curr.segment, curr.point.x);
-
-      // check if curr intersects with its predecessor and successor
-      // if we already checked this pair, we can skip
-      let below = tree.belowIndex(idx);
-      if(below) { num_ixs += checkForIntersection(below, curr.segment, e, tracker); }
-
-      let above = tree.aboveIndex(idx);
-      if(above) { num_ixs += checkForIntersection(above, curr.segment, e, tracker); }
-
-    } else {
-//       console.log(`\tRight endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-
-      // curr point is right of its segment
-      // check if predecessor and successor intersect with each other
-
-      // cannot use binaryIndexOf here w/o adjusting the tree.data order or
-      // properly updating all the data segment._tmp_nw points.
-      let idx = tree.indexOf(curr.segment);
-
-      if(!~idx) console.error("Segment not found", curr);
-      let below = tree.belowIndex(idx);
-      let above = tree.aboveIndex(idx);
-      if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
-
-     //  console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-//       drawEdge(curr.segment, COLORS.red)
-      tree.deleteAtIndex(idx);
-      // do we need to delete associated ix events? (Hopefully not; that may be hard.)
-
+    if(debug) {
+      console.log(`${Object.getOwnPropertyNames(EventType)[curr.eventType]} event; Sweep at x = ${curr.point.x}.`);
+      console.log(`\tEvent Queue: ${e.data.length}; Tree: ${tree.data.length}`, e.data, tree.data);
+      drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, .5);
+//       console.table(tree.data, ["_id"])
     }
+
+    switch(curr.eventType) {
+      case EventType.Left:
+        num_ixs += handleLeftEvent(curr, e, tree, tracker);
+        break;
+      case EventType.Intersection:
+        num_ixs += handleIntersectionEvent(curr, e, tree, tracker, reportFn, prev_sweep_x);
+        break;
+      case EventType.Right:
+        num_ixs += handleRightEvent(curr, e, tree, tracker);
+        break;
+    }
+
+    prev_sweep_x = curr.point.x;
 
   }
 
   return num_ixs;
 }
 
+function handleLeftEvent(curr, e, tree, tracker) {
+  let num_ixs = 0;
 
+  if(debug) {
+    console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment);
+  }
 
+  // get the above and below points
+  let idx = tree.insert(curr.segment, curr.point.x);
+
+  // check if curr intersects with its predecessor and successor
+  // if we already checked this pair, we can skip
+  let below = tree.belowIndex(idx);
+  if(below) { num_ixs += checkForIntersection(below, curr.segment, e, tracker); }
+
+  let above = tree.aboveIndex(idx);
+  if(above) { num_ixs += checkForIntersection(above, curr.segment, e, tracker); }
+
+  return num_ixs;
+}
+
+function handleIntersectionEvent(curr, e, tree, tracker, reportFn, prev_sweep_x) {
+  let num_ixs = 0;
+
+  // report intersection
+  reportFn(curr.segment1, curr.segment2, curr.point);
+
+  if(debug) {
+    console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`);
+    drawVertex(curr.point);
+    console.log(`\tSwapping ${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y} and ${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y}`)
+  }
+
+  // swap A, B
+  let [new_idx1, new_idx2] = tree.swap(curr.segment1, curr.segment2, prev_sweep_x);
+  if(typeof new_idx1 !== "undefined") {
+    // undefined should be only when the two segments share a se endpoint
+
+    // check for intersection between the upper segment and above
+    // and between lower segment and below
+    let [bottom_segment, top_segment] = new_idx1 > new_idx2 ?
+        [curr.segment1, curr.segment2] :
+        [curr.segment2, curr.segment1];
+
+    let below = tree.belowIndex(Math.max(new_idx1, new_idx2));
+    let above = tree.aboveIndex(Math.min(new_idx1, new_idx2));
+
+    if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
+    if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
+  }
+
+  return num_ixs;
+}
+
+function handleRightEvent(curr, e, tree, tracker) {
+  let num_ixs = 0;
+
+  if(debug) {
+    console.log(`\tRight endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+  }
+
+  // curr point is right of its segment
+  // check if predecessor and successor intersect with each other
+
+  // cannot use binaryIndexOf here w/o adjusting the tree.data order or
+  // properly updating all the data segment._tmp_nw points.
+//       let idx = tree.indexOf(curr.segment);
+//       let idx = tree.binaryIndexOf(curr.segment, curr.point.x);
+  let idx = tree.indexOf(curr.segment)
+
+  if(!~idx) console.error("Segment not found", curr);
+  let below = tree.belowIndex(idx);
+  let above = tree.aboveIndex(idx);
+  if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
+
+  if(debug) {
+    console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment, COLORS.red);
+  }
+
+  tree.deleteAtIndex(idx);
+  // do we need to delete associated ix events? (Hopefully not; that may be hard.)
+  // probably handled by the tracker eliminating ix overlap
+
+  return num_ixs;
+}
 
 
 /**
@@ -234,9 +402,28 @@ class NotATree {
     // added or has already been removed. See insert and delete
     // Must catch this case to avoid throwing error on _segmentIndexCompareYX
     // which would otherwise try to access the undefined ._tmp_nw to compare
-    if(!segment._tmp_nw) { return -1; }
-    return binaryIndexOf(this.data, segment, this._segmentIndexCompareYX);
+//     let idx_orig = this.indexOf(segment);
+
+
+    if(!segment._tmp_nw) {
+//       if(idx_orig !== -1) { console.warn(`binaryIndex: idx_orig is ${idx_orig}, not -1.`); }
+//       return idx_orig;
+      return -1;
+    }
+
+    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x);
+    let idx = binaryIndexOf(this.data, segment, (a, b) => this._segmentIndexCompareYXWithUpdate(a, b, sweep_x));
+
+//     if(idx_orig !== idx) {
+//       console.warn(`binaryIndex: idx_orig is ${idx_orig}, not ${idx}`);
+//       idx = idx_orig;
+//     }
+
+    return idx;
   }
+
+
+
 //
 //   indexOfWithUpdate(segment, sweep_x) {
 //     segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x);
@@ -261,8 +448,13 @@ class NotATree {
     // find first element that has larger y than the segment
     // note that segmentCompareYX is using the current sweep location to calculate
     // points of comparison
-    const idx = this.data.findIndex(elem => this._segmentCompareYX(segment, elem, sweep_x));
-//     const idx = binaryFindIndex(this.data, elem => this._segmentCompareYX(segment, elem, sweep_x));
+    const idx_orig = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
+    let idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
+
+    if(idx !== idx_orig) {
+      console.warn(`insert segment indices mismatch: ${idx_orig} vs ${idx}`);
+      idx = idx_orig
+    }
 
     if(~idx) {
       // insert event at index
@@ -276,12 +468,37 @@ class NotATree {
     }
   }
 
-  swap(segment1, segment2) {
+  swap(segment1, segment2, sweep_x) {
+    if(!segment1._tmp_nw || !segment2._tmp_nw) { return -1; }
+
     // find their indices
     // binaryIndexOf not always working; may require updating segment _tmp_nw,
     // which would require setting sweep_x
     const idx1 = this.indexOf(segment1);
     const idx2 = this.indexOf(segment2);
+
+//     const idx1_bin = this.binaryIndexOf(segment1);
+//     const idx2_bin = this.binaryIndexOf(segment2);
+//
+//     if(idx1 !== idx1_bin || idx2 !== idx2_bin) {
+//       console.warn(`swap segment index mismatch: ${idx1} vs ${idx1_bin}; ${idx2} vs ${idx2_bin}`)
+//     }
+
+//     let idx1 = this.binaryIndexOf(segment1, sweep_x);
+//     let idx2 = this.binaryIndexOf(segment2, sweep_x);
+
+//     if(idx1_orig !== idx1 || idx2_orig !== idx2) {
+//       console.warn(`Trying swap back for ${idx1}, ${idx2}`);
+//       [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
+//       idx1 = this.binaryIndexOf(segment1, sweep_x);
+//       idx2 = this.binaryIndexOf(segment2, sweep_x);
+//       [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
+//     }
+
+//     if(idx1_orig !== idx1 || idx2_orig !== idx2) {
+//       console.warn(`Segments indices mismatch: ${idx1_orig} vs ${idx1};  ${idx2_orig} vs ${idx2} at sweep_x ${sweep_x}`, segment1, segment2, this.data);
+//     }
+
 
     if(!~idx1 || !~idx2) {
 //       console.warn("swap segments not found.");
@@ -289,8 +506,9 @@ class NotATree {
     }
 
     // change their temporary values (only *after* finding their current index)
+
     [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
-//     [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
+    [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
 
     // change their position
     this.data[idx1] = segment2;
@@ -308,12 +526,12 @@ class NotATree {
 
   deleteAtIndex(idx) {
     if(idx < 0 || idx > ( this.data.length - 1)) {
-      console.log(`Attempted deleteAtIndex ${idx} with data length ${this.data.length}`, this.data)
+      console.log(`Attempted deleteAtIndex ${idx} with data length ${this.data.length}`, this.data);
       return;
     }
 
     this.data[idx]._tmp_nw = undefined;
-    this.data[idx]._tmp_se = undefined
+    this.data[idx]._tmp_se = undefined;
     this.data.splice(idx, 1);
   }
 
@@ -327,21 +545,51 @@ class NotATree {
     return compareYX(s1._tmp_nw, elem._tmp_nw) || -compareYX(s1._tmp_se, elem._tmp_se);
   }
 
-  _segmentCompareYX(segment, elem, sweep_x) {
+
+  _elemIsAfter(segment, elem, sweep_x) {
     // must use the current sweep location to set nw for each existing element
     const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
     if(new_pt_e) elem._tmp_nw = new_pt_e;
 
+    // if comp is less than 0, than segment is before elem; return true
     const cmp_nw = compareYX(segment._tmp_nw, elem._tmp_nw);
     if(cmp_nw) return cmp_nw < 0;
 
-    // segments share nw endpoint. Compare using se endpoint, but
-    // it must be arranged opposite. So more nw means sorted later.
-    // (as if we extended the segments in the nw direction past their endpoints---
-    //  how would they sort given those new nw extended endpoints?)
-    const cmp_se = compareYX(segment._tmp_se, elem._tmp_se);
-    return cmp_se > 0;
+    // segment and elem share nw endpoint
+    // sort by extending the lines to the nw: whichever is higher in the nw
+    // direction is first in the sort.
+    // can determine this directly by extending lines from the se, or indirectly by
+    // determining their orientation in the se direction.
+    // imagine that as extended, the segments form an X. We need the orientation to the se
+    // to tell us which is which in the < part of the X, from which we infer the ne
+    // portion of X, the >. Together, we get ><
+
+    // use the segments' actual se point, along with the shared nw endpoint.
+    // (could actually share nw endpoint or one line's endpoint could intersect the other
+    //   line)
+    const orientation = foundry.utils.orient2dFast(elem._tmp_nw, elem.se, segment.se);
+    return orientation < 0;
   }
+
+//   _segmentCompareYX(segment, elem, sweep_x) {
+//     // must use the current sweep location to set nw for each existing element
+//     const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
+//     if(new_pt_e) elem._tmp_nw = new_pt_e;
+//
+//     const cmp_nw = compareYX(segment._tmp_nw, elem._tmp_nw);
+//     if(cmp_nw) return cmp_nw < 0;
+//
+//     // segments share nw endpoint.
+//     // the form a < with the point to the nw.
+//     // need to determine which segment is the bottom half
+//     // if segments extended nw (forming an X), the bottom half would become the top half
+//     // and that would be the segment to sort first
+//     // so the one that is to the right on the se side is the upper on the nw side
+//
+//     // orientation: positive: segment is to left of elem; segment sorted before elem
+//     const orientation = foundry.utils.orient2dFast(elem._tmp_nw, elem._tmp_se, segment._tmp_se);
+//     return orientation < 0;
+//   }
 }
 
 function pointForSegmentGivenX(s, x) {
@@ -352,33 +600,53 @@ function pointForSegmentGivenX(s, x) {
 }
 
 
+
+// When events have the same point, prefer Left types first
+const EventType = {
+  Left: 0,
+  Intersection: 1,
+  Right: 2,
+}
+
 // Needs to approximate a priority queue.
 // In particular, it is possible for an intersection event to be added that would be
 // the very next event, possibly several jumps in front of the current segment event
 // had they been all sorted with the intersection event.
+
 class EventQueue {
   constructor(segments) {
     // push all points to a vector of events
     const data = [];
-    segments.map(s => {
-      data.push({ point: s.nw, isLeft: true, segment: s });
-      data.push({ point: s.se, isLeft: false, segment: s });
-    })
+    segments.forEach(s => {
+      data.push({ point: s.nw, eventType: EventType.Left, segment: s });
+      data.push({ point: s.se, eventType: EventType.Right, segment: s });
+    });
 
     // sort all events according to x then y coordinate
     // reverse so that we can pop
-    data.sort((a, b) => -compareXY(a.point, b.point));
+    data.sort(this.eventCmp);
 
     this.data = data;
   }
 
+  eventCmp(e1, e2) {
+    const cmp_res = compareXY(e1.point, e2.point);
+    return cmp_res ? -cmp_res : e2.eventType - e1.eventType;
+  }
+
   next() {
-    return this.data.pop()
+    return this.data.pop();
   }
 
   insert(event) {
-    const idx = this.data.findIndex(elem => compareXY(event.point, elem.point) > 0);
-//     const idx = binaryFindIndex(this.data, elem => compareXY(event.point, elem.point) > 0);
+    const idx_orig = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
+    let idx = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
+
+    if(idx !== idx_orig) {
+      console.warn(`EQ insert: indices differ: ${idx_orig}, ${idx}`)
+      idx = idx_orig;
+    }
+
     // if index is -1, then e is the smallest x and is appended to end (will be first)
     // (this is different than how splice works for -1)
     ~idx ? this.data.splice(idx, undefined, event) : this.data.push(event);
@@ -391,7 +659,7 @@ class EventQueue {
  * digits_multiplier is Math.pow(10, numDigits(n));
  */
 function hashSegments(s1, s2) {
-  return "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key
+  return "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key;
 }
 
 
@@ -428,7 +696,9 @@ for(i = 0; i < pts.length; i += 1) {
 */
 
 function binaryFindIndex(arr, callbackFn) {
-  let start = 0, end = arr.length - 1, mid = -1;
+  let start = 0;
+  let end = arr.length - 1;
+  let mid = -1;
 
   // need first index for which callbackFn returns true
   // b/c the array is sorted, once the callbackFn is true for an index,
@@ -486,12 +756,13 @@ for(i = 0; i < pts.length; i += 1) {
 */
 
 function binaryIndexOf(arr, obj, cmpFn) {
-  let start = 0; end = arr.length - 1;
+  let start = 0;
+  let end = arr.length - 1;
 
   // iterate, halving the search each time
   while (start <= end) {
-    const mid = Math.floor((start + end) / 2);
-    const res = cmpFn(obj, arr[mid]);
+    let mid = Math.floor((start + end) / 2);
+    let res = cmpFn(obj, arr[mid]);
     if(!res) return mid;
 
     if(res > 0) {
@@ -507,30 +778,35 @@ function binaryIndexOf(arr, obj, cmpFn) {
 
 
 function checkForIntersection(s1, s2, e, tracker) {
-  let num_ixs = 0
+  let num_ixs = 0;
   const hash = hashSegments(s1, s2);
   const hash_rev = hashSegments(s2, s1);
   if(!(tracker.has(hash) || tracker.has(hash_rev)) &&
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
     num_ixs += 1;
-//     s1._identifyIntersectionsWith(s2);
 
     // for testing
 
     const ix = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-//     console.log(`\tIntersection found at ${ix.x},${ix.y}`)
-//     drawVertex(ix, COLORS.lightred, .5);
+    if(!ix) return num_ixs; // likely collinear lines
+
+    if(debug) {
+      console.log(`\tIntersection found at ${ix.x},${ix.y}`);
+      drawVertex(ix, COLORS.lightred, .5);
+    }
 
     const event_ix = {
       point: ix,
-      isIx: true,
+      eventType: EventType.Intersection,
       segment1: s1,
       segment2: s2
-    }
+    };
     e.insert(event_ix);
 
+    tracker.add(hash);
+    tracker.add(hash_rev);
   }
-  tracker.add(hash);
+
   return num_ixs;
 }
 
