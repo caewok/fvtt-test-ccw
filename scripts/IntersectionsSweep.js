@@ -120,7 +120,7 @@ function applyFn(fn, num_segments, max_coord) {
 }
 
 N = 100
-num_segments = 1000
+num_segments = 10
 max_coord = Math.pow(2, 13)
 await benchmarkLoopFn(N, applyFn, "brute", findIntersectionsBruteSingle, num_segments, max_coord)
 await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segments, max_coord)
@@ -160,28 +160,103 @@ segments = segments.map(s => {
 
 })
 
+N = 100
+num_segments = 1000
+max_coord = Math.pow(2, 13)
 
+num_segments_arr = [10, 100, 1000]
+for(let i = 0; i < num_segments_arr.length; i += 1) {
 
-// with Array.findIndex
-brute sort | 100 iterations | 1.3ms | 0.013000000000000001ms per
-sweep      | 100 iterations | 6.9ms | 0.069ms per
+  let num_segments = num_segments_arr[i]
+  console.log(`\nNum Segments ${num_segments}`);
 
-brute sort | 100 iterations | 48.8ms | 0.488ms per
-sweep      | 100 iterations | 139.2ms | 1.392ms per
+  use_binary_swap = UseBinary.No;
+  use_binary_delete = UseBinary.No;
+  use_binary_event_queue = UseBinary.No;
+  use_binary_insert = UseBinary.No;
 
-brute sort | 100 iterations | 5170.7ms | 51.707ms per
-sweep      | 100 iterations | 51578.7ms | 515.7869999999999ms per
+  await benchmarkLoopFn(N, applyFn, "brute", findIntersectionsBruteSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segments, max_coord);
 
-// with binaryFindIndex
-num_segments = 10, 100, 1000
-brute sort | 100 iterations | 6.5ms | 0.065ms per
-sweep      | 100 iterations | 8.7ms | 0.087ms per
+  console.log("No binary");
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
 
-brute sort | 100 iterations | 66.1ms | 0.6609999999999999ms per
-sweep      | 100 iterations | 131.3ms | 1.3130000000000002ms per
+  console.log("binary event queue");
+  use_binary_event_queue = UseBinary.Yes;
+  use_binary_event_queue = UseBinary.No;
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
 
-brute sort | 100 iterations | 5136.6ms | 51.36600000000001ms per
-sweep      | 100 iterations | 20392.4ms | 203.924ms per
+  console.log("binary insert");
+  use_binary_insert = UseBinary.Yes;
+  use_binary_insert = UseBinary.No;
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+
+  console.log("binary swap");
+  use_binary_swap = UseBinary.Yes;
+  use_binary_swap = UseBinary.No;
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+
+  console.log("binary delete");
+  use_binary_delete = UseBinary.Yes;
+  use_binary_delete = UseBinary.No;
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+
+  console.log("binary all")
+  use_binary_swap = UseBinary.Yes;
+  use_binary_delete = UseBinary.Yes;
+  use_binary_event_queue = UseBinary.Yes;
+  use_binary_insert = UseBinary.Yes;
+  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+
+}
+
+Num Segments 10
+brute | 100 iterations | 0.8ms | 0.008ms per
+sort | 100 iterations | 0.7ms | 0.006999999999999999ms per
+No binary
+sweep | 100 iterations | 4.1ms | 0.040999999999999995ms per
+binary event queue
+sweep | 100 iterations | 4.5ms | 0.045ms per
+binary insert
+sweep | 100 iterations | 3.4ms | 0.034ms per
+binary swap
+sweep | 100 iterations | 2.5ms | 0.025ms per
+binary delete
+sweep | 100 iterations | 2.2ms | 0.022000000000000002ms per
+binary all
+sweep | 100 iterations | 4.7ms | 0.047ms per
+
+Num Segments 100
+brute | 100 iterations | 15ms | 0.15ms per
+sort | 100 iterations | 18.1ms | 0.18100000000000002ms per
+No binary
+sweep | 100 iterations | 172.7ms | 1.7269999999999999ms per
+binary event queue
+sweep | 100 iterations | 165.2ms | 1.652ms per
+binary insert
+sweep | 100 iterations | 161.3ms | 1.6130000000000002ms per
+binary swap
+sweep | 100 iterations | 161.1ms | 1.611ms per
+binary delete
+sweep | 100 iterations | 163.4ms | 1.6340000000000001ms per
+binary all
+sweep | 100 iterations | 166.9ms | 1.669ms per
+
+Num Segments 1000
+brute | 100 iterations | 927.2ms | 9.272ms per
+sort | 100 iterations | 875.3ms | 8.753ms per
+No binary
+sweep | 100 iterations | 76798.6ms | 767.9860000000001ms per
+binary event queue
+sweep | 100 iterations | 75643.2ms | 756.432ms per
+binary insert
+sweep | 100 iterations | 74025.8ms | 740.258ms per
+binary swap
+sweep | 100 iterations | 74537.6ms | 745.3760000000001ms per
+binary delete
+sweep | 100 iterations | 73871.1ms | 738.711ms per
+binary all
+sweep | 100 iterations | 26438.5ms | 264.385ms per
 
 
 
@@ -229,6 +304,28 @@ import { compareXY, compareYX } from "./utilities.js";
 
 
 debug = false;
+
+let UseBinary = {
+  Yes: 0,
+  Test: 1,
+  No: 2,
+}
+
+
+use_binary_swap = UseBinary.Yes;
+use_binary_delete = UseBinary.Yes;
+use_binary_event_queue = UseBinary.Yes;
+use_binary_insert = UseBinary.Yes;
+
+use_binary_swap = UseBinary.No;
+use_binary_delete = UseBinary.No;
+use_binary_event_queue = UseBinary.No;
+use_binary_insert = UseBinary.No;
+
+use_binary_swap = UseBinary.Test;
+use_binary_delete = UseBinary.Test;
+use_binary_event_queue = UseBinary.Test;
+use_binary_insert = UseBinary.Test;
 
 export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) => {}) {
   // id the segments for testing
@@ -344,17 +441,29 @@ function handleRightEvent(curr, e, tree, tracker) {
   // curr point is right of its segment
   // check if predecessor and successor intersect with each other
 
-  // cannot use binaryIndexOf here w/o adjusting the tree.data order or
-  // properly updating all the data segment._tmp_nw points.
-//       let idx = tree.indexOf(curr.segment);
-//       let idx = tree.binaryIndexOf(curr.segment, curr.point.x);
-  let idx = tree.indexOf(curr.segment)
+  let idx;
+  switch(use_binary_delete) {
+    case UseBinary.Yes:
+      idx = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+      break;
 
-  let idx_bin = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+    case UseBinary.Test:
+      idx = tree.indexOf(curr.segment)
+      const idx_bin = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+      if(idx !== idx_bin) { console.warn(`delete segment: idx bin ${idx_bin} ≠ ${idx} at sweep ${curr.point.x}`); }
+      break;
 
-  if(idx !== idx_bin) {
-    console.warn(`handleRightEvent: idx ${idx} ≠ idx_bin ${idx_bin} for endpoint ${curr.point.x},${curr.point.y}`);
+    case UseBinary.No:
+      idx = tree.indexOf(curr.segment)
+      break;
   }
+
+//   let idx = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+//   let idx_bin = tree.deletionBinaryIndexOf(curr.segment, curr.point.x);
+//
+//   if(idx !== idx_bin) {
+//     console.warn(`handleRightEvent: idx ${idx} ≠ idx_bin ${idx_bin} for endpoint ${curr.point.x},${curr.point.y}`);
+//   }
 
   if(!~idx) console.error("Segment not found", curr);
   let below = tree.belowIndex(idx);
@@ -474,12 +583,22 @@ class NotATree {
     // find first element that has larger y than the segment
     // note that segmentCompareYX is using the current sweep location to calculate
     // points of comparison
-    const idx_orig = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
-    let idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
 
-    if(idx !== idx_orig) {
-      console.warn(`insert segment indices mismatch: ${idx_orig} vs ${idx} at sweep ${sweep_x}`);
-      idx = idx_orig
+    let idx;
+    switch(use_binary_insert) {
+      case UseBinary.Yes:
+        idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
+        break;
+
+      case UseBinary.Test:
+        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
+        const idx_bin = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
+        if(idx !== idx_bin) { console.warn(`insert segment: idx bin ${idx_bin} ≠ ${idx} at sweep ${sweep_x}`); }
+        break;
+
+      case UseBinary.No:
+        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
+        break;
     }
 
     if(~idx) {
@@ -497,34 +616,27 @@ class NotATree {
   swap(segment1, segment2, sweep_x) {
     if(!segment1._tmp_nw || !segment2._tmp_nw) { return -1; }
 
-    // find their indices
-    // binaryIndexOf not always working; may require updating segment _tmp_nw,
-    // which would require setting sweep_x
-    const idx1 = this.indexOf(segment1);
-    const idx2 = this.indexOf(segment2);
+    let idx1, idx2;
+    switch(use_binary_insert) {
+      case UseBinary.Yes:
+        idx1 = this.binaryIndexOf(segment1, sweep_x);
+        idx2 = this.binaryIndexOf(segment2, sweep_x);
+        break;
 
-    const idx1_bin = this.binaryIndexOf(segment1, sweep_x);
-    const idx2_bin = this.binaryIndexOf(segment2, sweep_x);
+      case UseBinary.Test:
+        idx1 = this.indexOf(segment1);
+        idx2 = this.indexOf(segment2);
+        const idx_bin1 = this.binaryIndexOf(segment1, sweep_x);
+        const idx_bin2 = this.binaryIndexOf(segment2, sweep_x);
+        if(idx1 !== idx_bin1) { console.warn(`swap segment1: idx bin1 ${idx_bin1} ≠ ${idx1} at sweep ${sweep_x}`); }
+        if(idx2 !== idx_bin2) { console.warn(`swap segment2: idx bin2 ${idx_bin2} ≠ ${idx2} at sweep ${sweep_x}`); }
+        break;
 
-    if(idx1 !== idx1_bin || idx2 !== idx2_bin) {
-      console.warn(`swap segment index mismatch: ${idx1} vs ${idx1_bin}; ${idx2} vs ${idx2_bin} at sweep ${sweep_x}`)
+      case UseBinary.No:
+        idx1 = this.indexOf(segment1);
+        idx2 = this.indexOf(segment2);
+        break;
     }
-
-//     let idx1 = this.binaryIndexOf(segment1, sweep_x);
-//     let idx2 = this.binaryIndexOf(segment2, sweep_x);
-
-//     if(idx1_orig !== idx1 || idx2_orig !== idx2) {
-//       console.warn(`Trying swap back for ${idx1}, ${idx2}`);
-//       [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
-//       idx1 = this.binaryIndexOf(segment1, sweep_x);
-//       idx2 = this.binaryIndexOf(segment2, sweep_x);
-//       [ segment2._tmp_se, segment1._tmp_se ] = [ segment1._tmp_se, segment2._tmp_se ];
-//     }
-
-//     if(idx1_orig !== idx1 || idx2_orig !== idx2) {
-//       console.warn(`Segments indices mismatch: ${idx1_orig} vs ${idx1};  ${idx2_orig} vs ${idx2} at sweep_x ${sweep_x}`, segment1, segment2, this.data);
-//     }
-
 
     if(!~idx1 || !~idx2) {
 //       console.warn("swap segments not found.");
@@ -624,7 +736,7 @@ function pointForSegmentGivenX(s, x) {
 
 
 // When events have the same point, prefer Left types first
-const EventType = {
+let EventType = {
   Left: 0,
   Intersection: 1,
   Right: 2,
@@ -661,12 +773,21 @@ class EventQueue {
   }
 
   insert(event) {
-    const idx_orig = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
-    let idx = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
 
-    if(idx !== idx_orig) {
-      console.warn(`EQ insert: indices differ: ${idx_orig}, ${idx}`)
-      idx = idx_orig;
+    let idx;
+    switch(use_binary_event_queue) {
+      case UseBinary.Yes:
+        idx = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
+        break;
+
+      case UseBinary.Test:
+        idx = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
+        const idx_bin = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
+        if(idx !== idx_bin) { console.warn(`EQ insert: idx bin ${idx_bin} ≠ ${idx}`); }
+        break;
+
+      case UseBinary.No:
+        idx = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
     }
 
     // if index is -1, then e is the smallest x and is appended to end (will be first)
@@ -675,14 +796,6 @@ class EventQueue {
   }
 }
 
-
-/**
- * Construct numeric index to represent unique pairing
- * digits_multiplier is Math.pow(10, numDigits(n));
- */
-function hashSegments(s1, s2) {
-  return "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key;
-}
 
 
 // Find an index based on binary search
@@ -805,12 +918,24 @@ function binaryIndexOf(arr, obj, cmpFn) {
 }
 
 
+/**
+ * Construct numeric index to represent unique pairing
+ * digits_multiplier is Math.pow(10, numDigits(n));
+ */
+function hashSegments(s1, s2) {
+  const key = compareXY(s1.nw, s2.nw) < 0 ?
+    "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key :
+    "" + s2.nw.key + s2.se.key + s1.nw.key + s1.se.key;
+
+  return key;
+}
+
 
 function checkForIntersection(s1, s2, e, tracker) {
   let num_ixs = 0;
   const hash = hashSegments(s1, s2);
-  const hash_rev = hashSegments(s2, s1);
-  if(!(tracker.has(hash) || tracker.has(hash_rev)) &&
+//   const hash_rev = hashSegments(s2, s1);
+  if(!(tracker.has(hash)) &&
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
     num_ixs += 1;
 
@@ -833,7 +958,12 @@ function checkForIntersection(s1, s2, e, tracker) {
     e.insert(event_ix);
 
     tracker.add(hash);
-    tracker.add(hash_rev);
+//     tracker.add(hash_rev);
+  } else {
+    if(debug) {
+      const ix = foundry.utils.lineSegmentIntersection(s1.A, s1.B, s2.A, s2.B);
+      if(ix) { console.log(`Would have added duplicate ix event for ${ix.x},${ix.y}`); }
+    }
   }
 
   return num_ixs;
