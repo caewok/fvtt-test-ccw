@@ -29,6 +29,32 @@ findIntersectionsSweepSingle = api.findIntersectionsSweepSingle;
 
 reportFn = (e1, e2, ix) => {}
 
+function compareYX(a, b) {
+  const diff_y = a.y - b.y;
+  if(diff_y.almostEqual(0)) {
+    const diff_x = a.x - b.x;
+    return diff_x.almostEqual(0) ? 0 : diff_x;
+  }
+  return diff_y;
+}
+
+function compareYXInt(a, b) {
+  return (a.y - b.y) || (a.x - b.x);
+}
+
+function compareXY(a, b) {
+  const diff_x = a.x - b.x;
+  if(diff_x.almostEqual(0)) {
+    const diff_y = a.y - b.y;
+    return diff_y.almostEqual(0) ? 0 : diff_y;
+  }
+  return diff_x;
+}
+
+function compareXYInt(a, b) {
+  return (a.x - b.x) || (a.y - b.y);
+}
+
 function randomPoint(max_coord) {
   return { x: Math.floor(Math.random() * max_coord),
            y: Math.floor(Math.random() * max_coord) };
@@ -89,9 +115,14 @@ reportFnSweep = (s1, s2, ix) => {
   reporting_arr_sweep.push(ix);
 }
 
+reportFnSweepLink = (s1, s2, ix) => {
+  reporting_arr_sweep_link.push(ix);
+}
+
 reporting_arr_brute = []
 reporting_arr_sort = []
 reporting_arr_sweep = []
+reporting_arr_sweep_link = []
 
 segments = Array.fromRange(10).map(i => randomSegment(5000))
 canvas.controls.debug.clear()
@@ -134,19 +165,31 @@ for(i = 0; i < 100; i += 1) {
 
   reporting_arr_brute = []
   reporting_arr_sweep = []
+  reporting_arr_sweep_link = []
 
   segments = Array.fromRange(10).map(i => randomSegment(5000))
   findIntersectionsBruteSingle(segments, reportFnBrute)
   findIntersectionsSweepSingle(segments, reportFnSweep)
+  findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
+  reporting_arr_sweep_link.sort(compareXY)
 
   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
 
      console.table(reporting_arr_brute);
      console.table(reporting_arr_sweep);
+     console.error(`ixs not equal .`, segments)
+     break;
+  }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_link[idx]))) {
+
+     console.table(reporting_arr_brute);
+     console.table(reporting_arr_sweep_link);
      console.error(`ixs not equal .`, segments)
      break;
   }
@@ -327,6 +370,701 @@ use_binary_delete = UseBinary.Test;
 use_binary_event_queue = UseBinary.Test;
 use_binary_insert = UseBinary.Test;
 
+
+
+
+function segmentCompareNW_YX(segment, elem) {
+  return compareYX(segment._tmp_nw, elem._tmp_nw)
+}
+
+function segmentCompare(segment, elem) {
+  segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment._tmp_nw;
+  elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem._tmp_nw;
+  return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+     foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+     foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+}
+
+function segmentCompareLinkedGen(segment, elem) {
+  return {
+    sweep_x: 0,
+    segmentCompare
+  }
+}
+
+
+// the trick is that it adds links to the object directly
+// for points: comparator = compareXY or compareYX
+// for segments: comparator = segmentCompareNW_YX
+class ObjectLinkedTracker {
+  constructor(comparator) {
+    this.start = null;
+    this.end = null;
+    this.median = null;
+
+    // median offset is # of elements to the right of median minus number to left
+    // 1,2,3,4 --> median = 3: offset is 1 - 2 = -1. median = 4: 0 - 3 = -3.
+    // 1,2,3,4,5 --> 0 median = 3: offset is 2 - 2 = 0.
+    this.median_offset = 0;
+
+    this.comparator = comparator;
+    this.length = 0;
+  }
+
+  insert(obj) {
+    this.length += 1;
+    obj._olt = { next: null, prev: null };
+
+    // Base case: link the segment to start
+    if(!this.start) {
+      this.start = obj;
+      this.end = obj;
+      this.median = obj;
+      return;
+    }
+
+    // TO-DO: Test end and median for better entry positions
+    // walk from start.
+    // if segment is after current position, keep walking
+    let existing = this.start;
+    let cmp_res = this.comparator(obj, existing); // < 0: obj before existing
+    let saw_median = false;
+    while(cmp_res > 0 && existing._olt.next) {
+      if(existing === this.median) { saw_median = true; }
+      existing = existing._olt.next;
+      cmp_res = this.comparator(obj, existing);
+    }
+
+    /*
+    Median options:
+    1. Added object to end. median_offset +1 b/c adding after median
+    2. Added object before existing.
+       - if median was seen, then we are adding after median: median_offset +1
+       - if median not seen, then we are adding before median: median_offset -1
+    */
+
+
+    if(cmp_res > 0) {
+      // at the end
+      // change prev -- existing -- end
+      // to     prev -- existing -- obj -- end
+      this.end = obj;
+      obj._olt.prev = existing;
+      existing._olt.next = obj;
+
+      this.median_offset += 1;
+    } else {
+
+      // change prev -- existing -- next
+      // to     prev -- obj -- existing -- next
+      if(!existing._olt.prev) {
+        this.start = obj;
+      } else {
+        existing._olt.prev._olt.next = obj;
+      }
+
+      obj._olt.next = existing;
+      obj._olt.prev = existing._olt.prev;
+      existing._olt.prev = obj;
+
+      this.median_offset += saw_median ? 1 : -1;
+    }
+
+    this._rebalanceMedian();
+  }
+
+  _rebalanceMedian() {
+    if(this.median_offset === 2) {
+      // two more elements are to the left of median than to right
+      // shift median one left
+      this.median = this.median._olt.next;
+      this.median_offset = 0;
+    } else if(this.median_offset === -2) {
+      // two more elements are to the right of median than to left
+      // shift median one right
+      this.median = this.median._olt.prev;
+      this.median_offset = 0;
+    }
+  }
+
+  inorder() {
+    const out = [];
+    let next = this.start;
+
+    // for debugging
+    const max_iterations = 100_000;
+    let iter = 0;
+    while(next && iter < max_iterations) {
+      iter += 1
+      out.push(next);
+      next = next._olt.next;
+    }
+    if(iter >= max_iterations) { console.warn("Max iterations hit for inorder."); }
+
+    return out;
+  }
+
+  predecessor(obj) { return obj._olt?.prev; }
+  successor(obj) { return obj._olt?.next; }
+
+  swap(obj1, obj2) {
+    if(!obj1._olt || !obj2._olt) {
+      console.warn("Object not an olt object.", obj);
+      return;
+    } else if(obj1 === obj2) {
+      console.warn("Tried to swap identical objects");
+      return;
+    }
+
+    if(this.start === obj1) {
+      this.start = obj2;
+    } else if(this.start === obj2) {
+      this.start = obj1;
+    }
+
+    if(this.median === obj1) {
+      this.median = obj2;
+    } else if(this.median === obj2) {
+      this.median = obj1;
+    }
+
+    if(this.end === obj1) {
+      this.end = obj2;
+    } else if(this.end === obj2) {
+      this.end = obj1;
+    }
+
+    // Fix pointers
+
+
+    if(obj1._olt.next === obj2) {
+      // prev1 -- obj1 -- obj2 -- next2 => prev1 -- obj2 -- obj1 -- next2
+      let prev1 = obj1._olt.prev;
+      let next2 = obj2._olt.next;
+
+      if(prev1) { prev1._olt.next = obj2; }
+      obj2._olt.prev = prev1;
+
+      if(next2) { next2._olt.prev = obj1; }
+      obj1._olt.next = next2;
+
+      [obj1._olt.prev, obj2._olt.next] = [obj2, obj1];
+
+    } else if(obj1._olt.prev === obj2) {
+      // prev2 -- obj2 -- obj1 -- next1 => prev2 -- obj1 -- obj2 -- next1
+      let prev2 = obj2._olt.prev;
+      let next1 = obj1._olt.next;
+
+      if(prev2) { prev2._olt.next = obj1; }
+      obj1._olt.prev = prev2;
+
+      if(next1) { next1._olt.prev = obj2; }
+      obj2._olt.next = next1;
+
+      [obj2._olt.prev, obj1._olt.next] = [obj1, obj2];
+
+    } else {
+      // prev1 -- obj1 -- next1 ... prev2 -- obj2 -- next2
+      // or prev2 -- obj2 -- next2 ... prev1 -- obj1 -- next1
+      let prev1 = obj1._olt.prev;
+      let prev2 = obj2._olt.prev;
+      let next1 = obj1._olt.next;
+      let next2 = obj2._olt.next;
+
+      if(prev1) { prev1._olt.next = obj2; }
+      obj2._olt.prev = prev1;
+
+      if(prev2) { prev2._olt.next = obj1; }
+      obj1._olt.prev = prev2;
+
+      if(next1) { next1._olt.prev = obj2; }
+      obj2._olt.next = next1;
+
+      if(next2) { next2._olt.prev = obj1; }
+      obj1._olt.next = next2;
+
+      [obj1._olt.prev, obj2._olt.prev] = [obj2._olt.prev, obj1._olt.prev];
+      [obj1._olt.next, obj2._olt.next] = [obj2._olt.next, obj1._olt.next];
+    }
+
+
+
+  }
+
+  remove(obj) {
+    if(!obj._olt) {
+      console.warn("Object not an olt object.", obj);
+      return;
+    }
+    if(!this.start) return; // olt is empty
+
+    this.length -= 1;
+
+    if(!this.length) {
+      // this was the last object
+      obj._olt = undefined;
+      this.start = null;
+      this.end = null;
+      this.median = null;
+      this.median_offset = 0;
+      return;
+    }
+
+    let median_fixed = false;
+    if(this.median === obj) {
+      // if median and object are the same, need to adjust median links
+      // before removing the object
+
+      median_fixed = true;
+      if(this.median_offset === 0) {
+        // e.g.: 5, 6, 7, 8, 9, median = 7, offset 2 - 2 = 0
+        // remove 7: 5, 6, 8, 9, median = 6, offset 2 - 1 = 1
+        if(this.median._olt.prev) {
+          this.median = this.median._olt.prev;
+          this.median_offset = 1;
+        } else {
+          this.median = this.median._olt.next;
+          this.median_offset = -1;
+        }
+
+
+      } else if(this.median_offset === -1) {
+        // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
+        // remove 7: 5, 6, 8, median = 6, offset = 0
+        this.median = this.median._olt.prev;
+        this.median_offset = 0;
+
+      } else if(this.median_offset === 1) {
+        // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
+        // remove 6: 5, 7, 8 median = 7, offset = 0
+        this.median = this.median._olt.next;
+        this.median_offset = 0;
+      }
+    }
+
+    // change prev -- obj -- next
+    // to     prev -- next
+    // effectively drops obj from the linked list
+    // also adjust hard links if necessary
+    if(this.start === obj) {
+      this.start = obj._olt.next;
+    } else {
+      obj._olt.prev._olt.next = obj._olt.next;
+    }
+
+    if(this.end === obj) {
+      this.end = obj._olt.prev;
+    } else {
+       obj._olt.next._olt.prev = obj._olt.prev;
+    }
+
+    obj._olt = undefined;
+
+    if(!median_fixed) {
+      // if object does not equal median, then we want to do the above
+      // removal of object first, so we know the median prev/next links are correct
+      const cmp_res = this.comparator(obj, this.median);
+      if(cmp_res < 0) {
+        // obj before median
+        if(this.median_offset === 0) {
+          // e.g.: 5, 6, 7, 8, 9, median = 7
+          // remove 6: 5, 7, 8, 9, median = 7, offset 2 - 1 = 1
+          this.median_offset = 1;
+        } else if(this.median_offset === -1) {
+          // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
+          // remove 5: 6, 7, 8, median = 7, offset = 0
+          this.median_offset = 0;
+
+        } else if(this.median_offset === 1) {
+          // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
+          // remove 5: 6, 7, 8, median = 7, offset = 0
+          this.median = this.median._olt.next;
+          this.median_offset = 0;
+        }
+      } else if(cmp_res > 0) {
+        // obj after median
+        if(this.median_offset === 0) {
+          // e.g.: 5, 6, 7, 8, 9, median = 7, offset 2 - 2 = 0
+          // remove 8: 5, 6, 7, 9, median = 7, offset 1 - 2 = -1
+          this.median_offset = -1;
+        } else if(this.median_offset === -1) {
+          // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
+          // remove 8: 5, 6, 7, median = 6, offset = 0
+          this.median = this.median._olt.prev;
+          this.median_offset = 0;
+
+        } else if(this.median_offset === 1) {
+          // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
+          // remove 8: 5, 6, 7, median = 6, offset = 0
+          this.median_offset = 0;
+        }
+      }
+    }
+  }
+}
+
+/* testing
+olt = new ObjectLinkedTracker(compareXY)
+pts = Array.fromRange(10).map(e => randomPoint(5000))
+pts.forEach(pt => olt.insert(pt));
+console.table(olt.inorder())
+olt.median
+
+olt.median_offset
+
+olt.remove(pts[1])
+olt.remove(olt.end)
+olt.remove(olt.median)
+olt.remove(olt.start)
+
+olt.swap(olt.start, olt.end)
+olt.swap(olt.start, olt.median)
+
+console.table(olt.inorder())
+pts[1]
+olt.median
+olt.median_offset
+
+*/
+
+export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2, ix) => {}) {
+  // id the segments for testing
+
+  if(debug) {
+    canvas.controls.debug.clear();
+    clearLabels();
+    segments.forEach(s => drawEdge(s, COLORS.black));
+    segments.forEach(s => labelVertex(s.nw, s.id));
+  }
+
+  let tracker = new Set(); // to note pairs for which intersection is checked already
+  let cmp = segmentCompareLinkedGen();
+  let tree = new ObjectLinkedTracker(cmp.segmentCompare); // pretend this is actually a tree
+  let e = new EventQueue(segments);
+
+  let num_ixs = 0; // mainly for testing
+
+  // traverse the queue
+  let curr;
+  while(curr = e.next()) {
+// console.table(tree.data, ["_id"])
+//     curr = e.next()
+    cmp.sweep_x = curr.point.x;
+
+
+    if(debug) {
+      console.log(`${Object.getOwnPropertyNames(EventType)[curr.eventType]} event; Sweep at x = ${curr.point.x}.`);
+      console.log(`\tEvent Queue: ${e.data.length}; Tree`, e.data, tree.inorder());
+      drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, .5);
+
+    }
+
+    switch(curr.eventType) {
+      case EventType.Left:
+        num_ixs += handleLeftEventLinked(curr, e, tree, tracker);
+        break;
+      case EventType.Intersection:
+        num_ixs += handleIntersectionEventLinked(curr, e, tree, tracker, reportFn);
+        break;
+      case EventType.Right:
+        num_ixs += handleRightEventLinked(curr, e, tree, tracker);
+        break;
+    }
+
+    if(debug) { console.table(tree.inorder(), ["_id"]); }
+  }
+
+  return num_ixs;
+}
+
+function handleLeftEventLinked(curr, e, tree, tracker) {
+  let num_ixs = 0;
+
+  if(debug) {
+    console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment);
+  }
+
+  // get the above and below points
+  tree.insert(curr.segment);
+
+  // check if curr intersects with its predecessor and successor
+  // if we already checked this pair, we can skip
+  const pred = tree.predecessor(curr.segment);
+  const succ = tree.successor(curr.segment);
+
+  if(pred) { num_ixs += checkForIntersection(pred, curr.segment, e, tracker); }
+  if(succ) { num_ixs += checkForIntersection(succ, curr.segment, e, tracker); }
+
+  return num_ixs;
+}
+
+function handleIntersectionEventLinked(curr, e, tree, tracker, reportFn) {
+  let num_ixs = 0;
+
+  // report intersection
+  reportFn(curr.segment1, curr.segment2, curr.point);
+
+  if(debug) {
+    console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`);
+    drawVertex(curr.point);
+    console.log(`\tSwapping \n\t${curr.segment1._id} (${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y}) and \n\t${curr.segment2._id} (${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y})`)
+  }
+
+  // swap A, B
+  tree.swap(curr.segment1, curr.segment2);
+
+  let pred1 = tree.predecessor(curr.segment1);
+  let pred2 = tree.predecessor(curr.segment2);
+
+  let succ1 = tree.successor(curr.segment1);
+  let succ2 = tree.successor(curr.segment2);
+
+  if(pred1 && pred1 !== curr.segment2) {
+    num_ixs += checkForIntersection(pred1, curr.segment1, e, tracker);
+  } else if(pred2 && pred2 !== curr.segment1) {
+    num_ixs += checkForIntersection(pred2, curr.segment2, e, tracker);
+  }
+
+  if(succ1 && succ1 !== curr.segment2) {
+    num_ixs += checkForIntersection(succ1, curr.segment1, e, tracker);
+  } else if(succ2 && succ2 !== curr.segment1) {
+    num_ixs += checkForIntersection(succ2, curr.segment2, e, tracker);
+  }
+
+  return num_ixs;
+}
+
+function handleRightEventLinked(curr, e, tree, tracker) {
+  let num_ixs = 0;
+
+  if(debug) {
+    console.log(`\tRight endpoint event for ${curr.segment._id} (${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y})`);
+  }
+
+  // curr point is right of its segment
+  // check if predecessor and successor intersect with each other
+  let pred = tree.predecessor(curr.segment);
+  let succ = tree.successor(curr.segment);
+
+  if(pred && succ) { num_ixs += checkForIntersection(pred, succ, e, tracker); }
+
+  if(debug) {
+    console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment, COLORS.red);
+  }
+
+  tree.remove(curr.segment);
+
+  return num_ixs;
+}
+
+
+
+
+function segmentCompareGen() {
+  return {
+    sweep_x: 0,
+    deletion: false,
+    segmentCompare(segment, elem) {
+      if(this.deletion) {
+        segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment._tmp_se; // want southeast endpoint for deletion
+        elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem._tmp_se;
+        return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+           -foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+           -foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+      }
+
+      segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment._tmp_nw;
+      elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem._tmp_nw;
+      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+    }
+  }
+}
+
+// function segmentCompare(segment, elem, sweep_x) {
+//   // must use the current sweep location to set nw for each existing element
+//   segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment._tmp_nw;
+//   elem._tmp_nw = pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw; // if vertical keep existing
+//
+//   // if compareXY is not 0, use that comparison result.
+//
+//   // otherwise, segment and elem share nw endpoint or se endpoint equals _tmp_nw at sweep
+//   // sort by extending the lines to the nw: whichever is higher in the nw
+//   // direction is first in the sort.
+//   // can determine this directly by extending lines from the se, or indirectly by
+//   // determining their orientation relative to one another
+//
+//   // if they share the nw endpoint, the first orientation will return 0; test again
+//   // in opposite direction. So first orientation tests > shape; second tests < shape
+//   // of the X.
+//
+//   return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+//          foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+//          foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+// }
+
+
+export function findIntersectionsSweepBSTSingle(segments, reportFn = (e1, e2, ix) => {}) {
+  // id the segments for testing
+
+  if(debug) {
+    canvas.controls.debug.clear();
+    clearLabels();
+    segments.forEach(s => drawEdge(s, COLORS.black));
+    segments.forEach(s => labelVertex(s.nw, s.id));
+  }
+
+  let tracker = new Set(); // to note pairs for which intersection is checked already
+
+  let cmp = segmentCompareGen();
+  let tree = new BinarySearchTree(cmp.segmentCompare); // pretend this is actually a tree
+  let e = new EventQueue(segments);
+
+  let num_ixs = 0; // mainly for testing
+
+  // traverse the queue
+  let curr;
+  while(curr = e.next()) {
+// console.table(tree.data, ["_id"])
+//     curr = e.next()
+    cmp.sweep_x = curr.point.x;
+
+
+    if(debug) {
+      console.log(`${Object.getOwnPropertyNames(EventType)[curr.eventType]} event; Sweep at x = ${curr.point.x}.`);
+      console.log(`\tEvent Queue: ${e.data.length}; Tree`, e.data, tree.inorder());
+      drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, .5);
+
+    }
+
+
+
+    switch(curr.eventType) {
+      case EventType.Left:
+        num_ixs += handleLeftEventBST(curr, e, tree, tracker);
+        break;
+      case EventType.Intersection:
+        num_ixs += handleIntersectionEventBST(curr, e, tree, tracker, reportFn);
+        break;
+      case EventType.Right:
+        cmp.deletion = true;
+        num_ixs += handleRightEventBST(curr, e, tree, tracker);
+        cmp.deletion = false;
+        break;
+    }
+
+    if(debug) { console.table(tree.inorder(), ["_id"]); }
+  }
+
+  return num_ixs;
+}
+
+function handleLeftEventBST(curr, e, tree, tracker) {
+  let num_ixs = 0;
+
+
+  if(debug) {
+    console.log(`\tLeft endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment);
+  }
+
+  // get the above and below points
+  let node = tree.insert(curr.segment);
+
+  // check if curr intersects with its predecessor and successor
+  // if we already checked this pair, we can skip
+  let { predecessor, successor } = tree.successorPredecessorForNode(node);
+  if(predecessor) { num_ixs += checkForIntersection(predecessor.data, curr.segment, e, tracker); }
+  if(successor) { num_ixs += checkForIntersection(successor.data, curr.segment, e, tracker); }
+
+  return num_ixs;
+}
+
+function handleIntersectionEventBST(curr, e, tree, tracker, reportFn) {
+  let num_ixs = 0;
+
+  // report intersection
+  reportFn(curr.segment1, curr.segment2, curr.point);
+
+  if(debug) {
+    console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`);
+    drawVertex(curr.point);
+    console.log(`\tSwapping ${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y} and ${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y}`)
+  }
+
+  // swap A, B
+  const node1 = tree.search(curr.segment1);
+  const node2 = tree.search(curr.segment2);
+
+  if(node1 && node2) {
+    const cmp_res = segmentCompare(node1.data, node2.data);
+    let res1 = tree.successorPredecessorForNode(node1);
+    let res2 = tree.successorPredecessorForNode(node2);
+
+
+    // check for after-swap intersections between now-upper segment and segment above,
+    // now-lower segment and segment below
+    if(cmp_res < 0) {
+      // node 1 currently above node2
+      // before swap: predecessor1 -- node1/predecessor2 -- successor1/node2 -- successor2
+      // after swap: above -- node2 --- node1 -- below
+
+      if(res1 && res1.predecessor) {
+        num_ixs += checkForIntersection(res1.predecessor.data, node2.data, e, tracker);
+      }
+
+      if(res2 && res2.successor) {
+        num_ixs += checkForIntersection(res2.successor.data, node1.data, e, tracker);
+      }
+    } else {
+      // node 2 currently above node1
+      // before swap: predecessor1 -- node2/predecessor1 -- successor2/node1 -- successor2
+      // after swap: above -- node2 --- node1 -- below
+      if(res2 && res2.predecessor) {
+        num_ixs += checkForIntersection(res2.predecessor.data, node1.data, e, tracker);
+      }
+
+      if(res1 && res1.successor) {
+        num_ixs += checkForIntersection(res1.successor.data, node2.data, e, tracker);
+      }
+
+    }
+
+    tree.swap(node1, node2);
+  }
+
+  return num_ixs;
+}
+
+function handleRightEventBST(curr, e, tree, tracker) {
+  let num_ixs = 0;
+
+  if(debug) {
+    console.log(`\tRight endpoint event for ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+  }
+
+  // curr point is right of its segment
+  // check if predecessor and successor intersect with each other
+  let node = tree.search(curr.segment);
+  let res = tree.successorPredecessorForNode(node);
+  if(res && res.predecessor && res.successor) { num_ixs += checkForIntersection(res.predecessor.data, res.successor.data, e, tracker); }
+
+  if(debug) {
+    console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
+    drawEdge(curr.segment, COLORS.red);
+  }
+
+  tree.removeNode(node);
+
+  return num_ixs;
+}
+
+
+
+
 export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) => {}) {
   // id the segments for testing
 
@@ -339,6 +1077,8 @@ export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) =
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let tree = new NotATree(); // pretend this is actually a tree
+
+
   let e = new EventQueue(segments);
 
   let num_ixs = 0; // mainly for testing
@@ -362,7 +1102,7 @@ export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) =
         num_ixs += handleLeftEvent(curr, e, tree, tracker);
         break;
       case EventType.Intersection:
-        num_ixs += handleIntersectionEvent(curr, e, tree, tracker, reportFn, prev_sweep_x);
+        num_ixs += handleIntersectionEvent(curr, e, tree, tracker, reportFn);
         break;
       case EventType.Right:
         num_ixs += handleRightEvent(curr, e, tree, tracker);
