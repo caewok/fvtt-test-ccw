@@ -95,7 +95,7 @@ class LLNode {
   }
 }
 
-class OrderedDoubleLinkedList {
+export class OrderedDoubleLinkedList {
   constructor(comparator = (a, b) => a - b) {
     this._length = 0; // track length mostly for debugging
     this.start = null;

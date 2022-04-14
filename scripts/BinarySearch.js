@@ -22,7 +22,7 @@
  * binaryFindIndex(arr, elem => cmpNum(elem, 3) > 0)
  * arr.findIndex(elem => cmpNum(elem, 3) > 0)
  */
-function binaryFindIndex(arr, comparator) {
+export function binaryFindIndex(arr, comparator) {
   let start = 0;
   let end = arr.length - 1;
   let mid = -1;
@@ -75,7 +75,7 @@ function binaryFindIndex(arr, comparator) {
  * binaryIndexOf(arr, 2, cmpNum)
  * arr.indexOf(2)
  */
-function binaryIndexOf(arr, obj, cmpFn) {
+export function binaryIndexOf(arr, obj, cmpFn) {
   let start = 0;
   let end = arr.length - 1;
 

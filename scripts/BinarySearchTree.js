@@ -8,7 +8,7 @@ class BSTNode {
   }
 }
 
-class BinarySearchTree {
+export class BinarySearchTree {
   constructor(comparator = (a, b) => a - b) {
     this.root = null;
     this.comparator = (node1, node2) => {
