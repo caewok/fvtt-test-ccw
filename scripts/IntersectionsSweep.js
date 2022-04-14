@@ -95,8 +95,22 @@ canvas.controls.debug.clear()
 walls = [...canvas.walls.placeables]
 segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
+// store coordinates for testing
+s_coords = segments.map(s => {
+  return { A: { x: s.A.x, y: s.A.y}, B: {x: s.B.x, y: s.B.y} }
+});
+
+// change to string
+str = JSON.stringify(s_coords);
+
+// back to Segment
+JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B))
+
+
+
+
 N = 100
-await benchmarkLoopFn(N, findIntersectionsSingle, "brute sort", segments)
+await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute sort", segments)
 await benchmarkLoopFn(N, processIntersections, "sweep", segments)
 
 
@@ -157,6 +171,10 @@ await benchmarkLoopFn(N, applyFn, "brute", findIntersectionsBruteSingle, num_seg
 await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segments, max_coord)
 await benchmarkLoopFn(N, applyFn, "sort2", findIntersectionsSort2Single, num_segments, max_coord)
 await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord)
+
+
+
 
 let i;
 let segments
@@ -169,21 +187,21 @@ for(i = 0; i < 100; i += 1) {
 
   segments = Array.fromRange(10).map(i => randomSegment(5000))
   findIntersectionsBruteSingle(segments, reportFnBrute)
-  findIntersectionsSweepSingle(segments, reportFnSweep)
+//   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
 
   reporting_arr_brute.sort(compareXY)
-  reporting_arr_sweep.sort(compareXY)
+//   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
 
-  if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
-
-     console.table(reporting_arr_brute);
-     console.table(reporting_arr_sweep);
-     console.error(`ixs not equal .`, segments)
-     break;
-  }
+//   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
+//      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
+//
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep);
+//      console.error(`ixs not equal .`, segments)
+//      break;
+//   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_link[idx]))) {
@@ -377,9 +395,15 @@ function segmentCompareNW_YX(segment, elem) {
   return compareYX(segment._tmp_nw, elem._tmp_nw)
 }
 
+function pointForSegmentGivenX(s, x) {
+    const denom = s.B.x - s.A.x;
+    if(!denom) return undefined;
+    return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+  }
+
 function segmentCompare(segment, elem) {
-  segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment._tmp_nw;
-  elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem._tmp_nw;
+  segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment.nw;
+  elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem.nw;
   return compareYX(segment._tmp_nw, elem._tmp_nw) ||
      foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
      foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
@@ -392,340 +416,48 @@ function segmentCompareLinkedGen(segment, elem) {
   }
 }
 
-
-// the trick is that it adds links to the object directly
-// for points: comparator = compareXY or compareYX
-// for segments: comparator = segmentCompareNW_YX
-class ObjectLinkedTracker {
-  constructor(comparator) {
-    this.start = null;
-    this.end = null;
-    this.median = null;
-
-    // median offset is # of elements to the right of median minus number to left
-    // 1,2,3,4 --> median = 3: offset is 1 - 2 = -1. median = 4: 0 - 3 = -3.
-    // 1,2,3,4,5 --> 0 median = 3: offset is 2 - 2 = 0.
-    this.median_offset = 0;
-
-    this.comparator = comparator;
-    this.length = 0;
+class LinkedEventQueue extends PriorityQueueArray {
+  constructor(arr,  { comparator = (a, b) => a - b,
+                      sort = (arr, cmp) => arr.sort(cmp) } = {}) {
+    // push all left points to a vector of events
+    const data = [];
+    arr.forEach(s => {
+      data.push({ point: s.nw, eventType: EventType.Left, segment: s });
+    });
+    comparator = LinkedEventQueue.eventCmp;
+    super(data, { comparator, sort });
   }
 
-  insert(obj) {
-    this.length += 1;
-    obj._olt = { next: null, prev: null };
-
-    // Base case: link the segment to start
-    if(!this.start) {
-      this.start = obj;
-      this.end = obj;
-      this.median = obj;
-      return;
-    }
-
-    // TO-DO: Test end and median for better entry positions
-    // walk from start.
-    // if segment is after current position, keep walking
-    let existing = this.start;
-    let cmp_res = this.comparator(obj, existing); // < 0: obj before existing
-    let saw_median = false;
-    while(cmp_res > 0 && existing._olt.next) {
-      if(existing === this.median) { saw_median = true; }
-      existing = existing._olt.next;
-      cmp_res = this.comparator(obj, existing);
-    }
-
-    /*
-    Median options:
-    1. Added object to end. median_offset +1 b/c adding after median
-    2. Added object before existing.
-       - if median was seen, then we are adding after median: median_offset +1
-       - if median not seen, then we are adding before median: median_offset -1
-    */
-
-
-    if(cmp_res > 0) {
-      // at the end
-      // change prev -- existing -- end
-      // to     prev -- existing -- obj -- end
-      this.end = obj;
-      obj._olt.prev = existing;
-      existing._olt.next = obj;
-
-      this.median_offset += 1;
-    } else {
-
-      // change prev -- existing -- next
-      // to     prev -- obj -- existing -- next
-      if(!existing._olt.prev) {
-        this.start = obj;
-      } else {
-        existing._olt.prev._olt.next = obj;
-      }
-
-      obj._olt.next = existing;
-      obj._olt.prev = existing._olt.prev;
-      existing._olt.prev = obj;
-
-      this.median_offset += saw_median ? 1 : -1;
-    }
-
-    this._rebalanceMedian();
+  static eventCmp(e1, e2) {
+    const cmp_res = compareXY(e1.point, e2.point);
+    return cmp_res ? -cmp_res : e2.eventType - e1.eventType;
   }
 
-  _rebalanceMedian() {
-    if(this.median_offset === 2) {
-      // two more elements are to the left of median than to right
-      // shift median one left
-      this.median = this.median._olt.next;
-      this.median_offset = 0;
-    } else if(this.median_offset === -2) {
-      // two more elements are to the right of median than to left
-      // shift median one right
-      this.median = this.median._olt.prev;
-      this.median_offset = 0;
-    }
-  }
+  insert(event) {
 
-  inorder() {
-    const out = [];
-    let next = this.start;
+    let idx;
+    switch(use_binary_event_queue) {
+      case UseBinary.Yes:
+        idx = binaryFindIndex(this.data, elem => this._elemIsAfter(event, elem));
+        break;
 
-    // for debugging
-    const max_iterations = 100_000;
-    let iter = 0;
-    while(next && iter < max_iterations) {
-      iter += 1
-      out.push(next);
-      next = next._olt.next;
-    }
-    if(iter >= max_iterations) { console.warn("Max iterations hit for inorder."); }
+      case UseBinary.Test:
+        idx = this.data.findIndex(elem => this._elemIsAfter(event, elem));
+        const idx_bin = binaryFindIndex(this.data, elem => this._elemIsAfter(event, elem));
+        if(idx !== idx_bin) { console.warn(`EQ insert: idx bin ${idx_bin} ≠ ${idx}`); }
+        break;
 
-    return out;
-  }
-
-  predecessor(obj) { return obj._olt?.prev; }
-  successor(obj) { return obj._olt?.next; }
-
-  swap(obj1, obj2) {
-    if(!obj1._olt || !obj2._olt) {
-      console.warn("Object not an olt object.", obj);
-      return;
-    } else if(obj1 === obj2) {
-      console.warn("Tried to swap identical objects");
-      return;
+      case UseBinary.No:
+        idx = this.data.findIndex(elem => this._elemIsAfter(event, elem));
     }
 
-    if(this.start === obj1) {
-      this.start = obj2;
-    } else if(this.start === obj2) {
-      this.start = obj1;
-    }
-
-    if(this.median === obj1) {
-      this.median = obj2;
-    } else if(this.median === obj2) {
-      this.median = obj1;
-    }
-
-    if(this.end === obj1) {
-      this.end = obj2;
-    } else if(this.end === obj2) {
-      this.end = obj1;
-    }
-
-    // Fix pointers
-
-
-    if(obj1._olt.next === obj2) {
-      // prev1 -- obj1 -- obj2 -- next2 => prev1 -- obj2 -- obj1 -- next2
-      let prev1 = obj1._olt.prev;
-      let next2 = obj2._olt.next;
-
-      if(prev1) { prev1._olt.next = obj2; }
-      obj2._olt.prev = prev1;
-
-      if(next2) { next2._olt.prev = obj1; }
-      obj1._olt.next = next2;
-
-      [obj1._olt.prev, obj2._olt.next] = [obj2, obj1];
-
-    } else if(obj1._olt.prev === obj2) {
-      // prev2 -- obj2 -- obj1 -- next1 => prev2 -- obj1 -- obj2 -- next1
-      let prev2 = obj2._olt.prev;
-      let next1 = obj1._olt.next;
-
-      if(prev2) { prev2._olt.next = obj1; }
-      obj1._olt.prev = prev2;
-
-      if(next1) { next1._olt.prev = obj2; }
-      obj2._olt.next = next1;
-
-      [obj2._olt.prev, obj1._olt.next] = [obj1, obj2];
-
-    } else {
-      // prev1 -- obj1 -- next1 ... prev2 -- obj2 -- next2
-      // or prev2 -- obj2 -- next2 ... prev1 -- obj1 -- next1
-      let prev1 = obj1._olt.prev;
-      let prev2 = obj2._olt.prev;
-      let next1 = obj1._olt.next;
-      let next2 = obj2._olt.next;
-
-      if(prev1) { prev1._olt.next = obj2; }
-      obj2._olt.prev = prev1;
-
-      if(prev2) { prev2._olt.next = obj1; }
-      obj1._olt.prev = prev2;
-
-      if(next1) { next1._olt.prev = obj2; }
-      obj2._olt.next = next1;
-
-      if(next2) { next2._olt.prev = obj1; }
-      obj1._olt.next = next2;
-
-      [obj1._olt.prev, obj2._olt.prev] = [obj2._olt.prev, obj1._olt.prev];
-      [obj1._olt.next, obj2._olt.next] = [obj2._olt.next, obj1._olt.next];
-    }
-
-
-
-  }
-
-  remove(obj) {
-    if(!obj._olt) {
-      console.warn("Object not an olt object.", obj);
-      return;
-    }
-    if(!this.start) return; // olt is empty
-
-    this.length -= 1;
-
-    if(!this.length) {
-      // this was the last object
-      obj._olt = undefined;
-      this.start = null;
-      this.end = null;
-      this.median = null;
-      this.median_offset = 0;
-      return;
-    }
-
-    let median_fixed = false;
-    if(this.median === obj) {
-      // if median and object are the same, need to adjust median links
-      // before removing the object
-
-      median_fixed = true;
-      if(this.median_offset === 0) {
-        // e.g.: 5, 6, 7, 8, 9, median = 7, offset 2 - 2 = 0
-        // remove 7: 5, 6, 8, 9, median = 6, offset 2 - 1 = 1
-        if(this.median._olt.prev) {
-          this.median = this.median._olt.prev;
-          this.median_offset = 1;
-        } else {
-          this.median = this.median._olt.next;
-          this.median_offset = -1;
-        }
-
-
-      } else if(this.median_offset === -1) {
-        // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
-        // remove 7: 5, 6, 8, median = 6, offset = 0
-        this.median = this.median._olt.prev;
-        this.median_offset = 0;
-
-      } else if(this.median_offset === 1) {
-        // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
-        // remove 6: 5, 7, 8 median = 7, offset = 0
-        this.median = this.median._olt.next;
-        this.median_offset = 0;
-      }
-    }
-
-    // change prev -- obj -- next
-    // to     prev -- next
-    // effectively drops obj from the linked list
-    // also adjust hard links if necessary
-    if(this.start === obj) {
-      this.start = obj._olt.next;
-    } else {
-      obj._olt.prev._olt.next = obj._olt.next;
-    }
-
-    if(this.end === obj) {
-      this.end = obj._olt.prev;
-    } else {
-       obj._olt.next._olt.prev = obj._olt.prev;
-    }
-
-    obj._olt = undefined;
-
-    if(!median_fixed) {
-      // if object does not equal median, then we want to do the above
-      // removal of object first, so we know the median prev/next links are correct
-      const cmp_res = this.comparator(obj, this.median);
-      if(cmp_res < 0) {
-        // obj before median
-        if(this.median_offset === 0) {
-          // e.g.: 5, 6, 7, 8, 9, median = 7
-          // remove 6: 5, 7, 8, 9, median = 7, offset 2 - 1 = 1
-          this.median_offset = 1;
-        } else if(this.median_offset === -1) {
-          // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
-          // remove 5: 6, 7, 8, median = 7, offset = 0
-          this.median_offset = 0;
-
-        } else if(this.median_offset === 1) {
-          // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
-          // remove 5: 6, 7, 8, median = 7, offset = 0
-          this.median = this.median._olt.next;
-          this.median_offset = 0;
-        }
-      } else if(cmp_res > 0) {
-        // obj after median
-        if(this.median_offset === 0) {
-          // e.g.: 5, 6, 7, 8, 9, median = 7, offset 2 - 2 = 0
-          // remove 8: 5, 6, 7, 9, median = 7, offset 1 - 2 = -1
-          this.median_offset = -1;
-        } else if(this.median_offset === -1) {
-          // e.g.: 5, 6, 7, 8, median = 7, offset = 1 - 2 = -1
-          // remove 8: 5, 6, 7, median = 6, offset = 0
-          this.median = this.median._olt.prev;
-          this.median_offset = 0;
-
-        } else if(this.median_offset === 1) {
-          // e.g.: 5, 6, 7, 8, median = 6, offset = 2 - 1 = 1
-          // remove 8: 5, 6, 7, median = 6, offset = 0
-          this.median_offset = 0;
-        }
-      }
-    }
+    this._insertAt(event, idx);
   }
 }
 
-/* testing
-olt = new ObjectLinkedTracker(compareXY)
-pts = Array.fromRange(10).map(e => randomPoint(5000))
-pts.forEach(pt => olt.insert(pt));
-console.table(olt.inorder())
-olt.median
 
-olt.median_offset
 
-olt.remove(pts[1])
-olt.remove(olt.end)
-olt.remove(olt.median)
-olt.remove(olt.start)
-
-olt.swap(olt.start, olt.end)
-olt.swap(olt.start, olt.median)
-
-console.table(olt.inorder())
-pts[1]
-olt.median
-olt.median_offset
-
-*/
+import { OrderedDoubleLinkedList } from "./DoubleLinkedList.js";
 
 export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2, ix) => {}) {
   // id the segments for testing
@@ -739,8 +471,11 @@ export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2,
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let cmp = segmentCompareLinkedGen();
-  let tree = new ObjectLinkedTracker(cmp.segmentCompare); // pretend this is actually a tree
-  let e = new EventQueue(segments);
+  let ll = new OrderedDoubleLinkedList(cmp.segmentCompare);
+
+  // push the left endpoints into the event queue
+  // right endpoints left for later when encountering each left event
+  let e = new LinkedEventQueue(segments);
 
   let num_ixs = 0; // mainly for testing
 
@@ -754,30 +489,29 @@ export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2,
 
     if(debug) {
       console.log(`${Object.getOwnPropertyNames(EventType)[curr.eventType]} event; Sweep at x = ${curr.point.x}.`);
-      console.log(`\tEvent Queue: ${e.data.length}; Tree`, e.data, tree.inorder());
+      console.log(`\tEvent Queue: ${e.data.length}; Tree`, e.data, ll.inorder());
       drawEdge({A: {x: curr.point.x, y: 0}, B: { x: curr.point.x, y: canvas.dimensions.height}}, COLORS.lightblue, .5);
-
     }
 
     switch(curr.eventType) {
       case EventType.Left:
-        num_ixs += handleLeftEventLinked(curr, e, tree, tracker);
+        num_ixs += handleLeftEventLinked(curr, e, ll, tracker);
         break;
       case EventType.Intersection:
-        num_ixs += handleIntersectionEventLinked(curr, e, tree, tracker, reportFn);
+        num_ixs += handleIntersectionEventLinked(curr, e, ll, tracker, reportFn);
         break;
       case EventType.Right:
-        num_ixs += handleRightEventLinked(curr, e, tree, tracker);
+        num_ixs += handleRightEventLinked(curr, e, ll, tracker);
         break;
     }
 
-    if(debug) { console.table(tree.inorder(), ["_id"]); }
+    if(debug) { console.table(ll.inorder(), ["_id"]); }
   }
 
   return num_ixs;
 }
 
-function handleLeftEventLinked(curr, e, tree, tracker) {
+function handleLeftEventLinked(curr, e, ll, tracker) {
   let num_ixs = 0;
 
   if(debug) {
@@ -785,81 +519,138 @@ function handleLeftEventLinked(curr, e, tree, tracker) {
     drawEdge(curr.segment);
   }
 
-  // get the above and below points
-  tree.insert(curr.segment);
+  // insert the current segment into the y-axis ordered list
+  let segment_node = ll.insert(curr.segment);
+
+  let event_right = {
+    point: curr.segment.se,
+    eventType: EventType.Right,
+    segmentNode: segment_node
+  }
+
+  e.insert(event_right);
 
   // check if curr intersects with its predecessor and successor
   // if we already checked this pair, we can skip
-  const pred = tree.predecessor(curr.segment);
-  const succ = tree.successor(curr.segment);
+  let pred_node = segment_node.prev;
+  let succ_node = segment_node.next;
 
-  if(pred) { num_ixs += checkForIntersection(pred, curr.segment, e, tracker); }
-  if(succ) { num_ixs += checkForIntersection(succ, curr.segment, e, tracker); }
+  if(pred_node) { num_ixs += checkForIntersectionLinked(pred_node, segment_node, e, tracker); }
+  if(succ_node) { num_ixs += checkForIntersectionLinked(succ_node, segment_node, e, tracker); }
 
   return num_ixs;
 }
 
-function handleIntersectionEventLinked(curr, e, tree, tracker, reportFn) {
+function handleIntersectionEventLinked(curr, e, ll, tracker, reportFn) {
   let num_ixs = 0;
 
+  let segment_node1 = curr.segmentNode1;
+  let segment_node2 = curr.segmentNode2;
+  let s1 = segment_node1.data;
+  let s2 = segment_node2.data;
+
   // report intersection
-  reportFn(curr.segment1, curr.segment2, curr.point);
+  reportFn(s1, s2, curr.point);
 
   if(debug) {
     console.log(`\tIntersection event ${curr.point.x},${curr.point.y}`);
     drawVertex(curr.point);
-    console.log(`\tSwapping \n\t${curr.segment1._id} (${curr.segment1.nw.x},${curr.segment1.nw.y}|${curr.segment1.se.x},${curr.segment1.se.y}) and \n\t${curr.segment2._id} (${curr.segment2.nw.x},${curr.segment2.nw.y}|${curr.segment2.se.x},${curr.segment2.se.y})`)
+    console.log(`\tSwapping \n\t${s1._id} (${s1.nw.x},${s1.nw.y}|${s1.se.x},${s1.se.y}) and \n\t${s2._id} (${s2.nw.x},${s2.nw.y}|${s2.se.x},${s2.se.y})`)
   }
 
   // swap A, B
-  tree.swap(curr.segment1, curr.segment2);
+  ll.swap(segment_node1, segment_node2);
 
-  let pred1 = tree.predecessor(curr.segment1);
-  let pred2 = tree.predecessor(curr.segment2);
+  let pred_node1 = segment_node1.prev;
+  let pred_node2 = segment_node2.prev;
 
-  let succ1 = tree.successor(curr.segment1);
-  let succ2 = tree.successor(curr.segment2);
+  let succ_node1 = segment_node1.next;
+  let succ_node2 = segment_node2.next;
 
-  if(pred1 && pred1 !== curr.segment2) {
-    num_ixs += checkForIntersection(pred1, curr.segment1, e, tracker);
-  } else if(pred2 && pred2 !== curr.segment1) {
-    num_ixs += checkForIntersection(pred2, curr.segment2, e, tracker);
+  if(pred_node1 && pred_node1 !== segment_node2) {
+    num_ixs += checkForIntersectionLinked(pred_node1, segment_node1, e, tracker);
+  } else if(pred_node2 && pred_node2 !== segment_node1) {
+    num_ixs += checkForIntersectionLinked(pred_node2, segment_node2, e, tracker);
   }
 
-  if(succ1 && succ1 !== curr.segment2) {
-    num_ixs += checkForIntersection(succ1, curr.segment1, e, tracker);
-  } else if(succ2 && succ2 !== curr.segment1) {
-    num_ixs += checkForIntersection(succ2, curr.segment2, e, tracker);
+  if(succ_node1 && succ_node1 !== segment_node2) {
+    num_ixs += checkForIntersectionLinked(succ_node1, segment_node1, e, tracker);
+  } else if(succ_node2 && succ_node2 !== segment_node1) {
+    num_ixs += checkForIntersectionLinked(succ_node2, segment_node2, e, tracker);
   }
 
   return num_ixs;
 }
 
-function handleRightEventLinked(curr, e, tree, tracker) {
+function handleRightEventLinked(curr, e, ll, tracker) {
   let num_ixs = 0;
 
+  let s_node = curr.segmentNode;
+  let s = s_node.data;
+
   if(debug) {
-    console.log(`\tRight endpoint event for ${curr.segment._id} (${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y})`);
+    console.log(`\tRight endpoint event for ${s._id} (${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y})`);
   }
 
   // curr point is right of its segment
   // check if predecessor and successor intersect with each other
-  let pred = tree.predecessor(curr.segment);
-  let succ = tree.successor(curr.segment);
 
-  if(pred && succ) { num_ixs += checkForIntersection(pred, succ, e, tracker); }
+
+  let pred_node = s_node.prev;
+  let succ_node = s_node.next;
+
+  if(pred_node && succ_node) { num_ixs += checkForIntersectionLinked(pred_node, succ_node, e, tracker); }
 
   if(debug) {
-    console.log(`\tDeleting ${curr.segment.nw.x},${curr.segment.nw.y}|${curr.segment.se.x},${curr.segment.se.y}`);
-    drawEdge(curr.segment, COLORS.red);
+    console.log(`\tDeleting ${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`);
+    drawEdge(s, COLORS.red);
   }
 
-  tree.remove(curr.segment);
+  ll.remove(s_node);
 
   return num_ixs;
 }
 
+function checkForIntersectionLinked(segment_node1, segment_node2, e, tracker) {
+  let num_ixs = 0;
+  const s1 = segment_node1.data;
+  const s2 = segment_node2.data;
 
+  const hash = hashSegments(s1, s2);
+//   const hash_rev = hashSegments(s2, s1);
+  if(!(tracker.has(hash)) &&
+    foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
+    num_ixs += 1;
+
+    // for testing
+
+    const ix = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+    if(!ix) return num_ixs; // likely collinear lines
+
+    if(debug) {
+      console.log(`\tIntersection found at ${ix.x},${ix.y}`);
+      drawVertex(ix, COLORS.lightred, .5);
+    }
+
+    const event_ix = {
+      point: ix,
+      eventType: EventType.Intersection,
+      segmentNode1: segment_node1,
+      segmentNode2: segment_node2,
+    };
+
+    e.insert(event_ix);
+    tracker.add(hash);
+//     tracker.add(hash_rev);
+  } else {
+    if(debug) {
+      const ix = foundry.utils.lineSegmentIntersection(s1.A, s1.B, s2.A, s2.B);
+      if(ix) { console.log(`Would have added duplicate ix event for ${ix.x},${ix.y}`); }
+    }
+  }
+
+  return num_ixs;
+}
 
 
 function segmentCompareGen() {
@@ -1065,6 +856,7 @@ function handleRightEventBST(curr, e, tree, tracker) {
 
 
 
+
 export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) => {}) {
   // id the segments for testing
 
@@ -1076,9 +868,7 @@ export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) =
   }
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
-  let tree = new NotATree(); // pretend this is actually a tree
-
-
+  let tree = new SegmentArray(); // pretend this is actually a tree
   let e = new EventQueue(segments);
 
   let num_ixs = 0; // mainly for testing
@@ -1109,6 +899,7 @@ export function findIntersectionsSweepSingle(segments, reportFn = (e1, e2, ix) =
         break;
     }
 
+    if(debug) { console.table(tree.data, ["_id"]); }
     prev_sweep_x = curr.point.x;
 
   }
@@ -1129,10 +920,10 @@ function handleLeftEvent(curr, e, tree, tracker) {
 
   // check if curr intersects with its predecessor and successor
   // if we already checked this pair, we can skip
-  let below = tree.belowIndex(idx);
+  let below = tree.successor(idx); // below means higher index, so successor
   if(below) { num_ixs += checkForIntersection(below, curr.segment, e, tracker); }
 
-  let above = tree.aboveIndex(idx);
+  let above = tree.predecessor(idx);
   if(above) { num_ixs += checkForIntersection(above, curr.segment, e, tracker); }
 
   return num_ixs;
@@ -1161,8 +952,8 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn, prev_sweep_x)
         [curr.segment1, curr.segment2] :
         [curr.segment2, curr.segment1];
 
-    let below = tree.belowIndex(Math.max(new_idx1, new_idx2));
-    let above = tree.aboveIndex(Math.min(new_idx1, new_idx2));
+    let below = tree.successor(Math.max(new_idx1, new_idx2));
+    let above = tree.predecessor(Math.min(new_idx1, new_idx2));
 
     if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
     if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
@@ -1206,8 +997,8 @@ function handleRightEvent(curr, e, tree, tracker) {
 //   }
 
   if(!~idx) console.error("Segment not found", curr);
-  let below = tree.belowIndex(idx);
-  let above = tree.aboveIndex(idx);
+  let below = tree.successor(idx);
+  let above = tree.predecessor(idx);
   if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
 
   if(debug) {
@@ -1222,448 +1013,17 @@ function handleRightEvent(curr, e, tree, tracker) {
   return num_ixs;
 }
 
-
-/**
- * instead of a self-balancing tree, see how we do with just an
- * array that we pretend is an ordered tree.
- * array sorted from smallest y (above) to largest y (below)
- */
-
-class NotATree {
-  constructor() {
-    this.data = [];
-  }
-
-  // something above the segment has a lower index
-//   above(segment) { return this.aboveIndex(this.indexOf(segment)); } // unused
-
-  aboveIndex(idx) { return this.data[idx - 1]; }
-
-  // something below the segment has a higher index
-//   below(segment) { return this.belowIndex(this.indexOf(segment)); } // unused
-
-  belowIndex(idx) { return this.data[idx + 1]; }
-
-  atIndex(idx) { return this.data[idx]; }
-
-  // index
-  indexOf(segment) { return this.data.indexOf(segment); }
-
-  // following alternative to indexOf looks like it works
-  // but causes -1 to sometimes be passed to deleteAtIndex;
-  // unclear if this is actually working properly
-  binaryIndexOf(segment, sweep_x) {
-    // trick: if segment._tmp_nw is undefined, it either has not been
-    // added or has already been removed. See insert and delete
-    // Must catch this case to avoid throwing error on _segmentIndexCompareYX
-    // which would otherwise try to access the undefined ._tmp_nw to compare
-//     let idx_orig = this.indexOf(segment);
-
-
-    if(!segment._tmp_nw) {
-//       if(idx_orig !== -1) { console.warn(`binaryIndex: idx_orig is ${idx_orig}, not -1.`); }
-//       return idx_orig;
-      return -1;
-    }
-
-    // if the segment is vertical, there is a good chance we will not know its location.
-    // A vertical line may have multiple intersections at the same sweep_x.
-    // This will proceed:
-    // - identify intersection
-    // - swap intersection
-    // - identify second intersection
-    // <-- here, the segment has already been swapped but we are still at the same sweep_x,
-    //     so we would need to somehow know that to know where it is in the data array.
-    // - swap second intersection ...
-
-    // Instead, bail out and return a non-binary search instead
-    if(segment.A.x === segment.B.x) { return this.data.indexOf(segment); }
-
-    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment._tmp_nw; // if vertical, use existing
-    let idx = binaryIndexOf(this.data, segment, (a, b) => this._segmentCompare(a, b, sweep_x));
-
-//     if(idx_orig !== idx) {
-//       console.warn(`binaryIndex: idx_orig is ${idx_orig}, not ${idx}`);
-//       idx = idx_orig;
-//     }
-
-    return idx;
-  }
-
-  deletionBinaryIndexOf(segment, sweep_x) {
-    // same as binaryIndexOf but we are comparing from the right (se),
-    // so must use _segmentCompareForDeletion
-    if(!segment._tmp_nw) { return -1 }
-    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment.se; // deleting, so we want the end
-    return binaryIndexOf(this.data, segment, (a, b) => this._segmentCompareForDeletion(a, b, sweep_x));
-  }
-
-
-
-//
-//   indexOfWithUpdate(segment, sweep_x) {
-//     segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x);
-//     return binaryIndexOf(this.data, segment, (a, b) => this._segmentIndexCompareYXWithUpdate(a, b, sweep_x));
-//   }
-
-  // insert
-  // return index of the insertion
-  insert(segment, sweep_x) {
-    // must use a temporary index flag, because we may be switching
-    // segments and therefore switching their "y" values temporarily.
-    // need the x value for when y values are the same.
-    // need se for when the segments share nw endpoint.
-
-    // when inserting a new object, must also recalculate the x, y based on
-    // current sweep line position and insert accordingly
-    if(typeof sweep_x === "undefined") { console.warn("insert requires sweep_x"); }
-
-    segment._tmp_nw = segment.nw;
-
-    // find first element that has larger y than the segment
-    // note that segmentCompareYX is using the current sweep location to calculate
-    // points of comparison
-
-    let idx;
-    switch(use_binary_insert) {
-      case UseBinary.Yes:
-        idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
-        break;
-
-      case UseBinary.Test:
-        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
-        const idx_bin = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
-        if(idx !== idx_bin) { console.warn(`insert segment: idx bin ${idx_bin} ≠ ${idx} at sweep ${sweep_x}`); }
-        break;
-
-      case UseBinary.No:
-        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
-        break;
-    }
-
-    if(~idx) {
-      // insert event at index
-      this.data.splice(idx, undefined,segment);
-      return idx;
-
-    } else {
-      // not found; event has the largest y
-      this.data.push(segment);
-      return this.data.length - 1;
-    }
-  }
-
-  swap(segment1, segment2, sweep_x) {
-    if(!segment1._tmp_nw || !segment2._tmp_nw) { return -1; }
-
-    let idx1, idx2;
-    switch(use_binary_insert) {
-      case UseBinary.Yes:
-        idx1 = this.binaryIndexOf(segment1, sweep_x);
-        idx2 = this.binaryIndexOf(segment2, sweep_x);
-        break;
-
-      case UseBinary.Test:
-        idx1 = this.indexOf(segment1);
-        idx2 = this.indexOf(segment2);
-        const idx_bin1 = this.binaryIndexOf(segment1, sweep_x);
-        const idx_bin2 = this.binaryIndexOf(segment2, sweep_x);
-        if(idx1 !== idx_bin1) { console.warn(`swap segment1: idx bin1 ${idx_bin1} ≠ ${idx1} at sweep ${sweep_x}`); }
-        if(idx2 !== idx_bin2) { console.warn(`swap segment2: idx bin2 ${idx_bin2} ≠ ${idx2} at sweep ${sweep_x}`); }
-        break;
-
-      case UseBinary.No:
-        idx1 = this.indexOf(segment1);
-        idx2 = this.indexOf(segment2);
-        break;
-    }
-
-    if(!~idx1 || !~idx2) {
-//       console.warn("swap segments not found.");
-      return [undefined, undefined];
-    }
-
-    // change their temporary values (only *after* finding their current index)
-
-    [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
-
-    // change their position
-    this.data[idx1] = segment2;
-    this.data[idx2] = segment1;
-
-    return [idx2, idx1];
-  }
-
-  // delete
-  // unused
-//   delete(segment) {
-//     const idx = this.indexOf(segment);
-//     if(~idx) { this.deleteAtIndex(idx); }
-//   }
-
-  deleteAtIndex(idx) {
-    if(idx < 0 || idx > ( this.data.length - 1)) {
-      console.log(`Attempted deleteAtIndex ${idx} with data length ${this.data.length}`, this.data);
-      return;
-    }
-
-    this.data[idx]._tmp_nw = undefined;
-    this.data.splice(idx, 1);
-  }
-
-  _segmentCompareForDeletion(segment, elem, sweep_x) {
-    // same as this._segmentCompare, but the orientation is flipped b/c we are
-    // comparing segments after potential swap
-     elem._tmp_nw = pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw;
-     return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-            -foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-            -foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-  }
-
-  _segmentCompare(segment, elem, sweep_x) {
-    // must use the current sweep location to set nw for each existing element
-    elem._tmp_nw = pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw; // if vertical keep existing
-
-    // if compareXY is not 0, use that comparison result.
-
-    // otherwise, segment and elem share nw endpoint or se endpoint equals _tmp_nw at sweep
-    // sort by extending the lines to the nw: whichever is higher in the nw
-    // direction is first in the sort.
-    // can determine this directly by extending lines from the se, or indirectly by
-    // determining their orientation relative to one another
-
-    // if they share the nw endpoint, the first orientation will return 0; test again
-    // in opposite direction. So first orientation tests > shape; second tests < shape
-    // of the X.
-
-    return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-           foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-           foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-  }
-
-  _elemIsAfter(segment, elem, sweep_x) {
-    return this._segmentCompare(segment, elem, sweep_x) < 0;
-  }
-
-//   _segmentCompareYX(segment, elem, sweep_x) {
-//     // must use the current sweep location to set nw for each existing element
-//     const new_pt_e = pointForSegmentGivenX(elem, sweep_x);
-//     if(new_pt_e) elem._tmp_nw = new_pt_e;
-//
-//     const cmp_nw = compareYX(segment._tmp_nw, elem._tmp_nw);
-//     if(cmp_nw) return cmp_nw < 0;
-//
-//     // segments share nw endpoint.
-//     // the form a < with the point to the nw.
-//     // need to determine which segment is the bottom half
-//     // if segments extended nw (forming an X), the bottom half would become the top half
-//     // and that would be the segment to sort first
-//     // so the one that is to the right on the se side is the upper on the nw side
-//
-//     // orientation: positive: segment is to left of elem; segment sorted before elem
-//     const orientation = foundry.utils.orient2dFast(elem._tmp_nw, elem._tmp_se, segment._tmp_se);
-//     return orientation < 0;
-//   }
-}
-
-function pointForSegmentGivenX(s, x) {
-  const denom = s.B.x - s.A.x;
-  if(!denom) return undefined;
-
-  return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
-}
-
-
-
-// When events have the same point, prefer Left types first
-let EventType = {
-  Left: 0,
-  Intersection: 1,
-  Right: 2,
-}
-
-// Needs to approximate a priority queue.
-// In particular, it is possible for an intersection event to be added that would be
-// the very next event, possibly several jumps in front of the current segment event
-// had they been all sorted with the intersection event.
-
-class EventQueue {
-  constructor(segments) {
-    // push all points to a vector of events
-    const data = [];
-    segments.forEach(s => {
-      data.push({ point: s.nw, eventType: EventType.Left, segment: s });
-      data.push({ point: s.se, eventType: EventType.Right, segment: s });
-    });
-
-    // sort all events according to x then y coordinate
-    // reverse so that we can pop
-    data.sort(this.eventCmp);
-
-    this.data = data;
-  }
-
-  eventCmp(e1, e2) {
-    const cmp_res = compareXY(e1.point, e2.point);
-    return cmp_res ? -cmp_res : e2.eventType - e1.eventType;
-  }
-
-  next() {
-    return this.data.pop();
-  }
-
-  insert(event) {
-
-    let idx;
-    switch(use_binary_event_queue) {
-      case UseBinary.Yes:
-        idx = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
-        break;
-
-      case UseBinary.Test:
-        idx = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
-        const idx_bin = binaryFindIndex(this.data, elem => this.eventCmp(event, elem) < 0);
-        if(idx !== idx_bin) { console.warn(`EQ insert: idx bin ${idx_bin} ≠ ${idx}`); }
-        break;
-
-      case UseBinary.No:
-        idx = this.data.findIndex(elem => this.eventCmp(event, elem) < 0);
-    }
-
-    // if index is -1, then e is the smallest x and is appended to end (will be first)
-    // (this is different than how splice works for -1)
-    ~idx ? this.data.splice(idx, undefined, event) : this.data.push(event);
-  }
-}
-
-
-
-// Find an index based on binary search
-// EventQueue and NotATree both use findIndex to run through each element
-// in the array, stopping when they first find the value that exceeds a comparator
-// use:
-// cmpNum = (a, b) => a - b;
-// arr = [0,1,2,3,4,5,6,7]
-// arr.sort(cmpNum)
-// binaryFindIndex(arr, elem => elem > 3)
-// binaryFindIndex(arr, (elem, idx) => elem + idx > 3)
-
-/* test
-pts = Array.fromRange(10).map(obj => randomPoint(5000));
-pts.sort((a, b) => compareXY(a, b))
-
-// if compareXY < 0, a is before b
-let i;
-for(i = 0; i < pts.length; i += 1) {
-  let pt = pts[i];
-  let bin_idx1 = binaryFindIndex(pts, obj => compareXY(pt, obj) <= 0);
-  let bin_idx2 = binaryFindIndex(pts, obj => compareXY(obj, pt) > 0);
-  let idx1 = pts.findIndex(obj => compareXY(pt, obj) <= 0);
-  let idx2 = pts.findIndex(obj => compareXY(pt, obj) > 0);
-
-  if(bin_idx1 !== idx1) {
-    // should not fail
-    console.error(`first bin index\t${bin_idx1} ≠ ${idx1}`);
-  }
-
-  if(bin_idx2 !== idx2) {
-    // will fail
-    console.error(`second bin index\t${bin_idx2} ≠ ${idx2}`);
-  }
-
-}
-
-*/
-
-function binaryFindIndex(arr, callbackFn) {
-  let start = 0;
-  let end = arr.length - 1;
-  let mid = -1;
-
-  // need first index for which callbackFn returns true
-  // b/c the array is sorted, once the callbackFn is true for an index,
-  // it is assumed true for the rest
-  // so, e.g, [F,F,F, T, T, T, T]
-  // progressively check until we have no items left.
-
-
-
-  // Iterate, halving the search each time we find a true value
-  let last_true_index = -1;
-  while (start <= end){
-    // find the mid index
-    mid = Math.floor((start + end) / 2);
-
-    // determine if this index returns true
-    const res = callbackFn(arr[mid], mid);
-
-    if(res) {
-      // if we found a true value, we can ignore everything after mid
-      last_true_index = mid;
-      end = mid - 1;
-    } else {
-      // otherwise, the first true value might be after mid
-      // (b/c it is sorted, it cannot be before)
-      start = mid + 1;
-    }
-  }
-
-  return last_true_index;
-}
-
-// Just like Javascript array sort
-// If compareFunction  is
-// < 0: sort a before b
-// > 0: sort b before a
-// To use, sort an array and then use binaryIndexOf with the same comparator function
-// arr = [0,1,2,3,4,5,6,7]
-// cmpNum = (a, b) => a - b;
-// arr.sort(cmpNum); // only needed if array not yet sorted
-// binaryIndexOf(arr, 2, cmpNum)
-
-/* test
-pts = Array.fromRange(10).map(obj => randomPoint(5000));
-pts.sort((a, b) => compareXY(a, b))
-
-// if compareXY < 0, a is before b
-let i;
-for(i = 0; i < pts.length; i += 1) {
-  let pt = pts[i];
-  let idx = pts.indexOf(pt);
-  let bin_idx = binaryIndexOf(pts, pt, compareXY);
-  if(idx !== bin_idx) {
-    console.error(`binary index ${bin_idx} ≠ ${idx}`);
-  }
-}
-*/
-
-function binaryIndexOf(arr, obj, cmpFn) {
-  let start = 0;
-  let end = arr.length - 1;
-
-  // iterate, halving the search each time
-  while (start <= end) {
-    let mid = Math.floor((start + end) / 2);
-    let res = cmpFn(obj, arr[mid]);
-    if(!res) return mid;
-
-    if(res > 0) {
-      start = mid + 1;
-    } else {
-      end = mid - 1;
-    }
-  }
-
-  return -1;
-}
-
-
 /**
  * Construct numeric index to represent unique pairing
  * digits_multiplier is Math.pow(10, numDigits(n));
  */
 function hashSegments(s1, s2) {
-  const key = compareXY(s1.nw, s2.nw) < 0 ?
+  // need s1, s2 hash to be equivalent to s2,s1 hash
+  // if nw endpoint is the same, then we need to compare the se to get unique ordering
+  // key is a string to ensure uniqueness; integer key would likely overflow
+  const cmp_nw = compareXY(s1.nw, s2.nw);
+  const order = cmp_nw ? cmp_nw < 0 : compareXY(s1.se, s2.se) < 0;
+  const key = order ?
     "" + s1.nw.key + s1.se.key + s2.nw.key + s2.se.key :
     "" + s2.nw.key + s2.se.key + s1.nw.key + s1.se.key;
 
@@ -1695,8 +1055,8 @@ function checkForIntersection(s1, s2, e, tracker) {
       segment1: s1,
       segment2: s2
     };
-    e.insert(event_ix);
 
+    e.insert(event_ix);
     tracker.add(hash);
 //     tracker.add(hash_rev);
   } else {
@@ -1710,20 +1070,426 @@ function checkForIntersection(s1, s2, e, tracker) {
 }
 
 
+import { OrderedArray } from "./OrderedArray.js";
+import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
+
+
+/**
+ * instead of a self-balancing tree, see how we do with just an
+ * array that we pretend is an ordered tree.
+ * array sorted from smallest y (above) to largest y (below)
+ */
+
+class SegmentArray extends OrderedArray {
+
+
+ /**
+  * For a given x position, return the y position along the segment or undefined if
+  * the segment is vertical. Does not check fo whether the point is on the segment,
+  * versus beyond the segment.
+  * @param {Segment}  s   Object with A.x, A.y, B.x, and B.y coordinates.
+  * @param {Number}   x   X-coordinate from which to generate a y-coordinate.
+  * @return {Point|Undefined}
+  */
+  static pointForSegmentGivenX(s, x) {
+    const denom = s.B.x - s.A.x;
+    if(!denom) return undefined;
+    return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+  }
+
+ /**
+  * Take in a sweep_x to adjust the segment comparison as the sweep moves along the x axis.
+  * Otherwise like the OrderedArray version.
+  * @param {Segment}  segment   Object with A.x, A.y, B.x, B.y coordinates, plus
+  *                             _tmp_nw set when inserting in this class's array.
+  * @param {Number}   sweep_x   X-coordinate used in the comparison.
+  * @return {Number}  Index of the segment in the array.
+  */
+  binaryIndexOf(segment, sweep_x) {
+    // if segment._tmp_nw is undefined, it either has not been added or
+    // already removed.
+    if(!segment._tmp_nw) { return -1; }
+
+    // if the segment is vertical, there is a good chance we will not know its location.
+    // A vertical line may have multiple intersections at the same sweep_x.
+    // This will proceed:
+    // - identify intersection
+    // - swap intersection
+    // - identify second intersection
+    // <-- here, the segment has already been swapped but we are still at the same sweep_x,
+    //     so we would need to somehow know that to know where it is in the data array.
+    // - swap second intersection ...
+    // Instead, bail out and return a non-binary search instead
+    if(segment.A.x === segment.B.x) { return this.data.indexOf(segment); }
+
+    segment._tmp_nw = SegmentArray.pointForSegmentGivenX(segment, sweep_x) || segment._tmp_nw; // if vertical, use existing
+    return binaryIndexOf(this.data, segment, (a, b) => this._segmentCompare(a, b, sweep_x));
+  }
+
+ /**
+  * Like binaryIndexOf, but fall back to the se coordinate if the line is vertical.
+  * @param {Segment}  segment   Object with A.x, A.y, B.x, B.y coordinates, plus
+  *                             _tmp_nw set when inserting in this class's array.
+  * @param {Number}   sweep_x   X-coordinate used in the comparison.
+  * @return {Number}  Index of the segment in the array.
+  */
+  deletionBinaryIndexOf(segment, sweep_x) {
+    if(!segment._tmp_nw) { return -1 }
+
+    segment._tmp_nw = pointForSegmentGivenX(segment, sweep_x) || segment.se; // deleting, so we want the end
+    return binaryIndexOf(this.data, segment, (a, b) => this._segmentCompareForDeletion(a, b, sweep_x));
+  }
+
+ /**
+  * Insert an object in the array.
+  * Takes an x coordinate to insert at the correct position given the sweep location.
+  * @param {Object}   obj      Object with A.x, A.y, B.x, B.y coordinates, plus a nw
+  *                            property indicating whether A or B are more nw.
+  * @param {Number}   sweep_x Sweep location
+  * @return {number}  Index where the object was inserted.
+  */
+  insert(segment, sweep_x) {
+    if(typeof sweep_x === "undefined") { console.warn("insert requires sweep_x"); }
+
+    // add a temporary index flag, because during the sweep segments are swapped at
+    // intersections, thus switching their "y" values accordingly.
+    segment._tmp_nw = segment.nw;
+
+    // for debugging
+    let idx;
+    switch(use_binary_insert) {
+      case UseBinary.Yes:
+        idx = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
+        break;
+
+      case UseBinary.Test:
+        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
+        const idx_bin = binaryFindIndex(this.data, elem => this._elemIsAfter(segment, elem, sweep_x));
+        if(idx !== idx_bin) { console.warn(`insert segment: idx bin ${idx_bin} ≠ ${idx} at sweep ${sweep_x}`); }
+        break;
+
+      case UseBinary.No:
+        idx = this.data.findIndex(elem => this._elemIsAfter(segment, elem, sweep_x));
+        break;
+    }
+
+    return this._insertAt(segment, idx);
+  }
+
+ /**
+  * Swap two segments in the array.
+  */
+  swap(segment1, segment2, sweep_x) {
+    if(!segment1._tmp_nw || !segment2._tmp_nw) { return -1; }
+
+    let idx1, idx2;
+    switch(use_binary_insert) {
+      case UseBinary.Yes:
+        idx1 = this.binaryIndexOf(segment1, sweep_x);
+        idx2 = this.binaryIndexOf(segment2, sweep_x);
+        break;
+
+      case UseBinary.Test:
+        idx1 = this.data.indexOf(segment1);
+        idx2 = this.data.indexOf(segment2);
+        const idx_bin1 = this.binaryIndexOf(segment1, sweep_x);
+        const idx_bin2 = this.binaryIndexOf(segment2, sweep_x);
+        if(idx1 !== idx_bin1) { console.warn(`swap segment1: idx bin1 ${idx_bin1} ≠ ${idx1} at sweep ${sweep_x}`); }
+        if(idx2 !== idx_bin2) { console.warn(`swap segment2: idx bin2 ${idx_bin2} ≠ ${idx2} at sweep ${sweep_x}`); }
+        break;
+
+      case UseBinary.No:
+        idx1 = this.data.indexOf(segment1);
+        idx2 = this.data.indexOf(segment2);
+        break;
+    }
+
+    if(!~idx1 || !~idx2) {
+//       console.warn("swap segments not found.");
+      return [undefined, undefined];
+    }
+
+    // change their temporary values (only *after* finding their current index)
+
+    [ segment2._tmp_nw, segment1._tmp_nw ] = [ segment1._tmp_nw, segment2._tmp_nw ];
+
+    // change their position
+    //this.swapIndices(idx1, idx2);
+    this.data[idx1] = segment2;
+    this.data[idx2] = segment1;
+
+    return [idx2, idx1];
+  }
+
+ /**
+  * Delete a segment at a given index
+  * Just like OrderedArray.deleteAtIndex but marks the tmp flag as undefined.
+  * @param {number} idx   Index of segment to remove
+  */
+  deleteAtIndex(idx) {
+    if(idx < 0 || idx > ( this.data.length - 1)) {
+      console.log(`Attempted deleteAtIndex ${idx} with data length ${this.data.length}`, this.data);
+      return;
+    }
+
+    this.data[idx]._tmp_nw = undefined;
+    this.data.splice(idx, 1);
+  }
+
+ /**
+  * Comparison function that uses a changeable sweep_x value
+  * to adjust the comparison as the sweep moves across the x axis.
+  */
+  _segmentCompare(segment, elem, sweep_x) {
+    // use the current sweep location to set nw for each existing element
+    elem._tmp_nw = SegmentArray.pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw; // if vertical keep existing
+
+    // if compareXY is not 0, use that comparison result.
+    // otherwise, segment and elem share nw endpoint or se endpoint equals _tmp_nw at sweep
+    // sort by extending the lines to the nw: whichever is higher in the nw
+    // direction is first in the sort.
+    // can determine this directly by extending lines from the se, or indirectly by
+    // determining their orientation relative to one another
+
+    // if they share the nw endpoint, the first orientation will return 0; test again
+    // in opposite direction. So first orientation tests > shape; second tests < shape
+    // of the X.
+
+    return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+           foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+           foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+  }
+
+ /**
+  * Like segmentCompare, but reverses the orientation so that the comparison is correct
+  * when comparing segments for deletion after a swap along a vertical line.
+  */
+  _segmentCompareForDeletion(segment, elem, sweep_x) {
+    elem._tmp_nw = SegmentArray.pointForSegmentGivenX(elem, sweep_x) || elem._tmp_nw; // deleting, so we want the end
+    return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+           -foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+           -foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+  }
+
+ /**
+  * Helper function transforming the comparator output to true/false; used by insert.
+  * @param {Object}   obj     Object to search for
+  * @param {Object}   elem    Element of the array
+  * @param {number}   sweep_x Position of the sweep
+  * @return {boolean} True if the element is after the segment in the ordered array.
+  */
+  _elemIsAfter(segment, elem, sweep_x) { return this._segmentCompare(segment, elem, sweep_x) < 0; }
+
+}
+
+
+
+// When events have the same point, prefer Left types first
+let EventType = {
+  Left: 0,
+  Intersection: 1,
+  Right: 2,
+}
+
+import { PriorityQueueArray } from "PriorityQueueArray.js";
+
+function eventCmp(e1, e2) {
+  const cmp_res = compareXY(e1.point, e2.point);
+  return cmp_res ? -cmp_res : e2.eventType - e1.eventType;
+}
+
+
+// Needs to approximate a priority queue.
+// In particular, it is possible for an intersection event to be added that would be
+// the very next event, possibly several jumps in front of the current segment event
+// had they been all sorted with the intersection event.
+
+class EventQueue extends PriorityQueueArray {
+  constructor(arr, { comparator = EventQueue.eventCmp,
+                     sort = (arr, cmp) => arr.sort(cmp) } = {}) {
+    // push all points to a vector of events
+    const data = [];
+    arr.forEach(s => {
+      data.push({ point: s.nw, eventType: EventType.Left, segment: s });
+      data.push({ point: s.se, eventType: EventType.Right, segment: s });
+    });
+
+    super(data, { comparator, sort });
+  }
+
+  static eventCmp(e1, e2) {
+    const cmp_res = compareXY(e1.point, e2.point);
+    return cmp_res ? -cmp_res : e2.eventType - e1.eventType;
+  }
+
+  insert(event) {
+
+    let idx;
+    switch(use_binary_event_queue) {
+      case UseBinary.Yes:
+        idx = binaryFindIndex(this.data, elem => this._elemIsAfter(event, elem));
+        break;
+
+      case UseBinary.Test:
+        idx = this.data.findIndex(elem => this._elemIsAfter(event, elem));
+        const idx_bin = binaryFindIndex(this.data, elem => this._elemIsAfter(event, elem));
+        if(idx !== idx_bin) { console.warn(`EQ insert: idx bin ${idx_bin} ≠ ${idx}`); }
+        break;
+
+      case UseBinary.No:
+        idx = this.data.findIndex(elem => this._elemIsAfter(event, elem));
+    }
+
+    this._insertAt(event, idx);
+  }
+}
+
+
+
+
 
 /**
 Varieties of lines to test:
 
-vertical line, multiple lines cross
-horizontal line, multiple lines cross
-Asterix *, center is endpoint
-Asterix *, overlap at center point
-Intersect at endpoint: <, >, V, upside down V
-Intersect at endpoint for two co-linear horizontal lines --
-Intersect at endpoint for two co-linear vertical lines
+canvas.controls.debug.clear()
+walls = [...canvas.walls.placeables]
+segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
-Triangle with overlap
-Triangle intersecting at points
+// store coordinates for testing
+s_coords = segments.map(s => {
+  return { A: { x: s.A.x, y: s.A.y}, B: {x: s.B.x, y: s.B.y} }
+});
+
+// change to string
+str = JSON.stringify(s_coords);
+
+// back to segment
+segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
+
+test_strings = new Map();
+
+
+// Intersect at endpoint: <, >, V, upside down V
+// >
+str = '[{"A":{"x":1900,"y":1100},"B":{"x":2400,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":1900,"y":2100}}]'
+test_strings.set(">", str);
+
+// <
+str = '[{"A":{"x":2800,"y":1100},"B":{"x":2400,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":2800,"y":2100}}]'
+test_strings.set("<", str);
+
+// V
+str = '[{"A":{"x":2000,"y":1200},"B":{"x":2400,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":2800,"y":1200}}]'
+test_strings.set("V", str);
+
+// upside down V
+str = '[{"A":{"x":2400,"y":1600},"B":{"x":2800,"y":2100}},{"A":{"x":2000,"y":2100},"B":{"x":2400,"y":1600}}]'
+test_strings.set("upside down V", str);
+
+// +
+str = '[{"A":{"x":1912,"y":2000},"B":{"x":3300,"y":2000}},{"A":{"x":2600,"y":1300},"B":{"x":2600,"y":2812}}]'
+test_strings.set("+", str);
+
+// vertical line, multiple lines cross (the "TV antenna")
+str = '[{"A":{"x":2600,"y":1300},"B":{"x":2600,"y":2812}},{"A":{"x":2037,"y":1450},"B":{"x":3137,"y":1700}},{"A":{"x":2162,"y":2325},"B":{"x":3925,"y":2350}},{"A":{"x":1675,"y":2650},"B":{"x":2875,"y":2612}},{"A":{"x":1912,"y":2000},"B":{"x":3300,"y":2000}}]'
+test_strings.set("TV antenna", str);
+
+// Vertical line with endpoints intersecting
+str = '[{"A":{"x":2037,"y":1450},"B":{"x":2600,"y":1600}},{"A":{"x":2600,"y":2000},"B":{"x":3300,"y":2000}},{"A":{"x":1675,"y":2650},"B":{"x":2600,"y":2500}},{"A":{"x":2600,"y":1300},"B":{"x":2600,"y":2812}},{"A":{"x":2600,"y":2600},"B":{"x":2100,"y":2700}},{"A":{"x":2600,"y":2300},"B":{"x":3925,"y":2350}}]'
+test_strings.set("TV antenna endpoints", str);
+
+// horizontal line, multiple lines cross
+str = '[{"A":{"x":1675,"y":2650},"B":{"x":2200,"y":2000}},{"A":{"x":2200,"y":2100},"B":{"x":2500,"y":2600}},{"A":{"x":2037,"y":1450},"B":{"x":2700,"y":2500}},{"A":{"x":3700,"y":2300},"B":{"x":3300,"y":2000}},{"A":{"x":1700,"y":2200},"B":{"x":3700,"y":2200}},{"A":{"x":2600,"y":2100},"B":{"x":3900,"y":2400}}]'
+test_strings.set("horizontal with crossing", str);
+
+// horizontal line, endpoints intersecting
+str = '[{"A":{"x":1675,"y":2650},"B":{"x":2000,"y":2200}},{"A":{"x":2300,"y":2200},"B":{"x":2500,"y":2600}},{"A":{"x":2500,"y":2200},"B":{"x":2700,"y":2500}},{"A":{"x":2600,"y":2100},"B":{"x":3000,"y":2200}},{"A":{"x":1700,"y":2200},"B":{"x":3700,"y":2200}},{"A":{"x":3600,"y":2200},"B":{"x":3300,"y":2000}}]'
+test_strings.set("horizontal with intersecting", str);
+
+// Asterix *, center is endpoint
+str = '[{"A":{"x":1900,"y":1600},"B":{"x":2400,"y":1600}},{"A":{"x":1900,"y":1100},"B":{"x":2400,"y":1600}},{"A":{"x":1900,"y":2200},"B":{"x":2400,"y":1600}},{"A":{"x":2900,"y":1100},"B":{"x":2400,"y":1600}},{"A":{"x":2400,"y":1100},"B":{"x":2400,"y":1600}},{"A":{"x":2900,"y":2200},"B":{"x":2400,"y":1600}},{"A":{"x":2400,"y":2200},"B":{"x":2400,"y":1600}},{"A":{"x":2900,"y":1600},"B":{"x":2400,"y":1600}}]'
+test_strings.set("* with endpoint", str);
+
+// Asterix *, overlap at center point
+str = '[{"A":{"x":1900,"y":1100},"B":{"x":2900,"y":2100}},{"A":{"x":1900,"y":2100},"B":{"x":2900,"y":1100}},{"A":{"x":1900,"y":1600},"B":{"x":2900,"y":1600}},{"A":{"x":2400,"y":1100},"B":{"x":2400,"y":2100}}]'
+test_strings.set("* with overlap", str);
+
+
+
+// Intersect at endpoint for two co-linear horizontal lines --
+// colinear, so no overlap
+str = '[{"A":{"x":2400,"y":1800},"B":{"x":3000,"y":1800}},{"A":{"x":1900,"y":1800},"B":{"x":2400,"y":1800}}]'
+
+// Intersect at endpoint for two co-linear vertical lines
+// colinear, so no overlap
+
+
+reportFnBrute = (s1, s2) => {
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_brute.push(x); // avoid pushing null
+}
+
+reportFnSort = (s1, s2) => {
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_sort.push(x);
+}
+
+reportFnSweep = (s1, s2, ix) => {
+  reporting_arr_sweep.push(ix);
+}
+
+reportFnSweepLink = (s1, s2, ix) => {
+  reporting_arr_sweep_link.push(ix);
+}
+
+for([key, str] of test_strings) {
+  console.log(`\nTesting ${key}`)
+  reporting_arr_brute = []
+  reporting_arr_sort = []
+  reporting_arr_sweep = []
+  reporting_arr_sweep_link = []
+
+  segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
+  canvas.controls.debug.clear()
+  clearLabels();
+  segments.forEach(s => drawEdge(s, COLORS.black))
+
+  findIntersectionsBruteSingle(segments, reportFnBrute)
+  findIntersectionsSortSingle(segments, reportFnSort)
+  findIntersectionsSweepSingle(segments, reportFnSweep)
+  findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
+
+  reporting_arr_brute.sort(compareXY)
+  reporting_arr_sort.sort(compareXY)
+  reporting_arr_sweep.sort(compareXY)
+  reporting_arr_sweep_link.sort(compareXY)
+
+  if(reporting_arr_brute.length !== reporting_arr_sort.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
+
+     console.error(`Sort ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sort);
+  }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
+
+     console.error(`Sweep ≠ brute for ${key}`, )
+    //  console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep);
+  }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_link[idx]))) {
+
+     console.error(`Sweep link ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_link);
+  }
+}
+
+
 
 */
 
