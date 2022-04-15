@@ -254,26 +254,26 @@ export class OrderedDoubleLinkedList {
   * @param {LLNode} node2
   */
   swap(node1, node2) {
-    // if node1 is start, make node2 start and vice-versa. Same for end.
-    (this.start === node1 && (this.start = node2)) ||
-    (this.start === node2 && (this.start = node1)) // parens matter!
+ //    // if node1 is start, make node2 start and vice-versa. Same for end.
+//     (this.start === node1 && (this.start = node2)) ||
+//     (this.start === node2 && (this.start = node1)) // parens matter!
+//
+//     // if node1 is end, make node2 end and vice-versa. Same for end.
+//     (this.end === node1 && (this.end = node2)) ||
+//     (this.end === node2 && (this.end = node1)) // parens matter!
 
-    // if node1 is end, make node2 end and vice-versa. Same for end.
-    (this.end === node1 && (this.end = node2)) ||
-    (this.end === node2 && (this.end = node1)) // parens matter!
 
+    if(this.start === node1) {
+      this.start = node2;
+    } else if(this.start === node2) {
+      this.start = node1;
+    }
 
-    // if(this.start === node1) {
-//       this.start = node2;
-//     } else if(this.start === node2) {
-//       this.start = node1;
-//     }
-
-//     if(this.end === node1) {
-//       this.end = node2;
-//     } else if(this.end === node2) {
-//       this.end = node1;
-//     }
+    if(this.end === node1) {
+      this.end = node2;
+    } else if(this.end === node2) {
+      this.end = node1;
+    }
 
     node1.swap(node2);
 
