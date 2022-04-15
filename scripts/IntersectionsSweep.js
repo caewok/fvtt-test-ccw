@@ -32,6 +32,9 @@ binaryIndexOf = api.binaryIndexOf;
 OrderedArray = api.OrderedArray;
 PriorityQueueArray = api.PriorityQueueArray;
 SkipList = api.SkipList;
+pointForSegmentGivenX = api.pointForSegmentGivenX;
+EventType = api.EventType;
+hashSegments = api.hashSegments;
 
 
 MODULE_ID = 'testccw'
@@ -130,6 +133,10 @@ reportFnSweepLink = (s1, s2, ix) => {
   reporting_arr_sweep_link.push(ix);
 }
 
+reportFnSweepSkip = (s1, s2, ix) => {
+  reporting_arr_sweep_skip.push(ix);
+}
+
 function applyFn(fn, num_segments, max_coord) {
   segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
   return fn(segments);
@@ -139,6 +146,7 @@ reporting_arr_brute = []
 reporting_arr_sort = []
 reporting_arr_sweep = []
 reporting_arr_sweep_link = []
+reporting_arr_sweep_skip = []
 
 segments = Array.fromRange(10).map(i => randomSegment(5000))
 canvas.controls.debug.clear()
