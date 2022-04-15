@@ -160,17 +160,19 @@ class SkipNode {
   * @param {SkipNode} other
   */
   swap(other) {
-    if(this === other) {
+    const self = this;
+
+    if(self === other) {
       console.warn("Attempted to swap node with itself", other);
       return;
     }
 
     // increase the levels to match so links can be transferred
-    let max_lvl = Math.max(this.num_lvls, other.num_lvls);
-    this.skipNext.length = max_lvl;
-    this.skipPrev.length = max_lvl;
+    let max_lvl = Math.max(self.num_lvls, other.num_lvls);
+    self.skipNext.length = max_lvl;
+    self.skipPrev.length = max_lvl;
     other.skipNext.length = max_lvl;
-    other.skipNext.length = max_lvl;
+    other.skipPrev.length = max_lvl;
 
     // Swap the loopback links.
     // e.g. this.prev --> prev --> prev.next --> this
@@ -178,39 +180,56 @@ class SkipNode {
     // And swap the links for this and other
     // these mirror the DoubleLinkedList LLNode swap
     for(let h = 0; h < max_lvl; h += 1) {
-      if(this.prev === other) {
+      if(self.skipPrev[h] === other) {
         // prev -- other -- this -- next
-        other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
-        this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other);
-        [this.skipPrev[h], other.skipNext[h]] = [other.skipPrev[h], this.skipNext[h]];
-        [this.skipNext[h], other.skipPrev[h]] = [other, this];
 
-      } else if(this.next === other) {
+        // only swap loopback links if they are in fact pointing to this level
+        if(self.num_lvls > h)  { self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other); }
+        if(other.num_lvls > h) { other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self); }
+
+        [self.skipPrev[h], other.skipNext[h]] = [other.skipPrev[h], self.skipNext[h]];
+        [self.skipNext[h], other.skipPrev[h]] = [other, self];
+
+      } else if(self.skipNext[h] === other) {
         // prev -- this -- other -- next
-        this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other);
-        other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this);
-        [this.skipNext[h], other.skipPrev[h]] = [other.skipNext[h], this.skipPrev[h]];
-        [this.skipPrev[h], other.skipNext[h]] = [other, this];
+
+        // only swap loopback links if they are in fact pointing to this level
+        if(self.num_lvls > h) { self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other); }
+        if(other.num_lvls > h) { other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self); }
+
+        [self.skipNext[h], other.skipPrev[h]] = [other.skipNext[h], self.skipPrev[h]];
+        [self.skipPrev[h], other.skipNext[h]] = [other, self];
 
       } else {
         // prev -- this -- next ... prev -- other -- next or
         // prev -- other -- next ... prev -- this -- next
-        this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other);
-        this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other);
-        other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
-        other.skipNext[h] && (other.next.skipPrev[h] = this);
 
-        [this.skipPrev[h], other.skipPrev[h]] = [other.skipPrev[h], this.skipPrev[h]];
-        [this.skipNext[h], other.skipNext[h]] = [other.skipNext[h], this.skipNext[h]];
+        // only swap loopback links if they are in fact pointing to this level
+        if(self.num_lvls > h) {
+          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
+          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
+        }
+
+        if(other.num_lvls > h) {
+          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
+          other.skipNext[h] && (other.next.skipPrev[h] = self);
+        }
+
+        [self.skipPrev[h], other.skipPrev[h]] = [other.skipPrev[h], self.skipPrev[h]];
+        [self.skipNext[h], other.skipNext[h]] = [other.skipNext[h], self.skipNext[h]];
       }
     }
-    [other.num_lvls, this.num_lvls] = [this.num_lvls, other.num_lvls];
+    [other.num_lvls, self.num_lvls] = [self.num_lvls, other.num_lvls];
 
+    // reset the skip array lengths to correspond to num_lvls.
     other.skipNext.length = other.num_lvls;
     other.skipPrev.length = other.num_lvls;
 
-    this.skipNext.length = this.num_lvls;
-    this.skipPrev.length = this.num_lvls;
+    self.skipNext.length = self.num_lvls;
+    self.skipPrev.length = self.num_lvls;
+
+
+
   }
 }
 
