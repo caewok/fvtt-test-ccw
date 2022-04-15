@@ -293,8 +293,8 @@ export class SkipList {
     after ? node.insertAfter(existing) : node.insertBefore(existing);
 
     this._length += 1;
+    if(!this.verifyStructure()) { console.log(`after insert: structure inconsistent.`, this, node); }
     return node;
-    if(!this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
   }
 
  /**
@@ -495,18 +495,23 @@ export class SkipList {
       if(self.start.skipNext[h] !== nH) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }
 
       for(const node of iter0) {
+        // check if the node's arrays are consistent with its indicated number of levels
         if(node.skipNext.length !== node.skipPrev.length ||
           node.skipNext.length !== node.num_lvls) {
           console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}, skipPrev: ${node.skipPrev.length}`, self.start, nH);
           okay = false;
         }
 
-        if(node.num_lvls < h) {
+        if(node.num_lvls < (h + 1)) {
+          // continue walking along the bottom level until we find the node with the
+          // requisite height
           continue;
         }
 
+        // we should be at the next node at the given height, after skipping 0+ nodes
+        // from walking along the bottom level
         if(node !== nH) { console.warn(`Node at height ${h} is unexpected`, node, nH); okay = false; }
-        nH = iter_h.next().value;
+        nH = iter_h.next().value; // go to the next node at the given height
       }
     }
     return okay;
