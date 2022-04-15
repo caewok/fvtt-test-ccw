@@ -16,10 +16,10 @@ class LLNode {
   insertBefore(existing) {
     // change prev -- existing -- next
     // to     prev -- node -- existing -- next
-    if(existing.prev) { existing.prev.next = this; }
     this.prev = existing.prev;
-    this.next = existing;
+    existing.prev && (existing.prev.next = this); // only assign if existing.prev exists
     existing.prev = this;
+    this.next = existing;
   }
 
  /**
@@ -29,27 +29,22 @@ class LLNode {
   insertAfter(existing) {
     // change prev -- other -- next
     // to     prev -- other -- node -- next
-    if(existing.next) { existing.next.prev = this; }
     this.next = existing.next;
-    this.prev = existing;
+    existing.next && (existing.next.prev = this); // only assign if existing.next exists
     existing.next = this;
+    this.prev = existing;
   }
 
  /**
-  * Remove this node and relink as necessary.
+  * Remove this node and relink adjacent nodes as necessary.
   */
   remove() {
-    if(this.prev) { this.prev.next = this.next; }
-    if(this.next) { this.next.prev = this.prev; }
+    this.prev && (this.prev.next = this.next); // only assign if this.prev exists
+    this.next && (this.next.prev = this.prev); // only assign if this.next exists
+
+    // maybe not strictly necessary to wipe clean, but helpful in debugging
     this.prev = null;
     this.next = null;
-  }
-
- /**
-  * Unlink the data for this node and remove links if necessary.
-  */
-  destroy() {
-    this.remove();
     this.data = undefined;
   }
 
@@ -69,25 +64,25 @@ class LLNode {
     // And swap the links for this and other
     if(this.prev === other) {
       // prev -- other -- this -- next
-      if(other.prev) { other.prev.next = this; }
-      if(this.next) { this.next.prev = other; }
+      other.prev && (other.prev.next = this);
+      this.next && (this.next.prev = other);
       [this.prev, other.next] = [other.prev, this.next];
       [this.next, other.prev] = [other, this];
 
     } else if(this.next === other) {
       // prev -- this -- other -- next
-      if(this.prev) { this.prev.next = other; }
-      if(other.next) { other.next.prev = this; }
+      this.prev && (this.prev.next = other);
+      other.next && (other.next.prev = this);
       [this.next, other.prev] = [other.next, this.prev];
       [this.prev, other.next] = [other, this];
 
     } else {
       // prev -- this -- next ... prev -- other -- next or
       // prev -- other -- next ... prev -- this -- next
-      if(this.prev) { this.prev.next = other; }
-      if(this.next) { this.next.prev = other; }
-      if(other.prev) { other.prev.next = this; }
-      if(other.next) { other.next.prev = this; }
+      this.prev && (this.prev.next = other);
+      this.next && (this.next.prev = other);
+      other.prev && (other.prev.next = this);
+      other.next && (other.next.prev = this);
 
       [this.prev, other.prev] = [other.prev, this.prev];
       [this.next, other.next] = [other.next, this.next];
@@ -138,7 +133,7 @@ export class OrderedDoubleLinkedList {
     } else {
       // change prev -- existing -- next
       // to     prev -- node -- existing -- next
-      if(!existing.prev) { this.start = node; }
+      existing.prev || (this.start = node); // if nothing before existing, existing must be start
       node.insertBefore(existing);
     }
 
@@ -152,14 +147,9 @@ export class OrderedDoubleLinkedList {
   remove(node) {
     if(!this.start || this._length < 1) { return; } // list is empty
 
-    // update start and end if necessary
-    if(this.start === node) {
-      this.start = node.next;
-    }
-
-    if(this.end === node) {
-      this.end = node.prev;
-    }
+    // update start and end if node is either
+    this.start !== node || (this.start = node.next);
+    this.end !== node || (this.end = node.prev);
 
     node.remove();
     this._length -= 1;
@@ -171,7 +161,7 @@ export class OrderedDoubleLinkedList {
   */
   removeData(data) {
     const node = this.search(data);
-    if(node) { this.remove(node); }
+    node && this.remove(node);
   }
 
  /**
@@ -264,17 +254,26 @@ export class OrderedDoubleLinkedList {
   * @param {LLNode} node2
   */
   swap(node1, node2) {
-    if(this.start === node1) {
-      this.start = node2;
-    } else if(this.start === node2) {
-      this.start = node1;
-    }
+    // if node1 is start, make node2 start and vice-versa. Same for end.
+    (this.start === node1 && (this.start = node2)) ||
+    (this.start === node2 && (this.start = node1)) // parens matter!
 
-    if(this.end === node1) {
-      this.end = node2;
-    } else if(this.end === node2) {
-      this.end = node1;
-    }
+    // if node1 is end, make node2 end and vice-versa. Same for end.
+    (this.end === node1 && (this.end = node2)) ||
+    (this.end === node2 && (this.end = node1)) // parens matter!
+
+
+    // if(this.start === node1) {
+//       this.start = node2;
+//     } else if(this.start === node2) {
+//       this.start = node1;
+//     }
+
+//     if(this.end === node1) {
+//       this.end = node2;
+//     } else if(this.end === node2) {
+//       this.end = node1;
+//     }
 
     node1.swap(node2);
 
