@@ -28,7 +28,7 @@ import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipLi
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { OrderedArray } from "./OrderedArray.js";
 import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
-import { SegmentArray, EventQueue } from "./IntersectionsSweep.js";
+import { SegmentArray, EventQueue, pointForSegmentGivenX, EventType, hashSegments } from "./IntersectionsSweep.js";
 import { SkipList } from "./SkipList.js";
 
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
@@ -168,6 +168,9 @@ Hooks.once('init', async function() {
     OrderedArray,
     PriorityQueueArray,
     SkipList,
+    hashSegments,
+    EventType,
+    pointForSegmentGivenX,
 
     Drawing,
 
