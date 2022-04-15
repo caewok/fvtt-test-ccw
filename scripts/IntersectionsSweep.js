@@ -23,6 +23,7 @@ findIntersectionsSortSingle = api.findIntersectionsSortSingle;
 findIntersectionsSort2Single = api.findIntersectionsSort2Single;
 findIntersectionsSweepSingle = api.findIntersectionsSweepSingle;
 findIntersectionsSweepLinkedSingle = api.findIntersectionsSweepLinkedSingle;
+findIntersectionsSweepSkipListSingle = api.findIntersectionsSweepSkipListSingle;
 
 EventQueue = api.EventQueue;
 SegmentArray = api.SegmentArray;
@@ -30,7 +31,15 @@ binaryFindIndex = api.binaryFindIndex;
 binaryIndexOf = api.binaryIndexOf;
 OrderedArray = api.OrderedArray;
 PriorityQueueArray = api.PriorityQueueArray;
+SkipList = api.SkipList;
 
+
+MODULE_ID = 'testccw'
+UseBinary = {
+  No: 0,
+  Yes: 1,
+  Test: 2,
+}
 
 reportFn = (e1, e2, ix) => {}
 
@@ -121,6 +130,11 @@ reportFnSweepLink = (s1, s2, ix) => {
   reporting_arr_sweep_link.push(ix);
 }
 
+function applyFn(fn, num_segments, max_coord) {
+  segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
+  return fn(segments);
+}
+
 reporting_arr_brute = []
 reporting_arr_sort = []
 reporting_arr_sweep = []
@@ -147,10 +161,7 @@ Bench
 
 
 
-function applyFn(fn, num_segments, max_coord) {
-  segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
-  return fn(segments);
-}
+
 
 N = 100
 num_segments = 10
@@ -213,7 +224,7 @@ N = 100
 num_segments = 1000
 max_coord = Math.pow(2, 13)
 
-num_segments_arr = [10, 100, 1000]
+num_segments_arr = [10, 100, 200]
 for(let i = 0; i < num_segments_arr.length; i += 1) {
 
   let num_segments = num_segments_arr[i]
@@ -226,6 +237,7 @@ for(let i = 0; i < num_segments_arr.length; i += 1) {
 
   console.log("No binary");
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
 
   console.log("Test binary");
   api.debug_binary = UseBinary.Test;
@@ -949,12 +961,17 @@ reportFnSweepLink = (s1, s2, ix) => {
   reporting_arr_sweep_link.push(ix);
 }
 
+reportFnSweepSkip  = (s1, s2, ix) => {
+  reporting_arr_sweep_skip.push(ix);
+}
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
   reporting_arr_sort = []
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
+  reporting_arr_sweep_skip = []
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
   canvas.controls.debug.clear()
@@ -965,11 +982,13 @@ for([key, str] of test_strings) {
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
+  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
+  reporting_arr_sweep_skip.sort(compareXY)
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
@@ -993,6 +1012,14 @@ for([key, str] of test_strings) {
      console.error(`Sweep link ≠ brute for ${key}`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_link);
+  }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
+
+     console.error(`Sweep skip ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_skip);
   }
 }
 

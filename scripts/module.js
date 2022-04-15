@@ -20,14 +20,16 @@ import {sweep, brute, bush} from "./lib/isect.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack, identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSort2Single, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsSweepSingle } from "./IntersectionsSweep.js";
-import { findIntersectionsSweepLinkedSingle } from "./IntersectionSweepLinked.js";
-import { findIntersectionsSweepBSTSingle } from "./IntersectionSweepBST.js";
+import { findIntersectionsSweepLinkedSingle } from "./IntersectionsSweepLinked.js";
+import { findIntersectionsSweepBSTSingle } from "./IntersectionsSweepBST.js";
+import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipList.js";
 
 // for debugging sweep
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { OrderedArray } from "./OrderedArray.js";
 import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
 import { SegmentArray, EventQueue } from "./IntersectionsSweep.js";
+import { SkipList } from "./SkipList.js";
 
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
@@ -157,6 +159,7 @@ Hooks.once('init', async function() {
     findIntersectionsSweepSingle,
     findIntersectionsSweepBSTSingle,
     findIntersectionsSweepLinkedSingle,
+    findIntersectionsSweepSkipListSingle,
 
     EventQueue,
     SegmentArray,
@@ -164,6 +167,7 @@ Hooks.once('init', async function() {
     binaryIndexOf,
     OrderedArray,
     PriorityQueueArray,
+    SkipList,
 
     Drawing,
 
