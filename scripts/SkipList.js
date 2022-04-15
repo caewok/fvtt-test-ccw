@@ -180,44 +180,56 @@ class SkipNode {
     // And swap the links for this and other
     // these mirror the DoubleLinkedList LLNode swap
     for(let h = 0; h < max_lvl; h += 1) {
-      if(self.skipPrev[h] === other) {
+      if(self.num_lvls > h) {
+        if(self.skipPrev[h] === other) {
+          // prev -- other -- this -- next
+          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
+        } else if(self.skipNext[h] === other) {
+          // prev -- this -- other -- next
+          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
+        } else {
+          // prev -- this -- next ... prev -- other -- next or
+          // prev -- other -- next ... prev -- this -- next
+          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
+          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
+        }
+      }
+
+      if(other.num_lvls > h) {
+        if(other.skipNext[h] === self) {
+          // prev -- other -- this -- next
+          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
+        } else if(other.skipPrev[h] === self) {
+          // prev -- this -- other -- next
+          other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self);
+        } else {
+          // prev -- this -- next ... prev -- other -- next or
+          // prev -- other -- next ... prev -- this -- next
+          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
+          other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self);
+        }
+      }
+
+      // the first two options would only occur if self and other both have this level
+      // otherwise, either other.skipNext[h] points to undefined or could not point to self
+      // same for other.skipPrev[h]
+      if(other.skipNext[h] === self) {
         // prev -- other -- this -- next
-
-        // only swap loopback links if they are in fact pointing to this level
-        if(self.num_lvls > h)  { self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other); }
-        if(other.num_lvls > h) { other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self); }
-
         [self.skipPrev[h], other.skipNext[h]] = [other.skipPrev[h], self.skipNext[h]];
         [self.skipNext[h], other.skipPrev[h]] = [other, self];
 
-      } else if(self.skipNext[h] === other) {
+      } else if(other.skipPrev[h] === self) {
         // prev -- this -- other -- next
-
-        // only swap loopback links if they are in fact pointing to this level
-        if(self.num_lvls > h) { self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other); }
-        if(other.num_lvls > h) { other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self); }
-
         [self.skipNext[h], other.skipPrev[h]] = [other.skipNext[h], self.skipPrev[h]];
         [self.skipPrev[h], other.skipNext[h]] = [other, self];
 
       } else {
         // prev -- this -- next ... prev -- other -- next or
         // prev -- other -- next ... prev -- this -- next
-
-        // only swap loopback links if they are in fact pointing to this level
-        if(self.num_lvls > h) {
-          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
-          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
-        }
-
-        if(other.num_lvls > h) {
-          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
-          other.skipNext[h] && (other.next.skipPrev[h] = self);
-        }
-
         [self.skipPrev[h], other.skipPrev[h]] = [other.skipPrev[h], self.skipPrev[h]];
         [self.skipNext[h], other.skipNext[h]] = [other.skipNext[h], self.skipNext[h]];
       }
+
     }
     [other.num_lvls, self.num_lvls] = [self.num_lvls, other.num_lvls];
 
