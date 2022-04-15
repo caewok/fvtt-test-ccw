@@ -101,10 +101,14 @@ class SkipNode {
        // until the next node with num_lvls + 1 is found
        for(let h = 0; h < max_lvls; h += 1) {
          if(!prev) break;
-         while(h >= prev.num_lvls) {
+         const max_iterations = 10_000;
+         let iter = 0;
+         while(h >= prev.num_lvls && max_iterations < iter) {
+           iter += 1;
            if(h < 1) { console.error(`_insert h (prev) is ${h}`); }
            prev = prev.skipPrev[h - 1];
          }
+         if(iter >= max_iterations) { console.warn("Max iterations hit for _insert prev."); }
          this.skipPrev[h] = prev;
          prev && (prev.skipNext[h] = this);
        }
@@ -115,10 +119,14 @@ class SkipNode {
       // until the next node with num_lvls + 1 is found
       for(let h = 0; h < max_lvls; h += 1) {
         if(!next) break;
-        while(h >= next.num_lvls) {
+        const max_iterations = 10_000;
+        let iter = 0;
+        while(h >= next.num_lvls && max_iterations < iter) {
+          iter += 1;
           if(h < 1) { console.error(`_insert h (next) is ${h}`); }
           next = next.skipNext[h - 1];
         }
+        if(iter >= max_iterations) { console.warn("Max iterations hit for _insert next."); }
         this.skipNext[h] = next;
         next && (next.skipPrev[h] = this);
       }
@@ -355,7 +363,10 @@ export class SkipList {
   findNextNode(data) {
     let h = this.max_lvls - 1;
     let existing = this.start;
-    while(h >= 0) {  // while levels remain
+    const max_iterations = 10_000;
+    let iter = 0;
+    while(h >= 0 && max_iterations < iter) {  // while levels remain
+      iter += 1;
       let next = existing.skipNext[h];
       let cmp_res = this._cmp(data, next.data);
       if(!cmp_res) return { existing: next, after: false };
@@ -365,6 +376,8 @@ export class SkipList {
         h -= 1;
       }
     }
+
+    if(iter >= max_iterations) { console.warn("Max iterations hit for findNextNode."); }
     return { existing: existing, after: true };
   }
 
@@ -378,7 +391,10 @@ export class SkipList {
   search(data) {
     let h = this.max_lvls - 1;
     let existing = this.start;
-    while(h >= 0) {  // while levels remain
+    const max_iterations = 10_000;
+    let iter = 0;
+    while(h >= 0 && max_iterations < iter) {  // while levels remain
+      iter += 1;
       let next = existing.skipNext[h];
       let cmp_res = this._cmp(data, next.data);
       if(!cmp_res) return next;  // found it!
@@ -388,6 +404,8 @@ export class SkipList {
         h -= 1;  // drop one level down
       }
     }
+
+    if(iter >= max_iterations) { console.warn("Max iterations hit for search."); }
     return null;
   }
 
@@ -450,7 +468,7 @@ export class SkipList {
   */
   * iterateNodes(level = 0) {
     // for debugging
-    const max_iterations = 100_000;
+    const max_iterations = 10_000;
     let iter = 0;
     let curr = this.start.skipNext[level];
     while(curr && !curr.isSentinel && iter < max_iterations) {
@@ -468,7 +486,7 @@ export class SkipList {
   */
   * iterateData(level = 0) {
     // for debugging
-    const max_iterations = 100_000;
+    const max_iterations = 10_000;
     let iter = 0;
     let curr = this.start.skipNext[level];
     while(curr && !curr.isSentinel && iter < max_iterations) {
