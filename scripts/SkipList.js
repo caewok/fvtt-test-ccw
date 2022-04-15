@@ -103,7 +103,7 @@ class SkipNode {
          if(!prev) break;
          const max_iterations = 10_000;
          let iter = 0;
-         while(h >= prev.num_lvls && max_iterations < iter) {
+         while(h >= prev.num_lvls && iter < max_iterations) {
            iter += 1;
            if(h < 1) { console.error(`_insert h (prev) is ${h}`); }
            prev = prev.skipPrev[h - 1];
@@ -121,7 +121,7 @@ class SkipNode {
         if(!next) break;
         const max_iterations = 10_000;
         let iter = 0;
-        while(h >= next.num_lvls && max_iterations < iter) {
+        while(h >= next.num_lvls && iter < max_iterations) {
           iter += 1;
           if(h < 1) { console.error(`_insert h (next) is ${h}`); }
           next = next.skipNext[h - 1];
@@ -166,7 +166,7 @@ class SkipNode {
     }
 
     // increase the levels to match so links can be transferred
-    let max_lvl = Math.max(this.num_lvls, other.num_lvls)
+    let max_lvl = Math.max(this.num_lvls, other.num_lvls);
     this.skipNext.length = max_lvl;
     this.skipPrev.length = max_lvl;
     other.skipNext.length = max_lvl;
@@ -294,6 +294,7 @@ export class SkipList {
 
     this._length += 1;
     return node;
+    if(!this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
   }
 
  /**
@@ -320,6 +321,7 @@ export class SkipList {
     for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
       if(node.skipPrev[h].isSentinel && node.skipNext[h].isSentinel) {
         this.max_lvls -= 1;
+        node.num_lvls -= 1;
         this.start.skipNext.length = this.max_lvls;
         this.end.skipPrev.length = this.max_lvls;
 
@@ -330,6 +332,7 @@ export class SkipList {
 
     node.remove();
     this._length -= 1;
+    if(!this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
   }
 
  /**
@@ -349,6 +352,7 @@ export class SkipList {
   */
   swap(node1, node2) {
     node1.swap(node2);
+    if(!this.verifyStructure()) { console.log(`after swap: structure inconsistent.`, this, node1, node2); }
   }
 
 
@@ -365,17 +369,22 @@ export class SkipList {
     let existing = this.start;
     const max_iterations = 10_000;
     let iter = 0;
-    while(h >= 0 && max_iterations < iter) {  // while levels remain
+    while(h >= 0 && iter < max_iterations) {  // while levels remain
       iter += 1;
       let next = existing.skipNext[h];
+      if(!next) { return { existing: existing, after: false }; } // at end of list
+
       let cmp_res = this._cmp(data, next.data);
-      if(!cmp_res) return { existing: next, after: false };
-      if(cmp_res > 0) { // data is before next
-        existing = next;
+      if(!cmp_res) { return { existing: next, after: false }; }
+      if(cmp_res > 0) { // cmp_res < 0: data, next; cmp_res > 0: next, data
+        existing = next; // advance along same level
       } else {
-        h -= 1;
+        h -= 1; // drop down a level
       }
     }
+
+    // could store next from the loop and return that as {existing: next, after: false}
+    // but it is easy to insert after an item, so leave for now
 
     if(iter >= max_iterations) { console.warn("Max iterations hit for findNextNode."); }
     return { existing: existing, after: true };
@@ -393,13 +402,15 @@ export class SkipList {
     let existing = this.start;
     const max_iterations = 10_000;
     let iter = 0;
-    while(h >= 0 && max_iterations < iter) {  // while levels remain
+    while(h >= 0 && iter < max_iterations) {  // while levels remain
       iter += 1;
       let next = existing.skipNext[h];
+      if(!next) { return null; } // at end of list
+
       let cmp_res = this._cmp(data, next.data);
-      if(!cmp_res) return next;  // found it!
-      if(cmp_res > 0) {  // advance along same level
-        existing = next;
+      if(!cmp_res) { return next; }  // found it!
+      if(cmp_res > 0) {  // data is before next ?
+        existing = next; // advance along same level
       } else {
         h -= 1;  // drop one level down
       }
@@ -452,13 +463,53 @@ export class SkipList {
       l.push("∞");
     });
 
+    // go from top level down
     let out = "\n";
-    for(let l of lvls) {
+    for(let i = lvls.length - 1; i >= 0; i -= 1) {
+      const l = lvls[i];
       out += l.join("\t⇄\t");
       out += "\n";
     }
+
     console.log(out);
     return lvls;
+  }
+
+ /**
+  * Verify the SkipList structure.
+  * For debugging (obv.)
+  */
+  verifyStructure() {
+    let self = this;
+    let okay = true;
+
+    let hmax = self.max_lvls;
+    if(self.start.skipNext.length !== hmax) { console.warn(`Start skipNext length ${self.start.skipNext.length} ≠ ${hmax}`); okay = false; }
+    if(self.end.skipPrev.length !== hmax) { console.warn(`End skipPrev length ${self.end.skipPrev.length} ≠ ${hmax}`); okay = false; }
+
+    for(let h = 1; h < hmax; h += 1) {
+      let iter0 = self.iterateNodes();
+      let iter_h = self.iterateNodes(h);
+
+      let nH = iter_h.next().value;
+      if(self.start.skipNext[h] !== nH) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }
+
+      for(const node of iter0) {
+        if(node.skipNext.length !== node.skipPrev.length ||
+          node.skipNext.length !== node.num_lvls) {
+          console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}, skipPrev: ${node.skipPrev.length}`, self.start, nH);
+          okay = false;
+        }
+
+        if(node.num_lvls < h) {
+          continue;
+        }
+
+        if(node !== nH) { console.warn(`Node at height ${h} is unexpected`, node, nH); okay = false; }
+        nH = iter_h.next().value;
+      }
+    }
+    return okay;
   }
 
 
