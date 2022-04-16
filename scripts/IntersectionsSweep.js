@@ -35,6 +35,7 @@ SkipList = api.SkipList;
 pointForSegmentGivenX = api.pointForSegmentGivenX;
 EventType = api.EventType;
 hashSegments = api.hashSegments;
+OrderedDoubleLinkedList = api.OrderedDoubleLinkedList;
 
 
 MODULE_ID = 'testccw'
@@ -353,6 +354,83 @@ segments.forEach(s => drawEdge(s, COLORS.black))
 processIntersections(segments)
 
 */
+
+
+/* Benchmark different methods to store the y-segment queue
+// use points b/c simpler than building whole segments
+// Build N points, add to queue, random sort and remove from queue
+
+
+
+blankFn = function(pts, { remove = true } = {}) {
+  arr = [];
+  pts.forEach(pt => {});
+
+  if(!remove) return;
+  pts.sort((a,b) => Math.random() - 0.5);
+  pts.forEach(pt => {});
+}
+
+orderedArrayFn = function(pts, { remove = true} = {}) {
+  arr = new OrderedArray(compareXY);
+  pts.forEach(pt => arr.insert(pt));
+
+  if(!remove) return;
+  pts.sort((a,b) => Math.random() - 0.5);
+  pts.forEach(pt => {
+    const idx = arr.indexOf(pt);
+    arr.removeAtIndex(idx);
+  });
+}
+
+orderedBinaryArrayFn = function(pts, { remove = true} = {}) {
+  arr = new OrderedArray(compareXY);
+  pts.forEach(pt => arr.binaryInsert(pt));
+
+  if(!remove) return;
+  pts.sort((a,b) => Math.random() - 0.5);
+  pts.forEach(pt => {
+    const idx = arr.binaryIndexOf(pt);
+    arr.removeAtIndex(idx);
+  });
+}
+
+linkedFn = function(pts, { remove = true} = {}) {
+  arr = new OrderedDoubleLinkedList(compareXY);
+  pts.forEach(pt => arr.insert(pt));
+
+  if(!remove) return;
+  pts.sort((a,b) => Math.random() - 0.5);
+  pts.forEach(pt => arr.removeData(pt));
+}
+
+skipFn = function(pts, { remove = true} = {}) {
+  arr = new SkipList(compareXY);
+  pts.forEach(pt => arr.insert(pt));
+
+  if(!remove) return;
+  pts.sort((a,b) => Math.random() - 0.5);
+  pts.forEach(pt => arr.removeData(pt));
+}
+
+N = 1000
+num_pts = 10;
+pts = Array.fromRange(num_pts).map(e => randomPoint(5000));
+await benchmarkLoopFn(N, blankFn, "blankFn", pts, { remove: false});
+await benchmarkLoopFn(N, orderedArrayFn, "orderedArrayFn", pts, { remove: false});
+await benchmarkLoopFn(N, orderedBinaryArrayFn, "orderedBinaryArrayFn", pts, { remove: false});
+await benchmarkLoopFn(N, linkedFn, "linkedFn", pts, { remove: false});
+await benchmarkLoopFn(N, skipFn, "skipFn", pts, { remove: false});
+
+await benchmarkLoopFn(N, blankFn, "blank", pts, { remove: true});
+await benchmarkLoopFn(N, orderedArrayFn, "orderedArrayFn", pts, { remove: true});
+await benchmarkLoopFn(N, orderedBinaryArrayFn, "orderedBinaryArrayFn", pts, { remove: true});
+await benchmarkLoopFn(N, linkedFn, "linkedFn", pts, { remove: true});
+await benchmarkLoopFn(N, skipFn, "skipFn", pts, { remove: true});
+
+
+*/
+
 
 
 // Bentley Ottoman Sweep

@@ -30,6 +30,7 @@ import { OrderedArray } from "./OrderedArray.js";
 import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
 import { SegmentArray, EventQueue, pointForSegmentGivenX, EventType, hashSegments } from "./IntersectionsSweep.js";
 import { SkipList } from "./SkipList.js";
+import { OrderedDoubleLinkedList } from "./DoubleLinkedList.js";
 
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
@@ -171,6 +172,7 @@ Hooks.once('init', async function() {
     hashSegments,
     EventType,
     pointForSegmentGivenX,
+    OrderedDoubleLinkedList,
 
     Drawing,
 
