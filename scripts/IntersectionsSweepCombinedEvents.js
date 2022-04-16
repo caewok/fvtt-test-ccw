@@ -79,16 +79,27 @@ function handleLeftEvent(curr, e, tree, tracker) {
     }
   });
 
-  // and find the above/below values
-  let { above, below, min_idx, max_idx } = segmentIndexSpread(segmentSet, tree);
-  if(below) {
-    let bottom_segment = tree.atIndex(max_idx);
-    num_ixs += checkForIntersection(below, bottom_segment, e, tracker);
-  }
 
-  if(above) {
-    let top_segment = tree.atIndex(min_idx);
-    num_ixs += checkForIntersection(above, top_segment, e, tracker);
+  if(segmentSet.size > 1) {
+    // if there is more than one segment to add, we know they all intersect at this point.
+    // add an intersection event that will be called next
+    // (it will also swap/reverse these segments and then test the above/below)
+    // (if not doing this, then need to handle the above/below ix test)
+    const [s0] = segmentSet;
+    const event_ix = new EventTypeClass(s0.nw, EventType.Intersection, [...segmentSet]);
+    e.insert(event_ix);
+  } else {
+    // find the above/below values for the single segment added
+    let { above, below, min_idx, max_idx } = segmentIndexSpread(segmentSet, tree);
+    if(below) {
+      let bottom_segment = tree.atIndex(max_idx);
+      num_ixs += checkForIntersection(below, bottom_segment, e, tracker);
+    }
+
+    if(above) {
+      let top_segment = tree.atIndex(min_idx);
+      num_ixs += checkForIntersection(above, top_segment, e, tracker);
+    }
   }
 
   return num_ixs;
