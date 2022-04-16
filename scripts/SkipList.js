@@ -4,10 +4,15 @@
 // https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/skiplists.pdf
 // https://www.cs.umd.edu/class/fall2020/cmsc420-0201/Lects/lect09-skip.pdf
 
+import { xmur3, mulberry32 } from "./Random.js";
+import { MODULE_ID } from "./module.js";
+
 class SkipNode {
-  constructor(data, { num_lvls = SkipNode.randomHeight() } = {}) {
+  constructor(data, { num_lvls, rng = Math.random } = {}) {
     this.data = data;
-    this.num_lvls = num_lvls;  // number of levels, including the 0 level
+
+    // need to first set the rng above so randomHeight can access it
+    this.num_lvls = num_lvls ?? SkipNode.randomHeight(rng); // number of levels, including the 0 level
 
     // Array holds pointers to next SkipNodes, 1 per array level
     // Mirror array holds pointers to prev SkipNodes, to assist with insert/delete
@@ -54,9 +59,9 @@ class SkipNode {
  /**
   * Randomly determine the height of this node
   */
-  static randomHeight() {
+  static randomHeight(rng) {
     let num_lvls = 1;
-    while(Math.random() < 0.5) { num_lvls += 1; }
+    while(rng() < 0.5) { num_lvls += 1; }
     return num_lvls;
   }
 
@@ -98,7 +103,7 @@ class SkipNode {
 
     if(prev) {
        // walk backwards at given num_lvls level
-       // until the next node with num_lvls + 1 is found
+       // until the prev node with num_lvls + 1 is found
        for(let h = 0; h < max_lvls; h += 1) {
          if(!prev) break;
          const max_iterations = 10_000;
@@ -246,9 +251,13 @@ class SkipNode {
 }
 
 export class SkipList {
-  constructor(comparator = (a, b) => a - b) {
+  constructor(comparator = (a, b) => a - b, { seed = Math.random.toString() } = {}) {
+    // build a seedable random generator, primarily for debugging
+    const rng_seed = xmur3(seed);
+    this.rng = mulberry32(rng_seed());
+
     this._length = 0; // track length mostly for debugging
-    this.start = SkipNode.newSentinel(Number.NEGATIVE_INFINITY);
+    this.start = SkipNode.newSentinel(Number.NEGATIVE_INFINITY); // sentinels don't really need the seeded rng
     this.end = SkipNode.newSentinel(Number.POSITIVE_INFINITY);
     this.start.skipNext[0] = this.end;
     this.end.skipPrev[0] = this.start;
@@ -300,31 +309,39 @@ export class SkipList {
   insert(data) {
     let { existing, after } = this.findNextNode(data);
 
-    let node = new SkipNode(data);
+    let node = new SkipNode(data, { rng: this.rng });
     this.max_lvls = Math.max(this.max_lvls, node.num_lvls);
 
     // if start or end are not at the correct height, add length
     // if greater than max height, that is an error
-    if(this.start.skipNext.length < this.max_lvls) {
-      this.start.skipNext.length = this.max_lvls;
-    } else if(this.start.skipNext.length > this.max_lvls) {
-      console.error(`Start is higher than expected; should be ${this.max_lvls}`, this.start);
+    let curr_sentinel_level = this.start.skipNext.length;
+    if(curr_sentinel_level !== this.end.skipPrev.length) {
+      console.error("Start and end have different lengths");
+      curr_sentinel_level = Math.min(curr_sentinel_level, this.end.skipPrev.length);
     }
 
-    if(this.end.skipPrev.length < this.max_lvls) {
+    if(curr_sentinel_level > this.max_lvls) {
+      console.error(`Sentinel level is ${curr_sentinel_level} but should be ${this.max_lvls}`);
+    }
+
+    if(curr_sentinel_level < this.max_lvls) {
+      // add levels to the sentinels and connect start/end accordingly at each new level
+      this.start.skipNext.length = this.max_lvls;
       this.end.skipPrev.length = this.max_lvls;
-    } else if(this.end.skipPrev.length > this.max_lvls) {
-      console.error(`Start is higher than expected; should be ${this.max_lvls}`, this.start);
+      for(let h = curr_sentinel_level; h < this.max_lvls; h += 1) {
+        this.start.skipNext[h] = this.end;
+        this.end.skipPrev[h] = this.start;
+      }
     }
 
     // for each level to connect, move forward until finding a node
     // with the required height and link
     // same for previous
     // relink the prior node by look to the found node -->
-    after ? node.insertAfter(existing) : node.insertBefore(existing);
+    node._insert(existing, { before: !after });
 
     this._length += 1;
-    if(!this.verifyStructure()) { console.log(`after insert: structure inconsistent.`, this, node); }
+    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after insert: structure inconsistent.`, this, node); }
     return node;
   }
 
@@ -350,7 +367,7 @@ export class SkipList {
 
     // for each height level of the node, if it points to only sentinels, we can drop
     for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
-      if(node.skipPrev[h].isSentinel && node.skipNext[h].isSentinel) {
+      if(node.skipPrev[h] && node.skipPrev[h].isSentinel && node.skipNext[h] && node.skipNext[h].isSentinel) {
         this.max_lvls -= 1;
         node.num_lvls -= 1;
         this.start.skipNext.length = this.max_lvls;
@@ -363,7 +380,7 @@ export class SkipList {
 
     node.remove();
     this._length -= 1;
-    if(!this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
+    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
   }
 
  /**
@@ -383,7 +400,7 @@ export class SkipList {
   */
   swap(node1, node2) {
     node1.swap(node2);
-    if(!this.verifyStructure()) { console.log(`after swap: structure inconsistent.`, this, node1, node2); }
+    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after swap: structure inconsistent.`, this, node1, node2); }
   }
 
 
@@ -533,10 +550,30 @@ export class SkipList {
           okay = false;
         }
 
+        if(!node.skipNext[0]) {
+          console.warn(`node has undefined skipNext for height 0`);
+          okay = false;
+        }
+
+        if(!node.skipPrev[0]) {
+          console.warn(`node has undefined skipPrev for height 0`);
+          okay = false;
+        }
+
         if(node.num_lvls < (h + 1)) {
           // continue walking along the bottom level until we find the node with the
           // requisite height
           continue;
+        }
+
+        if(!node.skipNext[h]) {
+          console.warn(`node has undefined skipNext for height ${h}`);
+          okay = false;
+        }
+
+        if(!node.skipPrev[h]) {
+          console.warn(`node has undefined skipPrev for height ${h}`);
+          okay = false;
         }
 
         // we should be at the next node at the given height, after skipping 0+ nodes
