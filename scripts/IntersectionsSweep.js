@@ -154,16 +154,38 @@ segments.forEach(s => drawEdge(s, COLORS.black))
 
 findIntersectionsBruteSingle(segments, reportFnBrute)
 findIntersectionsSortSingle(segments, reportFnSort)
-findIntersectionsSweepSingle(segments, reportFnSweep)
+// findIntersectionsSweepSingle(segments, reportFnSweep)
+findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
+findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
 
 reporting_arr_brute.sort(compareXY)
 reporting_arr_sort.sort(compareXY)
-reporting_arr_sweep.sort(compareXY)
+// reporting_arr_sweep.sort(compareXY)
+reporting_arr_sweep_link.sort(compareXY)
+reporting_arr_sweep_skip.sort(compareXY)
 
-reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))
-reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))
+sort_passes = reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))
+// sweep_passes =reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))
+sweep_link_passes = reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_link[idx]))
+sweep_skip_passes = reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))
 
+if(!sort_passes) {
+  console.warn(`Sort ≠ Brute ixs`)
+  console.table(reporting_arr_brute);
+  console.table(reporting_arr_sort)
+}
 
+if(!sweep_link_passes) {
+  console.warn(`Sort ≠ Brute ixs`)
+  console.table(reporting_arr_brute);
+  console.table(reporting_arr_sweep_link)
+}
+
+if(!sweep_skip_passes) {
+  console.warn(`Sort ≠ Brute ixs`)
+  console.table(reporting_arr_brute);
+  console.table(reporting_arr_sweep_skip)
+}
 
 Bench
 
@@ -191,15 +213,18 @@ for(i = 0; i < 100; i += 1) {
   reporting_arr_brute = []
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
+  reporting_arr_sweep_skip = []
 
   segments = Array.fromRange(10).map(i => randomSegment(5000))
   findIntersectionsBruteSingle(segments, reportFnBrute)
 //   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
+  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
 
   reporting_arr_brute.sort(compareXY)
 //   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
+  reporting_arr_sweep_skip.sort(compareXY)
 
 //   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
 //      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
@@ -218,6 +243,16 @@ for(i = 0; i < 100; i += 1) {
      console.error(`ixs not equal .`, segments)
      break;
   }
+
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
+
+     console.table(reporting_arr_brute);
+     console.table(reporting_arr_sweep_link);
+     console.error(`ixs not equal .`, segments)
+     break;
+  }
 }
 
 // enlarge segments
@@ -229,10 +264,8 @@ segments = segments.map(s => {
 })
 
 N = 100
-num_segments = 1000
 max_coord = Math.pow(2, 13)
-
-num_segments_arr = [10, 100, 200]
+num_segments_arr = [10, 100, 200, 1000]
 for(let i = 0; i < num_segments_arr.length; i += 1) {
 
   let num_segments = num_segments_arr[i]
@@ -246,17 +279,20 @@ for(let i = 0; i < num_segments_arr.length; i += 1) {
   console.log("No binary");
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
 
   console.log("Test binary");
   api.debug_binary = UseBinary.Test;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
 
 
   console.log("Binary");
   api.debug_binary = UseBinary.Yes;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
 
   api.debug_binary = UseBinary.Test;
 }
