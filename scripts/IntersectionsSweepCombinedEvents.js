@@ -103,12 +103,12 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn) {
   // report intersection
   // for now, if multiple segments, report every combination
   let segmentSet = curr.segments;
-  let segments = [...segmentSet];
-  let ln = segments.length;
+  let segmentArr = [...segmentSet];
+  let ln = segmentArr.length;
   for(let i = 0; i < ln; i += 1) {
-    const si = segments[i];
+    const si = segmentArr[i];
     for(let j = (i + 1); j < ln; j += 1) {
-      const sj = segments[j];
+      const sj = segmentArr[j];
       reportFn(si, sj, curr.point);
     }
   }
@@ -130,8 +130,8 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn) {
 
   // check for intersection between the upper segment and above
   // and between lower segment and below (after the swap/reversal)
-  const bottom_segment = tree.atIndex(min_idx);
-  const top_segment = tree.atIndex(max_idx);
+  const bottom_segment = tree.atIndex(max_idx);
+  const top_segment = tree.atIndex(min_idx);
   if(below) { num_ixs += checkForIntersection(below, bottom_segment, e, tracker); }
   if(above) { num_ixs += checkForIntersection(above, top_segment, e, tracker); }
 
