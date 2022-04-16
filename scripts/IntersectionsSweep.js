@@ -36,6 +36,7 @@ pointForSegmentGivenX = api.pointForSegmentGivenX;
 EventType = api.EventType;
 hashSegments = api.hashSegments;
 OrderedDoubleLinkedList = api.OrderedDoubleLinkedList;
+findIntersectionsSweepCombinedSingle = api.findIntersectionsSweepCombinedSingle
 
 
 MODULE_ID = 'testccw'
@@ -1087,6 +1088,10 @@ reportFnSweepSkip  = (s1, s2, ix) => {
   reporting_arr_sweep_skip.push(ix);
 }
 
+reportFnSweepCombined = (s1, s2, ix) => {
+  reporting_arr_sweep_combined.push(ix);
+}
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
@@ -1094,6 +1099,7 @@ for([key, str] of test_strings) {
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
   reporting_arr_sweep_skip = []
+  reporting_arr_sweep_combined = []
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
   canvas.controls.debug.clear()
@@ -1105,12 +1111,14 @@ for([key, str] of test_strings) {
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+  findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
   reporting_arr_sweep_skip.sort(compareXY)
+  reporting_arr_sweep_combined.sort(compareXY)
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
@@ -1142,6 +1150,14 @@ for([key, str] of test_strings) {
      console.error(`Sweep skip ≠ brute for ${key}`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_skip);
+  }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_combined.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_combined[idx]))) {
+
+     console.error(`Sweep combined ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_combined);
   }
 }
 

@@ -66,6 +66,7 @@ export class PriorityQueueArray {
   * @param {number} idx   Location to insert
   */
   _insertAt(obj, idx) {
+//     ~idx ? (this.data = this.data.slice(0, idx).concat(obj, this.data.slice(idx))) : this.data.push(obj);
     ~idx ? this.data.splice(idx, undefined, obj) : this.data.push(obj);
   }
 

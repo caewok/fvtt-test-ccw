@@ -23,6 +23,8 @@ import { findIntersectionsSweepSingle } from "./IntersectionsSweep.js";
 import { findIntersectionsSweepLinkedSingle } from "./IntersectionsSweepLinked.js";
 import { findIntersectionsSweepBSTSingle } from "./IntersectionsSweepBST.js";
 import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipList.js";
+import { findIntersectionsSweepCombinedSingle } from "./IntersectionsSweepCombinedEvents.js";
+
 
 // for debugging sweep
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
@@ -161,6 +163,7 @@ Hooks.once('init', async function() {
     findIntersectionsSweepBSTSingle,
     findIntersectionsSweepLinkedSingle,
     findIntersectionsSweepSkipListSingle,
+    findIntersectionsSweepCombinedSingle,
 
     EventQueue,
     SegmentArray,

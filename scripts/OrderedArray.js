@@ -88,6 +88,7 @@ export class OrderedArray {
     if(~idx) {
       // insert element at the index
       this.data.splice(idx, undefined, obj);
+//       this.data = this.data.slice(0, idx).concat(obj, this.data.slice(idx)); // faster than splice? In jsbench but not here -- maybe b/c it needs a copy into this.data?
       return idx;
 
     } else {
@@ -115,6 +116,20 @@ export class OrderedArray {
   */
   swapIndices(idx1, idx2) {
     [this.data[idx1], this.data[idx2]] = [this.data[idx2], this.data[idx1]];
+  }
+
+ /**
+  * Reverse all objects from idx1 to idx2.
+  * Dangerous! If comparator does not accommodate the swap, binary searching may
+  * return unpredictable results and insertion/deletion (binary or non-binary) may also
+  * fail.
+  * @param {number} idx1    Index of first object to reverse in array
+  * @param {number} idx2    Index of last object to reverse in array
+  */
+  reverseIndices(start_idx, end_idx) {
+    const arr_to_reverse = this.data.slice(start_idx, end_idx + 1);
+    arr_to_reverse.reverse();
+    this.data = this.data.slice(0, start_idx).concat(arr_to_reverse, this.data.slice(end_idx + 1));
   }
 
  /**
