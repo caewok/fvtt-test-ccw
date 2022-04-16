@@ -15,9 +15,8 @@ class SkipNode {
     this.num_lvls = num_lvls ?? SkipNode.randomHeight(rng); // number of levels, including the 0 level
 
     // Array holds pointers to next SkipNodes, 1 per array level
-    // Mirror array holds pointers to prev SkipNodes, to assist with insert/delete
     this.skipNext = Array(this.num_lvls);
-    this.skipPrev = Array(this.num_lvls);
+    this.prev = null; // Link to the previous item in the list at level 0
   }
 
  /**
@@ -27,27 +26,13 @@ class SkipNode {
   get next() { return this.skipNext[0]; }
 
  /**
-  * Immediately prior node.
-  * @type {SkipNode}
-  */
-  get prev() { return this.skipPrev[0]; }
-
-
- /**
   * A special skip node that represents the head of the skip list.
   * Two special properties: value is -Infinity and has infinite height
   */
   static newSentinel(sentinel_value = Number.POSITIVE_INFINITY) {
     const sentinel = new this(sentinel_value);
     sentinel.num_lvls = Number.POSITIVE_INFINITY;
-    if(sentinel_value > 0) {
-      sentinel.skipNext.length = 0;
-      sentinel.skipPrev.length = 1;
-    } else {
-      sentinel.skipNext.length = 1;
-      sentinel.skipPrev.length = 0;
-    }
-
+    sentinel.skipNext.length = sentinel_value > 0 ? 0 : 1;
     return sentinel;
   }
 
@@ -66,191 +51,61 @@ class SkipNode {
   }
 
  /**
-  * Add this node before an existing node.
+  * Add this node after an existing node at a given level
   * @param {SkipNode} existing
+  * @param {Number}   h         Level to link in skipNext array
   */
-  insertBefore(existing) {
-    // change prev1 ... existing1 ... next1
-    //        prev0 -- existing0 -- next0
-    //
-    // to     prev1 ... node1 ... existing1 ... next1
-    //        prev0 -- node0 -- existing0 -- next0
-    this._insert(existing, { before: true });
-  }
+  insertAfter(existing, h) {
+    // change existingH ... nextH
+    // to     existingH ... thisH... nextH
 
- /**
-  * Add this node after an existing node
-  * @param {SkipNode} existing
-  */
-  insertAfter(existing) {
-    // change prev1 ... existing1 ... next1
-    //        prev0 -- existing0 -- next0
-    //
-    // to     prev1 ...  existing1 ... node1... next1
-    //        prev0 -- existing0 -- node0 -- next0
-    this._insert(existing, { before: false });
-  }
-
- /**
-  * Internal function to add existing node before or after this node.
-  * @param {SkipNode} existing
-  * @param {boolean}  before    If true, insert before. If false, insert after.
-  */
-  _insert(existing, { before = true } = {}) {
-    let prev = before ? existing.prev : existing;
-    let next = before ? existing : existing.next;
-    let max_lvls = this.num_lvls;
-
-    if(prev) {
-       // walk backwards at given num_lvls level
-       // until the prev node with num_lvls + 1 is found
-       for(let h = 0; h < max_lvls; h += 1) {
-         if(!prev) break;
-         const max_iterations = 10_000;
-         let iter = 0;
-         while(h >= prev.num_lvls && iter < max_iterations) {
-           iter += 1;
-           if(h < 1) { console.error(`_insert h (prev) is ${h}`); }
-           prev = prev.skipPrev[h - 1];
-         }
-         if(iter >= max_iterations) { console.warn("Max iterations hit for _insert prev."); }
-         this.skipPrev[h] = prev;
-         prev && (prev.skipNext[h] = this);
-       }
-    }
-
-    if(next) {
-      // walk backwards at given num_lvls level
-      // until the next node with num_lvls + 1 is found
-      for(let h = 0; h < max_lvls; h += 1) {
-        if(!next) break;
-        const max_iterations = 10_000;
-        let iter = 0;
-        while(h >= next.num_lvls && iter < max_iterations) {
-          iter += 1;
-          if(h < 1) { console.error(`_insert h (next) is ${h}`); }
-          next = next.skipNext[h - 1];
-        }
-        if(iter >= max_iterations) { console.warn("Max iterations hit for _insert next."); }
-        this.skipNext[h] = next;
-        next && (next.skipPrev[h] = this);
-      }
-    }
-  }
-
- /**
-  * Remove this node and relink adjacent nodes as necessary.
-  */
-  remove() {
-    if(!isFinite(this.num_lvls)) {
-      console.warn("Tried to remove a sentinal node.");
+    if(h > this.num_levels) {
+      console.warn("This node only has ${this.num_levels} levels. Cannot link at height ${h}.", this, existing);
       return;
     }
 
-    // link the previous and next SkipNodes at each num_lvls
-    for(let h = 0; h < this.num_lvls; h += 1) {
-      this.skipNext[h] && (this.skipNext[h].skipPrev[h] = this.skipPrev[h]);
-      this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = this.skipNext[h]);
-    }
-
-    // maybe not strictly necessary to wipe clean, but helpful in debugging
-    this.skipNext.length = 0;
-    this.skipPrev.length = 0;
-    this.num_lvls = -1;
-    this.data = undefined;
-  }
-
- /**
-  * Swap this node with another. (Not the data, the actual nodes.)
-  * @param {SkipNode} other
-  */
-  swap(other) {
-    const self = this;
-
-    if(self === other) {
-      console.warn("Attempted to swap node with itself", other);
+    if(h > existing.num_levels) {
+      console.warn("Existing only has ${existing.num_levels} levels. Cannot link at height ${h}.", this, existing);
       return;
     }
 
-    // increase the levels to match so links can be transferred
-    let max_lvl = Math.max(self.num_lvls, other.num_lvls);
-    self.skipNext.length = max_lvl;
-    self.skipPrev.length = max_lvl;
-    other.skipNext.length = max_lvl;
-    other.skipPrev.length = max_lvl;
+    this.skipNext[h] = existing.skipNext[h];
+    existing.skipNext[h] = this;
 
-    // Swap the loopback links.
-    // e.g. this.prev --> prev --> prev.next --> this
-    // to   this.prev --> prev --> prev.next --> other
-    // And swap the links for this and other
-    // these mirror the DoubleLinkedList LLNode swap
-    for(let h = 0; h < max_lvl; h += 1) {
-      if(self.num_lvls > h) {
-        if(self.skipPrev[h] === other) {
-          // prev -- other -- this -- next
-          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
-        } else if(self.skipNext[h] === other) {
-          // prev -- this -- other -- next
-          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
-        } else {
-          // prev -- this -- next ... prev -- other -- next or
-          // prev -- other -- next ... prev -- this -- next
-          self.skipPrev[h] && (self.skipPrev[h].skipNext[h] = other);
-          self.skipNext[h] && (self.skipNext[h].skipPrev[h] = other);
-        }
-      }
-
-      if(other.num_lvls > h) {
-        if(other.skipNext[h] === self) {
-          // prev -- other -- this -- next
-          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
-        } else if(other.skipPrev[h] === self) {
-          // prev -- this -- other -- next
-          other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self);
-        } else {
-          // prev -- this -- next ... prev -- other -- next or
-          // prev -- other -- next ... prev -- this -- next
-          other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = self);
-          other.skipNext[h] && (other.skipNext[h].skipPrev[h] = self);
-        }
-      }
-
-      // the first two options would only occur if self and other both have this level
-      // otherwise, either other.skipNext[h] points to undefined or could not point to self
-      // same for other.skipPrev[h]
-      if(other.skipNext[h] === self) {
-        // prev -- other -- this -- next
-        [self.skipPrev[h], other.skipNext[h]] = [other.skipPrev[h], self.skipNext[h]];
-        [self.skipNext[h], other.skipPrev[h]] = [other, self];
-
-      } else if(other.skipPrev[h] === self) {
-        // prev -- this -- other -- next
-        [self.skipNext[h], other.skipPrev[h]] = [other.skipNext[h], self.skipPrev[h]];
-        [self.skipPrev[h], other.skipNext[h]] = [other, self];
-
-      } else {
-        // prev -- this -- next ... prev -- other -- next or
-        // prev -- other -- next ... prev -- this -- next
-        [self.skipPrev[h], other.skipPrev[h]] = [other.skipPrev[h], self.skipPrev[h]];
-        [self.skipNext[h], other.skipNext[h]] = [other.skipNext[h], self.skipNext[h]];
-      }
-
+    if(h === 0) {
+      this.prev = existing;
     }
-    [other.num_lvls, self.num_lvls] = [self.num_lvls, other.num_lvls];
+  }
 
-    // reset the skip array lengths to correspond to num_lvls.
-    other.skipNext.length = other.num_lvls;
-    other.skipPrev.length = other.num_lvls;
+ /**
+  * Remove this node after an existing node at a given level
+  * @param {SkipNode} existing
+  * @param {Number}   h         Level to de-link in skipNext array.
+  */
+  removeAfter(existing, h) {
+    // change existingH ... thisH... nextH
+    // to     existingH ... nextH
 
-    self.skipNext.length = self.num_lvls;
-    self.skipPrev.length = self.num_lvls;
+    if(h > this.num_levels) {
+      console.warn("This node only has ${this.num_levels} levels. Cannot de-link at height ${h}.", this, existing);
+      return;
+    }
 
+    if(h > existing.num_levels) {
+      console.warn("Existing only has ${existing.num_levels} levels. Cannot de-link at height ${h}.", this, existing);
+      return;
+    }
 
-
+    if(h === 0) {
+      this.skipNext[0].prev = this.prev;
+      this.prev = null;
+    }
+    existing.skipNext[h] = this.skipNext[h];
+    this.skipNext[h] = null;
   }
 }
 
-export class SkipList {
+class SkipList {
   constructor(comparator = (a, b) => a - b, { seed = Math.random.toString() } = {}) {
     // build a seedable random generator, primarily for debugging
     const rng_seed = xmur3(seed);
@@ -260,7 +115,6 @@ export class SkipList {
     this.start = SkipNode.newSentinel(Number.NEGATIVE_INFINITY); // sentinels don't really need the seeded rng
     this.end = SkipNode.newSentinel(Number.POSITIVE_INFINITY);
     this.start.skipNext[0] = this.end;
-    this.end.skipPrev[0] = this.start;
 
     this.comparator = comparator;
     this.max_lvls = 1;
@@ -280,6 +134,10 @@ export class SkipList {
     // b is ∞: a, b
     // b is ⧞: b, a
 
+    // do the likely cases first; we are not always comparing sentinels
+    if(isNaN(a) && isNaN(b)) return this.comparator(a, b);
+    if(isFinite(a) && isFinite(b)) return this.comparator(a, b);
+
     if(a === Number.POSITIVE_INFINITY) {
       return b === Number.POSITIVE_INFINITY ? 0 : Number.POSITIVE_INFINITY; // b, a
     } else if(a === Number.NEGATIVE_INFINITY) {
@@ -292,6 +150,7 @@ export class SkipList {
        return Number.POSITIVE_INFINITY; // b, a
     }
 
+    // should be unreachable
     return this.comparator(a, b);
   }
 
@@ -307,166 +166,129 @@ export class SkipList {
   * @return {SkipNode} Object containing the stored data, which can be used to walk the list
   */
   insert(data) {
-    let { existing, after } = this.findNextNode(data);
+    // walk each level from the top
+    // - stop at the node where node.skipNext is greater than data
+    // - link that node
+    let self = this;
 
-    let node = new SkipNode(data, { rng: this.rng });
-    this.max_lvls = Math.max(this.max_lvls, node.num_lvls);
+    let node = new SkipNode(data, { rng: self.rng });
 
-    // if start or end are not at the correct height, add length
-    // if greater than max height, that is an error
-    let curr_sentinel_level = this.start.skipNext.length;
-    if(curr_sentinel_level !== this.end.skipPrev.length) {
-      console.error("Start and end have different lengths");
-      curr_sentinel_level = Math.min(curr_sentinel_level, this.end.skipPrev.length);
-    }
-
-    if(curr_sentinel_level > this.max_lvls) {
-      console.error(`Sentinel level is ${curr_sentinel_level} but should be ${this.max_lvls}`);
-    }
-
-    if(curr_sentinel_level < this.max_lvls) {
-      // add levels to the sentinels and connect start/end accordingly at each new level
-      this.start.skipNext.length = this.max_lvls;
-      this.end.skipPrev.length = this.max_lvls;
-      for(let h = curr_sentinel_level; h < this.max_lvls; h += 1) {
-        this.start.skipNext[h] = this.end;
-        this.end.skipPrev[h] = this.start;
+    // Update the maximum levels for this skip list and confirm the start sentinel's
+    // skipNext is set to the correct height
+    self.max_lvls = Math.max(self.max_lvls, node.num_lvls);
+    let curr_sentinel_level = self.start.skipNext.length
+    if(curr_sentinel_level < self.max_lvls) {
+      // add slots to the start skipNext array; connect to end
+      self.start.skipNext.length = self.max_lvls;
+      for(let h = curr_sentinel_level; h < self.max_lvls; h += 1) {
+        self.start.skipNext[h] = self.end;
       }
     }
 
-    // for each level to connect, move forward until finding a node
-    // with the required height and link
-    // same for previous
-    // relink the prior node by look to the found node -->
-    node._insert(existing, { before: !after });
+    let curr = self.start;
+    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = self._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = self._cmp(curr.skipNext[h].data, data)
+      }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
 
-    this._length += 1;
-    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after insert: structure inconsistent.`, this, node); }
+      // at a node that, for the given height, is immediately prior to data (or equal to)
+      if(h < node.num_lvls) {
+        // we are at a level for which this node connects. So make that connection.
+        node.insertAfter(curr, h);
+      }
+    }
+
+    self._length += 1;
+
+    if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after insert: structure inconsistent.`, self, node); }
+
     return node;
   }
 
  /**
-  * Remove an object from the skip list
+  * Remove data from the skip list
   * @param {SkipNode} node
   */
-  remove(node) {
-    if(!(node instanceof SkipNode)) {
-      console.error("remove node is not a SkipNode", node);
-      return;
-    }
+  remove(data) {
+    // walk each level from the top
+    // - stop at the node where node.skipNext is greater than data
+    // - store that node for delinking
+    // - find the actual node for the data, then delink it at each level
+    let self = this;
 
-    if(this.length < 0) {
-      console.warn(`Tried to remove node from empty skiplist`, node);
-      return;
-    }
-
-    if(!(node.skipNext.length || node.skipPrev.length)) {
-      console.warn(`Node is already removed.`, node);
-      return;
-    }
-
-    // for each height level of the node, if it points to only sentinels, we can drop
-    for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
-      if(node.skipPrev[h] && node.skipPrev[h].isSentinel && node.skipNext[h] && node.skipNext[h].isSentinel) {
-        this.max_lvls -= 1;
-        node.num_lvls -= 1;
-        this.start.skipNext.length = this.max_lvls;
-        this.end.skipPrev.length = this.max_lvls;
-
-      } else {
-        break;
+    let curr = self.start;
+    let to_delink = Array(self.max_lvls);
+    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = self._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = self._cmp(curr.skipNext[h].data, data)
       }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+
+      // we are at a level for which this node connects. Store for disconnection
+      to_delink[h] = curr;
     }
 
-    node.remove();
-    this._length -= 1;
-    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after remove: structure inconsistent.`, this, node); }
+    // we have found the node corresponding to data.
+    let node = curr.skipNext[0];
+    if(self._cmp(node.data, data)) {
+      console.warn("Node to remove does not contain data to remove", data, node);
+    }
+
+    // disconnect at each height present for the node
+    for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
+      node.removeAfter(to_delink[h], h)
+    }
+
+    self._length -= 1;
+    if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove: structure inconsistent.`, self, node); }
   }
 
  /**
-  * Remove object matching data from the skip list
-  * @param {Object} data
-  */
-  removeData(data) {
-    const node = this.search(data);
-    node && this.remove(node);
-  }
-
- /**
-  * Swap two nodes in the skipList
-  * Dangerous!
-  * @param {SkipNode} node1
-  * @param {SkipNode} node2
-  */
-  swap(node1, node2) {
-    node1.swap(node2);
-    if(game.modules.get(MODULE_ID).api.debug && !this.verifyStructure()) { console.log(`after swap: structure inconsistent.`, this, node1, node2); }
-  }
-
-
- /**
-  * Find the node immediately after where the data would go in the list.
+  * Find the node immediately prior to where the data would go in the list.
   * Approximately O(log(n)) to search.
   * @param {Object} data   Data to test for position.
-  * @param {{existing: SkipNode, after: boolean} Object with:
-  *   - existing: Node immediately next to the hypothetical data position.
-  *   - after: If true, the data would be after the existing node
+  * @return The node immediately prior, which may be this.start.
   */
-  findNextNode(data) {
-    let h = this.max_lvls - 1;
-    let existing = this.start;
-    const max_iterations = 10_000;
-    let iter = 0;
-    while(h >= 0 && iter < max_iterations) {  // while levels remain
-      iter += 1;
-      let next = existing.skipNext[h];
-      if(!next) { return { existing: existing, after: false }; } // at end of list
-
-      let cmp_res = this._cmp(data, next.data);
-      if(!cmp_res) { return { existing: next, after: false }; }
-      if(cmp_res > 0) { // cmp_res < 0: data, next; cmp_res > 0: next, data
-        existing = next; // advance along same level
-      } else {
-        h -= 1; // drop down a level
+  findPrevNode(data) {
+    let curr = this.start;
+    for(let h = this.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = this._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = this._cmp(curr.skipNext[h].data, data)
       }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
     }
 
-    // could store next from the loop and return that as {existing: next, after: false}
-    // but it is easy to insert after an item, so leave for now
-
-    if(iter >= max_iterations) { console.warn("Max iterations hit for findNextNode."); }
-    return { existing: existing, after: true };
+    return curr;
   }
-
 
  /**
-  * Find the node containing the data in the list.
+  * Find data in the list and return the node, if any
   * Approximately O(log(n)) to search.
-  * @param {Object} data    Data to locate
-  * @param {LLNode} Node containing the data
+  * @param {Object} data    Data to search for in the list
+  * @return The node containing data or undefined if not found.
   */
   search(data) {
-    let h = this.max_lvls - 1;
-    let existing = this.start;
-    const max_iterations = 10_000;
-    let iter = 0;
-    while(h >= 0 && iter < max_iterations) {  // while levels remain
-      iter += 1;
-      let next = existing.skipNext[h];
-      if(!next) { return null; } // at end of list
-
-      let cmp_res = this._cmp(data, next.data);
-      if(!cmp_res) { return next; }  // found it!
-      if(cmp_res > 0) {  // data is before next ?
-        existing = next; // advance along same level
-      } else {
-        h -= 1;  // drop one level down
-      }
-    }
-
-    if(iter >= max_iterations) { console.warn("Max iterations hit for search."); }
-    return null;
+    const prev_node = this.findPrevNode(data);
+    const node = prev_node.skipNext[0];
+    return this._cmp(data, node.data) ? undefined : node;
   }
+
 
  /**
   * Construct an array of data from the nodes in order.
@@ -533,30 +355,23 @@ export class SkipList {
 
     let hmax = self.max_lvls;
     if(self.start.skipNext.length !== hmax) { console.warn(`Start skipNext length ${self.start.skipNext.length} ≠ ${hmax}`); okay = false; }
-    if(self.end.skipPrev.length !== hmax) { console.warn(`End skipPrev length ${self.end.skipPrev.length} ≠ ${hmax}`); okay = false; }
 
     for(let h = 1; h < hmax; h += 1) {
       let iter0 = self.iterateNodes();
       let iter_h = self.iterateNodes(h);
 
       let nH = iter_h.next().value;
-      if(self.start.skipNext[h] !== nH) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }
+      if(self.start.skipNext[h] !== nH && !self.start.skipNext[h].isSentinel) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }
 
       for(const node of iter0) {
         // check if the node's arrays are consistent with its indicated number of levels
-        if(node.skipNext.length !== node.skipPrev.length ||
-          node.skipNext.length !== node.num_lvls) {
-          console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}, skipPrev: ${node.skipPrev.length}`, self.start, nH);
+        if(node.skipNext.length !== node.num_lvls) {
+          console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}`, self.start, nH);
           okay = false;
         }
 
         if(!node.skipNext[0]) {
           console.warn(`node has undefined skipNext for height 0`);
-          okay = false;
-        }
-
-        if(!node.skipPrev[0]) {
-          console.warn(`node has undefined skipPrev for height 0`);
           okay = false;
         }
 
@@ -568,11 +383,6 @@ export class SkipList {
 
         if(!node.skipNext[h]) {
           console.warn(`node has undefined skipNext for height ${h}`);
-          okay = false;
-        }
-
-        if(!node.skipPrev[h]) {
-          console.warn(`node has undefined skipPrev for height ${h}`);
           okay = false;
         }
 
