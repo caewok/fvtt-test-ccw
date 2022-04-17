@@ -58,6 +58,7 @@ export function findIntersectionsSweepCombinedSingle(segments, reportFn = (e1, e
     }
 
     if(debug) { console.table(tree.data, ["_id", "_idx"]); }
+    if(debug) { console.table(e.data, ["type", "segments"]); }
 
   }
 
@@ -67,10 +68,10 @@ export function findIntersectionsSweepCombinedSingle(segments, reportFn = (e1, e
 function handleLeftEvent(curr, e, tree, tracker) {
   const debug = game.modules.get(MODULE_ID).api.debug;
   let num_ixs = 0;
-  const sweep_x = curr.point.x;
+  let sweep_x = curr.point.x;
 
   // insert each left segment
-  const segmentSet = curr.segments;
+  let segmentSet = curr.segments;
   segmentSet.forEach(s => {
     tree.insert(s, sweep_x);
     if(debug) {
@@ -85,8 +86,7 @@ function handleLeftEvent(curr, e, tree, tracker) {
     // add an intersection event that will be called next
     // (it will also swap/reverse these segments and then test the above/below)
     // (if not doing this, then need to handle the above/below ix test)
-    const [s0] = segmentSet;
-    const event_ix = new EventTypeClass(s0.nw, EventType.Intersection, [...segmentSet]);
+    const event_ix = new EventTypeClass(curr.point, EventType.Intersection, [...segmentSet]);
     e.insert(event_ix);
   } else {
     // find the above/below values for the single segment added
@@ -215,7 +215,7 @@ function checkForIntersection(s1, s2, e, tracker) {
   let num_ixs = 0;
   const hash = hashSegments(s1, s2);
 //   const hash_rev = hashSegments(s2, s1);
-  if(!(tracker.has(hash)) &&
+  if(!tracker.has(hash) &&
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
     num_ixs += 1;
 
@@ -523,7 +523,7 @@ class EventQueue extends PriorityQueueArray {
     }
 
     // if the next event is the same point and type, combine
-    const next = this.data[idx];
+    const next = ~idx ? this.data[idx - 1] : this.data[this.data.length - 1]
     if(next && !EventQueue.eventCmp(event, next)) {
       next.add([...event.segments]);
     } else {
