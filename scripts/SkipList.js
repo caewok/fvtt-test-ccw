@@ -1,3 +1,7 @@
+/* globals
+game
+*/
+
 // Skip List
 // Based in part on
 // https://wesleytsai.io/2015/08/09/skip-lists/
@@ -160,23 +164,21 @@ class SkipList {
   get length() { return this._length; }
 
  /**
-  * Insert an object into the skip list.
-  * @param {Object} data  Object to insert into the list.
-  *                       Must be comparable using the comparator.
+  * Insert a specific node into the list.
+  * @param {SkipNode} node
   * @return {SkipNode} Object containing the stored data, which can be used to walk the list
   */
-  insert(data) {
+  insertNode(node) {
     // walk each level from the top
     // - stop at the node where node.skipNext is greater than data
     // - link that node
     let self = this;
-
-    let node = new SkipNode(data, { rng: self.rng });
+    let data = node.data;
 
     // Update the maximum levels for this skip list and confirm the start sentinel's
     // skipNext is set to the correct height
     self.max_lvls = Math.max(self.max_lvls, node.num_lvls);
-    let curr_sentinel_level = self.start.skipNext.length
+    let curr_sentinel_level = self.start.skipNext.length;
     if(curr_sentinel_level < self.max_lvls) {
       // add slots to the start skipNext array; connect to end
       self.start.skipNext.length = self.max_lvls;
@@ -187,13 +189,13 @@ class SkipList {
 
     let curr = self.start;
     for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
       let max_iterations = 10_000;
       let iter = 0;
       while(cmp_res < 0 && iter < max_iterations) {
         iter += 1;
         curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data)
+        cmp_res = self._cmp(curr.skipNext[h].data, data);
       }
       if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
 
@@ -211,6 +213,18 @@ class SkipList {
     return node;
   }
 
+  /**
+  * Insert an object into the skip list.
+  * @param {Object} data  Object to insert into the list.
+  *                       Must be comparable using the comparator.
+  * @return {SkipNode} Object containing the stored data, which can be used to walk the list
+  */
+  insert(data) {
+    const node = new SkipNode(data, { rng: self.rng });
+    return this.insertNode(node);
+  }
+
+
  /**
   * Remove data from the skip list
   * @param {SkipNode} node
@@ -225,13 +239,16 @@ class SkipList {
     let curr = self.start;
     let to_delink = Array(self.max_lvls);
     for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      // take the opportunity to trim max_lvls if possible
+      if(curr.isSentinel && curr.skipNext[h].isSentinel) self.max_lvls -= 1;
+
+      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
       let max_iterations = 10_000;
       let iter = 0;
       while(cmp_res < 0 && iter < max_iterations) {
         iter += 1;
         curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data)
+        cmp_res = self._cmp(curr.skipNext[h].data, data);
       }
       if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
 
@@ -243,15 +260,93 @@ class SkipList {
     let node = curr.skipNext[0];
     if(self._cmp(node.data, data)) {
       console.warn("Node to remove does not contain data to remove", data, node);
+      return;
     }
 
     // disconnect at each height present for the node
     for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
-      node.removeAfter(to_delink[h], h)
+      node.removeAfter(to_delink[h], h);
     }
 
     self._length -= 1;
     if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove: structure inconsistent.`, self, node); }
+  }
+
+ /**
+  * Swap two nodes
+  */
+  swap(data1, data2) {
+    let self = this;
+
+    let curr = self.start;
+    let to_delink1 = Array(self.max_lvls);
+    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = self._cmp(curr.skipNext[h].data, data1); // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = self._cmp(curr.skipNext[h].data, data1);
+      }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+
+      // we are at a level for which this node connects. Store for disconnection
+      to_delink1[h] = curr;
+    }
+    let node1 = curr.skipNext[0];
+    if(self._cmp(node1.data, data1)) {
+      console.warn("Node to remove does not contain data to swap", data1, node1);
+      return;
+    }
+
+
+
+    curr = self.start;
+    let to_delink2 = Array(self.max_lvls);
+    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = self._cmp(curr.skipNext[h].data, data2); // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = self._cmp(curr.skipNext[h].data, data2);
+      }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+
+      // we are at a level for which this node connects. Store for disconnection
+      to_delink2[h] = curr;
+    }
+    let node2 = curr.skipNext[0];
+    if(self._cmp(node2.data, data2)) {
+      console.warn("Node to remove does not contain data to swap", data2, node2);
+      return;
+    }
+
+    // disconnect at each height present for the node
+    for(let h = node1.num_lvls - 1; h >= 0; h -= 1) {
+      node1.removeAfter(to_delink1[h], h);
+    }
+
+    // disconnect at each height present for the node
+    for(let h = node2.num_lvls - 1; h >= 0; h -= 1) {
+      node2.removeAfter(to_delink2[h], h);
+    }
+
+    for(let h = node2.num_lvls - 1; h >= 0; h -= 1) {
+      node2.insertAfter(to_delink1[h], h);
+    }
+
+    // insert at each height present for the node
+    for(let h = node1.num_lvls - 1; h >= 0; h -= 1) {
+      node1.insertAfter(to_delink2[h], h);
+    }
+
+
+
+    if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after swap: structure inconsistent.`, self, node1, node2); }
+
   }
 
  /**
@@ -263,13 +358,13 @@ class SkipList {
   findPrevNode(data) {
     let curr = this.start;
     for(let h = this.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = this._cmp(curr.skipNext[h].data, data) // < 0: a before b; > 0: b before a
+      let cmp_res = this._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
       let max_iterations = 10_000;
       let iter = 0;
       while(cmp_res < 0 && iter < max_iterations) {
         iter += 1;
         curr = curr.skipNext[h];
-        cmp_res = this._cmp(curr.skipNext[h].data, data)
+        cmp_res = this._cmp(curr.skipNext[h].data, data);
       }
       if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
     }
@@ -354,7 +449,7 @@ class SkipList {
     let okay = true;
 
     let hmax = self.max_lvls;
-    if(self.start.skipNext.length !== hmax) { console.warn(`Start skipNext length ${self.start.skipNext.length} ≠ ${hmax}`); okay = false; }
+    if(self.start.skipNext.length < hmax) { console.warn(`Start skipNext length ${self.start.skipNext.length} ≠ ${hmax}`); okay = false; }
 
     for(let h = 1; h < hmax; h += 1) {
       let iter0 = self.iterateNodes();
