@@ -139,6 +139,12 @@ reportFnSweepSkip = (s1, s2, ix) => {
   reporting_arr_sweep_skip.push(ix);
 }
 
+reportFnSweepCombined = (s1, s2, ix) => {
+  reporting_arr_sweep_combined.push(ix);
+}
+
+
+
 function applyFn(fn, num_segments, max_coord) {
   segments = Array.fromRange(num_segments).map(i => randomSegment(max_coord))
   return fn(segments);
@@ -203,9 +209,26 @@ await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segme
 await benchmarkLoopFn(N, applyFn, "sort2", findIntersectionsSort2Single, num_segments, max_coord)
 await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord)
 await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord)
+await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord)
 
 
 
+segments = Array.fromRange(10).map(i => randomSegment(5000))
+reporting_arr_brute = []
+reporting_arr_sweep = []
+reporting_arr_sweep_link = []
+reporting_arr_sweep_skip = []
+
+
+findIntersectionsBruteSingle(segments(reportFnBrute));
+let n = segments.length
+let k = reporting_arr_brute.length
+console.log(`${n} segments with ${k} intersections.\n\tO(n^2): ${Math.pow(n, 2)}\n\tO(nlog(n) + n*n*.5): ${n * Math.log(n) + n*n*.5}\n\tO((n+k)log(n)):${(n+k)*Math.log(n)}`)
+await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments);
+await benchmarkLoopFn(N, findIntersectionsSweepSingle, "sweep", segments);
+await benchmarkLoopFn(N, findIntersectionsSweepLinkedSingle, "sweep linked", segments);
+await benchmarkLoopFn(N, findIntersectionsSweepSkipListSingle, "sweep skip", segments);
+await benchmarkLoopFn(N, findIntersectionsSweepCombinedSingle, "sweep combined", segments);
 
 let i;
 let segments
@@ -282,19 +305,21 @@ for(let i = 0; i < num_segments_arr.length; i += 1) {
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Test binary");
   api.debug_binary = UseBinary.Test;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
-
+  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Binary");
   api.debug_binary = UseBinary.Yes;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   api.debug_binary = UseBinary.Test;
 }
@@ -1110,15 +1135,24 @@ for([key, str] of test_strings) {
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
-  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+//   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
   findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
-  reporting_arr_sweep_skip.sort(compareXY)
+//   reporting_arr_sweep_skip.sort(compareXY)
   reporting_arr_sweep_combined.sort(compareXY)
+
+  if(key === "* with endpoint") {
+    console.log("For * with endpoint, brute is technically wrong. Should be 28 intersections.")
+    if(reporting_arr_brute.length === 28) { console.log("\tBrute has correct length.")}
+    if(reporting_arr_sort.length === 28) { console.log("\tSort has correct length.")}
+    if(reporting_arr_sweep.length === 28) { console.log("\tSweep has correct length.")}
+//     if(reporting_arr_sweep_skip.length === 28) { console.log("\tSweep skip has correct length.")}
+    if(reporting_arr_sweep_combined.length === 28) { console.log("\tSweep combined has correct length.")}
+  }
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
@@ -1144,13 +1178,13 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sweep_link);
   }
 
-  if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
-
-     console.error(`Sweep skip ≠ brute for ${key}`, )
-//      console.table(reporting_arr_brute);
-//      console.table(reporting_arr_sweep_skip);
-  }
+//   if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
+//      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
+//
+//      console.error(`Sweep skip ≠ brute for ${key}`, )
+// //      console.table(reporting_arr_brute);
+// //      console.table(reporting_arr_sweep_skip);
+//   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_combined.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_combined[idx]))) {
@@ -1160,6 +1194,7 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sweep_combined);
   }
 }
+
 
 
 
