@@ -109,7 +109,7 @@ class SkipNode {
   }
 }
 
-class SkipList {
+export class SkipList {
   constructor(comparator = (a, b) => a - b, { seed = Math.random.toString() } = {}) {
     // build a seedable random generator, primarily for debugging
     const rng_seed = xmur3(seed);
@@ -187,23 +187,11 @@ class SkipList {
       }
     }
 
-    let curr = self.start;
-    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
-      let iter = 0;
-      while(cmp_res < 0 && iter < max_iterations) {
-        iter += 1;
-        curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data);
-      }
-      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+    let level_nodes = self._walkList(data);
 
-      // at a node that, for the given height, is immediately prior to data (or equal to)
-      if(h < node.num_lvls) {
-        // we are at a level for which this node connects. So make that connection.
-        node.insertAfter(curr, h);
-      }
+    // connect at each height present for the node
+    for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
+      node.insertAfter(level_nodes[h], h);
     }
 
     self._length += 1;
@@ -224,6 +212,32 @@ class SkipList {
     return this.insertNode(node);
   }
 
+ /**
+  * Helper to walk the list, store the last node encountered at each level,
+  * and return along with the node.
+  */
+  _walkList(data) {
+    let self = this;
+    let curr = self.start;
+    let level_nodes = Array(self.max_lvls);
+    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
+      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
+      let max_iterations = 10_000;
+      let iter = 0;
+      while(cmp_res < 0 && iter < max_iterations) {
+        iter += 1;
+        curr = curr.skipNext[h];
+        cmp_res = self._cmp(curr.skipNext[h].data, data);
+      }
+      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+
+      // we are at a level for which this node connects. Store for disconnection
+      level_nodes[h] = curr;
+    }
+
+    return level_nodes;
+  }
+
 
  /**
   * Remove data from the skip list
@@ -236,28 +250,10 @@ class SkipList {
     // - find the actual node for the data, then delink it at each level
     let self = this;
 
-    let curr = self.start;
-    let to_delink = Array(self.max_lvls);
-    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      // take the opportunity to trim max_lvls if possible
-      if(curr.isSentinel && curr.skipNext[h].isSentinel) self.max_lvls -= 1;
-
-      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
-      let iter = 0;
-      while(cmp_res < 0 && iter < max_iterations) {
-        iter += 1;
-        curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data);
-      }
-      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
-
-      // we are at a level for which this node connects. Store for disconnection
-      to_delink[h] = curr;
-    }
+    let level_nodes = self._walkList(data);
 
     // we have found the node corresponding to data.
-    let node = curr.skipNext[0];
+    let node = level_nodes[0].skipNext[0];
     if(self._cmp(node.data, data)) {
       console.warn("Node to remove does not contain data to remove", data, node);
       return;
@@ -265,11 +261,29 @@ class SkipList {
 
     // disconnect at each height present for the node
     for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
-      node.removeAfter(to_delink[h], h);
+      node.removeAfter(level_nodes[h], h);
     }
+
+    this._trimMaxLevel(); // not absolutely needed, but this prevents the skip height from being unnecessarily high
+
+
 
     self._length -= 1;
     if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove: structure inconsistent.`, self, node); }
+  }
+
+ /**
+  * Trim the maximum level
+  */
+  _trimMaxLevel() {
+    // if the start simply points to the end, then we don't need it
+    for(let h = this.max_lvls - 1; h > 0; h -= 1) {
+      if(this.start.skipNext[h].isSentinel) {
+        this.max_lvls -= 1;
+      } else {
+        break;
+      }
+    }
   }
 
  /**
@@ -278,75 +292,42 @@ class SkipList {
   swap(data1, data2) {
     let self = this;
 
-    let curr = self.start;
-    let to_delink1 = Array(self.max_lvls);
-    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data1); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
-      let iter = 0;
-      while(cmp_res < 0 && iter < max_iterations) {
-        iter += 1;
-        curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data1);
-      }
-      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
+    // disconnect the two nodes (like remove but we are saving the connections)
+    // order matters—--removing node1 affects the links of node2
 
-      // we are at a level for which this node connects. Store for disconnection
-      to_delink1[h] = curr;
-    }
-    let node1 = curr.skipNext[0];
+    // remove node1
+    let level_nodes1 = self._walkList(data1);
+    let node1 = level_nodes1[0].skipNext[0];
     if(self._cmp(node1.data, data1)) {
       console.warn("Node to remove does not contain data to swap", data1, node1);
       return;
     }
-
-
-
-    curr = self.start;
-    let to_delink2 = Array(self.max_lvls);
-    for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data2); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
-      let iter = 0;
-      while(cmp_res < 0 && iter < max_iterations) {
-        iter += 1;
-        curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data2);
-      }
-      if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
-
-      // we are at a level for which this node connects. Store for disconnection
-      to_delink2[h] = curr;
+    for(let h = node1.num_lvls - 1; h >= 0; h -= 1) {
+      node1.removeAfter(level_nodes1[h], h);
     }
-    let node2 = curr.skipNext[0];
+
+    // remove node2
+    let level_nodes2 = self._walkList(data2);
+    let node2 = level_nodes2[0].skipNext[0];
     if(self._cmp(node2.data, data2)) {
       console.warn("Node to remove does not contain data to swap", data2, node2);
       return;
     }
-
-    // disconnect at each height present for the node
-    for(let h = node1.num_lvls - 1; h >= 0; h -= 1) {
-      node1.removeAfter(to_delink1[h], h);
-    }
-
-    // disconnect at each height present for the node
     for(let h = node2.num_lvls - 1; h >= 0; h -= 1) {
-      node2.removeAfter(to_delink2[h], h);
+      node2.removeAfter(level_nodes2[h], h);
     }
 
-    for(let h = node2.num_lvls - 1; h >= 0; h -= 1) {
-      node2.insertAfter(to_delink1[h], h);
-    }
-
-    // insert at each height present for the node
+    // insert node1 using the node2 links
     for(let h = node1.num_lvls - 1; h >= 0; h -= 1) {
-      node1.insertAfter(to_delink2[h], h);
+      node1.insertAfter(level_nodes2[h], h);
     }
 
-
+    // insert node2 using the node1 links
+    for(let h = node2.num_lvls - 1; h >= 0; h -= 1) {
+      node2.insertAfter(level_nodes1[h], h);
+    }
 
     if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after swap: structure inconsistent.`, self, node1, node2); }
-
   }
 
  /**
@@ -535,7 +516,19 @@ sl = new SkipList(compareXY)
 pts.forEach(pt => sl.insert(pt))
 sl.diagram()
 
+// or
+sl = new SkipList()
+sl.insert(5)
+sl.insert(10)
+sl.insert(20)
+sl.insert(15)
+sl.diagram()
 
+sl.remove(15)
+sl.diagram()
 
+// sl.swap works, but only once (messes up finding data) unless the comparison is adaptive
+sl.swap(5, 20)
+sl.diagram()
 
 */
