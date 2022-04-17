@@ -93,12 +93,12 @@ function handleLeftEvent(curr, e, tree, tracker) {
     let { above, below, min_idx, max_idx } = segmentIndexSpread(segmentSet, tree);
     if(below) {
       let bottom_segment = tree.atIndex(max_idx);
-      num_ixs += checkForIntersection(below, bottom_segment, e, tracker);
+      num_ixs += checkForIntersection(below, bottom_segment, e, tracker, curr.point);
     }
 
     if(above) {
       let top_segment = tree.atIndex(min_idx);
-      num_ixs += checkForIntersection(above, top_segment, e, tracker);
+      num_ixs += checkForIntersection(above, top_segment, e, tracker, curr.point);
     }
   }
 
@@ -144,11 +144,11 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn) {
   // and between lower segment and below (after the swap/reversal)
   if(below) {
     const bottom_segment = tree.atIndex(max_idx);
-    num_ixs += checkForIntersection(below, bottom_segment, e, tracker);
+    num_ixs += checkForIntersection(below, bottom_segment, e, tracker, curr.point);
   }
   if(above) {
     const top_segment = tree.atIndex(min_idx);
-    num_ixs += checkForIntersection(above, top_segment, e, tracker);
+    num_ixs += checkForIntersection(above, top_segment, e, tracker, curr.point);
   }
 
   return num_ixs;
@@ -173,7 +173,7 @@ function handleRightEvent(curr, e, tree, tracker) {
   if(debug) { console.log(`\tRight endpoint event for ${segmentSet.size} segments.`); }
   let { above, below } = segmentIndexSpread(segmentSet, tree);
 
-  if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker); }
+  if(below && above) { num_ixs += checkForIntersection(below, above, e, tracker, curr.point); }
   for(const s of segmentSet) {
     if(debug) {
       console.log(`\tDeleting ${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`);
@@ -210,12 +210,12 @@ function segmentIndexSpread(segmentSet, tree) {
 
 
 
-function checkForIntersection(s1, s2, e, tracker) {
+function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
   const debug = game.modules.get(MODULE_ID).api.debug;
   let num_ixs = 0;
-  const hash = hashSegments(s1, s2);
+//   const hash = hashSegments(s1, s2);
 //   const hash_rev = hashSegments(s2, s1);
-  if(!tracker.has(hash) &&
+  if(//!tracker.has(hash) &&
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
     num_ixs += 1;
 
@@ -224,6 +224,10 @@ function checkForIntersection(s1, s2, e, tracker) {
     const ix = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
     if(!ix) return num_ixs; // likely collinear lines
 
+    // check if intersection is in the past and thus already found
+    // past meaning the sweep has already past the intersection
+    if(compareXY(sweep_pt, ix) > 0 ) { return num_ixs } // intersection is in the past
+
     if(debug) {
       console.log(`\tIntersection found at ${ix.x},${ix.y}`);
       drawVertex(ix, COLORS.lightred, .5);
@@ -231,14 +235,14 @@ function checkForIntersection(s1, s2, e, tracker) {
 
     const event_ix = new EventTypeClass(ix, EventType.Intersection, [s1, s2]);
     e.insert(event_ix);
-    tracker.add(hash);
+//     tracker.add(hash);
 //     tracker.add(hash_rev);
-  } else {
-    if(debug) {
-      const ix = foundry.utils.lineSegmentIntersection(s1.A, s1.B, s2.A, s2.B);
-      if(ix) { console.log(`Would have added duplicate ix event for ${ix.x},${ix.y}`); }
-    }
-  }
+  } //else {
+//     if(debug) {
+//       const ix = foundry.utils.lineSegmentIntersection(s1.A, s1.B, s2.A, s2.B);
+//       if(ix) { console.log(`Would have added duplicate ix event for ${ix.x},${ix.y}`); }
+//     }
+//  }
 
   return num_ixs;
 }
