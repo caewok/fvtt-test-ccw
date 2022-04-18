@@ -121,7 +121,7 @@ function handleIntersectionEventLinked(curr, e, ll, tracker, reportFn) {
   }
 
   // swap A, B
-  ll.swap(segment_node1, segment_node2);
+  ll.swapNodes(segment_node1, segment_node2);
 
   let pred_node1 = segment_node1.prev;
   let pred_node2 = segment_node2.prev;
@@ -173,7 +173,7 @@ function handleRightEventLinked(curr, e, ll, tracker) {
     drawEdge(s, COLORS.red);
   }
 
-  ll.remove(s_node);
+  ll.removeNode(s_node);
 
   return num_ixs;
 }
