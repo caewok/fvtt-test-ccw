@@ -239,17 +239,20 @@ for(i = 0; i < 100; i += 1) {
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
   reporting_arr_sweep_skip = []
+  reporting_arr_sweep_combined = []
 
   segments = Array.fromRange(10).map(i => randomSegment(5000))
   findIntersectionsBruteSingle(segments, reportFnBrute)
-//   findIntersectionsSweepSingle(segments, reportFnSweep)
+  findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
-  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+//   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+  findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 
   reporting_arr_brute.sort(compareXY)
-//   reporting_arr_sweep.sort(compareXY)
+  reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
-  reporting_arr_sweep_skip.sort(compareXY)
+//   reporting_arr_sweep_skip.sort(compareXY)
+  reporting_arr_sweep_combined.sort(compareXY)
 
 //   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
 //      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
@@ -270,14 +273,14 @@ for(i = 0; i < 100; i += 1) {
   }
 
 
-  if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
-
-     console.table(reporting_arr_brute);
-     console.table(reporting_arr_sweep_link);
-     console.error(`ixs not equal .`, segments)
-     break;
-  }
+//   if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
+//      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
+//
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_link);
+//      console.error(`ixs not equal .`, segments)
+//      break;
+//   }
 }
 
 // enlarge segments
@@ -304,21 +307,21 @@ for(let i = 0; i < num_segments_arr.length; i += 1) {
   console.log("No binary");
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Test binary");
   api.debug_binary = UseBinary.Test;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Binary");
   api.debug_binary = UseBinary.Yes;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   api.debug_binary = UseBinary.Test;
@@ -1135,14 +1138,14 @@ for([key, str] of test_strings) {
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
-//   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
   findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
-//   reporting_arr_sweep_skip.sort(compareXY)
+  reporting_arr_sweep_skip.sort(compareXY)
   reporting_arr_sweep_combined.sort(compareXY)
 
   if(key === "* with endpoint") {
@@ -1150,7 +1153,7 @@ for([key, str] of test_strings) {
     if(reporting_arr_brute.length === 28) { console.log("\tBrute has correct length.")}
     if(reporting_arr_sort.length === 28) { console.log("\tSort has correct length.")}
     if(reporting_arr_sweep.length === 28) { console.log("\tSweep has correct length.")}
-//     if(reporting_arr_sweep_skip.length === 28) { console.log("\tSweep skip has correct length.")}
+    if(reporting_arr_sweep_skip.length === 28) { console.log("\tSweep skip has correct length.")}
     if(reporting_arr_sweep_combined.length === 28) { console.log("\tSweep combined has correct length.")}
   }
 
@@ -1178,13 +1181,13 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sweep_link);
   }
 
-//   if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
-//      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
-//
-//      console.error(`Sweep skip ≠ brute for ${key}`, )
-// //      console.table(reporting_arr_brute);
-// //      console.table(reporting_arr_sweep_skip);
-//   }
+  if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
+
+     console.error(`Sweep skip ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_skip);
+  }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_combined.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_combined[idx]))) {
