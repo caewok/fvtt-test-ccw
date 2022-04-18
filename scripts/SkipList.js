@@ -18,9 +18,9 @@ class SkipNode {
     // need to first set the rng above so randomHeight can access it
     this.num_lvls = num_lvls ?? SkipNode.randomHeight(rng); // number of levels, including the 0 level
 
-    // Array holds pointers to next SkipNodes, 1 per array level
+    // Array holds pointers to next and previous SkipNodes, 1 per array level
     this.skipNext = Array(this.num_lvls);
-    this.prev = null; // Link to the previous item in the list at level 0
+    this.skipPrev = Array(this.num_lvls);
   }
 
  /**
@@ -30,6 +30,12 @@ class SkipNode {
   get next() { return this.skipNext[0]; }
 
  /**
+  * Immediately prior node.
+  * @type {SkipNode}
+  */
+  get prev() { return this.skipPrev[0]; }
+
+ /**
   * A special skip node that represents the head of the skip list.
   * Two special properties: value is -Infinity and has infinite height
   */
@@ -37,6 +43,7 @@ class SkipNode {
     const sentinel = new this(sentinel_value);
     sentinel.num_lvls = Number.POSITIVE_INFINITY;
     sentinel.skipNext.length = sentinel_value > 0 ? 0 : 1;
+    sentinel.skipPrev.length = sentinel_value < 0 ? 0 : 1;
     return sentinel;
   }
 
@@ -73,12 +80,11 @@ class SkipNode {
       return;
     }
 
+    existing.skipNext[h].skipPrev[h] = this;
+    this.skipPrev[h] = existing;
+
     this.skipNext[h] = existing.skipNext[h];
     existing.skipNext[h] = this;
-
-    if(h === 0) {
-      this.prev = existing;
-    }
   }
 
  /**
@@ -100,12 +106,60 @@ class SkipNode {
       return;
     }
 
-    if(h === 0) {
-      this.skipNext[0].prev = this.prev;
-      this.prev = null;
-    }
+    this.skipNext[h].skipPrev[h] = this.skipPrev[h];
+    this.skipPrev[h] = null;
+
     existing.skipNext[h] = this.skipNext[h];
     this.skipNext[h] = null;
+  }
+
+ /**
+  * Swap this node with another at a given level
+  * @param {SkipNode} other
+  * @param {Number}   h       Level for the swap
+  */
+  swap(other, h) {
+    if(h > this.num_levels) {
+      console.warn("This node only has ${this.num_levels} levels. Cannot swap at height ${h}.", this, other);
+      return;
+    }
+
+    if(h > other.num_levels) {
+      console.warn("Existing only has ${other.num_levels} levels. Cannot swap at height ${h}.", this, other);
+      return;
+    }
+
+    // other.skipNext, etc. may be undefined for a given level
+    if(this.skipNext[h] === other) {
+      // change prevH ... thisH ... otherH ... nextH
+      // to     prevH ... otherH ... thisH ... nextH
+      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this);
+      this.skipPrev[h]  && (this.skipPrev[h].skipNext[h] = other);
+
+      [other.skipPrev[h], this.skipPrev[h]] = [this.skipPrev[h], other];
+      [other.skipNext[h], this.skipNext[h]] = [this, other.skipNext[h]];
+
+    } else if(this.skipPrev[h] === other) {
+      // change prevH ... otherH ... thisH ... nextH
+      // to     prevH ... thisH ... otherH ... nextH
+      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
+      this.skipNext[h]  && (this.skipNext[h].skipPrev[h] = other);
+
+      [other.skipPrev[h], this.skipPrev[h]] = [this, other.skipPrev[h]];
+      [other.skipNext[h], this.skipNext[h]] = [this.skipNext[h], other];
+
+    } else {
+      // change prevH ... otherH ... nextH ... prevH ... thisH ... nextH or vice-versa
+      // to     prevH ... thisH ... nextH ... prevH ... otherH ... nextH or vice-versa
+      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
+      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this);
+
+      this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other);
+      this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other);
+
+      [other.skipPrev[h], this.skipPrev[h]] = [this.skipPrev[h], other.skipPrev[h]];
+      [other.skipNext[h], this.skipNext[h]] = [this.skipNext[h], other.skipNext[h]];
+    }
   }
 }
 
@@ -240,6 +294,22 @@ export class SkipList {
 
 
  /**
+  * Remove node from the skip list directly.
+  * Instead of searching the list, remove the nodes directly at each level
+  */
+  removeNode(node) {
+    let self = this;
+
+    for(let h = node.num_lvls - 1; h >= 0; h -= 1) {
+      node.removeAfter(node.skipPrev[h], h);
+    }
+
+    this._trimMaxLevel(); // not absolutely needed, but this prevents the skip height from being unnecessarily high
+    self._length -= 1;
+    if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove node: structure inconsistent.`, self, node); }
+  }
+
+ /**
   * Remove data from the skip list
   * @param {SkipNode} node
   */
@@ -265,9 +335,6 @@ export class SkipList {
     }
 
     this._trimMaxLevel(); // not absolutely needed, but this prevents the skip height from being unnecessarily high
-
-
-
     self._length -= 1;
     if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove: structure inconsistent.`, self, node); }
   }
@@ -286,8 +353,39 @@ export class SkipList {
     }
   }
 
+
  /**
-  * Swap two nodes
+  * Swap two nodes directly
+  */
+  swapNodes(node1, node2) {
+    let self = this;
+
+    // increase levels to match so links can be transferred
+    let max_lvl = Math.max(node1.num_lvls, node2.num_lvls);
+    node1.skipNext.length = max_lvl;
+    node2.skipNext.length = max_lvl;
+
+    node1.skipPrev.length = max_lvl;
+    node2.skipPrev.length = max_lvl;
+
+    for(let h = max_lvl - 1; h >= 0; h -= 1) {
+      node1.swap(node2, h);
+    }
+
+    // reset the skip array lengths to correspond to the correct height
+    [node1.num_lvls, node2.num_lvls] = [node2.num_lvls, node1.num_lvls]
+
+    node1.skipNext.length = node1.num_lvls;
+    node1.skipPrev.length = node1.num_lvls;
+
+    node2.skipNext.length = node2.num_lvls;
+    node2.skipPrev.length = node2.num_lvls;
+
+    if(game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after swap node: structure inconsistent.`, self, node1, node2); }
+  }
+
+ /**
+  * Swap two nodes based on data
   */
   swap(data1, data2) {
     let self = this;
@@ -441,12 +539,17 @@ export class SkipList {
 
       for(const node of iter0) {
         // check if the node's arrays are consistent with its indicated number of levels
-        if(node.skipNext.length !== node.num_lvls) {
+        if(node.skipNext.length !== node.num_lvls || node.skipPrev.length !== node.num_lvls) {
           console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}`, self.start, nH);
           okay = false;
         }
 
         if(!node.skipNext[0]) {
+          console.warn(`node has undefined skipNext for height 0`);
+          okay = false;
+        }
+
+        if(!node.skipPrev[0]) {
           console.warn(`node has undefined skipNext for height 0`);
           okay = false;
         }
@@ -458,6 +561,11 @@ export class SkipList {
         }
 
         if(!node.skipNext[h]) {
+          console.warn(`node has undefined skipNext for height ${h}`);
+          okay = false;
+        }
+
+        if(!node.skipPrev[h]) {
           console.warn(`node has undefined skipNext for height ${h}`);
           okay = false;
         }
@@ -524,7 +632,7 @@ sl.insert(20)
 sl.insert(15)
 sl.diagram()
 
-sl.remove(15)
+sl.removeNode(15)
 sl.diagram()
 
 // sl.swap works, but only once (messes up finding data) unless the comparison is adaptive
