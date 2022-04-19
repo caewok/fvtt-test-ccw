@@ -24,6 +24,9 @@ findIntersectionsSort2Single = api.findIntersectionsSort2Single;
 findIntersectionsSweepSingle = api.findIntersectionsSweepSingle;
 findIntersectionsSweepLinkedSingle = api.findIntersectionsSweepLinkedSingle;
 findIntersectionsSweepSkipListSingle = api.findIntersectionsSweepSkipListSingle;
+findIntersectionsSweepCombinedSwapSingle = api.findIntersectionsSweepCombinedSwapSingle;
+findIntersectionsSweepCombinedSkipSingle = api.findIntersectionsSweepCombinedSkipSingle;
+
 
 EventQueue = api.EventQueue;
 SegmentArray = api.SegmentArray;
@@ -245,7 +248,7 @@ for(i = 0; i < 100; i += 1) {
   findIntersectionsBruteSingle(segments, reportFnBrute)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
-//   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
+  findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
   findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 
   reporting_arr_brute.sort(compareXY)
@@ -307,21 +310,21 @@ for(let i = 0; i < num_segments_arr.length; i += 1) {
   console.log("No binary");
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Test binary");
   api.debug_binary = UseBinary.Test;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   console.log("Binary");
   api.debug_binary = UseBinary.Yes;
   await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-//   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
   api.debug_binary = UseBinary.Test;
@@ -1084,6 +1087,13 @@ test_strings.set("* with endpoint", str);
 str = '[{"A":{"x":1900,"y":1100},"B":{"x":2900,"y":2100}},{"A":{"x":1900,"y":2100},"B":{"x":2900,"y":1100}},{"A":{"x":1900,"y":1600},"B":{"x":2900,"y":1600}},{"A":{"x":2400,"y":1100},"B":{"x":2400,"y":2100}}]'
 test_strings.set("* with overlap", str);
 
+// Near asterix. > plus * on the right; shared endpoint at center
+str = '[{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":1100}},{"A":{"x":2400,"y":1600},"B":{"x":1900,"y":1100}},{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":2200}},{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":1900,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":2400,"y":2200}}]'
+test_strings.set("Near *", str);
+
+// evil near asterix. Like near asterix, but has intersecting lines on the right side.
+str = '[{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":1100}},{"A":{"x":2400,"y":1600},"B":{"x":1900,"y":1100}},{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":2200}},{"A":{"x":2400,"y":1600},"B":{"x":1900,"y":1600}},{"A":{"x":2400,"y":1600},"B":{"x":2400,"y":2200}},{"A":{"x":2312,"y":1300},"B":{"x":3325,"y":1237}},{"A":{"x":2475,"y":1925},"B":{"x":3350,"y":1862}},{"A":{"x":2637,"y":1687},"B":{"x":3087,"y":1400}},{"A":{"x":2400,"y":1600},"B":{"x":2900,"y":1600}},{"A":{"x":2712,"y":1437},"B":{"x":3262,"y":2100}}]'
+test_strings.set("Evil *", str);
 
 
 // Intersect at endpoint for two co-linear horizontal lines --
@@ -1120,6 +1130,14 @@ reportFnSweepCombined = (s1, s2, ix) => {
   reporting_arr_sweep_combined.push(ix);
 }
 
+reportFnSweepSwapCombined = (s1, s2, ix) => {
+  reporting_arr_sweep_swap_combined.push(ix);
+}
+
+reportFnSweepSkipCombined = (s1, s2, ix) => {
+  reporting_arr_sweep_skip_combined.push(ix);
+}
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
@@ -1128,6 +1146,9 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_link = []
   reporting_arr_sweep_skip = []
   reporting_arr_sweep_combined = []
+  reporting_arr_sweep_skip_combined = []
+  reporting_arr_sweep_swap_combined = [];
+
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
   canvas.controls.debug.clear()
@@ -1140,6 +1161,8 @@ for([key, str] of test_strings) {
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
   findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
+//   findIntersectionsSweepCombinedSwapSingle(segments, reportFnSweepSwapCombined)
+  findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
@@ -1147,6 +1170,8 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_link.sort(compareXY)
   reporting_arr_sweep_skip.sort(compareXY)
   reporting_arr_sweep_combined.sort(compareXY)
+//   reporting_arr_sweep_swap_combined.sort(compareXY)
+  reporting_arr_sweep_skip_combined.sort(compareXY)
 
   if(key === "* with endpoint") {
     console.log("For * with endpoint, brute is technically wrong. Should be 28 intersections.")
@@ -1155,6 +1180,8 @@ for([key, str] of test_strings) {
     if(reporting_arr_sweep.length === 28) { console.log("\tSweep has correct length.")}
     if(reporting_arr_sweep_skip.length === 28) { console.log("\tSweep skip has correct length.")}
     if(reporting_arr_sweep_combined.length === 28) { console.log("\tSweep combined has correct length.")}
+//     if(reporting_arr_sweep_swap_combined.length === 28) { console.log("\tSweep swap combined has correct length.")}
+    if(reporting_arr_sweep_skip_combined.length === 28) { console.log("\tSweep skip combined has correct length.")}
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
@@ -1195,6 +1222,22 @@ for([key, str] of test_strings) {
      console.error(`Sweep combined ≠ brute for ${key}`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_combined);
+  }
+
+//   if(reporting_arr_brute.length !== reporting_arr_sweep_swap_combined.length ||
+//      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_swap_combined[idx]))) {
+//
+//      console.error(`Sweep swap combined ≠ brute for ${key}`, )
+// //      console.table(reporting_arr_brute);
+// //      console.table(reporting_arr_sweep_swap_combined);
+//   }
+
+  if(reporting_arr_brute.length !== reporting_arr_sweep_skip_combined.length ||
+     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip_combined[idx]))) {
+
+     console.error(`Sweep skip combined ≠ brute for ${key}`, )
+//      console.table(reporting_arr_brute);
+//      console.table(reporting_arr_sweep_skip_combined);
   }
 }
 
