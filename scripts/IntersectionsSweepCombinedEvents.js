@@ -226,7 +226,7 @@ function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
 
     // check if intersection is in the past and thus already found
     // past meaning the sweep has already past the intersection
-    if(compareXY(sweep_pt, ix) >= 0 ) { return num_ixs } // intersection is in the past
+    if(compareXY(sweep_pt, ix) >= 0 ) { return num_ixs; } // intersection is in the past
 
     if(debug) {
       console.log(`\tIntersection found at ${ix.x},${ix.y}`);
@@ -527,7 +527,7 @@ class EventQueue extends PriorityQueueArray {
     }
 
     // if the next event is the same point and type, combine
-    const next = ~idx ? this.data[idx - 1] : this.data[this.data.length - 1]
+    const next = ~idx ? this.data[idx - 1] : this.data[this.data.length - 1];
     if(next && !EventQueue.eventCmp(event, next)) {
       next.add([...event.segments]);
     } else {

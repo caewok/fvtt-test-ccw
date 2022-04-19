@@ -6,13 +6,13 @@ foundry
 
 // Sweep algorithm but combine separate events where the points are equal
 
-import { compareXY } from "./utilities.js";
+import { compareXY, compareYX } from "./utilities.js";
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { MODULE_ID, UseBinary } from "./module.js";
 import { SkipList } from "./SkipList.js";
 import { binaryFindIndex } from "./BinarySearch.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
-import { EventType } from "./IntersectionsSweep.js";
+import { EventType, pointForSegmentGivenX } from "./IntersectionsSweep.js";
 
 
 export function findIntersectionsSweepCombinedSkipSingle(segments, reportFn = (e1, e2, ix) => {}) {
@@ -381,9 +381,9 @@ class EventQueue extends PriorityQueueArray {
 
 
 function segmentCompareLinkedGen() {
-  _sweep_x = 0;
+  let _sweep_x = 0;
   return {
-    sweep_x(value) { _sweep_x = value },
+    sweep_x(value) { _sweep_x = value; },
     segmentCompare(segment, elem) {
       if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
       segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
