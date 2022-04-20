@@ -11,7 +11,7 @@ import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { compareXY, compareYX } from "./utilities.js";
 import { binaryFindIndex } from "./BinarySearch.js";
-import { EventType, hashSegments, pointForSegmentGivenX } from "./IntersectionsSweep.js";
+
 
 
 export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2, ix) => {}) {
@@ -41,7 +41,7 @@ export function findIntersectionsSweepLinkedSingle(segments, reportFn = (e1, e2,
   while(curr = e.next()) {
 // console.table(tree.data, ["_id"])
 //     curr = e.next()
-    cmp.sweep_x = curr.point.x;
+    cmp.sweep_x(curr.point.x);
 
 
     if(debug) {
@@ -259,19 +259,33 @@ class LinkedEventQueue extends PriorityQueueArray {
 
 
 
-function segmentCompare(segment, elem) {
-  segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment.nw;
-  elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem.nw;
-  return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-     foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-     foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-}
+// function segmentCompare(segment, elem) {
+//   segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment.nw;
+//   elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem.nw;
+//   return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+//      foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+//      foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+// }
+//
+// function segmentCompareLinkedGen(segment, elem) {
+//   return {
+//     sweep_x: 0,
+//     segmentCompare
+//   };
+// }
 
-function segmentCompareLinkedGen(segment, elem) {
+function segmentCompareLinkedGen() {
+  let _sweep_x = 0;
   return {
-    sweep_x: 0,
-    segmentCompare
+    sweep_x(value) { _sweep_x = value; },
+    segmentCompare(segment, elem) {
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
+      segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
+      elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
+      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+    }
   };
 }
-
 

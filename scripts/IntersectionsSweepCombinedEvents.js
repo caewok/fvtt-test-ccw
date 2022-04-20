@@ -144,11 +144,11 @@ function handleIntersectionEvent(curr, e, tree, tracker, reportFn) {
   // and between lower segment and below (after the swap/reversal)
   if(below) {
     const bottom_segment = tree.atIndex(max_idx);
-    num_ixs += checkForIntersection(below, bottom_segment, e, tracker, curr.point);
+    num_ixs += checkForIntersection(below, bottom_segment, e, tracker, curr.point, { at_ix: true });
   }
   if(above) {
     const top_segment = tree.atIndex(min_idx);
-    num_ixs += checkForIntersection(above, top_segment, e, tracker, curr.point);
+    num_ixs += checkForIntersection(above, top_segment, e, tracker, curr.point, { at_ix: true });
   }
 
   return num_ixs;
@@ -210,7 +210,7 @@ function segmentIndexSpread(segmentSet, tree) {
 
 
 
-function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
+function checkForIntersection(s1, s2, e, tracker, sweep_pt, { at_ix = false } = {}) {
   const debug = game.modules.get(MODULE_ID).api.debug;
   let num_ixs = 0;
 //   const hash = hashSegments(s1, s2);
@@ -226,7 +226,10 @@ function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
 
     // check if intersection is in the past and thus already found
     // past meaning the sweep has already past the intersection
-    if(compareXY(sweep_pt, ix) >= 0 ) { return num_ixs; } // intersection is in the past
+    const cmp_res = compareXY(sweep_pt, ix);
+    if(cmp_res > 0 || (at_ix && cmp_res === 0)) { return num_ixs; } // intersection is in the past
+    // at_ix lets the parent function flag if sweep is testing at an intersection, in
+    // which case we should skip intersections found at that point.
 
     if(debug) {
       console.log(`\tIntersection found at ${ix.x},${ix.y}`);

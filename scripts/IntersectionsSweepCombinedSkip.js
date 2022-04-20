@@ -28,7 +28,11 @@ export function findIntersectionsSweepCombinedSkipSingle(segments, reportFn = (e
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let cmp = segmentCompareLinkedGen();
-  let ll = new SkipList(cmp.segmentCompare); // pretend this is actually a tree
+  let ll = new SkipList({ comparator: cmp.segmentCompare,
+    minObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
+                 B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }},
+    maxObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
+                 B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }}});
   let e = new EventQueue(segments);
 
   let num_ixs = 0; // mainly for testing
@@ -152,10 +156,10 @@ function handleIntersectionEvent(curr, e, ll, tracker, reportFn) {
   // check for intersection between the upper segment and above
   // and between lower segment and below (after the swap/reversal)
   if(below && !below.isSentinel) {
-    num_ixs += checkForIntersection(below.data, bottom.data, e, tracker, curr.point);
+    num_ixs += checkForIntersection(below.data, bottom.data, e, tracker, curr.point, { at_ix: true });
   }
   if(above && !above.isSentinel) {
-    num_ixs += checkForIntersection(above.data, top.data, e, tracker, curr.point);
+    num_ixs += checkForIntersection(above.data, top.data, e, tracker, curr.point, { at_ix: true });
   }
 
   return num_ixs;
@@ -249,7 +253,7 @@ function segmentSpread(segmentSet) {
 
 
 
-function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
+function checkForIntersection(s1, s2, e, tracker, sweep_pt, { at_ix = false } = {}) {
   const debug = game.modules.get(MODULE_ID).api.debug;
   let num_ixs = 0;
 //   const hash = hashSegments(s1, s2);
@@ -265,7 +269,10 @@ function checkForIntersection(s1, s2, e, tracker, sweep_pt) {
 
     // check if intersection is in the past and thus already found
     // past meaning the sweep has already past the intersection
-    if(compareXY(sweep_pt, ix) >= 0 ) { return num_ixs; } // intersection is in the past or we are at a shared endpoint
+    const cmp_res = compareXY(sweep_pt, ix);
+    if(cmp_res > 0 || (at_ix && cmp_res === 0)) { return num_ixs; } // intersection is in the past
+    // at_ix lets the parent function flag if sweep is testing at an intersection, in
+    // which case we should skip intersections found at that point.
 
     if(debug) {
       console.log(`\tIntersection found at ${ix.x},${ix.y}`);

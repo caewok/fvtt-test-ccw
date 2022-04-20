@@ -28,7 +28,11 @@ export function findIntersectionsSweepSkipListSingle(segments, reportFn = (e1, e
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let cmp = segmentCompareLinkedGen();
-  let ll = new SkipList(cmp.segmentCompare);
+  let ll = new SkipList({ comparator: cmp.segmentCompare,
+    minObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
+                 B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }},
+    maxObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
+                 B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }}});
 
   // push the left endpoints into the event queue
   // right endpoints left for later when encountering each left event
@@ -41,7 +45,7 @@ export function findIntersectionsSweepSkipListSingle(segments, reportFn = (e1, e
   while(curr = e.next()) {
 // console.table(tree.data, ["_id"])
 //     curr = e.next()
-    cmp.sweep_x = curr.point.x;
+    cmp.sweep_x(curr.point.x);
 
 
     if(debug) {
@@ -63,6 +67,7 @@ export function findIntersectionsSweepSkipListSingle(segments, reportFn = (e1, e
     }
 
     if(debug) { console.table(ll.inorder(), ["_id"]); }
+    if(debug) { console.table(e.data, ["eventType"]); }
   }
 
   return num_ixs;
@@ -187,12 +192,13 @@ function checkForIntersectionLinked(segment_node1, segment_node2, e, tracker) {
 
   const hash = hashSegments(s1, s2);
 //   const hash_rev = hashSegments(s2, s1);
-  if(!(tracker.has(hash)) &&
+  if(tracker.has(hash)) return num_ixs;
+
+  // TO-DO: Likely faster to handle the wall keys individually rather than apply lineLineIntersection
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key) ||
     foundry.utils.lineSegmentIntersects(s1.A, s1.B, s2.A, s2.B)) {
+
     num_ixs += 1;
-
-    // for testing
-
     const ix = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
     if(!ix) return num_ixs; // likely collinear lines
 
@@ -210,14 +216,7 @@ function checkForIntersectionLinked(segment_node1, segment_node2, e, tracker) {
 
     e.insert(event_ix);
     tracker.add(hash);
-//     tracker.add(hash_rev);
-  } else {
-    if(debug) {
-      const ix = foundry.utils.lineSegmentIntersection(s1.A, s1.B, s2.A, s2.B);
-      if(ix) { console.log(`Would have added duplicate ix event for ${ix.x},${ix.y}`); }
-    }
   }
-
   return num_ixs;
 }
 
@@ -263,18 +262,19 @@ class LinkedEventQueue extends PriorityQueueArray {
 
 
 
-function segmentCompare(segment, elem) {
-  segment._tmp_nw = pointForSegmentGivenX(segment, this.sweep_x) || segment.nw;
-  elem._tmp_nw = pointForSegmentGivenX(elem, this.sweep_x) || elem.nw;
-  return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-     foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-     foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-}
 
-function segmentCompareLinkedGen(segment, elem) {
+function segmentCompareLinkedGen() {
+  let _sweep_x = 0;
   return {
-    sweep_x: 0,
-    segmentCompare
+    sweep_x(value) { _sweep_x = value; },
+    segmentCompare(segment, elem) {
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
+      segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
+      elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
+      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+    }
   };
 }
 

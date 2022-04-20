@@ -296,36 +296,47 @@ segments = segments.map(s => {
 
 N = 100
 max_coord = Math.pow(2, 13)
-num_segments_arr = [10, 100, 200, 1000]
+num_segments_arr = [10, 100, 200, 1000, 2000, 5000]
 for(let i = 0; i < num_segments_arr.length; i += 1) {
 
   let num_segments = num_segments_arr[i]
   console.log(`\nNum Segments ${num_segments}`);
 
-  api.debug_binary = UseBinary.No;
+  let use_slow = num_segments < 201;
+
+
 
   await benchmarkLoopFn(N, applyFn, "brute", findIntersectionsBruteSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sort", findIntersectionsSortSingle, num_segments, max_coord);
 
-  console.log("No binary");
-  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
 
-  console.log("Test binary");
-  api.debug_binary = UseBinary.Test;
-  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
+  if(use_slow) {
+    console.log("No binary");
+    api.debug_binary = UseBinary.No;
+    await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep combined skip", findIntersectionsSweepCombinedSkipSingle, num_segments, max_coord);
+  }
+
+  if(use_slow) {
+    console.log("Test binary");
+    api.debug_binary = UseBinary.Test;
+    await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
+    await benchmarkLoopFn(N, applyFn, "sweep combined skip", findIntersectionsSweepCombinedSkipSingle, num_segments, max_coord);
+  }
 
   console.log("Binary");
   api.debug_binary = UseBinary.Yes;
-  await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
+  use_slow && await benchmarkLoopFn(N, applyFn, "sweep", findIntersectionsSweepSingle, num_segments, max_coord);
+  use_slow && await benchmarkLoopFn(N, applyFn, "sweep linked", findIntersectionsSweepLinkedSingle, num_segments, max_coord);
   await benchmarkLoopFn(N, applyFn, "sweep skip", findIntersectionsSweepSkipListSingle, num_segments, max_coord);
-  await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
+  use_slow && await benchmarkLoopFn(N, applyFn, "sweep combined", findIntersectionsSweepCombinedSingle, num_segments, max_coord);
+  use_slow && await benchmarkLoopFn(N, applyFn, "sweep combined skip", findIntersectionsSweepCombinedSkipSingle, num_segments, max_coord);
 
   api.debug_binary = UseBinary.Test;
 }
@@ -1164,6 +1175,13 @@ for([key, str] of test_strings) {
 //   findIntersectionsSweepCombinedSwapSingle(segments, reportFnSweepSwapCombined)
   findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
 
+  // for a shared endpoint where the two lines are co-linear, brute will
+  // not report an intersection but sweep will.
+  if(key === "* with endpoint" || key === "Near *" || key === "Evil *") {
+    reporting_arr_brute.push(reporting_arr_brute[0], reporting_arr_brute[0]);
+    reporting_arr_sort.push(reporting_arr_sort[0], reporting_arr_sort[0]);
+  }
+
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
@@ -1173,71 +1191,75 @@ for([key, str] of test_strings) {
 //   reporting_arr_sweep_swap_combined.sort(compareXY)
   reporting_arr_sweep_skip_combined.sort(compareXY)
 
-  if(key === "* with endpoint") {
-    console.log("For * with endpoint, brute is technically wrong. Should be 28 intersections.")
-    if(reporting_arr_brute.length === 28) { console.log("\tBrute has correct length.")}
-    if(reporting_arr_sort.length === 28) { console.log("\tSort has correct length.")}
-    if(reporting_arr_sweep.length === 28) { console.log("\tSweep has correct length.")}
-    if(reporting_arr_sweep_skip.length === 28) { console.log("\tSweep skip has correct length.")}
-    if(reporting_arr_sweep_combined.length === 28) { console.log("\tSweep combined has correct length.")}
-//     if(reporting_arr_sweep_swap_combined.length === 28) { console.log("\tSweep swap combined has correct length.")}
-    if(reporting_arr_sweep_skip_combined.length === 28) { console.log("\tSweep skip combined has correct length.")}
-  }
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
 
-     console.error(`Sort ≠ brute for ${key}`, )
+     console.error(`\tx Sort`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sort);
+  } else {
+     console.log(`\t√ Sort`)
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep[idx]))) {
 
-     console.error(`Sweep ≠ brute for ${key}`, )
+     console.error(`\tx Sweep`, )
     //  console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep);
+  } else {
+     console.log(`\t√ Sweep`)
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_link.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_link[idx]))) {
 
-     console.error(`Sweep link ≠ brute for ${key}`, )
+     console.error(`\tx Sweep link`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_link);
+  } else {
+     console.log(`\t√ Sweep link`)
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_skip.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip[idx]))) {
 
-     console.error(`Sweep skip ≠ brute for ${key}`, )
+     console.error(`\tx Sweep skip`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_skip);
+  } else {
+     console.log(`\t√ Sweep skip`)
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_combined.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_combined[idx]))) {
 
-     console.error(`Sweep combined ≠ brute for ${key}`, )
+     console.error(`\tx Sweep combined`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_combined);
+  } else {
+     console.log(`\t√ Sweep combined`)
   }
 
 //   if(reporting_arr_brute.length !== reporting_arr_sweep_swap_combined.length ||
 //      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_swap_combined[idx]))) {
 //
-//      console.error(`Sweep swap combined ≠ brute for ${key}`, )
+//      console.error(`\tx Sweep swap combined`, )
 // //      console.table(reporting_arr_brute);
 // //      console.table(reporting_arr_sweep_swap_combined);
+//   } else {
+//      console.log(`\t√ Sweep swap combined`)
 //   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep_skip_combined.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_skip_combined[idx]))) {
 
-     console.error(`Sweep skip combined ≠ brute for ${key}`, )
+     console.error(`\tx Sweep skip combined`, )
 //      console.table(reporting_arr_brute);
 //      console.table(reporting_arr_sweep_skip_combined);
+  } else {
+     console.log(`\t√ Sweep skip combined`)
   }
 }
 

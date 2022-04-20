@@ -164,52 +164,21 @@ class SkipNode {
 }
 
 export class SkipList {
-  constructor(comparator = (a, b) => a - b, { seed = Math.random.toString() } = {}) {
+  constructor({ comparator = (a, b) => a - b,
+                minObject = Number.NEGATIVE_INFINITY,
+                maxObject = Number.POSITIVE_INFINITY,
+                seed = Math.random.toString() } = {}) {
     // build a seedable random generator, primarily for debugging
     const rng_seed = xmur3(seed);
     this.rng = mulberry32(rng_seed());
 
     this._length = 0; // track length mostly for debugging
-    this.start = SkipNode.newSentinel(Number.NEGATIVE_INFINITY); // sentinels don't really need the seeded rng
-    this.end = SkipNode.newSentinel(Number.POSITIVE_INFINITY);
+    this.start = SkipNode.newSentinel(minObject); // sentinels don't really need the seeded rng
+    this.end = SkipNode.newSentinel(maxObject);
     this.start.skipNext[0] = this.end;
 
     this.comparator = comparator;
     this.max_lvls = 1;
-  }
-
- /**
-  * Helper to handle comparisons with sentinels.
-  * We cannot ensure this.comparator can handle sentinels, because node.data
-  * might not be numeric. So handle separately
-  * @param {Object} a   Data for the a node
-  * @param {Object} b   Data for the b node
-  * @return {Number} Like with Array.sort, < 0 if a before b; > 0 if b before a
-  */
-  _cmp(a, b) {
-    // a is ∞: b, a
-    // a is ⧞: a, b
-    // b is ∞: a, b
-    // b is ⧞: b, a
-
-    // do the likely cases first; we are not always comparing sentinels
-    if(isNaN(a) && isNaN(b)) return this.comparator(a, b);
-    if(isFinite(a) && isFinite(b)) return this.comparator(a, b);
-
-    if(a === Number.POSITIVE_INFINITY) {
-      return b === Number.POSITIVE_INFINITY ? 0 : Number.POSITIVE_INFINITY; // b, a
-    } else if(a === Number.NEGATIVE_INFINITY) {
-      return b === Number.NEGATIVE_INFINITY ? 0 : Number.NEGATIVE_INFINITY; // a, b
-    } else if(b === Number.POSITIVE_INFINITY) {
-      // already checked above if a and b are both ∞
-      return Number.NEGATIVE_INFINITY; // a, b
-    } else if(b === Number.NEGATIVE_INFINITY) {
-       // already checked above if a and b are both ⧞
-       return Number.POSITIVE_INFINITY; // b, a
-    }
-
-    // should be unreachable
-    return this.comparator(a, b);
   }
 
  /**
@@ -275,13 +244,13 @@ export class SkipList {
     let curr = self.start;
     let level_nodes = Array(self.max_lvls);
     for(let h = self.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = self._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
+      let cmp_res = self.comparator(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
       let max_iterations = 10_000;
       let iter = 0;
       while(cmp_res < 0 && iter < max_iterations) {
         iter += 1;
         curr = curr.skipNext[h];
-        cmp_res = self._cmp(curr.skipNext[h].data, data);
+        cmp_res = self.comparator(curr.skipNext[h].data, data);
       }
       if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
 
@@ -324,7 +293,7 @@ export class SkipList {
 
     // we have found the node corresponding to data.
     let node = level_nodes[0].skipNext[0];
-    if(self._cmp(node.data, data)) {
+    if(self.comparator(node.data, data)) {
       console.warn("Node to remove does not contain data to remove", data, node);
       return;
     }
@@ -396,7 +365,7 @@ export class SkipList {
     // remove node1
     let level_nodes1 = self._walkList(data1);
     let node1 = level_nodes1[0].skipNext[0];
-    if(self._cmp(node1.data, data1)) {
+    if(self.comparator(node1.data, data1)) {
       console.warn("Node to remove does not contain data to swap", data1, node1);
       return;
     }
@@ -407,7 +376,7 @@ export class SkipList {
     // remove node2
     let level_nodes2 = self._walkList(data2);
     let node2 = level_nodes2[0].skipNext[0];
-    if(self._cmp(node2.data, data2)) {
+    if(self.comparator(node2.data, data2)) {
       console.warn("Node to remove does not contain data to swap", data2, node2);
       return;
     }
@@ -437,13 +406,13 @@ export class SkipList {
   findPrevNode(data) {
     let curr = this.start;
     for(let h = this.max_lvls - 1; h >= 0; h -= 1) {
-      let cmp_res = this._cmp(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
+      let cmp_res = this.comparator(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
       let max_iterations = 10_000;
       let iter = 0;
       while(cmp_res < 0 && iter < max_iterations) {
         iter += 1;
         curr = curr.skipNext[h];
-        cmp_res = this._cmp(curr.skipNext[h].data, data);
+        cmp_res = this.comparator(curr.skipNext[h].data, data);
       }
       if(iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
     }
@@ -460,7 +429,7 @@ export class SkipList {
   search(data) {
     const prev_node = this.findPrevNode(data);
     const node = prev_node.skipNext[0];
-    return this._cmp(data, node.data) ? undefined : node;
+    return this.comparator(data, node.data) ? undefined : node;
   }
 
 
