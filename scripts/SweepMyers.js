@@ -44,7 +44,7 @@ function SweepMeyers(segments, reportFn = (e1, e2, ix) => {}) {
   let ln = EVENT.length;
   for(let i = 0; i < ln; i += 1) {
     let sweep_x = EVENT[i];
-    if(debug) { console.log(`${i}: Event ${sweep_x}`); }
+    if(debug) { console.log(`Event x(${i}) = ${sweep_x}`); }
 
     xot.sweep_x = sweep_x;
     if(debug) {
@@ -53,15 +53,17 @@ function SweepMeyers(segments, reportFn = (e1, e2, ix) => {}) {
 
     // 4A
     // Add segments in BEG(i) and list their start point ix
+    if(debug) console.table(BEG[i], ["_id", "_node", "_work", "_work_i"])
+
     for(let e of BEG[i]) {
       e._node = xot.insert(e);
       if(debug) {
-        console.log(`\tAdding ${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`);
-        drawEdge(s);
+        console.log(`\tAdding ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
+        drawEdge(e);
       }
 
-      let f = e._node.next; // Below(e)
-      if(!f.isSentinel) {
+      let f = e._node.next.isSentinel ? undefined : e._node.next.data; // Below(e)
+      if(f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
       }
@@ -71,6 +73,7 @@ function SweepMeyers(segments, reportFn = (e1, e2, ix) => {}) {
 
     // 4B
     // Find all intersections with segments in VERT(i)
+    if(debug) console.table(VERT[i], ["_id", "_node", "_work", "_work_i"])
     for(let e of VERT[i]) {
       e._node = xot.insert(s);
       report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
@@ -82,11 +85,13 @@ function SweepMeyers(segments, reportFn = (e1, e2, ix) => {}) {
 
     // 4C
     // Delete segments in END(i)
+    if(debug) console.table(END[i], ["_id", "_node", "_work", "_work_i"])
     for(let e of END[i]) {
-      let f = e._node.next; // Below(e)
+      let f = e._node.next.isSentinel ? undefined : e._node.next.data; // Below(e)
+
       xot.removeNode(e._node); // Delete(e)
       remove(e._work, WORK);
-      if(!f.isSentinel) {
+      if(f) {
         xot.removeNode(f);
         enter(f, WORK, EVENT);
       }
@@ -94,21 +99,32 @@ function SweepMeyers(segments, reportFn = (e1, e2, ix) => {}) {
 
     // 4D
     // Find all "event exchange" intersections in [xi, xi+1]
-    while(WORK.length > 0) {
-      let e = WORK.pop();
-      console.log("e and above(e) intersect");
-      let g = e._node.prev; // Above(e)
+    let iter = 0;
+    let max_iter = 1_000
+    if(debug) { console.table(WORK[i].inorder(), ["_id"])}
+    while(WORK[i].length > 0 && iter < max_iter) {
+      iter += 1;
+      let e = WORK[i].pop();
+      //let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
+      let g = e._node.prev.data; // Above(e)
       let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-      if(ix) { reportFn(e, g, ix); }
-      let f = e._node.next; // Below(e)
-      xot.swap(e._node, g._node); // xot.swap(e) // exchange e with above(e)
-      remove(e.prev, WORK);
-      if(!f.isSentinel) {
+      if(ix) {
+        console.log(`${e._id} (e) and ${g._id} (above(e)) intersect at ${ix.x},${ix.y}`);
+        reportFn(e, g, ix);
+      }
+
+      let f = e._node.next.isSentinel ? undefined : e._node.next.data; // Below(e)
+      xot.swapNodes(e._node, g._node); // xot.swap(e) // exchange e with above(e)
+
+      remove(e._node.prev.data, WORK);
+      if(f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
       }
       enter(e, WORK, EVENT);
     }
+
+    if(iter >= max_iter) { console.warn("Max iterations reached."); }
 
     if(debug) { xot.log(); console.table(WORK); }
   }
@@ -127,15 +143,15 @@ function report(e, sweep_x, reportFn, cond) {
 }
 
 function _reportDirection(e, sweep_x, reportFn, cond, dir) {
-  let g = e._node[dir];  // below e
-  while(!g.isSentinel) {
+  let g = e._node[dir].isSentinel ? undefined : e._node[dir].data; // Below(e) or Above(e)
+  while(g) {
     yg = pointForSegmentGivenX(g, sweep_x).y;
     if(cond(yg, e.nw.y, e.se.y)) { break; }
 
     console.log("e and g intersect", e, g);
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
     if(ix) { reportFn(e, g, ix); }
-    g = g._node[dir];
+    g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
 }
 
@@ -191,18 +207,19 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
 
 
 function enter(e, WORK, EVENT) {
-  let g = e._node.prev; // Above(e)
+  let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
 
   // e greater than g at x where x is minimum of e.se.x or g.se.x?
   // see p. 628. 1.3. e @ xi < f @ xi and e @ xi+1 > f @ x+1 or
   // f @ xi < e @ xi and f @ xi+1 > e @ xi+1
 
 
-  if(!g.isSentinel &&
-     ((e.nw.x > g.nw.x && e.se.x < g.se.x) ||
-      (e.nw.x < g.nw.x && e.se.x > g.se.x))) {
+  if(g &&
+     ((e.nw.y > g.nw.y && e.se.y < g.se.y) ||
+      (e.nw.y < g.nw.y && e.se.y > g.se.y))) {
     let i = hash(e, g, EVENT);
     if(~i) {
+      console.log(`Adding to WORK ${i}.`, e);
       e._work = WORK[i].push(e);
       e._work_i = i;
     }
@@ -211,6 +228,7 @@ function enter(e, WORK, EVENT) {
 
 function remove(e, WORK) {
   if(!e._work) return;
+  console.log(`Removing from WORK ${e._work_i}.`, e);
   WORK[e._work_i].removeNode(e._work);
   e.work_i = undefined;
   e._work = undefined;
@@ -272,13 +290,17 @@ function intersectX(a, b, c, d) {
 function constructLists(segments) {
   const aux = [];
   segments.forEach(s => {
+    // for debugging
+    s._work = undefined;
+    s._work_i = undefined;
+    s._node = undefined;
     if(s.A.x === s.B.x) {
       // vertical segment
       const tuple = {
         segment: s,
         start_x: s.nw.x,
         type: 1,
-        neg_start_y: -s.nw.y
+        start_y: s.nw.y
       };
 
       aux.push(tuple);
@@ -288,14 +310,14 @@ function constructLists(segments) {
         segment: s,
         start_x: s.nw.x,
         type: 0,
-        neg_start_y: -s.nw.y
+        start_y: s.nw.y
       };
 
       const tuple2 = {
         segment: s,
         start_x: s.se.x,
         type: 2,
-        neg_start_y: -s.nw.y
+        start_y: s.se.y
       };
 
       aux.push(tuple1, tuple2);
@@ -339,19 +361,24 @@ function constructLists(segments) {
 function cmpAuxList(a, b) {
   return a.start_x - b.start_x ||
          a.type - b.type ||
-         a.neg_start_y - b.neg_start_y;
+         a.start_y - b.start_y;
 }
 
 class XOT extends SkipList {
   constructor() {
-    const min_seg = { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
-                        B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }};
-    const max_seg = { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
-                        B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }};
+    let min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                        B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER }};
+    let max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                        B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER }};
 
-    super({ min_seg, max_seg });
+    min_seg.nw = min_seg.A;
+    min_seg.se = min_seg.B;
+    max_seg.nw = max_seg.A;
+    max_seg.se = max_seg.B;
+
+    super({ minObject: min_seg, maxObject: max_seg });
     this.comparator = this.xOrder;
-    this._sweep_x = Number.NEGATIVE_INFINITY;
+    this._sweep_x = Number.MIN_SAFE_INTEGER;
   }
 
   get sweep_x() { return this._sweep_x; }
@@ -363,7 +390,7 @@ class XOT extends SkipList {
     console.table(this.inorder().map(s => {
       return {
         id: s._id,
-        segment: `${s.segment.nw.x},${s.segment.nw.y}|${s.segment.se.x},${s.segment.se.y}`,
+        segment: `${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`,
       };
     }), ["id", "segment"]);
   }
