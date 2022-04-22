@@ -33,8 +33,6 @@ export function binaryFindIndex(arr, comparator) {
   // so, e.g, [F,F,F, T, T, T, T]
   // progressively check until we have no items left.
 
-
-
   // Iterate, halving the search each time we find a true value
   let last_true_index = -1;
   while (start <= end){
@@ -63,7 +61,7 @@ export function binaryFindIndex(arr, comparator) {
  * Comparable to Array.indexOf, but in O(log(n)) time.
  * @param {Object[]} arr    Array to search
  * @param {Object} obj      Object to find.
- * @param {Function} cmpFn  Comparaison function to call.
+ * @param {Function} cmpFn  Comparison function to call.
  *                          Like Array.sort, and in fact must return results
  *                          just like the function used to sort the array.
  * @return {number|-1}      Index of the object found or -1 if not found.
@@ -82,7 +80,7 @@ export function binaryIndexOf(arr, obj, cmpFn) {
   // iterate, halving the search each time
   while (start <= end) {
     let mid = Math.floor((start + end) / 2);
-    let res = cmpFn(obj, arr[mid]);
+    let res = cmpFn(obj, arr[mid], mid);
     if(!res) return mid;
 
     if(res > 0) {
@@ -94,3 +92,99 @@ export function binaryIndexOf(arr, obj, cmpFn) {
 
   return -1;
 }
+
+
+/**
+ * Find the index of an object in a sorted array that is approximately
+ * uniformly distributed.
+ * Probably O(log(log(n))) but can take up to O(n).
+ * @param {Object[]} arr    Array to search
+ * @param {Object} obj      Object to find.
+ * @param {Function} valuationFn  How to value each object in the array.
+ *                                Must be ordered comparable to the sort
+ * @return {number|-1}      Index of the object found or -1 if not found.
+ *
+ * Example:
+ * cmpNum = (a, b) => a - b;
+ * arr = [0,1,2,3,4,5,6,7]
+ * arr.sort(cmpNum)
+ * interpolationIndexOf(arr, 2)
+ * arr.indexOf(2)
+ */
+export function interpolationIndexOf(arr, obj, valuationFn = (a) => a) {
+  let start = 0;
+  let end = arr.length - 1;
+  let position = -1;
+  let delta = -1;
+  let target = valuationFn(obj);
+  while(start <= end) {
+    const v_start = valuationFn(arr[start]);
+    const v_end   = valuationFn(arr[end]);
+    if(target < v_start || target > v_end) { break; }
+
+    delta = (target - v_start) / (v_end - v_start);
+    position = start + Math.floor((end - start) * delta);
+    const v_position = valuationFn(arr[position]);
+
+    if(v_position === target) {
+      return position;
+    }
+
+    if(v_position < target) {
+      start = position + 1;
+    } else {
+      end = position - 1;
+    }
+  }
+
+  return -1;
+}
+
+
+/**
+ * Find the index of an object that is less than but nearest value in a sorted array,
+ * where the values in the array are approximately uniformly distributed.
+ * Probably O(log(log(n))) but can take up to O(n).
+ * @param {Object[]} arr    Array to search
+ * @param {Object} obj      Object to find.
+ * @param {Function} valuationFn  How to value each object in the array.
+ *                                Must be ordered comparable to the sort
+ * @return {number|-1}      Index of the object found or -1 if not found.
+ * Example:
+ * cmpNum = (a, b) => a - b;
+ * arr = [0,1,2,3,4,5,6,7]
+ * arr.sort(cmpNum)
+ * interpolationFindIndexBefore(arr, 2.5)
+ */
+ export function interpolationFindIndexBefore(arr, obj, valuationFn = (a) => a) {
+  let start = 0;
+  let end = arr.length - 1;
+  let position = -1;
+  let delta = -1;
+  let target = valuationFn(obj);
+  while(start <= end) {
+    let v_start = valuationFn(arr[start]);
+    let v_end   = valuationFn(arr[end]);
+    if(target > v_end) { return end; }
+    if(target < v_start) { return -1; }
+
+    delta = (target - v_start) / (v_end - v_start);
+    position = start + Math.floor((end - start) * delta);
+    if(position === end) { position -= 1; }
+    let v_position = valuationFn(arr[position]);
+    if(v_position === target) { return position; }
+
+    let v1_position = valuationFn(arr[position + 1]);
+    if(v1_position === target) { return v1_position; }
+    if(v_position < target) {
+      if(target < v1_position) { return v_position; }
+      start = position + 1;
+    } else {
+      end = position - 1;
+    }
+  }
+
+  return -1;
+}
+
+
