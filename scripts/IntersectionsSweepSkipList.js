@@ -9,7 +9,7 @@ import { MODULE_ID, UseBinary } from "./module.js";
 import { SkipList } from "./SkipList.js";
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
-import { compareXY, compareYX } from "./utilities.js";
+import { compareXY, compareYX, pointsEqual } from "./utilities.js";
 import { binaryFindIndex } from "./BinarySearch.js";
 import { EventType, hashSegments, pointForSegmentGivenX } from "./IntersectionsSweep.js";
 
@@ -261,21 +261,71 @@ class LinkedEventQueue extends PriorityQueueArray {
 }
 
 
-
-
 function segmentCompareLinkedGen() {
-  let _sweep_x = 0;
+  let _sweep = { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY };
   return {
-    sweep_x(value) { _sweep_x = value; },
+    sweep(value) { _sweep = value; },
     segmentCompare(segment, elem) {
-      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
-      segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
-      elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
-      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+      // if both are colinear, they share an underlying line; return 0
+      let abc = foundry.utils.orient2dFast(segment.nw, segment.se, elem.nw);
+      let abd = foundry.utils.orient2dFast(segment.nw, segment.se, elem.se);
+      if(abc === 0 && abd === 0) return 0;
+
+      if((segment.nw.x - segment.se.x).almostEqual(0)) {
+        // segment is vertical, elem is not
+        // segment is before elem if sweep is below the intersection
+        // of the vertical sweep line with elem
+        // i.e., the sweep point is oriented below elem (cw)
+        let cds = foundry.utils.orient2dFast(elem.nw, elem.se, _sweep);
+        // if cds === 0, is it -1, 0, or 1?
+        if(cds === 0) console.warn("segmentCompare: segment vertical; elem orientation to sweep is 0", segment, elem, _sweep);
+        return -cds;
+
+      } else if((elem.nw.x - elem.se.x).almostEqual(0)) {
+        // elem is vertical, segment is not
+        // segment is before elem if intersection of the vertical sweep line
+        // with segment is not above sweep (ccw)
+        let abs = foundry.utils.orient2dFast(segment.nw, segment.se, _sweep);
+        if(abs === 0) console.warn("segmentCompare: elem vertical; segment orientation to sweep is 0", segment, elem, _sweep);
+        return abs;
+      } else {
+        // neither are vertical.
+        // compare intersection point of segment and element with the vertical sweep line
+        let ix_segment = pointForSegmentGivenX(segment, _sweep.x);
+        let ix_elem = pointForSegmentGivenX(elem, _sweep.x);
+
+        let diff_y = ix_segment.y - ix_elem.y;
+        if((diff_y).almostEqual(0)) {
+          // if identical intersection (recall x is already the same):
+          // - if not above sweep, s1 is before s2 if s1 has smaller slope
+          // - if above sweep, s1 is before s2 if s1 has the larger slope
+          return (ix_segment.y - _sweep.y) > 0 ? abd : -abd;
+
+        } else {
+          // if the intersections of segment and elem with the vertical sweep line
+          // are different, segment is before elem if segment ix is below elem ix.
+          return diff_y;
+        }
+      }
     }
   };
 }
+
+
+
+// function segmentCompareLinkedGen() {
+//   let _sweep_x = 0;
+//   return {
+//     sweep_x(value) { _sweep_x = value; },
+//     segmentCompare(segment, elem) {
+//       if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
+//       segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
+//       elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
+//       return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+//          foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+//          foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+//     }
+//   };
+// }
 
 

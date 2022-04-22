@@ -6,7 +6,7 @@ foundry,
 */
 
 import { MODULE_ID, UseBinary } from "./module.js";
-import { OrderedDoubleLinkedList } from "./DoubleLinkedList.js";
+import { OrderedDoubleLinkedList } from "./OrderedDoubleLinkedList.js";
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { compareXY, compareYX } from "./utilities.js";

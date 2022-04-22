@@ -39,6 +39,7 @@ pointForSegmentGivenX = api.pointForSegmentGivenX;
 EventType = api.EventType;
 hashSegments = api.hashSegments;
 OrderedDoubleLinkedList = api.OrderedDoubleLinkedList;
+DoubleLinkedList = api.DoubleLinkedList;
 findIntersectionsSweepCombinedSingle = api.findIntersectionsSweepCombinedSingle
 
 
