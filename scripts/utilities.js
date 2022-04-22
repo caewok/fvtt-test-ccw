@@ -168,4 +168,7 @@ export function lineBlocksPoint(a, b, p, o) {
    return (foundry.utils.orient2dFast(a, b, p) * foundry.utils.orient2dFast(a, b, o)) < 0;
 }
 
+export function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)) }
+
+
 
