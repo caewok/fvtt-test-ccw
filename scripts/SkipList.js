@@ -398,6 +398,34 @@ export class SkipList {
   }
 
  /**
+  * Reverse a span of nodes.
+  * Between start and end. Use outside-in swaps to reverse.
+  */
+  reverseNodes(start_node, end_node) {
+    let self = this;
+
+    if(self.comparator(start_node.data, end_node.data) > 0) {
+      console.error("reverseNodes: start_node is after end_node.", start_node, end_node);
+      return;
+    }
+
+    // Build an array of nodes to reverse before starting the swaps
+    nodes_to_reverse = [start_node];
+    let next_node = start_node.next;
+    while(next_node !== end_node && !next_node.isSentinel) {
+      nodes_to_reverse.push(next_node);
+      next_node = next_node.next;
+    }
+
+    // outside-in swaps of the nodes.
+    // if nodes are [2,3, 4, 5, 6] ==> [6, 3, 4, 5, 2] => [6, 5, 4, 3, 2]
+    let ln = nodes_to_reverse.length;
+    for(let i = 0, j = ln - 1; i < ln; i += 1, j -= 1) {
+      self.swapNodes(nodes_to_reverse[i], nodes_to_reverse[j]);
+    }
+  }
+
+ /**
   * Find the node immediately prior to where the data would go in the list.
   * Approximately O(log(n)) to search.
   * @param {Object} data   Data to test for position.
