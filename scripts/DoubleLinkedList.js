@@ -1,6 +1,4 @@
 // Double Linked List
-// Used in particular for Bentley Ottoman Sweep, to
-// easily find the predecessor and successor to a given segment
 
 class LLNode {
   constructor(data) {
@@ -8,274 +6,85 @@ class LLNode {
     this.prev = null;
     this.next = null;
   }
-
- /**
-  * Add this node before an existing node.
-  * @param {LLNode} existing
-  */
-  insertBefore(existing) {
-    // change prev -- existing -- next
-    // to     prev -- node -- existing -- next
-    this.prev = existing.prev;
-    existing.prev && (existing.prev.next = this); // only assign if existing.prev exists
-    existing.prev = this;
-    this.next = existing;
-  }
-
- /**
-  * Add this node after an existing node.
-  * @param {LLNode} existing
-  */
-  insertAfter(existing) {
-    // change prev -- other -- next
-    // to     prev -- other -- node -- next
-    this.next = existing.next;
-    existing.next && (existing.next.prev = this); // only assign if existing.next exists
-    existing.next = this;
-    this.prev = existing;
-  }
-
- /**
-  * Remove this node and relink adjacent nodes as necessary.
-  */
-  remove() {
-    this.prev && (this.prev.next = this.next); // only assign if this.prev exists
-    this.next && (this.next.prev = this.prev); // only assign if this.next exists
-
-    // maybe not strictly necessary to wipe clean, but helpful in debugging
-    this.prev = null;
-    this.next = null;
-    this.data = undefined;
-  }
-
- /**
-  * Swap this node with another.
-  * @param {LLNode} other
-  */
-  swap(other) {
-    if(this === other) {
-      console.warn("Attempted to swap node with itself", other);
-      return;
-    }
-
-    // Swap the loopback links.
-    // e.g. this.prev --> prev --> prev.next --> this
-    // to   this.prev --> prev --> prev.next --> other
-    // And swap the links for this and other
-    if(this.prev === other) {
-      // prev -- other -- this -- next
-      other.prev && (other.prev.next = this);
-      this.next && (this.next.prev = other);
-      [this.prev, other.next] = [other.prev, this.next];
-      [this.next, other.prev] = [other, this];
-
-    } else if(this.next === other) {
-      // prev -- this -- other -- next
-      this.prev && (this.prev.next = other);
-      other.next && (other.next.prev = this);
-      [this.next, other.prev] = [other.next, this.prev];
-      [this.prev, other.next] = [other, this];
-
-    } else {
-      // prev -- this -- next ... prev -- other -- next or
-      // prev -- other -- next ... prev -- this -- next
-      this.prev && (this.prev.next = other);
-      this.next && (this.next.prev = other);
-      other.prev && (other.prev.next = this);
-      other.next && (other.next.prev = this);
-
-      [this.prev, other.prev] = [other.prev, this.prev];
-      [this.next, other.next] = [other.next, this.next];
-    }
-  }
 }
 
-export class OrderedDoubleLinkedList {
-  constructor(comparator = (a, b) => a - b) {
-    this._length = 0; // track length mostly for debugging
-    this.start = null;
-    this.end = null;
-    this.comparator = comparator;
+
+export class DoubleLinkedList {
+  constructor() {
+    this.head = null;
+    this.tail = null;
+    this.length = 0;
   }
 
- /**
-  * @prop {number}
-  */
-  get length() { return this._length; }
-
- /**
-  * Insert an object into the linked list.
-  * @param {Object} data  Object to insert into the list.
-  *                       Must be comparable using the comparator.
-  * @return {LLNode} Object containing the stored data, which can be used to walk the list
-  */
-  insert(data) {
-    const node = new LLNode(data);
-    this._length += 1;
-
-    // Base case
-    if(!this.start) {
-      this.start = node;
-      this.end = node;
-      this._length = 1; // just in case
-      return node;
+  inorder() {
+    const out = [];
+    let curr = this.head;
+    for(let i = 0; i < this.length; i += 1) {
+      out.push(curr.data);
+      curr = curr.next;
     }
+    return out;
+  }
 
-    // find the correct position in the list for data
-    // walk from start. If segment is after the current position, keep walking.
-    const { existing, after} = this.findNextNode(data);
-
-    if(after) {
-      // at the end of the list: existing -- node -- end
-      node.insertAfter(existing);
-      this.end = node;
+  push(data) {
+    const node = new LLNode(data);
+    if(this.length === 0) {
+      this.head = node;
+      this.tail = node;
 
     } else {
-      // change prev -- existing -- next
-      // to     prev -- node -- existing -- next
-      existing.prev || (this.start = node); // if nothing before existing, existing must be start
-      node.insertBefore(existing);
+      this.tail.next = node;
+      node.prev = this.tail;
+      this.tail = node;
     }
-
+    this.length += 1;
     return node;
   }
 
- /**
-  * Remove an object from the linked list
-  * @param {LLNode} node  Node to remove
-  */
-  remove(node) {
-    if(!this.start || this._length < 1) { return; } // list is empty
-
-    // update start and end if node is either
-    this.start !== node || (this.start = node.next);
-    this.end !== node || (this.end = node.prev);
-
-    node.remove();
-    this._length -= 1;
+  pop() {
+    const out = this.tail;
+    this.tail = out.prev;
+    this.tail.next = null;
+    this.length -= 1;
+    return out.data;
   }
 
- /**
-  * Helper to remove data directly by doing a linear search for a node.
-  * @param {Object}   data  Date to search
-  */
-  removeData(data) {
-    const node = this.search(data);
-    node && this.remove(node);
-  }
-
- /**
-  * Find the node immediately after where the data would go in the list.
-  * Linear search walking the list, in O(n).
-  * @param {Object} data   Data to test for position.
-  * @param {{existing: LLNode, after: boolean} Object with:
-  *   - existing: Node immediately next to the hypothetical data position.
-  *   - after: If true, the data would be after the existing node
-  */
-  findNextNode(data) {
-    let existing = this.start;
-    let cmp_res = this.comparator(data, existing.data);
-    while(cmp_res > 0 && existing.next) {
-      existing = existing.next;
-      cmp_res = this.comparator(data, existing.data);
+  shift(data) {
+    const node = new LLNode(data);
+    if(this.length === 0) {
+      this.head = node;
+      this.tail = node;
+    } else {
+      this.head.prev = node;
+      node.next = this.head;
+      this.head = node;
     }
-    return {
-      existing,
-      after: cmp_res > 0
-    };
+    this.length += 1;
+    return node;
   }
 
- /**
-  * Find the node containing the data in the list.
-  * Linear search walking the list, in O(n).
-  * @param {Object} data    Data to locate
-  * @param {LLNode} Node containing the data
-  */
-  search(data) {
-    const iter = this.iterateNodes();
-    for(const node of iter) {
-      if(this.comparator(data, node.data) === 0) {
-        return node;
-      }
+  unshift() {
+    const out = this.head;
+    this.head = out.next;
+    this.head.prev = null;
+    this.length -= 1;
+    return out.data;
+  }
+
+  removeNode(node) {
+    if(this.length <= 0) {
+      console.error(`DoubleLinkedList length 0; cannot remove node`, node);
     }
-    return null;
-  }
-
- /**
-  * Construct an array of data from the nodes in order.
-  * For debugging
-  * @return {Object[]} Array of objects
-  */
-  inorder() {
-    const iter = this.iterateData();
-    return [...iter];
-  }
-
-  /**
-  * Iterate over the array.
-  * @return {Iterator} Iterator that will return data from each node.
-  */
-  * iterateNodes() {
-    // for debugging
-    const max_iterations = 100_000;
-    let iter = 0;
-    let curr = this.start;
-    while(curr && iter < max_iterations) {
-      iter += 1;
-      yield curr;
-      curr = curr.next;
+    if(this.head === node) {
+      this.head = node.next;
     }
 
-    if(iter >= max_iterations) { console.warn("Max iterations hit for inorder."); }
-  }
-
- /**
-  * Iterate over the array.
-  * @return {Iterator} Iterator that will return data from each node.
-  */
-  * iterateData() {
-    // for debugging
-    const max_iterations = 100_000;
-    let iter = 0;
-    let curr = this.start;
-    while(curr && iter < max_iterations) {
-      iter += 1;
-      yield curr.data;
-      curr = curr.next;
+    if(this.tail === node) {
+      this.tail = node.prev;
     }
 
-    if(iter >= max_iterations) { console.warn("Max iterations hit for inorder."); }
-  }
-
- /**
-  * Swap the positions of two objects in the list.
-  * Dangerous! Need to account for whether the comparator is aware of the change.
-  * @param {LLNode} node1
-  * @param {LLNode} node2
-  */
-  swap(node1, node2) {
- //    // if node1 is start, make node2 start and vice-versa. Same for end.
-//     (this.start === node1 && (this.start = node2)) ||
-//     (this.start === node2 && (this.start = node1)) // parens matter!
-//
-//     // if node1 is end, make node2 end and vice-versa. Same for end.
-//     (this.end === node1 && (this.end = node2)) ||
-//     (this.end === node2 && (this.end = node1)) // parens matter!
-
-
-    if(this.start === node1) {
-      this.start = node2;
-    } else if(this.start === node2) {
-      this.start = node1;
-    }
-
-    if(this.end === node1) {
-      this.end = node2;
-    } else if(this.end === node2) {
-      this.end = node1;
-    }
-
-    node1.swap(node2);
-
+    node.next && (node.next.prev = node.prev);
+    node.prev && (node.prev.next = node.next);
+    this.length -= 1;
   }
 }
