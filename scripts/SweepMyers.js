@@ -20,12 +20,13 @@ import { SkipList } from "./SkipList.js";
 import { MODULE_ID } from "./module.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { DoubleLinkedList } from "./DoubleLinkedList.js";
+import { DoubleLinkedObjectList } from "./DoubleLinkedObjectList.js";
 import { interpolationFindIndexBefore } from "./BinarySearch.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 const MAX_ITERATIONS = 100_000;
 
-export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
+export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_object = false} = {}) {
   // i = -1
   let debug = game.modules.get(MODULE_ID).api.debug;
 
@@ -38,7 +39,7 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
 
   // Myers p. 626.
   // construct the lists.
-  let { EVENT, BEG, VERT, END, WORK } = constructLists(segments);
+  let { EVENT, BEG, VERT, END, WORK } = constructLists(segments, { use_linked_object });
   let xot = new XOT();
 
   if(debug) { console.table({ EVENT, BEG, VERT, END, WORK }); }
@@ -47,6 +48,8 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
   let ln = EVENT.length;
   for(let i = 0; i < ln; i += 1) {
     // i += 1
+
+
 
     let sweep_x = EVENT[i];
     if(debug) { console.log(`Event x(${i}) = ${sweep_x}`); }
@@ -372,7 +375,7 @@ function intersectX(a, b, c, d) {
 }
 
 
-function constructLists(segments) {
+function constructLists(segments, { use_linked_object = false } = {}) {
   const aux = [];
   segments.forEach(s => {
     // for debugging
@@ -411,12 +414,15 @@ function constructLists(segments) {
 
   aux.sort(cmpAuxList);
 
+  let dll = use_linked_object ? DoubleLinkedList : DoubleLinkedObjectList;
+
+
   let curr_ev = aux[0].start_x;
   let EVENT = [curr_ev];
   let VERT = [[]];
   let BEG = [[]];
   let END = [[]];
-  let WORK = [new DoubleLinkedList()];
+  let WORK = [new dll()];
   let ln = aux.length;
   let j = 0;
   for(let i = 0; i < ln; i += 1) {
@@ -428,15 +434,21 @@ function constructLists(segments) {
       VERT.push([]);
       BEG.push([]);
       END.push([]);
-      WORK.push(new DoubleLinkedList());
+      WORK.push(new dll());
     }
 
-    if(tuple.type === 0) {
-      BEG[j].push(tuple.segment);
-    } else if(tuple.type === 1) {
-      VERT[j].push(tuple.segment);
-    } else {
-      END[j].push(tuple.segment);
+    switch(tuple.type) {
+      case 0:
+        BEG[j].push(tuple.segment);
+        break;
+
+      case 1:
+        VERT[j].push(tuple.segment);
+        break;
+
+      case 2:
+        END[j].push(tuple.segment);
+        break;
     }
   }
 
