@@ -24,6 +24,7 @@ import { interpolationFindIndexBefore } from "./BinarySearch.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
+  // i = -1
   let debug = game.modules.get(MODULE_ID).api.debug;
 
   if(debug) {
@@ -43,6 +44,8 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
   // See algorithm 1, p. 633
   let ln = EVENT.length;
   for(let i = 0; i < ln; i += 1) {
+    // i += 1
+
     let sweep_x = EVENT[i];
     if(debug) { console.log(`Event x(${i}) = ${sweep_x}`); }
 
@@ -140,7 +143,7 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
       f = (!f || f.isSentinel) ? undefined : f.data;
       xot.swapNodes(e._node, g._node); // xot.swap(e) // exchange e with above(e)
 
-      remove(e._node.prev.data, WORK);
+      remove(e._node.next.data, WORK); // remove(Below(e))
       if(f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
@@ -176,8 +179,11 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   let max_iter = 10_000;
   while(g && iter < max_iter) {
     iter += 1;
-    let yg = pointForSegmentGivenX(g, sweep_x).y;
-    if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
+
+    let p1 = pointForSegmentGivenX(g, sweep_x);
+    let yg = p1 ? p1.y : g.nw.y;
+    //if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
+    if(cond(yg, e.nw.y, e.se.y)) { break; }
 
     if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
@@ -289,7 +295,7 @@ function enter(e, WORK, EVENT) {
   if(cmp < 0) {
     let i = hash(e, g, EVENT);
     if(~i) {
-      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Adding ${e.id} to WORK ${i}.`); }
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Adding e ${e.id} to WORK ${i} (hash e and g ${g.id}).`); }
       e._work = WORK[i].push(e);
       e._work_i = i;
     }
@@ -348,7 +354,11 @@ function hash(e, g, EVENT) {
     drawEdge({A: {x: x, y: canvas.dimensions.height}, B: {x: x, y: 0}}, COLORS.red, .2);
   }
 
-  return interpolationFindIndexBefore(EVENT, x);
+  let i = interpolationFindIndexBefore(EVENT, x);
+
+  // if equal, use the index before, if any
+  if(i > 0 && EVENT[i] === x) { return i - 1; }
+  return i;
 }
 
 function intersectX(a, b, c, d) {
