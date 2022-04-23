@@ -44,8 +44,11 @@ export class DoubleLinkedList {
   pop() {
     const out = this.tail;
     this.tail = out.prev;
-    this.tail.next = null;
+    this.tail && (this.tail.next = null);
     this.length -= 1;
+
+    if(this.length === 0) { this.head = null; this.tail = null; }
+
     return out.data;
   }
 
@@ -66,8 +69,10 @@ export class DoubleLinkedList {
   unshift() {
     const out = this.head;
     this.head = out.next;
-    this.head.prev = null;
+    this.head && (this.head.prev = null);
     this.length -= 1;
+
+    if(this.length === 0) { this.head = null; this.tail = null; }
     return out.data;
   }
 
