@@ -177,8 +177,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   while(g && iter < max_iter) {
     iter += 1;
     let yg = pointForSegmentGivenX(g, sweep_x).y;
-//     if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
-    if(cond(yg, e.nw.y, e.se.y)) { break; }
+    if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
 
     if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
