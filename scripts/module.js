@@ -24,7 +24,9 @@ import { findIntersectionsSweepLinkedSingle } from "./IntersectionsSweepLinked.j
 import { findIntersectionsSweepBSTSingle } from "./IntersectionsSweepBST.js";
 import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipList.js";
 import { findIntersectionsSweepCombinedSingle } from "./IntersectionsSweepCombinedEvents.js";
-
+import { findIntersectionsSweepCombinedSwapSingle } from "./SegmentSwapper.js";
+import { findIntersectionsSweepCombinedSkipSingle } from "./IntersectionsSweepCombinedSkip.js";
+import { sweepMyers } from "./SweepMyers.js";
 
 // for debugging sweep
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
@@ -32,7 +34,8 @@ import { OrderedArray } from "./OrderedArray.js";
 import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
 import { SegmentArray, EventQueue, pointForSegmentGivenX, EventType, hashSegments } from "./IntersectionsSweep.js";
 import { SkipList } from "./SkipList.js";
-import { OrderedDoubleLinkedList } from "./DoubleLinkedList.js";
+import { OrderedDoubleLinkedList } from "./OrderedDoubleLinkedList.js";
+import { DoubleLinkedList } from "./DoubleLinkedList.js";
 
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
@@ -164,6 +167,9 @@ Hooks.once('init', async function() {
     findIntersectionsSweepLinkedSingle,
     findIntersectionsSweepSkipListSingle,
     findIntersectionsSweepCombinedSingle,
+    findIntersectionsSweepCombinedSwapSingle,
+    findIntersectionsSweepCombinedSkipSingle,
+    sweepMyers,
 
     EventQueue,
     SegmentArray,
@@ -176,6 +182,7 @@ Hooks.once('init', async function() {
     EventType,
     pointForSegmentGivenX,
     OrderedDoubleLinkedList,
+    DoubleLinkedList,
 
     Drawing,
 
