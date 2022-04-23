@@ -23,6 +23,8 @@ import { DoubleLinkedList } from "./DoubleLinkedList.js";
 import { interpolationFindIndexBefore } from "./BinarySearch.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
+const MAX_ITERATIONS = 100_000;
+
 export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
   // i = -1
   let debug = game.modules.get(MODULE_ID).api.debug;
@@ -117,12 +119,11 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
     // 4D
     // Find all "event exchange" intersections in [xi, xi+1]
     let iter = 0;
-    let max_iter = 1_000;
     if(debug) {
       console.log(`WORK[${i}]`);
       console.table(WORK[i].inorder(), ["_id"]);
     }
-    while(WORK[i].length > 0 && iter < max_iter) {
+    while(WORK[i].length > 0 && iter < MAX_ITERATIONS) {
       iter += 1;
 
       let e = pop(i, WORK);
@@ -151,7 +152,7 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
       enter(e, WORK, EVENT);
     }
 
-    if(iter >= max_iter) { console.warn("Max iterations reached."); }
+    if(iter >= MAX_ITERATIONS) { console.warn("Max iterations reached."); }
 
     if(debug) { xot.log(); console.table(WORK); }
   }
@@ -176,8 +177,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   let g = e._node[dir].isSentinel ? undefined : e._node[dir].data; // Below(e) or Above(e)
 
   let iter = 0;
-  let max_iter = 10_000;
-  while(g && iter < max_iter) {
+  while(g && iter < MAX_ITERATIONS) {
     iter += 1;
 
     let p1 = pointForSegmentGivenX(g, sweep_x);
@@ -195,7 +195,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     }
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
-  if(iter >= max_iter) { console.log("_reportDirection: hit max iterations."); }
+  if(iter >= MAX_ITERATIONS) { console.log("_reportDirection: hit max iterations."); }
 }
 
 // function report_vertical(e, sweep_x, reportFn) {
