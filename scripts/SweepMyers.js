@@ -49,8 +49,10 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
   for(let i = 0; i < ln; i += 1) {
     // i += 1
 
-
-
+    let beg = BEG[i];
+    let vert = VERT[i];
+    let end = END[i];
+    let work = WORK[i];
     let sweep_x = EVENT[i];
     if(debug) { console.log(`Event x(${i}) = ${sweep_x}`); }
 
@@ -66,7 +68,10 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       console.table(BEG[i], ["_id", "_node", "_work", "_work_i"]);
     }
 
-    for(let e of BEG[i]) {
+    let ln = beg.length;
+    for(let i = 0; i < ln; i += 1) {
+      let e = beg[i];
+//     for(let e of BEG[i]) {
       e._node = xot.insert(e);
       if(debug) {
         console.log(`\tAdding ${e.id}: ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
@@ -89,12 +94,18 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       console.log(`VERT[${i}]`);
       console.table(VERT[i], ["_id", "_node", "_work", "_work_i"]);
     }
-    for(let e of VERT[i]) {
+
+    ln = vert.length;
+    for(let i = 0; i < ln; i += 1) {
+      let e = vert[i];
+//     for(let e of VERT[i]) {
       e._node = xot.insert(e);
       report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
     }
 
-    for(let e of VERT[i]) {
+    for(let i = 0; i < ln; i += 1) {
+      let e = vert[i];
+//     for(let e of VERT[i]) {
       deleteFromXOT(e, xot);
     }
 
@@ -104,7 +115,10 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       console.log(`END[${i}]`);
       console.table(END[i], ["_id", "_node", "_work", "_work_i"]);
     }
-    for(let e of END[i]) {
+    ln = end.length;
+    for(let i = 0; i < ln; i += 1) {
+      let e = end[i];
+//     for(let e of END[i]) {
       if(xot.length === 0) break;
       if(!e._node) continue;
 
@@ -126,7 +140,9 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       console.log(`WORK[${i}]`);
       console.table(WORK[i].inorder(), ["_id"]);
     }
-    while(WORK[i].length > 0 && iter < MAX_ITERATIONS) {
+
+
+    while(work.length > 0 && iter < MAX_ITERATIONS) {
       iter += 1;
 
       let e = pop(i, WORK);
