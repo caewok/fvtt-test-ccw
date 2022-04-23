@@ -28,11 +28,22 @@ export function findIntersectionsSweepSkipListSingle(segments, reportFn = (e1, e
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let cmp = segmentCompareLinkedGen();
+
+  let min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                  B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                  _id: "minSentinel"}; // _id just for debugging
+  let max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                  B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                  _id: "maxSentinel"}; // _id just for debugging
+
+  min_seg.nw = min_seg.A;
+  min_seg.se = min_seg.B;
+  max_seg.nw = max_seg.A;
+  max_seg.se = max_seg.B;
+
   let ll = new SkipList({ comparator: cmp.segmentCompare,
-    minObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
-                 B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }},
-    maxObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
-                 B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }}});
+                          minObject: min_seg,
+                          maxObject: max_seg});
 
   // push the left endpoints into the event queue
   // right endpoints left for later when encountering each left event
@@ -45,7 +56,7 @@ export function findIntersectionsSweepSkipListSingle(segments, reportFn = (e1, e
   while(curr = e.next()) {
 // console.table(tree.data, ["_id"])
 //     curr = e.next()
-    cmp.sweep_x(curr.point.x);
+    cmp.sweep(curr.point);
 
 
     if(debug) {
@@ -313,19 +324,19 @@ function segmentCompareLinkedGen() {
 
 
 
-// function segmentCompareLinkedGen() {
-//   let _sweep_x = 0;
-//   return {
-//     sweep_x(value) { _sweep_x = value; },
-//     segmentCompare(segment, elem) {
-//       if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
-//       segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
-//       elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
-//       return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-//          foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-//          foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-//     }
-//   };
-// }
+function segmentCompareLinkedGen() {
+  let _sweep_x = 0;
+  return {
+    sweep_x(value) { _sweep_x = value; },
+    segmentCompare(segment, elem) {
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
+      segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
+      elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
+      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+    }
+  };
+}
 
 

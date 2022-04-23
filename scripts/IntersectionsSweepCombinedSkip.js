@@ -28,11 +28,21 @@ export function findIntersectionsSweepCombinedSkipSingle(segments, reportFn = (e
 
   let tracker = new Set(); // to note pairs for which intersection is checked already
   let cmp = segmentCompareLinkedGen();
+  let min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                  B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                  _id: "minSentinel"}; // _id just for debugging
+  let max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                  B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                  _id: "maxSentinel"}; // _id just for debugging
+
+  min_seg.nw = min_seg.A;
+  min_seg.se = min_seg.B;
+  max_seg.nw = max_seg.A;
+  max_seg.se = max_seg.B;
+
   let ll = new SkipList({ comparator: cmp.segmentCompare,
-    minObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
-                 B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }},
-    maxObject: { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
-                 B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }}});
+                          minObject: min_seg,
+                          maxObject: max_seg});
   let e = new EventQueue(segments);
 
   let num_ixs = 0; // mainly for testing
@@ -208,7 +218,7 @@ function handleRightEvent(curr, e, ll, tracker) {
 // assume the segmentSet contains adjacent segments in the list
 // reverse by repeatedly calling swap from outside in on sorted set of segments
 function reverseNodes(segmentArr, ll) {
-  segmentArr.sort((a, b) => ll._cmp(a._node.data, b._node.data));
+  segmentArr.sort((a, b) => ll.comparator(a._node.data, b._node.data));
 
   // process outside in
   let ln = segmentArr.length;
