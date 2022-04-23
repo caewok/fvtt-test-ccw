@@ -71,6 +71,29 @@ export class PriorityQueueArray {
   }
 
  /**
+  * Remove object
+  */
+  remove(obj) {
+    const idx = this.data.findIndex(elem => this._elemIsAfter(obj, elem));
+    this._removeAt(idx);
+  }
+
+ /**
+  * Remove object using binary search
+  */
+  binaryRemove(obj) {
+    const idx = binaryFindIndex(this.data, elem => this._elemIsAfter(obj, elem));
+    this._removeAt(idx);
+  }
+
+ /**
+  * Helper to remove an object at a specified index.
+  */
+  _removeAt(idx) {
+    this.data.splice(idx, 1);
+  }
+
+ /**
   * Helper function transforming the comparator output to true/false; used by insert.
   * @param {Object} obj   Object to search for
   * @param {Object} elem  Element of the array
