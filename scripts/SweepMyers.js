@@ -14,6 +14,7 @@ segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
 
 */
 
+import { pointsEqual } from "./utilities.js";
 import { pointForSegmentGivenX } from "./IntersectionsSweep.js";
 import { SkipList } from "./SkipList.js";
 import { MODULE_ID } from "./module.js";
@@ -60,7 +61,7 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
     for(let e of BEG[i]) {
       e._node = xot.insert(e);
       if(debug) {
-        console.log(`\tAdding ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
+        console.log(`\tAdding ${e.id}: ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
         drawEdge(e);
       }
 
@@ -105,7 +106,7 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
       deleteFromXOT(e, xot);
       remove(e, WORK);
       if(f) {
-        deleteFromXOT(f, xot);
+        remove(f, WORK);
         enter(f, WORK, EVENT);
       }
     }
@@ -123,11 +124,13 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
 
       let e = pop(i, WORK);
       //let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
+      if(!e._node) continue; // likely already removed as an endpoint
+
       let g = e._node.prev.data; // Above(e)
       let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
       if(ix) {
         if(debug) {
-          console.log(`${e._id} (e) and ${g._id} (above(e)) intersect at ${ix.x},${ix.y}`);
+          console.log(`${e.id} (e) and ${g.id} (above(e)) intersect at ${ix.x},${ix.y}`);
           drawVertex(ix);
         }
         reportFn(e, g, ix);
@@ -152,9 +155,12 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}) {
 }
 
 
+// Conditions are negated compared to Myers p. 633
 let REPORT_CONDITION = {
-  Vertical: (y1, y2, y3) => y1 !== y2 && y1 !== y3,
-  Begin: (y1, y2) => y1 !== y2
+  // y1 is not between [y2, y3]
+  Vertical: (y1, y2, y3) => y1 < y2 || y1 > y3,
+  Begin: (y1, y2) => y1 !== y2,
+  End: (y1, y2, y3) => y1 !== y3
 };
 
 
@@ -165,11 +171,16 @@ function report(e, sweep_x, reportFn, cond) {
 
 function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   let g = e._node[dir].isSentinel ? undefined : e._node[dir].data; // Below(e) or Above(e)
-  while(g) {
+
+  let iter = 0;
+  let max_iter = 10_000;
+  while(g && iter < max_iter) {
+    iter += 1;
     let yg = pointForSegmentGivenX(g, sweep_x).y;
+//     if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
     if(cond(yg, e.nw.y, e.se.y)) { break; }
 
-    console.log(`${e._id} and ${g._id} intersect`);
+    if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
     if(ix) {
       if(game.modules.get(MODULE_ID).api.debug) {
@@ -179,6 +190,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     }
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
+  if(iter >= max_iter) { console.log("_reportDirection: hit max iterations."); }
 }
 
 // function report_vertical(e, sweep_x, reportFn) {
@@ -258,15 +270,19 @@ function enter(e, WORK, EVENT) {
   // Replicates xOrder function from XOT class, but with modifications for
   // how to determine the sweep_x point
   // set y1 and y2 as if e.se and g.se were equal
+
   let y1 = e.se.y;
   let y2 = e.se.y;
   if(e.se.x < g.se.x) {
     // min is xe"; find g at xe"
     y1 = e.se.y;
-    y2 = pointForSegmentGivenX(g, e.se.x).y || g.nw.y;
+    const p2 = pointForSegmentGivenX(g, e.se.x);
+    y2 = p2 ? p2.y : g.nw.y;
+
   } else if(e.se.x > g.se.x) {
     // min is xg"; find e at xg"
-    y1 = pointForSegmentGivenX(e, g.se.x).y || e.nw.y;
+    const p1 = pointForSegmentGivenX(e, g.se.x);
+    y1 = p1 ? p1.y : e.nw.y;
     y2 = g.se.y;
   }
   let dy = y1 - y2;
@@ -274,7 +290,7 @@ function enter(e, WORK, EVENT) {
   if(cmp < 0) {
     let i = hash(e, g, EVENT);
     if(~i) {
-      console.log(`Adding ${e._id} to WORK ${i}.`);
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Adding ${e.id} to WORK ${i}.`); }
       e._work = WORK[i].push(e);
       e._work_i = i;
     }
@@ -283,7 +299,7 @@ function enter(e, WORK, EVENT) {
 
 function remove(e, WORK) {
   if(!e._work) return;
-  console.log(`Removing ${e._id} from WORK ${e._work_i}.`);
+  if(game.modules.get(MODULE_ID).api.debug) { console.log(`Removing ${e.id} from WORK ${e._work_i}.`); }
   WORK[e._work_i].removeNode(e._work);
   e._work_i = undefined;
   e._work = undefined;
@@ -330,7 +346,7 @@ function hash(e, g, EVENT) {
   if(typeof x === "undefined") { return; }
   if(game.modules.get(MODULE_ID).api.debug) {
     console.log(`Intersection likely at x = ${x}`);
-    drawEdge({A: {x: x, y: canvas.dimensions.height}, B: {x: x, y: 0}}, COLORS.red, .1);
+    drawEdge({A: {x: x, y: canvas.dimensions.height}, B: {x: x, y: 0}}, COLORS.red, .2);
   }
 
   return interpolationFindIndexBefore(EVENT, x);
@@ -428,10 +444,10 @@ class XOT extends SkipList {
   constructor() {
     let min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
                     B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
-                    _id: "minSentinel"}; // _id just for debugging
+                    id: "minSentinel"}; // id just for debugging
     let max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
                     B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
-                    _id: "maxSentinel"}; // _id just for debugging
+                    id: "maxSentinel"}; // id just for debugging
 
     min_seg.nw = min_seg.A;
     min_seg.se = min_seg.B;
@@ -451,7 +467,7 @@ class XOT extends SkipList {
     console.log(`XOT sweep @ ${this._sweep_x}`);
     console.table(this.inorder().map(s => {
       return {
-        id: s._id,
+        id: s.id,
         segment: `${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`,
       };
     }), ["id", "segment"]);
@@ -460,8 +476,10 @@ class XOT extends SkipList {
   xOrder(s1, s2) {
     // Myers p. 627
     // compare y coordinates at the sweep point; fall back to starting endpoint if vertical
-    let y1 = pointForSegmentGivenX(s1, this._sweep_x).y || s1.nw.y;
-    let y2 = pointForSegmentGivenX(s2, this._sweep_x).y || s2.nw.y;
+    let p1 = pointForSegmentGivenX(s1, this._sweep_x);
+    let p2 = pointForSegmentGivenX(s2, this._sweep_x);
+    let y1 = p1 ? p1.y : s1.nw.y;
+    let y2 = p2 ? p2.y : s2.nw.y;
     let dy = y1 - y2;
     return dy || (XOT.slope(s1) - XOT.slope(s2));
   }
