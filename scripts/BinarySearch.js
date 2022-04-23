@@ -175,9 +175,9 @@ export function interpolationIndexOf(arr, obj, valuationFn = (a) => a) {
     if(v_position === target) { return position; }
 
     let v1_position = valuationFn(arr[position + 1]);
-    if(v1_position === target) { return v1_position; }
+    if(v1_position === target) { return position + 1; }
     if(v_position < target) {
-      if(target < v1_position) { return v_position; }
+      if(target < v1_position) { return position; }
       start = position + 1;
     } else {
       end = position - 1;
