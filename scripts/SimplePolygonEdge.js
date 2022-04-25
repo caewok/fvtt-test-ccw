@@ -7,7 +7,9 @@ Wall
 
 'use strict';
 
-import { compareXY } from "./utilities.js";
+import { compareXY, compareXYSortKeysInt } from "./utilities.js";
+
+const MAX_TEXTURE_SIZE = 16384;
 
 /*
 Version of PolygonEdge that can handle temporary walls.
@@ -49,8 +51,6 @@ export class SimplePolygonEdge extends PolygonEdge {
     this._id = undefined;
 
     // following used in finding intersections
-    this._nw = undefined;
-    this._se = undefined;
     this._wallKeys = undefined;
 
     this.intersectsWith = new Map();  // Map just as with wall.intersectsWith
@@ -69,24 +69,62 @@ export class SimplePolygonEdge extends PolygonEdge {
   * Required for quick intersection processing.
   * @type {PolygonVertex}
   */
+//   get nw() {
+//     if(!this._nw) {
+//        const is_nw = compareXY(this.A, this.B) < 0;
+//        this._nw = is_nw ? this.A : this.B;
+//        this._se = is_nw ? this.B : this.A;
+//     }
+//     return this._nw;
+//   }
+
   get nw() {
     if(!this._nw) {
-       const is_nw = compareXY(this.A, this.B) < 0;
-       this._nw = is_nw ? this.A : this.B;
-       this._se = is_nw ? this.B : this.A;
+      const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
     }
     return this._nw;
   }
+
+  get nwByKey() {
+    if(!this._nw) {
+      const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
+    }
+    return this._nw;
+  }
+
+
 
  /**
   * Identify which endpoint is further east, or if vertical, further south.
   * @type {PolygonVertex}
   */
+//   get se() {
+//     if(!this._se) {
+//       const is_nw = compareXY(this.A, this.B) < 0;
+//       this._nw = is_nw ? this.A : this.B;
+//       this._se = is_nw ? this.B : this.A;
+//     }
+//     return this._se;
+//   }
+
   get se() {
     if(!this._se) {
-      const is_nw = compareXY(this.A, this.B) < 0;
-      this._nw = is_nw ? this.A : this.B;
-      this._se = is_nw ? this.B : this.A;
+        const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+        this._nw = is_nw ? this.A : this.B;
+        this._se = is_nw ? this.B : this.A;
+    }
+    return this._se;
+  }
+
+  get seByKey() {
+    if(!this._se) {
+        const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+        this._nw = is_nw ? this.A : this.B;
+        this._se = is_nw ? this.B : this.A;
     }
     return this._se;
   }
@@ -101,6 +139,12 @@ export class SimplePolygonEdge extends PolygonEdge {
     return this._wallKeys || (this._wallKeys = new Set([ this.A.key, this.B.key ]));
   }
 
+  fromWall(wall, type) {
+    const out = new this(wall.nw, wall.se, wall.data[type], wall);
+    out._nw = out.A;
+    out._se = out.B;
+    return out;
+  }
 }
 
  /**
@@ -111,4 +155,12 @@ Object.defineProperty(SimplePolygonEdge.prototype, "_identifyIntersectionsWith",
   writable: true,
   configurable: true
 });
+
+
+function sortKey() { return this._sortKey || (this._sortKey = MAX_TEXTURE_SIZE * this.x + this.y); }
+
+
+Object.defineProperty(PolygonVertex.prototype, "sortKey", {
+  get: sortKey
+})
 

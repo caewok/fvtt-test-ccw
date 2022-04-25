@@ -109,6 +109,15 @@ export function compareXY(a, b) {
   return diff_x;
 }
 
+export function compareXYSortKeys(a, b) {
+  const diff = a.sortKey - b.sortKey;
+  return diff.almostEqual(0) ? 0 : diff;
+}
+
+export function compareXYSortKeysInt(a, b) {
+  return a.sortKey - b.sortKey;
+}
+
 /**
  * Compare function to sort point by y, then x coordinates
  * @param {Point} a
