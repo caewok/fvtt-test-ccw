@@ -77,16 +77,9 @@ export class DoubleLinkedList {
   }
 
   removeNode(node) {
-    if(this.length <= 0) {
-      console.error(`DoubleLinkedList length 0; cannot remove node`, node);
-    }
-    if(this.head === node) {
-      this.head = node.next;
-    }
-
-    if(this.tail === node) {
-      this.tail = node.prev;
-    }
+//     this.length <= 0 && console.error(`DoubleLinkedList length 0; cannot remove node`, node);
+    this.head === node && (this.head = node.next);
+    this.tail === node && (this.tail = node.prev);
 
     node.next && (node.next.prev = node.prev);
     node.prev && (node.prev.next = node.next);
