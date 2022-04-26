@@ -228,7 +228,6 @@ reportWithTest = (s1, s2) => foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSort2Single, "sort2", segments, reportWithTest)
-await benchmarkLoopFn(N, findIntersectionsSort3Single, "sort3", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithTest)
 // await benchmarkLoopFn(N, findIntersectionsSweepSingle, "sweep", segments)
 await benchmarkLoopFn(N, findIntersectionsSweepLinkedSingle, "sweep linked", segments)
@@ -237,6 +236,16 @@ await benchmarkLoopFn(N, findIntersectionsSweepCombinedSingle, "sweep combined",
 await benchmarkLoopFn(N, findIntersectionsSweepCombinedSkipSingle, "sweep skip combined", segments)
 await benchmarkLoopFn(N, sweepMyers, "myers", segments)
 
+// filtered endpoints
+reportWithFilteredEndpointsTest = (s1, s2) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+}
+console.log("Filtered endpoints")
+await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsSort3Single, "sort3", segments, reportWithTest)
+await benchmarkLoopFn(N, sweepMyersNoEndpoints, "myers", segments, reportWithTest)
 
 N = 100
 num_segments = 10

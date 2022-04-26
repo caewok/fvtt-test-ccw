@@ -89,7 +89,7 @@ export function sweepMyersNoEndpoints(segments, reportFn = (e1, e2, ix) => {}, {
 
       }
       enter(e, WORK, EVENT);
-      //num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
+      num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
     }
 
     // 4B
@@ -222,16 +222,16 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     //if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
     if(cond(yg, e.nw.y, e.se.y)) { break; }
 
-    if(e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) continue;
-
-    if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
-    let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-    if(ix) {
-      num_ixs += 1;
-      if(game.modules.get(MODULE_ID).api.debug) {
-        drawVertex(ix);
+    if(!e.wallKeys.has(g.nw.key) && !e.wallKeys.has(g.se.key)) {
+      if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
+      let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
+      if(ix) {
+        num_ixs += 1;
+        if(game.modules.get(MODULE_ID).api.debug) {
+          drawVertex(ix);
+        }
+        reportFn(e, g, ix);
       }
-      reportFn(e, g, ix);
     }
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
