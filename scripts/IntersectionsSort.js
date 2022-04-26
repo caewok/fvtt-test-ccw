@@ -19,8 +19,7 @@ The sort functions require that the segment objects have "nw" and "se" propertie
 identifying the endpoints.
 */
 
-import { compareXY, compareYX, compareXYSortKeysInt } from "./utilities.js";
-import { binaryFindIndex } from "./BinarySearch.js";
+import { compareXY } from "./utilities.js";
 
 /**
  * Identify intersections between segments in an Array.
@@ -49,7 +48,7 @@ export function findIntersectionsSort4Single(segments, reportFn = (_s1, _s2) => 
   for(let i = 0; i < ln; i += 1) {
     const s = segments[i];
     endpoints.push({e: s.nw, s, se: false},
-                   {e: s.se, s, se: true})
+                   {e: s.se, s, se: true});
   }
   endpoints.sort((a, b) => sortEndpoints(a, b));
 
@@ -70,7 +69,6 @@ export function findIntersectionsSort4Single(segments, reportFn = (_s1, _s2) => 
 
       const sj = endpoint2.s;
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
-      }
     }
   }
 }
@@ -111,7 +109,7 @@ function isRight(edge1, edge2) {
  * Intersections marked in the set
  * Comparable to identifyWallIntersections method from WallsLayer Class
  */
-export function findIntersectionsSortRedBlack(edges1, edges2, reportFn = (e1, e2) => {}) {
+export function findIntersectionsSortRedBlack(edges1, edges2, reportFn = (_s1, _s2) => {}) {
   const ln1 = edges1.length;
   const ln2 = edges2.length;
   if(!ln1 || !ln2) return;
@@ -120,7 +118,7 @@ export function findIntersectionsSortRedBlack(edges1, edges2, reportFn = (e1, e2
   edges2.sort((a, b) => compareXY(a.nw, b.nw));
 
   for(let i = 0; i < ln1; i += 1) {
-    const edge1 = edges1[i]
+    const edge1 = edges1[i];
     for(let j = 0; j < ln2; j += 1) {
       const edge2 = edges2[j];
 
