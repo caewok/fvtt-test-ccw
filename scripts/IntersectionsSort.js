@@ -116,6 +116,7 @@ function compareXYSortEndpoints(e1, e2) {
   // if e2.se then we want e2 first or they are equal. So return +
 }
 
+// avoid endpoints
 export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
   const ln = edges.length;
   if(!ln) return;
@@ -138,21 +139,17 @@ export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
     let start_j = i + 1;
-
-    // Need to determine where to end.
-    // ej is entirely se of ei. So ei.se < ej.nw.
-    // Find the index for ej.
-//     let end_j = interpolateBinaryFindIndexBeforeObject(endpoints, {e: endpoint1.s.se}, (a) => a.e.sortKey);
-    let end_j = binaryFindIndex(endpoints, (elem, idx) =>  elem.e.x > endpoint1.s.se.x ) // >= to avoid endpoints
-    ~end_j || (end_j = ln2);
-
-
     const edge1 = endpoint1.s;
-    for(let j = start_j; j < end_j; j += 1) {
-      if(endpoints[j].se) continue;
+    for(let j = start_j; j < ln2; j += 1) {
+      const endpoint2 = endpoints[j];
+
+      // do break first b/c it has the most impact
+      // then test se b/c it is easy
+      if(endpoint2.e.x >= endpoint1.s.se.x) break; // >= to avoid endpoints (as opposed to ">")
+      if(endpoint2.se) continue;
+      if(endpoint2.e.x === endpoint1.s.nw.x) continue; // to avoid endpoints
 
       const edge2 = endpoints[j].s;
-
       if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
         reportFn(edge1, edge2);
       }
@@ -186,7 +183,8 @@ export function findIntersectionsSort4Single(edges, reportFn = (e1, e2) => {}) {
     // Need to determine where to end.
     // ej is entirely se of ei. So ei.se < ej.nw.
     // Find the index for ej.
-//     let end_j = interpolateBinaryFindIndexBeforeObject(endpoints, {e: endpoint1.s.se}, (a) => a.e.sortKey);
+    // binaryFindIndex: substitute end_j for ln2 below.
+    // Testing suggests this is comparable, but slightly slower
 //     let end_j = binaryFindIndex(endpoints, (elem, idx) =>  elem.e.x > endpoint1.s.se.x ) // >= to avoid endpoints
 //     ~end_j || (end_j = ln2);
 
