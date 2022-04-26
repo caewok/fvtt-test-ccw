@@ -323,20 +323,20 @@ function segmentCompareLinkedGen() {
 }
 
 
-
-function segmentCompareLinkedGen() {
-  let _sweep_x = 0;
-  return {
-    sweep_x(value) { _sweep_x = value; },
-    segmentCompare(segment, elem) {
-      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
-      segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
-      elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
-      return compareYX(segment._tmp_nw, elem._tmp_nw) ||
-         foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
-         foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
-    }
-  };
-}
+//
+// function segmentCompareLinkedGen() {
+//   let _sweep_x = 0;
+//   return {
+//     sweep_x(value) { _sweep_x = value; },
+//     segmentCompare(segment, elem) {
+//       if(game.modules.get(MODULE_ID).api.debug) { console.log(`Sweep x currently set to ${_sweep_x}.`); }
+//       segment._tmp_nw = pointForSegmentGivenX(segment, _sweep_x) || segment.nw;
+//       elem._tmp_nw = pointForSegmentGivenX(elem, _sweep_x) || elem.nw;
+//       return compareYX(segment._tmp_nw, elem._tmp_nw) ||
+//          foundry.utils.orient2dFast(elem.se, elem.nw, segment.nw) ||
+//          foundry.utils.orient2dFast(elem.nw, elem.se, segment.se);
+//     }
+//   };
+// }
 
 
