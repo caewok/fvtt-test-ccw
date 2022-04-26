@@ -34,7 +34,7 @@ import { compareXY } from "./utilities.js";
  * @param {Function} reportFn     Callback function that is passed pairs of
  *                                segment objects that intersect.
  */
-export function findIntersectionsSort4Single(segments, reportFn = (_s1, _s2) => {}) {
+export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {}) {
   const ln = segments.length;
   if(!ln) { return; }
 
