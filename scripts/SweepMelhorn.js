@@ -373,10 +373,15 @@ class XStructure extends PriorityQueueArray {
  */
 class YStructure extends SkipList {
   constructor() {
-    const min_seg = { A: { x: Number.NEGATIVE_INFINITY, y: Number.NEGATIVE_INFINITY },
-                        B: { x: Number.POSITIVE_INFINITY, y: Number.NEGATIVE_INFINITY }};
-    const max_seg = { A: { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY },
-                        B: { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY }};
+    const min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                        B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER }};
+    const max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                        B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER }};
+
+    min_seg.nw = min_seg.A;
+    min_seg.se = min_seg.B;
+    max_seg.nw = max_seg.A;
+    max_seg.se = max_seg.B;
 
     const minObject = { segment: min_seg, xit: null };
     const maxObject = { segment: max_seg, xit: null };
