@@ -1250,6 +1250,12 @@ reportFnSweepMyers = (s1, s2, ix) => {
   reporting_arr_sweep_myers.push(ix);
 }
 
+function filterEndpoints(reporting_arr) {
+  reporting_arr.filter(elem => {
+    return elem
+  })
+}
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
