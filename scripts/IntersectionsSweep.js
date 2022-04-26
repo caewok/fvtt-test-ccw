@@ -1265,10 +1265,10 @@ reportFnBruteFilterEndpoints = (s1, s2) => {
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
-  reporting_arr_brute_filtered = []
+
   reporting_arr_sort = []
   reporting_arr_sort2 = []
-  reporting_arr_sort3 = []
+
   reporting_arr_sort4 = []
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
@@ -1277,7 +1277,11 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_skip_combined = []
   reporting_arr_sweep_swap_combined = [];
   reporting_arr_sweep_myers = [];
+
+  reporting_arr_brute_filtered = []
+  reporting_arr_sort3 = []
   reporting_arr_sweep_myers_no_endpoints = [];
+
 
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
@@ -1286,10 +1290,10 @@ for([key, str] of test_strings) {
   segments.forEach(s => drawEdge(s, COLORS.black))
 
   findIntersectionsBruteSingle(segments, reportFnBrute)
-  findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
+
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSort2Single(segments, reportFnSort2)
-  findIntersectionsSort3Single(segments, reportFnSort3)
+
   findIntersectionsSort4Single(segments, reportFnSort4)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
@@ -1298,7 +1302,10 @@ for([key, str] of test_strings) {
 //   findIntersectionsSweepCombinedSwapSingle(segments, reportFnSweepSwapCombined)
   findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
   sweepMyers(segments, reportFnSweepMyers)
+
+  findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
   sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
+  findIntersectionsSort3Single(segments, reportFnSort3)
 
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.
@@ -1307,7 +1314,6 @@ for([key, str] of test_strings) {
     reporting_arr_brute.push(reporting_arr_brute[0], reporting_arr_brute[0]);
     reporting_arr_sort.push(reporting_arr_sort[0], reporting_arr_sort[0]);
     reporting_arr_sort2.push(reporting_arr_sort2[0], reporting_arr_sort2[0]);
-    reporting_arr_sort3.push(reporting_arr_sort3[0], reporting_arr_sort3[0]);
     reporting_arr_sort4.push(reporting_arr_sort4[0], reporting_arr_sort4[0]);
     reporting_arr_sweep_myers.push(reporting_arr_sweep_myers[0], reporting_arr_sweep_myers[0])
   }
@@ -1315,7 +1321,7 @@ for([key, str] of test_strings) {
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sort2.sort(compareXY)
-  reporting_arr_sort3.sort(compareXY)
+
   reporting_arr_sort4.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
@@ -1326,6 +1332,7 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_myers.sort(compareXY)
 
   reporting_arr_brute_filtered.sort(compareXY);
+  reporting_arr_sort3.sort(compareXY)
   reporting_arr_sweep_myers_no_endpoints.sort(compareXY);
 
 

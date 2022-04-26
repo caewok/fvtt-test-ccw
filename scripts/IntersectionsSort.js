@@ -117,16 +117,18 @@ function compareXYSortEndpoints(e1, e2) {
 }
 
 // avoid endpoints
+// Mostly can accomplish this by not considering intersections when reaching an
+// endpoint event. But need to specially handle verticals
 export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
   const ln = edges.length;
   if(!ln) return;
 
   // construct an array of segments that can be sorted by nw and se endpoints
-  // for each segment i, use binarySearch to find the start index and end index
 
   const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
-    endpoints.push({e: edges[i].nw, s: edges[i], se: false}, {e: edges[i].se, s: edges[i], se: true})
+    endpoints.push({ e: edges[i].nw, s: edges[i], se: false },
+                   { e: edges[i].se, s: edges[i], se: true });
   }
   const ln2 = ln * 2;
 
@@ -136,20 +138,20 @@ export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
     const endpoint1 = endpoints[i];
     if(endpoint1.se) continue; // alt would be to sort edges array and use that for the i loop
 
+
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
     const start_j = i + 1;
     const edge1 = endpoint1.s;
+
     for(let j = start_j; j < ln2; j += 1) {
       const endpoint2 = endpoints[j];
-
-      // do break first b/c it has the most impact
-      // then test se b/c it is easy
-      if(endpoint2.e.x >= endpoint1.s.se.x) break; // >= to avoid endpoints (as opposed to ">")
       if(endpoint2.se) continue;
-      if(endpoint2.e.x === endpoint1.s.nw.x) continue; // to avoid endpoints
+      if(endpoint2.e.x > endpoint1.s.se.x) break;
 
       const edge2 = endpoints[j].s;
+      if(edge1.wallKeys.has(edge2.nw.key) || edge1.wallKeys.has(edge2.se.key)) { continue; }
+
       if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
         reportFn(edge1, edge2);
       }
