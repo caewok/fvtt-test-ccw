@@ -10,7 +10,7 @@ import { compareXY, compareYX } from "./utilities.js";
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
 import { MODULE_ID, UseBinary } from "./module.js";
 import { OrderedArray } from "./OrderedArray.js";
-import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
+import { binaryFindIndex, binaryIndexOfObject } from "./BinarySearch.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { EventType, hashSegments } from "./IntersectionsSweep.js";
 
@@ -293,7 +293,7 @@ function checkForIntersection(s1, s2, e, tracker, sweep_pt, { at_ix = false } = 
     if(segment.A.x === segment.B.x) { return this.data.indexOf(segment); }
 
     segment._tmp_nw = SegmentArray.pointForSegmentGivenX(segment, sweep_x) || segment._tmp_nw; // if vertical, use existing
-    return binaryIndexOf(this.data, segment, (a, b) => this._segmentCompare(a, b, sweep_x));
+    return binaryIndexOfObject(this.data, segment, (a, b) => this._segmentCompare(a, b, sweep_x));
   }
 
  /**
