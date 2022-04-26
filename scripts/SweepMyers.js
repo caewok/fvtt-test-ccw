@@ -21,16 +21,16 @@ import { MODULE_ID } from "./module.js";
 import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { DoubleLinkedList } from "./DoubleLinkedList.js";
 import { DoubleLinkedObjectList } from "./DoubleLinkedObjectList.js";
-import { interpolationFindIndexBefore } from "./BinarySearch.js";
+import { binaryFindIndex, interpolateBinaryFindIndexBeforeScalar, interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 const MAX_ITERATIONS = 100_000;
 
 export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_object = false} = {}) {
-  let timing = { start: performance.now(), A: 0, B: 0, C: 0, D: 0,
-                 remove: 0, enter: 0, exchange: 0, report: 0, insert: 0, del: 0,
-                 remove_n: 0, enter_n: 0, exchange_n: 0, report_n: 0, insert_n: 0, del_n: 0,
-                 A_n: 0, B_n: 0, C_n: 0, D_n: 0  };
+ //  let timing = { start: performance.now(), A: 0, B: 0, C: 0, D: 0,
+//                  remove: 0, enter: 0, exchange: 0, report: 0, insert: 0, del: 0,
+//                  remove_n: 0, enter_n: 0, exchange_n: 0, report_n: 0, insert_n: 0, del_n: 0,
+//                  A_n: 0, B_n: 0, C_n: 0, D_n: 0  };
 
   // i = -1
   let debug = game.modules.get(MODULE_ID).api.debug;
@@ -44,24 +44,24 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
   // Myers p. 626.
   // construct the lists.
-  timing.constructLists = performance.now();
+//   timing.constructLists = performance.now();
   let { EVENT, BEG, VERT, END, WORK } = constructLists(segments, { use_linked_object });
-  timing.constructLists = performance.now() - timing.constructLists;
+//   timing.constructLists = performance.now() - timing.constructLists;
 
-  timing.xot = performance.now();
+//   timing.xot = performance.now();
   let xot = new XOT();
-  timing.xot = performance.now() - timing.xot;
+//   timing.xot = performance.now() - timing.xot;
 
   if(debug) { console.table({ EVENT, BEG, VERT, END, WORK }); }
 
-  timing.forLoop = performance.now();
+//   timing.forLoop = performance.now();
   // See algorithm 1, p. 633
   let num_ixs = 0;
   let ln = EVENT.length;
   for(let i = 0; i < ln; i += 1) {
     // i += 1
 
-    let t0, t1, t2;
+//     let t0, t1, t2;
 
     let beg = BEG[i];
     let vert = VERT[i];
@@ -77,21 +77,21 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
     // 4A
     // Add segments in BEG(i) and list their start point ix
-    let tA = performance.now();
+//     let tA = performance.now();
     if(debug) {
       console.log(`BEG[${i}]`);
       console.table(BEG[i], ["_id", "_node", "_work", "_work_i"]);
     }
 
     let ln = beg.length;
-    timing.A_n += ln;
+//     timing.A_n += ln;
     for(let i = 0; i < ln; i += 1) {
       let e = beg[i];
 //     for(let e of BEG[i]) {
-      t0 = performance.now();
+//       t0 = performance.now();
       e._node = xot.insert(e);
-      timing.insert += performance.now() - t0;
-      timing.insert_n += 1;
+     //  timing.insert += performance.now() - t0;
+//       timing.insert_n += 1;
       if(debug) {
         console.log(`\tAdding ${e.id}: ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
         drawEdge(e);
@@ -100,78 +100,78 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
       if(f) {
-        t0 = performance.now();
+//         t0 = performance.now();
         remove(f, WORK);
-        t1 = performance.now();
+//         t1 = performance.now();
         enter(f, WORK, EVENT);
-        t2 = performance.now();
+//         t2 = performance.now();
 
-        timing.remove += t1 - t0;
-        timing.remove_n += 1;
-        timing.enter += t2 - t1;
-        timing.enter_n += 1;
+        // timing.remove += t1 - t0;
+//         timing.remove_n += 1;
+//         timing.enter += t2 - t1;
+//         timing.enter_n += 1;
 
       }
-      t0 = performance.now();
+//       t0 = performance.now();
       enter(e, WORK, EVENT);
-      t1 = performance.now();
+//       t1 = performance.now();
       num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
-      t2 = performance.now();
+//       t2 = performance.now();
 
-      timing.enter += t1 - t0;
-      timing.enter_n += 1;
-      timing.report += t2 - t1;
-      timing.report_n += 1;
+      // timing.enter += t1 - t0;
+//       timing.enter_n += 1;
+//       timing.report += t2 - t1;
+//       timing.report_n += 1;
     }
-    tA = performance.now() - tA;
-    timing.A += tA;
+    // tA = performance.now() - tA;
+//     timing.A += tA;
 
     // 4B
     // Find all intersections with segments in VERT(i)
-    let tB = performance.now();
+//     let tB = performance.now();
     if(debug) {
       console.log(`VERT[${i}]`);
       console.table(VERT[i], ["_id", "_node", "_work", "_work_i"]);
     }
 
     ln = vert.length;
-    timing.B_n += ln;
+//     timing.B_n += ln;
     for(let i = 0; i < ln; i += 1) {
       let e = vert[i];
 //     for(let e of VERT[i]) {
-      t0 = performance.now();
+//       t0 = performance.now();
       e._node = xot.insert(e);
-      t1 = performance.now();
+//       t1 = performance.now();
       num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
-      t2 = performance.now();
+//       t2 = performance.now();
 
-      timing.insert += t1 -t0;
-      timing.insert_n += 1;
-      timing.report += t2 - t1;
-      timing.report_n += 1;
+     //  timing.insert += t1 -t0;
+//       timing.insert_n += 1;
+//       timing.report += t2 - t1;
+//       timing.report_n += 1;
     }
 
     for(let i = 0; i < ln; i += 1) {
       let e = vert[i];
 //     for(let e of VERT[i]) {
-      t0 = performance.now();
+//       t0 = performance.now();
       deleteFromXOT(e, xot);
 
-      timing.del += performance.now() - t0;
-      timing.del_n += 1;
+      // timing.del += performance.now() - t0;
+//       timing.del_n += 1;
     }
-    tB = performance.now() - tB;
-    timing.B += tB;
+//     tB = performance.now() - tB;
+//     timing.B += tB;
 
     // 4C
     // Delete segments in END(i)
-    let tC = performance.now();
+//     let tC = performance.now();
     if(debug) {
       console.log(`END[${i}]`);
       console.table(END[i], ["_id", "_node", "_work", "_work_i"]);
     }
     ln = end.length;
-    timing.C_n += ln;
+//     timing.C_n += ln;
     for(let i = 0; i < ln; i += 1) {
       let e = end[i];
 //     for(let e of END[i]) {
@@ -181,36 +181,36 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       let f = e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
 
-      t0 = performance.now();
+//       t0 = performance.now();
       deleteFromXOT(e, xot);
-      t1 = performance.now();
+//       t1 = performance.now();
       remove(e, WORK);
-      t2 = performance.now();
+//       t2 = performance.now();
 
-      timing.del += t1 - t0;
-      timing.del_n += 1;
-      timing.remove += t2 - t2;
-      timing.remove_n += 1;
+      // timing.del += t1 - t0;
+//       timing.del_n += 1;
+//       timing.remove += t2 - t2;
+//       timing.remove_n += 1;
 
       if(f) {
-        t0 = performance.now();
+//         t0 = performance.now();
         remove(f, WORK);
-        t1 = performance.now();
+//         t1 = performance.now();
         enter(f, WORK, EVENT);
-        t2 = performance.now();
+//         t2 = performance.now();
 
-        timing.remove += t1 - t0;
-        timing.remove_n += 1;
-        timing.enter += t2 - t1;
-        timing.enter_n += 1;
+        // timing.remove += t1 - t0;
+//         timing.remove_n += 1;
+//         timing.enter += t2 - t1;
+//         timing.enter_n += 1;
       }
     }
-    tC = performance.now() - tC;
-    timing.C += tC;
+    // tC = performance.now() - tC;
+//     timing.C += tC;
 
     // 4D
     // Find all "event exchange" intersections in [xi, xi+1]
-    let tD = performance.now();
+//     let tD = performance.now();
     let iter = 0;
     if(debug) {
       console.log(`WORK[${i}]`);
@@ -238,46 +238,46 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
-      t0 = performance.now();
+//       t0 = performance.now();
       xot.swapNodes(e._node, g._node); // xot.swap(e) // exchange e with above(e)
-      t1 = performance.now();
+//       t1 = performance.now();
       remove(e._node.next.data, WORK); // remove(Below(e))
-      t2 = performance.now();
+//       t2 = performance.now();
 
-      timing.exchange += t1 - t0;
-      timing.exchange_n += 1;
-      timing.remove += t2 - t1;
-      timing.remove_n += 1;
+     //  timing.exchange += t1 - t0;
+//       timing.exchange_n += 1;
+//       timing.remove += t2 - t1;
+//       timing.remove_n += 1;
       if(f) {
-        t0 = performance.now();
+//         t0 = performance.now();
         remove(f, WORK);
-        t1 = performance.now();
+//         t1 = performance.now();
         enter(f, WORK, EVENT);
-        t2 = performance.now();
+//         t2 = performance.now();
 
-        timing.remove += t1 - t0;
-        timing.remove_n += 1;
-        timing.enter += t2 - t1;
-        timing.enter_n += 1;
+       //  timing.remove += t1 - t0;
+//         timing.remove_n += 1;
+//         timing.enter += t2 - t1;
+//         timing.enter_n += 1;
       }
-      t0 = performance.now();
+//       t0 = performance.now();
       enter(e, WORK, EVENT);
 
-      timing.enter += performance.now() - t0;
-      timing.enter_n += 1;
+     //  timing.enter += performance.now() - t0;
+//       timing.enter_n += 1;
     }
-    tD = performance.now() - tD;
-    timing.D += tD;
-    timing.D_n += iter;
+    // tD = performance.now() - tD;
+//     timing.D += tD;
+//     timing.D_n += iter;
 
     if(iter >= MAX_ITERATIONS) { console.warn("Max iterations reached."); }
 
     if(debug) { xot.log(); console.table(WORK); }
   }
-  timing.forLoop = performance.now() - timing.forLoop;
-  timing.start = performance.now() - timing.start;
-  timing.num_ixs = num_ixs;
-  return timing;
+  // timing.forLoop = performance.now() - timing.forLoop;
+//   timing.start = performance.now() - timing.start;
+//   timing.num_ixs = num_ixs;
+//   return timing;
 }
 
 
@@ -481,10 +481,14 @@ function hash(e, g, EVENT) {
     drawEdge({A: {x: x, y: canvas.dimensions.height}, B: {x: x, y: 0}}, COLORS.red, .2);
   }
 
-  let i = interpolationFindIndexBefore(EVENT, x);
+  //let i = binaryFindIndex(EVENT, elem => elem > x) - 1;
+  if(x === EVENT[0]) return 0;
+
+   let i = interpolationFindIndexBeforeScalar(EVENT, x);
+  //let i = interpolateBinaryFindIndexBeforeScalar(EVENT, x);
 
   // if equal, use the index before, if any
-  if(i > 0 && EVENT[i] === x) { return i - 1; }
+  //if(i > 0 && EVENT[i] === x) { return i - 1; }
   return i;
 }
 
