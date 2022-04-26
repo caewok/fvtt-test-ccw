@@ -94,6 +94,8 @@ function coordinates() {
 function isClosed() {
   if(typeof this._isClosed === "undefined") {
     const ln = this.points.length;
+    if(ln < 2) return undefined;
+
     this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) &&
                      this.points[1].almostEqual(this.points[ln - 1]);
   }
@@ -104,7 +106,7 @@ function isClosed() {
  * Close the polygon by adding the first point to the end.
  */
 function close() {
-  if(this.isClosed) return;
+  if(this.isClosed == undefined || this.isClosed) return;
   this.points.push(this.points[0], this.points[1]);
   this._isClosed = true;
 }
@@ -113,7 +115,7 @@ function close() {
  * Open the polygon by removing the first point from the end.
  */
 function open() {
-  if(!this.isClosed) return;
+  if(!this.isClosed || this.points.length < 4) return;
   this.points.pop();
   this.points.pop();
   this._isClosed = false;
@@ -143,7 +145,7 @@ function isConvex() {
 function determineConvexity() {
   if(!this.isClosed) {
     console.warn(`Convexity is not defined for open polygons.`);
-    return false;
+    return undefined;
   }
 
   // if a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)

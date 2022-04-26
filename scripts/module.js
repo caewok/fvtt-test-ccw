@@ -2,13 +2,13 @@
 'use strict';
 
 // import { registerCCW } from "./patching.js";
-import { testCCWBenchmarkSight }  from "./benchmark.js";
+import { benchSweep, quantileBenchSweep, QBenchmarkLoop, QBenchmarkLoopFn, benchmarkLoopFn, benchmarkLoop }  from "./benchmark.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
-import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
-import { LinkedPolygon, LinkedPolygonVertex, LinkedPolygonEdge } from "./LinkedPolygon.js";
-import { SimplePolygon, SimplePolygonEdge } from "./SimplePolygon.js";
-import { SimplePolygon2, SimplePolygonEdge2 } from "./SimplePolygon2.js";
+// import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
+// import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
+
+import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { LimitedAngleSweepObject } from "./LimitedAngle.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -17,8 +17,26 @@ import { registerPIXICircleMethods } from "./PIXICircle.js";
 import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
-import * as WASM_exports from "./Intersections.js";
-import { Intersections, Intersections2, BruteSortIntersections, BruteSortXYIntersections,  } from "./Intersections.js";
+import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack, identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./IntersectionsBrute.js";
+import { findIntersectionsSortSingle, findIntersectionsSort2Single, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
+import { findIntersectionsSweepSingle } from "./IntersectionsSweep.js";
+import { findIntersectionsSweepLinkedSingle } from "./IntersectionsSweepLinked.js";
+import { findIntersectionsSweepBSTSingle } from "./IntersectionsSweepBST.js";
+import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipList.js";
+import { findIntersectionsSweepCombinedSingle } from "./IntersectionsSweepCombinedEvents.js";
+import { findIntersectionsSweepCombinedSwapSingle } from "./SegmentSwapper.js";
+import { findIntersectionsSweepCombinedSkipSingle } from "./IntersectionsSweepCombinedSkip.js";
+import { sweepMyers } from "./SweepMyers.js";
+
+// for debugging sweep
+import { PriorityQueueArray } from "./PriorityQueueArray.js";
+import { OrderedArray } from "./OrderedArray.js";
+import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
+import { SegmentArray, EventQueue, pointForSegmentGivenX, EventType, hashSegments } from "./IntersectionsSweep.js";
+import { SkipList } from "./SkipList.js";
+import { OrderedDoubleLinkedList } from "./OrderedDoubleLinkedList.js";
+import { DoubleLinkedList } from "./DoubleLinkedList.js";
+
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
 import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
@@ -34,6 +52,10 @@ import * as PolyClipping from "./lib/polygon-clipping.umd.js";
 // https://github.com/velipso/polybooljs
 import {PolyBool} from "./lib/polybool.js";
 // var PolyBool = import("./lib/polybool.mjs");
+
+import * as BenchmarkJS from "./lib/benchmark.js";
+
+import * as Drawing from "./Drawing.js";
 
 
 
@@ -60,6 +82,13 @@ import {PolyBool} from "./lib/polybool.js";
 import * as ConcaveMan from "./lib/concave_bundle.js";
 
 export const MODULE_ID = 'testccw';
+
+export const UseBinary = {
+  No: 0,
+  Yes: 1,
+  Test: 2,
+}
+
 
 
 /**
@@ -109,29 +138,53 @@ Hooks.once('init', async function() {
   */
 
   game.modules.get(MODULE_ID).api = {
-    debug: false,
+    debug: false, // see also CONFIG.debug.polygons = true
+    debug_binary: 2,
 
-    benchmark: testCCWBenchmarkSight,
+    benchSweep, quantileBenchSweep,
+
+    QBenchmarkLoop, QBenchmarkLoopFn,
+    benchmarkLoop, benchmarkLoopFn,
+
+    BenchmarkJS,
+
     MyClockwiseSweepPolygon,
-    MyClockwiseSweepPolygon2,
-    MyClockwiseSweepPolygon3,
+//     MyClockwiseSweepPolygon2,
+//     MyClockwiseSweepPolygon3,
 
-    LinkedPolygon,
-    LinkedPolygonVertex,
-    LinkedPolygonEdge,
-
-    SimplePolygon,
-    SimplePolygonVertex: PolygonVertex,
     SimplePolygonEdge,
+    LimitedAngleSweepObject,
 
-    SimplePolygon2,
-    SimplePolygonVertex2: PolygonVertex,
-    SimplePolygonEdge2,
+    identifyIntersectionsWith,
+    identifyIntersectionsWithNoEndpoint,
+    findIntersectionsBruteSingle,
+    findIntersectionsBruteRedBlack,
+    findIntersectionsSortSingle,
+    findIntersectionsSort2Single,
+    findIntersectionsSortRedBlack,
+    findIntersectionsSweepSingle,
+    findIntersectionsSweepBSTSingle,
+    findIntersectionsSweepLinkedSingle,
+    findIntersectionsSweepSkipListSingle,
+    findIntersectionsSweepCombinedSingle,
+    findIntersectionsSweepCombinedSwapSingle,
+    findIntersectionsSweepCombinedSkipSingle,
+    sweepMyers,
 
-    Intersections: Intersections,
-    Intersections2: Intersections2,
-    BruteSortIntersections: BruteSortIntersections,
-    BruteSortXYIntersections: BruteSortXYIntersections,
+    EventQueue,
+    SegmentArray,
+    binaryFindIndex,
+    binaryIndexOf,
+    OrderedArray,
+    PriorityQueueArray,
+    SkipList,
+    hashSegments,
+    EventType,
+    pointForSegmentGivenX,
+    OrderedDoubleLinkedList,
+    DoubleLinkedList,
+
+    Drawing,
 
     sweep,
     brute,
@@ -140,7 +193,6 @@ Hooks.once('init', async function() {
     WASMLine,
     WASMCircle,
     WASMPolygon,
-    WASM_exports,
 
     Martinez,
     PolyBool,

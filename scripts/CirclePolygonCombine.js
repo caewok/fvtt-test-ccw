@@ -120,6 +120,9 @@ function _circleEncompassesPolygon(circle, poly) {
  * @return {number[]} Points array, in format [x0, y0, x1, y1, ...]
  */
 export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
+  poly.close();
+  if(!poly.isClockwise) poly.reverse();
+
   let center = { x: circle.x, y: circle.y };
   let radius = circle.radius;
 
@@ -144,15 +147,17 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
   for(let i = 0; i < max_iterations; i += 1) {
     if(circled_back) { break; } // back to first intersecting edge
 
-//     console.log(`${i}: ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
+
 
     let edge_idx = i % ln;
     let edge = edges[edge_idx];
 
+//     console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
+
     if(edge_idx === first_intersecting_edge_idx) { circled_back = true; }
 
     let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
-//     console.log(`${ixs_result.intersections.length} intersections.`);
+//     console.log(`\t${ixs_result.intersections.length} intersections.`);
 
     // round ix for testing to compare to original
 //     ixs_result.intersections = ixs_result.intersections.map(ix => {
@@ -190,7 +195,7 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
     if(ix_data.is_tracing_segment && !circled_back) {
       // add the edge B vertex to points array
-//       console.log(`Adding edge.B ${edge.B.x},${edge.B.y}`);
+//       console.log(`\tAdding edge.B ${edge.B.x},${edge.B.y}`);
       ix_data.pts.push(edge.B.x, edge.B.y);
     }
   }
@@ -212,7 +217,7 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
   // determine whether we are now tracing the segment or the circle
   let is_tracing_segment = false;
   if(aInside && bInside) {
-//     console.warn("processIntersection2: Both endpoints are inside the circle!");
+    console.warn("processIntersection2: Both endpoints are inside the circle!");
   } else if(!aInside && !bInside) {
     // two intersections
     // we must have a_outside --> i0 --> i1 --> b_outside
@@ -224,12 +229,12 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
 
   if(!was_tracing_segment && is_tracing_segment) {
     // we have moved from circle --> segment; pad the previous intersection to here.
-//     console.log("Moving circle --> segment.");
+//     console.log("\tMoving circle --> segment.");
     if(!ix_data.circle_start) {
       console.warn("processIntersection2: undefined circle start circle --> segment");
     }
     let padding = paddingPoints(ix_data.circle_start, ix, circle, { density: ix_data.density });
-//     console.log(`Adding ${padding.length} padding points.`, padding);
+//     console.log(`\tAdding ${padding.length} padding points.`, padding);
 
     // convert padding {x, y} to points array
     //pts = padding.flatMap(pt => [pt.x, pt.y]);
@@ -239,7 +244,7 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
 
   } else if (was_tracing_segment && !is_tracing_segment) {
     // we have moved from segment --> circle; remember the previous intersection
-//     console.log("Moving segment --> circle");
+//     console.log("\tMoving segment --> circle");
     ix_data.circle_start = ix;
   }
 
@@ -250,7 +255,7 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
   if(was_tracing_segment || is_tracing_segment &&
      !(edge.B.x.almostEqual(ix.x) &&
        edge.B.y.almostEqual(ix.y))) {
-//     console.log(`Adding intersection ${ix.x},${ix.y}`);
+//     console.log(`\tAdding intersection ${ix.x},${ix.y}`);
     ix_data.pts.push(ix.x, ix.y);
   }
 
