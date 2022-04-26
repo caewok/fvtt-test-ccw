@@ -1,48 +1,153 @@
-/* globals game, RadialSweepPolygon, ClockwiseSweepPolygon */
+/* globals
+game,
+RadialSweepPolygon,
+ClockwiseSweepPolygon
+canvas,
+WallEndpoint,
+CONFIG
+*/
+
 'use strict';
 
 import { MODULE_ID } from "./module.js";
 
-/* 
+
+export async function benchSweep(n = 1000, ...args) {
+  const num_endpoints = new Set();
+  canvas.walls.placeables.forEach(w => {
+    const c = w.data.c;
+    num_endpoints.add(WallEndpoint.getKey(c[0], c[1]));
+    num_endpoints.add(WallEndpoint.getKey(c[2], c[3]));
+  });
+
+  console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
+  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`);
+
+  game.modules.get('testccw').api.debug = false;
+  CONFIG.debug.polygons = false;
+
+  const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
+
+//   await RadialSweepPolygon.benchmark(n, ...args);
+  await ClockwiseSweepPolygon.benchmark(n, ...args);
+  await MyClockwiseSweepPolygon.benchmark(n, ...args);
+}
+
+/*
  * Compare sight performance between different algorithms
  * Tests w/ and w/o CCW switches: use_bezier, use_robust_ccw
  * @param {number} n      The number of iterations
  * @param {...any} args   Arguments passed to the polygon compute function
  */
-export async function testCCWBenchmarkSight(n=1000, ...args) {
+export function quantileBenchSweep(n=1000, ...args) {
   // count number of unique endpoints
- //  const num_endpoints = new Set();
-//   canvas.walls.placeables.forEach(w => {
-//     const c = w.data.c;
-//     num_endpoints.add(WallEndpoint.getKey(c[0], c[1]));
-//     num_endpoints.add(WallEndpoint.getKey(c[2], c[3]));
-//   });
-// 
-//   console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
-  game.modules.get('testccw').api.debug = false;
+  const num_endpoints = new Set();
+  canvas.walls.placeables.forEach(w => {
+    const c = w.data.c;
+    num_endpoints.add(WallEndpoint.getKey(c[0], c[1]));
+    num_endpoints.add(WallEndpoint.getKey(c[2], c[3]));
+  });
 
-  
-  //await QuadtreeExpansionPolygon.benchmark(n, ...args);
-  await RadialSweepPolygon.benchmark(n, ...args);
-  
-  console.log(`ClockwiseSweep iteration 1`, args);  
-  await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon3.benchmark(n, ...args);
-  
-  // Run ClockwiseSweep repeatedly and in different orders
-  // To avoid caching and other timing issues
-  console.log(`ClockwiseSweep iteration 2`);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon3.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
-  
-  console.log(`ClockwiseSweep iteration 3`);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  await game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon3.benchmark(n, ...args);
-  await ClockwiseSweepPolygon.benchmark(n, ...args);
-  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`)
+  console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
+  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`);
+
+  game.modules.get('testccw').api.debug = false;
+  CONFIG.debug.polygons = false;
+
+  const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
+
+//   QBenchmarkLoop(n, RadialSweepPolygon, "create", ...args);
+  QBenchmarkLoop(n, ClockwiseSweepPolygon, "create", ...args);
+  QBenchmarkLoop(n, MyClockwiseSweepPolygon, "create", ...args);
 }
+
+
+function quantile(arr, q) {
+    arr.sort((a, b) => a - b);
+    if(!q.length) { return q_sorted(arr, q); }
+
+    const out = {};
+    for(let i = 0; i < q.length; i += 1){
+      const q_i = q[i];
+      out[q_i] = q_sorted(arr, q_i);
+    }
+
+    return out;
+}
+
+function q_sorted(arr, q) {
+  const pos = (arr.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (arr[base + 1] !== undefined) {
+     return arr[base] + rest * (arr[base + 1] - arr[base]);
+  }
+  return arr[base];
+}
+
+
+function precision(n, digits = 2) {
+  return Math.round(n * Math.pow(10, digits)) / Math.pow(10, digits);
+}
+
+
+ /**
+  * Benchmark a method of a class.
+  * Includes a 5% warmup (at least 1 iteration) and prints 10%/50%/90% quantiles along
+  * with the mean timing.
+  * @param {number} iterations    Number of repetitions. Will add an additional 5% warmup.
+  * @param {Object} thisArg       Class or other object that contains the method.
+  * @param {string} name          Function name to benchmark
+  * @param {Object} ...args       Additional arguments to pass to function
+  * @return {Number[]}            Array with the time elapsed for each iteration.
+  */
+export function QBenchmarkLoop(iterations, thisArg, fn_name, ...args) {
+  const name = `${thisArg.name || thisArg.constructor.name}.${fn_name}`;
+  const fn = (...args) => thisArg[fn_name](...args);
+  return QBenchmarkLoopFn(iterations, fn, name, ...args);
+}
+
+ /**
+  * Benchmark a function
+  * Includes a 5% warmup (at least 1 iteration) and prints 10%/50%/90% quantiles along
+  * with the mean timing.
+  * @param {number} iterations    Number of repetitions. Will add an additional 5% warmup.
+  * @param {Object} fn            Function to benchmark
+  * @param {string} name          Description to print to console
+  * @param {Object} ...args       Additional arguments to pass to function
+  * @return {Number[]}            Array with the time elapsed for each iteration.
+  */
+export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
+  const timings = [];
+  const num_warmups = Math.ceil(iterations * .05);
+
+  for(let i = -num_warmups; i < iterations; i += 1) {
+    if(i % (iterations / 10) === 0) { console.log("..."); }
+    const t0 = performance.now();
+    fn.apply(null, [...args]);
+    const t1 = performance.now();
+    if(i >= 0) { timings.push(t1 - t0); }
+  }
+
+  const sum = timings.reduce((prev, curr) => prev + curr);
+  const q = quantile(timings, [.1, .5, .9]);
+
+  console.log(`${name} | ${iterations} iterations | ${precision(sum, 4)}ms | ${precision(sum / iterations, 4)}ms per | 10/50/90: ${precision(q[.1], 6)} / ${precision(q[.5], 6)} / ${precision(q[.9], 6)}`);
+
+  return timings;
+}
+
+
+
+export async function benchmarkLoopFn(iterations, fn, name, ...args) {
+  const f = () => fn(...args);
+  Object.defineProperty(f, "name", {value: `${name}`, configurable: true});
+  await foundry.utils.benchmark(f, iterations, ...args);
+}
+
+export async function benchmarkLoop(iterations, thisArg, fn, ...args) {
+  const f = () => thisArg[fn](...args);
+  Object.defineProperty(f, "name", {value: `${thisArg.name || thisArg.constructor.name}.${fn}`, configurable: true});
+  await foundry.utils.benchmark(f, iterations, ...args);
+}
+
