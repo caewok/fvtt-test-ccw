@@ -228,7 +228,6 @@ reportWithTest = (s1, s2) => foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSort2Single, "sort2", segments, reportWithTest)
-await benchmarkLoopFn(N, findIntersectionsSort3Single, "sort3", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithTest)
 // await benchmarkLoopFn(N, findIntersectionsSweepSingle, "sweep", segments)
 await benchmarkLoopFn(N, findIntersectionsSweepLinkedSingle, "sweep linked", segments)
@@ -237,6 +236,16 @@ await benchmarkLoopFn(N, findIntersectionsSweepCombinedSingle, "sweep combined",
 await benchmarkLoopFn(N, findIntersectionsSweepCombinedSkipSingle, "sweep skip combined", segments)
 await benchmarkLoopFn(N, sweepMyers, "myers", segments)
 
+// filtered endpoints
+reportWithFilteredEndpointsTest = (s1, s2) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+}
+console.log("Filtered endpoints")
+await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsSort3Single, "sort3", segments, reportWithTest)
+await benchmarkLoopFn(N, sweepMyersNoEndpoints, "myers", segments, reportWithTest)
 
 N = 100
 num_segments = 10
@@ -1250,12 +1259,25 @@ reportFnSweepMyers = (s1, s2, ix) => {
   reporting_arr_sweep_myers.push(ix);
 }
 
+reportFnSweepMyersNoEndpoints = (s1, s2, ix) => {
+  reporting_arr_sweep_myers_no_endpoints.push(ix);
+}
+
+
+reportFnBruteFilterEndpoints = (s1, s2) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_brute_filtered.push(x); // avoid pushing null
+}
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
+
   reporting_arr_sort = []
   reporting_arr_sort2 = []
-  reporting_arr_sort3 = []
+
   reporting_arr_sort4 = []
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
@@ -1265,6 +1287,11 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_swap_combined = [];
   reporting_arr_sweep_myers = [];
 
+  reporting_arr_brute_filtered = []
+  reporting_arr_sort3 = []
+  reporting_arr_sweep_myers_no_endpoints = [];
+
+
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
   canvas.controls.debug.clear()
@@ -1272,9 +1299,10 @@ for([key, str] of test_strings) {
   segments.forEach(s => drawEdge(s, COLORS.black))
 
   findIntersectionsBruteSingle(segments, reportFnBrute)
+
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSort2Single(segments, reportFnSort2)
-  findIntersectionsSort3Single(segments, reportFnSort3)
+
   findIntersectionsSort4Single(segments, reportFnSort4)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
@@ -1284,6 +1312,10 @@ for([key, str] of test_strings) {
   findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
   sweepMyers(segments, reportFnSweepMyers)
 
+  findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
+  sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
+  findIntersectionsSort3Single(segments, reportFnSort3)
+
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.
   // meyers will work like brute
@@ -1291,7 +1323,6 @@ for([key, str] of test_strings) {
     reporting_arr_brute.push(reporting_arr_brute[0], reporting_arr_brute[0]);
     reporting_arr_sort.push(reporting_arr_sort[0], reporting_arr_sort[0]);
     reporting_arr_sort2.push(reporting_arr_sort2[0], reporting_arr_sort2[0]);
-    reporting_arr_sort3.push(reporting_arr_sort3[0], reporting_arr_sort3[0]);
     reporting_arr_sort4.push(reporting_arr_sort4[0], reporting_arr_sort4[0]);
     reporting_arr_sweep_myers.push(reporting_arr_sweep_myers[0], reporting_arr_sweep_myers[0])
   }
@@ -1299,7 +1330,7 @@ for([key, str] of test_strings) {
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
   reporting_arr_sort2.sort(compareXY)
-  reporting_arr_sort3.sort(compareXY)
+
   reporting_arr_sort4.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
@@ -1308,6 +1339,10 @@ for([key, str] of test_strings) {
 //   reporting_arr_sweep_swap_combined.sort(compareXY)
   reporting_arr_sweep_skip_combined.sort(compareXY)
   reporting_arr_sweep_myers.sort(compareXY)
+
+  reporting_arr_brute_filtered.sort(compareXY);
+  reporting_arr_sort3.sort(compareXY)
+  reporting_arr_sweep_myers_no_endpoints.sort(compareXY);
 
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
@@ -1330,15 +1365,7 @@ for([key, str] of test_strings) {
      console.log(`\t√ Sort2`)
   }
 
-  if(reporting_arr_brute.length !== reporting_arr_sort3.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort3[idx]))) {
 
-     console.error(`\tx Sort3`, )
-//      console.table(reporting_arr_brute);
-//      console.table(reporting_arr_sort3);
-  } else {
-     console.log(`\t√ Sort3`)
-  }
 
   if(reporting_arr_brute.length !== reporting_arr_sort4.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort4[idx]))) {
@@ -1418,6 +1445,29 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sweep_myers);
   } else {
      console.log(`\t√ Sweep Myers`)
+  }
+
+
+  // versions that skip endpoints
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sort3.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sort3[idx]))) {
+
+     console.error(`\tx Endpoint Filtered Sort3`, )
+//      console.table(reporting_arr_brute_filtered);
+//      console.table(reporting_arr_sort3);
+  } else {
+     console.log(`\t√ Endpoint Filtered Sort3`)
+  }
+
+  // versions that skip endpoints
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sweep_myers_no_endpoints.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_myers_no_endpoints[idx]))) {
+
+     console.error(`\tx Endpoint Filtered Myers`, )
+//      console.table(reporting_arr_brute_filtered);
+//      console.table(reporting_arr_sweep_myers_no_endpoints);
+  } else {
+     console.log(`\t√ Endpoint Filtered Myers`)
   }
 }
 

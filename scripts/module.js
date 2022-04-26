@@ -18,7 +18,7 @@ import * as ClipperLib from "./lib/clipper_unminified.js";
 import {sweep, brute, bush} from "./lib/isect.js";
 
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack, identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./IntersectionsBrute.js";
-import { findIntersectionsSortSingle, findIntersectionsSort2Single, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
+import { findIntersectionsSortSingle, findIntersectionsSort2Single, findIntersectionsSort3Single, findIntersectionsSort4Single, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsSweepSingle } from "./IntersectionsSweep.js";
 import { findIntersectionsSweepLinkedSingle } from "./IntersectionsSweepLinked.js";
 import { findIntersectionsSweepBSTSingle } from "./IntersectionsSweepBST.js";
@@ -27,6 +27,7 @@ import { findIntersectionsSweepCombinedSingle } from "./IntersectionsSweepCombin
 import { findIntersectionsSweepCombinedSwapSingle } from "./SegmentSwapper.js";
 import { findIntersectionsSweepCombinedSkipSingle } from "./IntersectionsSweepCombinedSkip.js";
 import { sweepMyers } from "./SweepMyers.js";
+import { sweepMyersNoEndpoints } from "./sweepMyersNoEndpoints.js";
 
 // for debugging sweep
 import { PriorityQueueArray } from "./PriorityQueueArray.js";
@@ -161,6 +162,8 @@ Hooks.once('init', async function() {
     findIntersectionsBruteRedBlack,
     findIntersectionsSortSingle,
     findIntersectionsSort2Single,
+    findIntersectionsSort3Single,
+    findIntersectionsSort4Single,
     findIntersectionsSortRedBlack,
     findIntersectionsSweepSingle,
     findIntersectionsSweepBSTSingle,
@@ -170,6 +173,7 @@ Hooks.once('init', async function() {
     findIntersectionsSweepCombinedSwapSingle,
     findIntersectionsSweepCombinedSkipSingle,
     sweepMyers,
+    sweepMyersNoEndpoints,
 
     EventQueue,
     SegmentArray,

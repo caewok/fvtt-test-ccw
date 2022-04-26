@@ -116,18 +116,21 @@ function compareXYSortEndpoints(e1, e2) {
   // if e2.se then we want e2 first or they are equal. So return +
 }
 
+// avoid endpoints
+// Mostly can accomplish this by not considering intersections when reaching an
+// endpoint event. But need to specially handle verticals
 export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
   const ln = edges.length;
   if(!ln) return;
 
   // construct an array of segments that can be sorted by nw and se endpoints
-  // for each segment i, use binarySearch to find the start index and end index
 
-  endpoints = [];
+  const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
-    endpoints.push({e: edges[i].nw, s: edges[i], se: false}, {e: edges[i].se, s: edges[i], se: true})
+    endpoints.push({ e: edges[i].nw, s: edges[i], se: false },
+                   { e: edges[i].se, s: edges[i], se: true });
   }
-  let ln2 = ln * 2;
+  const ln2 = ln * 2;
 
   endpoints.sort((a, b) => compareXYSortEndpoints(a, b));
 
@@ -135,23 +138,19 @@ export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
     const endpoint1 = endpoints[i];
     if(endpoint1.se) continue; // alt would be to sort edges array and use that for the i loop
 
+
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
-    let start_j = i + 1;
-
-    // Need to determine where to end.
-    // ej is entirely se of ei. So ei.se < ej.nw.
-    // Find the index for ej.
-//     let end_j = interpolateBinaryFindIndexBeforeObject(endpoints, {e: endpoint1.s.se}, (a) => a.e.sortKey);
-    let end_j = binaryFindIndex(endpoints, (elem, idx) =>  elem.e.x > endpoint1.s.se.x ) // >= to avoid endpoints
-    ~end_j || (end_j = ln2);
-
-
+    const start_j = i + 1;
     const edge1 = endpoint1.s;
-    for(let j = start_j; j < end_j; j += 1) {
-      if(endpoints[j].se) continue;
+
+    for(let j = start_j; j < ln2; j += 1) {
+      const endpoint2 = endpoints[j];
+      if(endpoint2.se) continue;
+      if(endpoint2.e.x > endpoint1.s.se.x) break;
 
       const edge2 = endpoints[j].s;
+      if(edge1.wallKeys.has(edge2.nw.key) || edge1.wallKeys.has(edge2.se.key)) { continue; }
 
       if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
         reportFn(edge1, edge2);
@@ -167,11 +166,11 @@ export function findIntersectionsSort4Single(edges, reportFn = (e1, e2) => {}) {
   // construct an array of segments that can be sorted by nw and se endpoints
   // for each segment i, use binarySearch to find the start index and end index
 
-  endpoints = [];
+  const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
     endpoints.push({e: edges[i].nw, s: edges[i], se: false}, {e: edges[i].se, s: edges[i], se: true})
   }
-  let ln2 = ln * 2;
+  const ln2 = ln * 2;
 
   endpoints.sort((a, b) => compareXYSortEndpoints(a, b));
 
@@ -181,12 +180,13 @@ export function findIntersectionsSort4Single(edges, reportFn = (e1, e2) => {}) {
 
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
-    let start_j = i + 1;
+    const start_j = i + 1;
 
     // Need to determine where to end.
     // ej is entirely se of ei. So ei.se < ej.nw.
     // Find the index for ej.
-//     let end_j = interpolateBinaryFindIndexBeforeObject(endpoints, {e: endpoint1.s.se}, (a) => a.e.sortKey);
+    // binaryFindIndex: substitute end_j for ln2 below.
+    // Testing suggests this is comparable, but slightly slower
 //     let end_j = binaryFindIndex(endpoints, (elem, idx) =>  elem.e.x > endpoint1.s.se.x ) // >= to avoid endpoints
 //     ~end_j || (end_j = ln2);
 
