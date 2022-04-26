@@ -27,7 +27,7 @@ Both functions take a callback function that reports intersecting segment pairs.
  */
 export function findIntersectionsBruteSingle(segments, reportFn = (_s1, _s2) => {}) {
   const ln = segments.length;
-  if(!ln) return;
+  if(!ln) { return; }
 
   for(let i = 0; i < ln; i += 1) {
     const si = segments[i];
@@ -54,7 +54,7 @@ export function findIntersectionsBruteSingle(segments, reportFn = (_s1, _s2) => 
 export function findIntersectionsBruteRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   const ln1 = red.length;
   const ln2 = black.length;
-  if(!ln1 || !ln2) return;
+  if(!ln1 || !ln2) { return; }
 
   for(let i = 0; i < ln1; i += 1) {
     const si = red[i];
