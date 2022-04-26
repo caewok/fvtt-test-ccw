@@ -26,7 +26,7 @@ import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 const MAX_ITERATIONS = 100_000;
 
-export function sweepMyersNoEndpoint(segments, reportFn = (e1, e2, ix) => {}, {use_linked_object = false} = {}) {
+export function sweepMyersNoEndpoints(segments, reportFn = (e1, e2, ix) => {}, {use_linked_object = false} = {}) {
   // i = -1
   let debug = game.modules.get(MODULE_ID).api.debug;
 
@@ -89,7 +89,7 @@ export function sweepMyersNoEndpoint(segments, reportFn = (e1, e2, ix) => {}, {u
 
       }
       enter(e, WORK, EVENT);
-      num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
+      //num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
     }
 
     // 4B
@@ -158,15 +158,18 @@ export function sweepMyersNoEndpoint(segments, reportFn = (e1, e2, ix) => {}, {u
       if(!e._node) continue; // likely already removed as an endpoint
 
       let g = e._node.prev.data; // Above(e)
-      let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-      if(ix) {
-        num_ixs += 1;
-        if(debug) {
-          console.log(`${e.id} (e) and ${g.id} (above(e)) intersect at ${ix.x},${ix.y}`);
-          drawVertex(ix);
+      if(!e.wallKeys.has(g.nw.key) && !e.wallKeys.has(g.se.key)) {
+        let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
+        if(ix) {
+          num_ixs += 1;
+          if(debug) {
+            console.log(`${e.id} (e) and ${g.id} (above(e)) intersect at ${ix.x},${ix.y}`);
+            drawVertex(ix);
+          }
+          reportFn(e, g, ix);
         }
-        reportFn(e, g, ix);
       }
+
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -218,6 +221,8 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     let yg = p1 ? p1.y : g.nw.y;
     //if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
     if(cond(yg, e.nw.y, e.se.y)) { break; }
+
+    if(e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) continue;
 
     if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);

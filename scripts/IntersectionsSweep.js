@@ -1250,15 +1250,22 @@ reportFnSweepMyers = (s1, s2, ix) => {
   reporting_arr_sweep_myers.push(ix);
 }
 
-function filterEndpoints(reporting_arr) {
-  reporting_arr.filter(elem => {
-    return elem
-  })
+reportFnSweepMyersNoEndpoints = (s1, s2, ix) => {
+  reporting_arr_sweep_myers_no_endpoints.push(ix);
+}
+
+
+reportFnBruteFilterEndpoints = (s1, s2) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_brute_filtered.push(x); // avoid pushing null
 }
 
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
+  reporting_arr_brute_filtered = []
   reporting_arr_sort = []
   reporting_arr_sort2 = []
   reporting_arr_sort3 = []
@@ -1270,6 +1277,7 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_skip_combined = []
   reporting_arr_sweep_swap_combined = [];
   reporting_arr_sweep_myers = [];
+  reporting_arr_sweep_myers_no_endpoints = [];
 
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
@@ -1278,6 +1286,7 @@ for([key, str] of test_strings) {
   segments.forEach(s => drawEdge(s, COLORS.black))
 
   findIntersectionsBruteSingle(segments, reportFnBrute)
+  findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
   findIntersectionsSortSingle(segments, reportFnSort)
   findIntersectionsSort2Single(segments, reportFnSort2)
   findIntersectionsSort3Single(segments, reportFnSort3)
@@ -1289,6 +1298,7 @@ for([key, str] of test_strings) {
 //   findIntersectionsSweepCombinedSwapSingle(segments, reportFnSweepSwapCombined)
   findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
   sweepMyers(segments, reportFnSweepMyers)
+  sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
 
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.
@@ -1315,6 +1325,9 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_skip_combined.sort(compareXY)
   reporting_arr_sweep_myers.sort(compareXY)
 
+  reporting_arr_brute_filtered.sort(compareXY);
+  reporting_arr_sweep_myers_no_endpoints.sort(compareXY);
+
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
@@ -1336,15 +1349,7 @@ for([key, str] of test_strings) {
      console.log(`\t√ Sort2`)
   }
 
-  if(reporting_arr_brute.length !== reporting_arr_sort3.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort3[idx]))) {
 
-     console.error(`\tx Sort3`, )
-//      console.table(reporting_arr_brute);
-//      console.table(reporting_arr_sort3);
-  } else {
-     console.log(`\t√ Sort3`)
-  }
 
   if(reporting_arr_brute.length !== reporting_arr_sort4.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort4[idx]))) {
@@ -1424,6 +1429,29 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sweep_myers);
   } else {
      console.log(`\t√ Sweep Myers`)
+  }
+
+
+  // versions that skip endpoints
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sort3.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sort3[idx]))) {
+
+     console.error(`\tx Endpoint Filtered Sort3`, )
+//      console.table(reporting_arr_brute_filtered);
+//      console.table(reporting_arr_sort3);
+  } else {
+     console.log(`\t√ Endpoint Filtered Sort3`)
+  }
+
+  // versions that skip endpoints
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sweep_myers_no_endpoints.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_myers_no_endpoints[idx]))) {
+
+     console.error(`\tx Endpoint Filtered Myers`, )
+//      console.table(reporting_arr_brute_filtered);
+//      console.table(reporting_arr_sweep_myers_no_endpoints);
+  } else {
+     console.log(`\t√ Endpoint Filtered Myers`)
   }
 }
 
