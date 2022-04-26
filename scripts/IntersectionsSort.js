@@ -124,11 +124,11 @@ export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
   // construct an array of segments that can be sorted by nw and se endpoints
   // for each segment i, use binarySearch to find the start index and end index
 
-  endpoints = [];
+  const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
     endpoints.push({e: edges[i].nw, s: edges[i], se: false}, {e: edges[i].se, s: edges[i], se: true})
   }
-  let ln2 = ln * 2;
+  const ln2 = ln * 2;
 
   endpoints.sort((a, b) => compareXYSortEndpoints(a, b));
 
@@ -138,7 +138,7 @@ export function findIntersectionsSort3Single(edges, reportFn = (e1, e2) => {}) {
 
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
-    let start_j = i + 1;
+    const start_j = i + 1;
     const edge1 = endpoint1.s;
     for(let j = start_j; j < ln2; j += 1) {
       const endpoint2 = endpoints[j];
@@ -164,11 +164,11 @@ export function findIntersectionsSort4Single(edges, reportFn = (e1, e2) => {}) {
   // construct an array of segments that can be sorted by nw and se endpoints
   // for each segment i, use binarySearch to find the start index and end index
 
-  endpoints = [];
+  const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
     endpoints.push({e: edges[i].nw, s: edges[i], se: false}, {e: edges[i].se, s: edges[i], se: true})
   }
-  let ln2 = ln * 2;
+  const ln2 = ln * 2;
 
   endpoints.sort((a, b) => compareXYSortEndpoints(a, b));
 
@@ -178,7 +178,7 @@ export function findIntersectionsSort4Single(edges, reportFn = (e1, e2) => {}) {
 
     // starting j is always i + 1 b/c any segment with an se endpoint after edge1
     // would be after edge1 or already processed b/c its ne endpoint was before.
-    let start_j = i + 1;
+    const start_j = i + 1;
 
     // Need to determine where to end.
     // ej is entirely se of ei. So ei.se < ej.nw.
