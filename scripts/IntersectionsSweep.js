@@ -227,8 +227,6 @@ reportWithTest = (s1, s2) => foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A
 
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithTest)
 await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithTest)
-await benchmarkLoopFn(N, findIntersectionsSort2Single, "sort2", segments, reportWithTest)
-await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithTest)
 // await benchmarkLoopFn(N, findIntersectionsSweepSingle, "sweep", segments)
 await benchmarkLoopFn(N, findIntersectionsSweepLinkedSingle, "sweep linked", segments)
 // await benchmarkLoopFn(N, findIntersectionsSweepSkipListSingle, "sweep skip", segments)
@@ -243,8 +241,7 @@ reportWithFilteredEndpointsTest = (s1, s2) => {
 }
 console.log("Filtered endpoints")
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithFilteredEndpointsTest)
-await benchmarkLoopFn(N, findIntersectionsSort4Single, "sort4", segments, reportWithFilteredEndpointsTest)
-await benchmarkLoopFn(N, findIntersectionsSort3Single, "sort3", segments, reportWithTest)
+await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithFilteredEndpointsTest)
 await benchmarkLoopFn(N, sweepMyersNoEndpoints, "myers", segments, reportWithTest)
 
 N = 100
@@ -1216,21 +1213,6 @@ reportFnSort = (s1, s2) => {
   if(x) reporting_arr_sort.push(x);
 }
 
-reportFnSort2 = (s1, s2) => {
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_sort2.push(x);
-}
-
-reportFnSort3 = (s1, s2) => {
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_sort3.push(x);
-}
-
-reportFnSort4 = (s1, s2) => {
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_sort4.push(x);
-}
-
 reportFnSweep = (s1, s2, ix) => {
   reporting_arr_sweep.push(ix);
 }
@@ -1271,14 +1253,18 @@ reportFnBruteFilterEndpoints = (s1, s2) => {
   if(x) reporting_arr_brute_filtered.push(x); // avoid pushing null
 }
 
+reportFnSortFilterEndpoints = (s1, s2) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_sort_filtered.push(x); // avoid pushing null
+}
+
+
 for([key, str] of test_strings) {
   console.log(`\nTesting ${key}`)
   reporting_arr_brute = []
-
   reporting_arr_sort = []
-  reporting_arr_sort2 = []
-
-  reporting_arr_sort4 = []
   reporting_arr_sweep = []
   reporting_arr_sweep_link = []
   reporting_arr_sweep_skip = []
@@ -1288,7 +1274,7 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_myers = [];
 
   reporting_arr_brute_filtered = []
-  reporting_arr_sort3 = []
+  reporting_arr_sort_filtered = []
   reporting_arr_sweep_myers_no_endpoints = [];
 
 
@@ -1301,9 +1287,6 @@ for([key, str] of test_strings) {
   findIntersectionsBruteSingle(segments, reportFnBrute)
 
   findIntersectionsSortSingle(segments, reportFnSort)
-  findIntersectionsSort2Single(segments, reportFnSort2)
-
-  findIntersectionsSort4Single(segments, reportFnSort4)
   findIntersectionsSweepSingle(segments, reportFnSweep)
   findIntersectionsSweepLinkedSingle(segments, reportFnSweepLink)
   findIntersectionsSweepSkipListSingle(segments, reportFnSweepSkip)
@@ -1314,7 +1297,7 @@ for([key, str] of test_strings) {
 
   findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
   sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
-  findIntersectionsSort3Single(segments, reportFnSort3)
+  findIntersectionsSortSingle(segments, reportFnSortFilterEndpoints)
 
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.
@@ -1322,16 +1305,11 @@ for([key, str] of test_strings) {
   if(key === "* with endpoint" || key === "Near *" || key === "Evil *") {
     reporting_arr_brute.push(reporting_arr_brute[0], reporting_arr_brute[0]);
     reporting_arr_sort.push(reporting_arr_sort[0], reporting_arr_sort[0]);
-    reporting_arr_sort2.push(reporting_arr_sort2[0], reporting_arr_sort2[0]);
-    reporting_arr_sort4.push(reporting_arr_sort4[0], reporting_arr_sort4[0]);
     reporting_arr_sweep_myers.push(reporting_arr_sweep_myers[0], reporting_arr_sweep_myers[0])
   }
 
   reporting_arr_brute.sort(compareXY)
   reporting_arr_sort.sort(compareXY)
-  reporting_arr_sort2.sort(compareXY)
-
-  reporting_arr_sort4.sort(compareXY)
   reporting_arr_sweep.sort(compareXY)
   reporting_arr_sweep_link.sort(compareXY)
   reporting_arr_sweep_skip.sort(compareXY)
@@ -1341,7 +1319,7 @@ for([key, str] of test_strings) {
   reporting_arr_sweep_myers.sort(compareXY)
 
   reporting_arr_brute_filtered.sort(compareXY);
-  reporting_arr_sort3.sort(compareXY)
+  reporting_arr_sort_filtered.sort(compareXY)
   reporting_arr_sweep_myers_no_endpoints.sort(compareXY);
 
 
@@ -1353,28 +1331,6 @@ for([key, str] of test_strings) {
 //      console.table(reporting_arr_sort);
   } else {
      console.log(`\t√ Sort`)
-  }
-
-  if(reporting_arr_brute.length !== reporting_arr_sort2.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort2[idx]))) {
-
-     console.error(`\tx Sort2`, )
-//      console.table(reporting_arr_brute);
-//      console.table(reporting_arr_sort2);
-  } else {
-     console.log(`\t√ Sort2`)
-  }
-
-
-
-  if(reporting_arr_brute.length !== reporting_arr_sort4.length ||
-     !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort4[idx]))) {
-
-     console.error(`\tx Sort4`, )
-//      console.table(reporting_arr_brute);
-//      console.table(reporting_arr_sort4);
-  } else {
-     console.log(`\t√ Sort4`)
   }
 
   if(reporting_arr_brute.length !== reporting_arr_sweep.length ||
@@ -1449,14 +1405,14 @@ for([key, str] of test_strings) {
 
 
   // versions that skip endpoints
-  if(reporting_arr_brute_filtered.length !== reporting_arr_sort3.length ||
-     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sort3[idx]))) {
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sort_filtered.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sort_filtered[idx]))) {
 
-     console.error(`\tx Endpoint Filtered Sort3`, )
+     console.error(`\tx Endpoint Filtered Sort`, )
 //      console.table(reporting_arr_brute_filtered);
-//      console.table(reporting_arr_sort3);
+//      console.table(reporting_arr_sort_filtered);
   } else {
-     console.log(`\t√ Endpoint Filtered Sort3`)
+     console.log(`\t√ Endpoint Filtered Sort`)
   }
 
   // versions that skip endpoints
