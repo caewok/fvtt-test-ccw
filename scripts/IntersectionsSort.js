@@ -47,15 +47,15 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
   const endpoints = [];
   for(let i = 0; i < ln; i += 1) {
     const s = segments[i];
-    endpoints.push({e: s.nw, s, se: false},
-                   {e: s.se, s, se: true});
+    endpoints.push({e: s.nw, s, se: -1},
+                   {e: s.se, s, se: 1});
   }
   endpoints.sort((a, b) => sortEndpoints(a, b));
 
   const ln2 = endpoints.length;
   for(let i = 0; i < ln2; i += 1) {
     const endpoint1 = endpoints[i];
-    if(endpoint1.se) continue; // avoid duplicating the check
+    if(~endpoint1.se) continue; // avoid duplicating the check
 
     // starting j is always i + 1 b/c any segment with an se endpoint after si
     // would be after si or already processed b/c its ne endpoint was before.
@@ -64,7 +64,7 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
     for(let j = start_j; j < ln2; j += 1) {
       const endpoint2 = endpoints[j];
 
-      if(endpoint2.se) continue;
+      if(~endpoint2.se) continue;
       if(endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
 
       const sj = endpoint2.s;
@@ -73,14 +73,26 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
   }
 }
 
-// findIntersectionsSort3Single
-// sort by endpoint and for ties, sort se first
+/**
+ * Comparison function for SortSingle
+ * Sort each endpoint object by the endpoint x coordinate then sort se first.
+ * @param {Object} e1   Endpoint object containing:
+ *                      e (endpoint), s (segment), and se (boolean)
+ * @param {Object} e2   Endpoint object containing:
+ *                      e (endpoint), s (segment), and se (boolean)
+ * @return {Number} Number indicating whether to sort e1 before e2 or vice-versa.
+ *                  > 0: sort e2 before e1
+ *                  < 0: sort e1 before e2
+ */
 function sortEndpoints(e1, e2) {
   return e1.e.x - e2.e.x ||
-         (e1.se ? -1 : 1);
+         e2.se - e1.se;
 
   // if e1.se then we want e1 first or they are equal. So return -
   // if e2.se then we want e2 first or they are equal. So return +
+  // e2.se - e1.se
+  // e1.se: -1, e2.se: 1. 1 - - 1 = 2; e2 first
+  // e1.se: 1, e2.se: -1. -1 - 1 = -2:; e1 first
 }
 
 
