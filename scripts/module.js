@@ -3,6 +3,9 @@
 
 // import { registerCCW } from "./patching.js";
 import { benchSweep, quantileBenchSweep, QBenchmarkLoop, QBenchmarkLoopFn, benchmarkLoopFn, benchmarkLoop }  from "./benchmark.js";
+import * as tests from "./tests.js";
+import * as drawing from "./drawing.js";
+
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 // import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 // import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
@@ -21,6 +24,7 @@ import { identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
+
 
 // for debugging sweep
 import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
@@ -44,8 +48,6 @@ import {PolyBool} from "./lib/polybool.js";
 // var PolyBool = import("./lib/polybool.mjs");
 
 import * as BenchmarkJS from "./lib/benchmark.js";
-
-import * as Drawing from "./Drawing.js";
 
 
 
@@ -147,18 +149,23 @@ Hooks.once('init', async function() {
 
     identifyIntersectionsWith,
     identifyIntersectionsWithNoEndpoint,
-    findIntersectionsBruteSingle,
-    findIntersectionsBruteRedBlack,
-    findIntersectionsSortSingle,
-    findIntersectionsSortRedBlack,
-    findIntersectionsMyersSingle,
+
+    intersections: {
+      findIntersectionsBruteSingle,
+      findIntersectionsBruteRedBlack,
+      findIntersectionsSortSingle,
+      findIntersectionsSortRedBlack,
+      findIntersectionsMyersSingle,
+    },
+
+    tests,
 
     binaryFindIndex,
     binaryIndexOf,
     SkipList,
     DoubleLinkedList,
 
-    Drawing,
+    drawing,
 
     sweep,
     brute,
