@@ -179,5 +179,28 @@ export function lineBlocksPoint(a, b, p, o) {
 
 export function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)) }
 
+export function identifyIntersectionsWith(s1, s2) {
+  if(s1 === s2) return; // probably unnecessary
+
+  const {a: a1, b: b1} = s1.vertices;
+  const {a: a2, b: b2} = s2.vertices;
+
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(!x) return; // may not be necessary but may eliminate colinear lines
+  s1.intersectsWith.set(s2, x);
+  s2.intersectsWith.set(s1, x);
+}
+
+export function identifyIntersectionsWithNoEndpoint(s1, s2) {
+  if(s1.wallKeys.intersects(s2.wallKeys)) return;
+
+  return identifyIntersectionsWith(s1, s2);
+}
+
+export function pointForSegmentGivenX(s, x) {
+    const denom = s.B.x - s.A.x;
+    if(!denom) return undefined;
+    return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+  }
 
 

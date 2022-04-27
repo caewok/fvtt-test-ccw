@@ -19,7 +19,7 @@ PolygonVertex
 //import { log } from "./module.js";
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { identifyIntersectionsWithNoEndpoint } from "./IntersectionsBrute.js";
+import { identifyIntersectionsWithNoEndpoint } from "./utilities.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { LimitedAngleSweepObject } from "./LimitedAngle.js";
 
