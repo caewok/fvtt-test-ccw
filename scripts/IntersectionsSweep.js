@@ -242,7 +242,7 @@ reportWithFilteredEndpointsTest = (s1, s2) => {
 console.log("Filtered endpoints")
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithFilteredEndpointsTest)
 await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithFilteredEndpointsTest)
-await benchmarkLoopFn(N, findIntersectionsMyersSingle, "myers", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsMyersSingle, "myers filtered", segments, reportWithFilteredEndpointsTest)
 await benchmarkLoopFn(N, sweepMyersNoEndpoints, "myers", segments, reportWithTest)
 
 N = 100
