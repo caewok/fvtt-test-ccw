@@ -232,7 +232,7 @@ await benchmarkLoopFn(N, findIntersectionsSweepLinkedSingle, "sweep linked", seg
 // await benchmarkLoopFn(N, findIntersectionsSweepSkipListSingle, "sweep skip", segments)
 await benchmarkLoopFn(N, findIntersectionsSweepCombinedSingle, "sweep combined", segments)
 await benchmarkLoopFn(N, findIntersectionsSweepCombinedSkipSingle, "sweep skip combined", segments)
-await benchmarkLoopFn(N, sweepMyers, "myers", segments)
+await benchmarkLoopFn(N, findIntersectionsMyersSingle, "myers", segments, reportWithTest)
 
 // filtered endpoints
 reportWithFilteredEndpointsTest = (s1, s2) => {
@@ -242,6 +242,7 @@ reportWithFilteredEndpointsTest = (s1, s2) => {
 console.log("Filtered endpoints")
 await benchmarkLoopFn(N, findIntersectionsBruteSingle, "brute", segments, reportWithFilteredEndpointsTest)
 await benchmarkLoopFn(N, findIntersectionsSortSingle, "sort", segments, reportWithFilteredEndpointsTest)
+await benchmarkLoopFn(N, findIntersectionsMyersSingle, "myers", segments, reportWithFilteredEndpointsTest)
 await benchmarkLoopFn(N, sweepMyersNoEndpoints, "myers", segments, reportWithTest)
 
 N = 100
@@ -1237,12 +1238,7 @@ reportFnSweepSkipCombined = (s1, s2, ix) => {
   reporting_arr_sweep_skip_combined.push(ix);
 }
 
-reportFnSweepMyers = (s1, s2, ix) => {
-  // it is possible to have Myers return an intersection where
-  // two collinear segments meet at an endpoint. E.g., *
-  // In some cases, lineLineIntersection will (arguably incorrectly) return null
-  // for that intersection
-
+reportFnSweepMyers = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if(x) reporting_arr_sweep_myers.push(x); // avoid pushing null
 }
@@ -1251,7 +1247,7 @@ reportFnSweepMyersNoEndpoints = (s1, s2, ix) => {
   reporting_arr_sweep_myers_no_endpoints.push(ix);
 }
 
-reportFnSweepMyersFilteredEndpoints = (s1, s2, ix) => {
+reportFnSweepMyersFilteredEndpoints = (s1, s2) => {
   if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if(x) reporting_arr_sweep_myers_filtered_endpoints.push(x); // avoid pushing null
@@ -1305,12 +1301,12 @@ for([key, str] of test_strings) {
   findIntersectionsSweepCombinedSingle(segments, reportFnSweepCombined)
 //   findIntersectionsSweepCombinedSwapSingle(segments, reportFnSweepSwapCombined)
   findIntersectionsSweepCombinedSkipSingle(segments, reportFnSweepSkipCombined)
-  sweepMyers(segments, reportFnSweepMyers)
+  findIntersectionsMyersSingle(segments, reportFnSweepMyers)
 
   findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
   sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
   findIntersectionsSortSingle(segments, reportFnSortFilterEndpoints)
-  sweepMyers(segments, reportFnSweepMyersFilteredEndpoints)
+  findIntersectionsMyersSingle(segments, reportFnSweepMyersFilteredEndpoints)
 
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.

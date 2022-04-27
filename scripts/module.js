@@ -27,7 +27,7 @@ import { findIntersectionsSweepSkipListSingle } from "./IntersectionsSweepSkipLi
 import { findIntersectionsSweepCombinedSingle } from "./IntersectionsSweepCombinedEvents.js";
 import { findIntersectionsSweepCombinedSwapSingle } from "./SegmentSwapper.js";
 import { findIntersectionsSweepCombinedSkipSingle } from "./IntersectionsSweepCombinedSkip.js";
-import { sweepMyers } from "./SweepMyers.js";
+import { findIntersectionsMyersSingle } from "./SweepMyers.js";
 import { sweepMyersNoEndpoints } from "./sweepMyersNoEndpoints.js";
 
 // for debugging sweep
@@ -170,7 +170,7 @@ Hooks.once('init', async function() {
     findIntersectionsSweepCombinedSingle,
     findIntersectionsSweepCombinedSwapSingle,
     findIntersectionsSweepCombinedSkipSingle,
-    sweepMyers,
+    findIntersectionsMyersSingle,
     sweepMyersNoEndpoints,
 
     EventQueue,

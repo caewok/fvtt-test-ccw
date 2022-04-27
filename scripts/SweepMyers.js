@@ -71,7 +71,7 @@ import { interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
  * @param {Function} reportFn     Callback function that is passed pairs of
  *                                segment objects that intersect.
  */
-export function sweepMyers(segments, reportFn = (_s1, _s2) => {}) {
+export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => {}) {
   // Myers p. 626. Construct the lists.
   const { EVENT, BEG, VERT, END, WORK } = constructLists(segments);
   const xot = new XOT();
