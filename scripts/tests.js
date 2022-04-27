@@ -15,7 +15,7 @@ canvas,
 
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
+import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { clearDrawings, clearLabels, drawEdge, COLORS } from "./drawing.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { pointsEqual, compareXY, describeSceneParameters } from "./utilities.js";
@@ -128,33 +128,33 @@ export function testSceneIntersections() {
 
   reporting_arr_brute.length = 0;
   reporting_arr_sort.length = 0;
-//   reporting_arr_myers.length = 0;
+  reporting_arr_myers.length = 0;
   reporting_arr_brute_filtered.length = 0;
   reporting_arr_sort_filtered.length = 0;
-//   reporting_arr_myers_filtered.length = 0;
+  reporting_arr_myers_filtered.length = 0;
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBrute);
   findIntersectionsSortRedBlack(segments, black, reportFnSort);
-//   findIntersectionsMyersRedBlack(segments, reportFnMyers);
+  findIntersectionsMyersRedBlack(segments, black, reportFnMyers);
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBruteFilterEndpoints);
   findIntersectionsSortRedBlack(segments, black, reportFnSortFilterEndpoints);
-//   findIntersectionsMyersRedBlack(segments, reportFnMyersFilteredEndpoints);
+  findIntersectionsMyersRedBlack(segments, black, reportFnMyersFilteredEndpoints);
 
 
   reporting_arr_brute.sort(compareXY);
   reporting_arr_sort.sort(compareXY);
-//   reporting_arr_myers.sort(compareXY);
+  reporting_arr_myers.sort(compareXY);
   reporting_arr_brute_filtered.sort(compareXY);
   reporting_arr_sort_filtered.sort(compareXY);
-//   reporting_arr_myers_filtered.sort(compareXY);
+  reporting_arr_myers_filtered.sort(compareXY);
 
   checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
-//   checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
+  checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
 
   console.log("\n\tFiltered endpoints");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
-//   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
+  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
 
 }
 
