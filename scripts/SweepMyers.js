@@ -1,13 +1,50 @@
 /* globals
 game,
-canvas,
-foundry
 */
 
+/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
+'use strict';
 
-// Myers (1985)
-// https://publications.mpi-cbg.de/Myers_1985_5441.pdf
+/*
+Myers (1985)
+https://publications.mpi-cbg.de/Myers_1985_5441.pdf
+
+Variation on a sweep-line algorithm that seems easier to implement (and faster) than
+Bentley-Ottoman.
+
+Segments sorted by x-order into groups:
+- EVENT: x-values for each segment endpoint
+- BEG: The nw endpoint of each non-vertical segment.
+- VERT: The x-value of each vertical segment.
+- END: The se endpoint of each non-vertical segment.
+
+Move a sweep-line across EVENTS (x coordinate of segment endpoints). At each EVENT:
+1. Add segments from BEG to a skip-list ordered by their y-values at the x-coordinate
+   of the EVENT. This implies that segments are re-ordered as the sweep line moves to new
+   x values. This re-ordering is accomplished by swapping segments based on intersections.
+
+2. Process segments in VERT at a given x EVENT.
+
+3. Remove segments in END from the skip-list. In other words, once the sweep reaches the
+   se endpoint, the segment can be removed.
+
+4. During (1) and (3), segments can be "entered" into a WORK queue (a doubly-linked list)
+   to be processed for intersections. Basically, the algorithm compares the nw and se
+   endpoints and if they flip y-order, that means at some point the segments intersect.
+   For example, the segments make an X. The trick is to insert the segment into the WORK
+   queue that corresponds to the EVENT x-value right before the intersection. So
+   a segment that intersects the one immediately above it between EVENT and EVENT + 1
+   is inserted into the WORK queue for EVENT.
+
+(1), (2), (3), and (4) all report intersections when found. It appears that the algorithm
+only reports actual segment intersections, such that an additional intersection check
+is not required. As a result, the algorithm need not report the ix point. If it is
+desirable to do so, foundry.utils.lineLineIntersection can be used.
+
+"Single": Check each segment in an array against every other segment in that array.
+
+*/
 
 /*
 // Segments at Myers fig. 3
@@ -16,72 +53,47 @@ segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
 
 */
 
-import { pointsEqual } from "./utilities.js";
 import { pointForSegmentGivenX } from "./IntersectionsSweep.js";
 import { SkipList } from "./SkipList.js";
 import { MODULE_ID } from "./module.js";
-import { drawVertex, drawEdge, COLORS, clearLabels, labelVertex } from "./Drawing.js";
 import { DoubleLinkedList } from "./DoubleLinkedList.js";
-import { DoubleLinkedObjectList } from "./DoubleLinkedObjectList.js";
-import { binaryFindIndex, interpolateBinaryFindIndexBeforeScalar, interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
-import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
 
-const MAX_ITERATIONS = 100_000;
 
-export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_object = false} = {}) {
-  // i = -1
-  let debug = game.modules.get(MODULE_ID).api.debug;
-
-  if(debug) {
-    canvas.controls.debug.clear();
-    clearLabels();
-    segments.forEach(s => drawEdge(s, COLORS.black));
-    segments.forEach(s => labelVertex(s.nw, s.id));
-  }
-
-  // Myers p. 626.
-  // construct the lists.
-  let { EVENT, BEG, VERT, END, WORK } = constructLists(segments, { use_linked_object });
-  let xot = new XOT();
-
-  if(debug) { console.table({ EVENT, BEG, VERT, END, WORK }); }
+/**
+ * Identify intersections between segments in an Array.
+ * Expected O(nlog(n) + i); Worst case O((n + i)log(n))
+ * Fast for large number of segments assuming the segments do not all intersect one another.
+ * - Counts shared endpoints.
+ * - Passes pairs of intersecting segments to a reporting function but does not
+ *   calculate the intersection point.
+ * @param {Segments[]} segments   Array of objects that contain points A.x, A.y, B.x, B.y
+ * @param {Function} reportFn     Callback function that is passed pairs of
+ *                                segment objects that intersect.
+ */
+export function sweepMyers(segments, reportFn = (_s1, _s2) => {}) {
+  // Myers p. 626. Construct the lists.
+  const { EVENT, BEG, VERT, END, WORK } = constructLists(segments);
+  const xot = new XOT();
 
   // See algorithm 1, p. 633
-  let num_ixs = 0;
-  let ln = EVENT.length;
+  const ln = EVENT.length;
   for(let i = 0; i < ln; i += 1) {
-    // i += 1
-
-
-    let beg = BEG[i];
-    let vert = VERT[i];
-    let end = END[i];
-    let work = WORK[i];
-    let sweep_x = EVENT[i];
-    if(debug) { console.log(`Event x(${i}) = ${sweep_x}`); }
-
+    const beg = BEG[i];
+    const vert = VERT[i];
+    const end = END[i];
+    const work = WORK[i];
+    const sweep_x = EVENT[i];
     xot.sweep_x = sweep_x;
-    if(debug) {
-      drawEdge(new SimplePolygonEdge({x: xot.sweep_x, y: 0}, {x: xot.sweep_x, y: canvas.dimensions.height}), COLORS.lightblue, 0.75);
-    }
 
     // 4A
     // Add segments in BEG(i) and list their start point ix
-    if(debug) {
-      console.log(`BEG[${i}]`);
-      console.table(BEG[i], ["_id", "_node", "_work", "_work_i"]);
-    }
-
     let ln = beg.length;
     for(let j = 0; j < ln; j += 1) {
-      let e = beg[j];
+      const e = beg[j];
 //     for(let e of BEG[i]) {
 
       e._node = xot.insert(e);
-      if(debug) {
-        console.log(`\tAdding ${e.id}: ${e.nw.x},${e.nw.y}|${e.se.x},${e.se.y}`);
-        drawEdge(e);
-      }
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -91,56 +103,39 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
       }
       enter(e, WORK, EVENT);
-      num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
+      report(e, sweep_x, reportFn, REPORT_CONDITION.Begin);
     }
 
     // 4B
     // Find all intersections with segments in VERT(i)
-    if(debug) {
-      console.log(`VERT[${i}]`);
-      console.table(VERT[i], ["_id", "_node", "_work", "_work_i"]);
-    }
-
     ln = vert.length;
     for(let j = 0; j < ln; j += 1) {
-      let e = vert[j];
+      const e = vert[j];
 //     for(let e of VERT[i]) {
       e._node = xot.insert(e);
-      num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
+      report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
     }
 
     // check the previous for an endpoint intersection with current
     // b/c if two verticals share an endpoint, they will not be picked up by report fn
     for(let j = 1; j < ln; j += 1) {
-      let g = vert[j - 1];
+      const g = vert[j - 1];
+      const e = vert[j];
       if(e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) {
-        let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//       if(ix) {
-        num_ixs += 1;
-        if(debug) {
-          console.log(`${e.id} (e) and ${g.id} (verticals) intersect at ${ix?.x},${ix?.y}`);
-          if(ix) drawVertex(ix);
-        }
-        reportFn(e, g, ix);
+        reportFn(e, g);
       }
     }
 
     for(let j = 0; j < ln; j += 1) {
-      let e = vert[j];
-//     for(let e of VERT[i]) {
+      const e = vert[j];
       deleteFromXOT(e, xot);
     }
 
     // 4C
     // Delete segments in END(i)
-    if(debug) {
-      console.log(`END[${i}]`);
-      console.table(END[i], ["_id", "_node", "_work", "_work_i"]);
-    }
     ln = end.length;
     for(let j = 0; j < ln; j += 1) {
-      let e = end[j];
-//     for(let e of END[i]) {
+      const e = end[j];
       if(xot.length === 0) break;
       if(!e._node) continue;
 
@@ -158,30 +153,13 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
     // 4D
     // Find all "event exchange" intersections in [xi, xi+1]
-    let iter = 0;
-    if(debug) {
-      console.log(`WORK[${i}]`);
-      console.table(WORK[i].inorder(), ["_id"]);
-    }
-
-
-    while(work.length > 0 && iter < MAX_ITERATIONS) {
-      iter += 1;
-
-      let e = pop(i, WORK);
+    while(work.length > 0) {
+      const e = pop(i, WORK);
       //let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
       if(!e._node) continue; // likely already removed as an endpoint
 
-      let g = e._node.prev.data; // Above(e)
-      let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//       if(ix) {
-        num_ixs += 1;
-        if(debug) {
-          console.log(`${e.id} (e) and ${g.id} (above(e)) intersect at ${ix.x},${ix.y}`);
-          if(ix) drawVertex(ix);
-        }
-        reportFn(e, g, ix);
-//       }
+      const g = e._node.prev.data; // Above(e)
+      reportFn(e, g);
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -191,119 +169,78 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       if(f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
-
       }
       enter(e, WORK, EVENT);
-
     }
-
-
-    if(iter >= MAX_ITERATIONS) { console.warn("Max iterations reached."); }
-
-    if(debug) { xot.log(); console.table(WORK); }
   }
 }
 
 
-// Conditions are negated compared to Myers p. 633
-let REPORT_CONDITION = {
-  // y1 is not between [y2, y3]
-  Vertical: (y1, y2, y3) => y1 < y2 || y1 > y3,
+// Tests based on Myers p. 633.
+// Conditions are negated compared to Myers p. 633 so that _reportDirection can easily
+// break out of the while loop.
+const REPORT_CONDITION = {
+  Vertical: (y1, y2, y3) => y1 < y2 || y1 > y3, // y1 is not between [y2, y3]
   Begin: (y1, y2) => y1 !== y2,
   End: (y1, y2, y3) => y1 !== y3
 };
 
 
+/**
+ * Report intersections between e and segments above or below e in the XOT skip list.
+ * Basically, walk up the XOT skip list, and then down the XOT skip list.
+ * @param {Segment} e   Segment to check for intersections.
+ * @param {Number}  sweep_x       X-coordinate for the current sweep position.
+ * @param {Function} reportFn     Callback function for reporting segment intersections.
+ * @param {REPORT_CONDITION} cond Test based on whether this segment is from VERT,
+ *                                BEG, or END lists.
+ */
 function report(e, sweep_x, reportFn, cond) {
-  let num_ixs = 0;
-  num_ixs += _reportDirection(e, sweep_x, reportFn, cond, "next");
-  num_ixs += _reportDirection(e, sweep_x, reportFn, cond, "prev");
-  return num_ixs;
+  _reportDirection(e, sweep_x, reportFn, cond, "next");
+  _reportDirection(e, sweep_x, reportFn, cond, "prev");
 }
 
+/**
+ * Helper function to report intersections between e and segments above or below e in the
+ * XOT skip list.
+ * @param {Segment} e             Segment to check for intersections.
+ * @param {Number}  sweep_x       X-coordinate for the current sweep position.
+ * @param {Function} reportFn     Callback function for reporting segment intersections.
+ * @param {REPORT_CONDITION} cond Test based on whether this segment is from VERT,
+ *                                BEG, or END lists.
+ * @param {"next"|"prev"}         Which direction to walk from e along the skip list.
+ */
 function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   let g = e._node[dir].isSentinel ? undefined : e._node[dir].data; // Below(e) or Above(e)
-
-  let iter = 0;
-  let num_ixs = 0;
-  while(g && iter < MAX_ITERATIONS) {
-    iter += 1;
-
-    let p1 = pointForSegmentGivenX(g, sweep_x);
-    let yg = p1 ? p1.y : g.nw.y;
-    //if(cond(yg, e.nw.y, e.se.y) && !pointsEqual(e.se, g.se)) { break; } // if the se points are equal, they would get placed in WORK but be removed prior to processing.
+  while(g) {
+    const p1 = pointForSegmentGivenX(g, sweep_x);
+    const yg = p1 ? p1.y : g.nw.y;
     if(cond(yg, e.nw.y, e.se.y)) { break; }
 
-    if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
-    let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//     if(ix) {
-      num_ixs += 1;
-      if(game.modules.get(MODULE_ID).api.debug) {
-        if(ix) drawVertex(ix);
-      }
-      reportFn(e, g, ix);
-//     }
+    reportFn(e, g);
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
-  if(iter >= MAX_ITERATIONS) { console.log("_reportDirection: hit max iterations."); }
-  return num_ixs;
 }
 
-// function report_vertical(e, sweep_x, reportFn) {
-//   // yg(xi) ∈ [ye', ye''] means g.y at sweep_x equals e.nw.y or e.se.y
-//   let g = e._node.next;  // below e
-//   while(!g.isSentinel) {
-//     yg = pointForSegmentGivenX(g, sweep_x).y;
-//     if(yg !== e.nw.y && yg !== e.se.y) { break; }
-//
-//     console.log("e and g intersect", e, g);
-//     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//     if(ix) { reportFn(e, g, ix); }
-//     g = g._node.next;
-//   }
-//
-//   g = e._node.prev; // above e
-//   while(!g.isSentinel && yg === e.nw.y || yg === e.se.y) {
-//     yg = pointForSegmentGivenX(g, sweep_x).y;
-//     if(yg !== e.nw.y && yg !== e.se.y) { break; }
-//
-//     console.log("e and g intersect", e, g);
-//     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//     if(ix) { reportFn(e, g, ix); }
-//     g = g._node.prev;
-//   }
-// }
-//
-//
-// function report_begin(e, sweep_x, reportFn) {
-//   // yg(xi) = ey. means g.y at sweep x equals starting e.y
-//   let g = e._node.next;  // below e
-//   while(!g.isSentinel) {
-//     yg = pointForSegmentGivenX(g, sweep_x).y;
-//     if(yg !== e.nw.y) { break; }
-//
-//     console.log("e and g intersect", e, g);
-//     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//     if(ix) { reportFn(e, g, ix); }
-//     g = g._node.next;
-//   }
-//   g = e._node.prev; // above e
-//   while(!g.isSentinel) {
-//     yg = pointForSegmentGivenX(g, sweep_x).y;
-//     if(yg !== e.nw.y) { break; }
-//
-//     console.log("e and g intersect", e, g);
-//     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-//     if(ix) { reportFn(e, g, ix); }
-//     g = g._node.prev;
-//   }
-// }
-
+/**
+ * Equivalent to Myers Delete from Algorithm 1.
+ * Remove the segment s from the skip list.
+ * @param {Segment} s     Segment to remove
+ * @param {SkipList} xot  Skip list for tracking y-order of segments.
+ */
 function deleteFromXOT(s, xot) {
   xot.removeNode(s._node);
   s._node = undefined;
 }
 
+/**
+ * Equivalent to Myers pop from Algorithm 1.
+ * Remove the segment that is at the WORK list i.
+ * @param {Number}              i     Index of the WORK list from which to remove the
+ *                                    segment.
+ * @param {DoubleLinkedList[]}  WORK  Array of double-linked lists.
+ * @return {Segment} Segment popped from the work list.
+ */
 function pop(i, WORK) {
   let s = WORK[i].pop();
   s._work = undefined;
@@ -311,9 +248,16 @@ function pop(i, WORK) {
   return s;
 }
 
+/**
+ * Equivalent to Myers enter from Algorithm 1.
+ * Enter the segment e into a specific work list.
+ * @param {Segment}             e     Segment to enter into the work list.
+ * @param {DoubleLinkedList[]}  WORK  Array of double-linked lists.
+ * @param {Number[]}            EVENT Array of x-coordinates.
+ */
 function enter(e, WORK, EVENT) {
   if(!e._node) return;
-  let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
+  const g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
   if(!g) return;
 
   // if(g && e > min(xe",xg")g) then push(e, Hash(e,g))
@@ -341,10 +285,10 @@ function enter(e, WORK, EVENT) {
     y1 = p1 ? p1.y : e.nw.y;
     y2 = g.se.y;
   }
-  let dy = y1 - y2;
-  let cmp = dy || XOT.slope(e) - XOT.slope(g);
+  const dy = y1 - y2;
+  const cmp = dy || XOT.slope(e) - XOT.slope(g);
   if(cmp < 0) {
-    let i = hash(e, g, EVENT);
+    const i = hash(e, g, EVENT);
     if(~i) {
       if(game.modules.get(MODULE_ID).api.debug) { console.log(`Adding e ${e.id} to WORK ${i} (hash e and g ${g.id}).`); }
       e._work = WORK[i].push(e);
@@ -353,6 +297,13 @@ function enter(e, WORK, EVENT) {
   }
 }
 
+/**
+ * Equivalent to Myers remove from Algorithm 1.
+ * Given a segment, use its link to a work node to remove the segment from the work list.
+ * Because of the link, this remove can be done in O(1) time.
+ * @param {Segment} e   Segment to remove from the work list.
+ * @param {DoubleLinkedList[]}  WORK  Array of double-linked lists.
+ */
 function remove(e, WORK) {
   if(!e._work) return;
   if(game.modules.get(MODULE_ID).api.debug) { console.log(`Removing ${e.id} from WORK ${e._work_i}.`); }
@@ -360,20 +311,6 @@ function remove(e, WORK) {
   e._work_i = undefined;
   e._work = undefined;
 }
-
-// function report(s, cond) {
-//   let g = s._node.next;
-//   while(!g.isSentinel && cond) {
-//     // e & g intersect
-//     console.log("e and g intersect", s, g);
-//     g = g.next;
-//   }
-//   g = s._node.prev;
-//   while(!g.isSentinel && cond) {
-//     console.log("e and g intersect", s, g);
-//     g = g.prev;
-//   }
-// }
 
 /* Hash and finding the interval
 Myers p. 630–31
@@ -395,27 +332,37 @@ Divide interval [x(i), x(EV)] into EV buckets of size ∆ = (x(ev) - x(1)) / EV
 Assume e and f intersect at x = 450. δ = H(450) = (450 - 100) / 90 = 3.889
 i in range min(δ), min(δ + 1). 3 – 4 (or maybe 3 – 5)
 
+A reasonably close method is to binary search the EVENT array. Because x events are
+more or less evenly distributed, an interpolation search works well. Alternatively,
+an interpolate binary search would work.
 */
 
+/**
+ * Use a binary search method to find the EVENT i just before
+ * e and g intersect.
+ * @param {Segment}   e     Segment that potentially intersects with g.
+ * @param {Segment}   g     Segment that potentially intersects with e.
+ * @param {Number[]}  EVENT Array of x-coordinates.
+ */
 function hash(e, g, EVENT) {
   const x = intersectX(e.nw, e.se, g.nw, g.se);
   if(typeof x === "undefined") { return; }
-  if(game.modules.get(MODULE_ID).api.debug) {
-    console.log(`Intersection likely at x = ${x}`);
-    drawEdge({A: {x: x, y: canvas.dimensions.height}, B: {x: x, y: 0}}, COLORS.red, .2);
-  }
 
   //let i = binaryFindIndex(EVENT, elem => elem > x) - 1;
   if(x === EVENT[0]) return 0;
 
-   let i = interpolationFindIndexBeforeScalar(EVENT, x);
-  //let i = interpolateBinaryFindIndexBeforeScalar(EVENT, x);
-
-  // if equal, use the index before, if any
-  //if(i > 0 && EVENT[i] === x) { return i - 1; }
-  return i;
+  return interpolationFindIndexBeforeScalar(EVENT, x);
+  //return interpolateBinaryFindIndexBeforeScalar(EVENT, x);
 }
 
+/**
+ * Simplified version of foundry.util.lineLineIntersection that just
+ * determines the x value of the intersections between a|b and c|d.
+ * @param {Point} a
+ * @param {Point} b
+ * @param {Point} c
+ * @param {Point} d
+ */
 function intersectX(a, b, c, d) {
   // Check denominator - avoid parallel lines where d = 0
   const dnm = ((d.y - c.y) * (b.x - a.x) - (d.x - c.x) * (b.y - a.y));
@@ -426,8 +373,14 @@ function intersectX(a, b, c, d) {
   return a.x + t0 * (b.x - a.x);
 }
 
-
-function constructLists(segments, { use_linked_object = false } = {}) {
+/**
+ * Construct the lists described in Myer p. 626:
+ * - BEG, VERT, END, EVENT, and WORK
+ * Each contain an array (possibly null) with ordered segments.
+ * @param {Segment[]} segments
+ * @return {Object} Object with the constructed lists.
+ */
+function constructLists(segments) {
   const aux = [];
   segments.forEach(s => {
     // for debugging
@@ -466,19 +419,16 @@ function constructLists(segments, { use_linked_object = false } = {}) {
 
   aux.sort(cmpAuxList);
 
-  let dll = use_linked_object ? DoubleLinkedList : DoubleLinkedObjectList;
-
-
   let curr_ev = aux[0].start_x;
-  let EVENT = [curr_ev];
-  let VERT = [[]];
-  let BEG = [[]];
-  let END = [[]];
-  let WORK = [new dll()];
-  let ln = aux.length;
+  const EVENT = [curr_ev];
+  const VERT = [[]];
+  const BEG = [[]];
+  const END = [[]];
+  const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
+  const ln = aux.length;
   let j = 0;
   for(let i = 0; i < ln; i += 1) {
-    let tuple = aux[i];
+    const tuple = aux[i];
     if(tuple.start_x !== curr_ev) {
       j += 1;
       curr_ev = tuple.start_x;
@@ -486,7 +436,7 @@ function constructLists(segments, { use_linked_object = false } = {}) {
       VERT.push([]);
       BEG.push([]);
       END.push([]);
-      WORK.push(new dll());
+      WORK.push(new DoubleLinkedList());
     }
 
     switch(tuple.type) {
@@ -507,18 +457,32 @@ function constructLists(segments, { use_linked_object = false } = {}) {
   return { EVENT, VERT, BEG, END, WORK };
 }
 
+
+/**
+ * Comparison function to sort the lists in constructLists.
+ * @param {Object} a  Tuple object with segment, start_x, type, and start_y
+ * @param {Object} b  Tuple object with segment, start_x, type, and start_y
+ * @return {Number} Sort order
+ */
 function cmpAuxList(a, b) {
   return a.start_x - b.start_x ||
          a.type - b.type ||
          a.start_y - b.start_y;
 }
 
+/**
+ * Helper skip list class to store the current sweep x coordinate.
+ * As the algorithm swaps segments, the skip list retains valid locations at
+ * the start of each iteration because the sweep moves in unison with the swaps.
+ */
 class XOT extends SkipList {
   constructor() {
-    let min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+    // Set the sentinels of the skip list to be fake segment objects.
+    // y-order from top to bottom (opposite of Myer, b/c the y-axis is flipped here)
+    const min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
                     B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
                     id: "minSentinel"}; // id just for debugging
-    let max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+    const max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
                     B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
                     id: "maxSentinel"}; // id just for debugging
 
@@ -532,6 +496,9 @@ class XOT extends SkipList {
     this._sweep_x = Number.MIN_SAFE_INTEGER;
   }
 
+ /**
+  * @type {Number}
+  */
   get sweep_x() { return this._sweep_x; }
   set sweep_x(value) { this._sweep_x = value; }
 
@@ -546,17 +513,26 @@ class XOT extends SkipList {
     }), ["id", "segment"]);
   }
 
+ /**
+  * Myers p. 627
+  * Compare y coordinates at the sweep point; fall back to starting endpoint if vertical
+  * @param {Segment} s1
+  * @parma {Segment} s2
+  */
   xOrder(s1, s2) {
-    // Myers p. 627
-    // compare y coordinates at the sweep point; fall back to starting endpoint if vertical
-    let p1 = pointForSegmentGivenX(s1, this._sweep_x);
-    let p2 = pointForSegmentGivenX(s2, this._sweep_x);
-    let y1 = p1 ? p1.y : s1.nw.y;
-    let y2 = p2 ? p2.y : s2.nw.y;
-    let dy = y1 - y2;
+    const p1 = pointForSegmentGivenX(s1, this._sweep_x);
+    const p2 = pointForSegmentGivenX(s2, this._sweep_x);
+    const y1 = p1 ? p1.y : s1.nw.y;
+    const y2 = p2 ? p2.y : s2.nw.y;
+    const dy = y1 - y2;
     return dy || (XOT.slope(s1) - XOT.slope(s2));
   }
 
+ /**
+  * Calculate the slope of the segment
+  * @param {Segment} s
+  * @return {Number|Number.POSITIVE_INFINITY}
+  */
   static slope(s) {
     const dx = s.se.x - s.nw.x;
     if(!dx) { return Number.POSITIVE_INFINITY; }
