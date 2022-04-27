@@ -10,6 +10,40 @@ CONFIG
 'use strict';
 
 import { MODULE_ID } from "./module.js";
+import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
+import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
+import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
+import { describeSceneParameters } from "./utilities.js";
+import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+
+export function benchSceneIntersections(n = 100) {
+  describeSceneParameters();
+
+  const walls = [...canvas.walls.placeables]
+  const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
+
+  // relatively realistic benchmark should include getting the ix point
+  // but cannot push to an outside array b/c it would likely grow rather large
+  // during benchmark repetitions.
+  const reportFn = (s1, s2) => {
+    return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  }
+
+  const reportFilteredFn = (s1, s2) => {
+    if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+    return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  }
+
+  QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
+  QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
+  QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
+
+  console.log("Filtered endpoints")
+  QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
+  QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
+  QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
+}
+
 
 
 export async function benchSweep(n = 1000, ...args) {
@@ -121,13 +155,16 @@ export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
   const timings = [];
   const num_warmups = Math.ceil(iterations * .05);
 
+  const interval_id = setInterval(() => console.log('...'), 1000)
+
   for(let i = -num_warmups; i < iterations; i += 1) {
-    if(i % (iterations / 10) === 0) { console.log("..."); }
+//     if(i % (iterations / 10) === 0) { console.log("..."); } // useful for long loops but kindof annoying otherwise
     const t0 = performance.now();
     fn.apply(null, [...args]);
     const t1 = performance.now();
     if(i >= 0) { timings.push(t1 - t0); }
   }
+  clearInterval(interval_id);
 
   const sum = timings.reduce((prev, curr) => prev + curr);
   const q = quantile(timings, [.1, .5, .9]);

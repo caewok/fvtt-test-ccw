@@ -2,8 +2,8 @@
 'use strict';
 
 // import { registerCCW } from "./patching.js";
-import { benchSweep, quantileBenchSweep, QBenchmarkLoop, QBenchmarkLoopFn, benchmarkLoopFn, benchmarkLoop }  from "./benchmark.js";
 import * as tests from "./tests.js";
+import * as bench from "./benchmark.js";
 import * as drawing from "./drawing.js";
 
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
@@ -133,10 +133,9 @@ Hooks.once('init', async function() {
     debug: false, // see also CONFIG.debug.polygons = true
     debug_binary: 2,
 
-    benchSweep, quantileBenchSweep,
-
-    QBenchmarkLoop, QBenchmarkLoopFn,
-    benchmarkLoop, benchmarkLoopFn,
+    bench,
+    tests,
+    drawing,
 
     BenchmarkJS,
 
@@ -158,14 +157,12 @@ Hooks.once('init', async function() {
       findIntersectionsMyersSingle,
     },
 
-    tests,
 
     binaryFindIndex,
     binaryIndexOf,
     SkipList,
     DoubleLinkedList,
 
-    drawing,
 
     sweep,
     brute,
