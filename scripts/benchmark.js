@@ -155,7 +155,6 @@ export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
   const timings = [];
   const num_warmups = Math.ceil(iterations * .05);
 
-  const interval_id = setInterval(() => console.log('...'), 1000)
 
   for(let i = -num_warmups; i < iterations; i += 1) {
 //     if(i % (iterations / 10) === 0) { console.log("..."); } // useful for long loops but kindof annoying otherwise
@@ -164,7 +163,6 @@ export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
     const t1 = performance.now();
     if(i >= 0) { timings.push(t1 - t0); }
   }
-  clearInterval(interval_id);
 
   const sum = timings.reduce((prev, curr) => prev + curr);
   const q = quantile(timings, [.1, .5, .9]);
