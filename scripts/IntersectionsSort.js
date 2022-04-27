@@ -19,8 +19,6 @@ The sort functions require that the segment objects have "nw" and "se" propertie
 identifying the endpoints.
 */
 
-import { compareXY } from "./utilities.js";
-
 /**
  * Identify intersections between segments in an Array.
  * Less than O(n^2) using a modified brute force method.
@@ -64,8 +62,8 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
     for(let j = start_j; j < ln2; j += 1) {
       const endpoint2 = endpoints[j];
 
-      if(~endpoint2.se) continue;
       if(endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
+      if(~endpoint2.se) continue;
 
       const sj = endpoint2.s;
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
@@ -96,55 +94,68 @@ function sortEndpoints(e1, e2) {
 }
 
 
-
 /**
- * Return true if edge1 is entirely northwest of edge2.
+ * Identify intersections between two arrays of segments.
+ * Segments within a single array are not checked for intersections.
+ * (If you want intra-array, see findIntersectionsSortSingle.)
+ * Very fast in practice assuming segments are distribute in space and do not all
+ * intersect each other.
+ * Sorts the segments by endpoints to facilitate skipping unnecessary checks.
+ * - Counts shared endpoints.
+ * - Passes pairs of intersecting segments to a reporting function but does not
+ *   calculate the intersection point.
+ * @param {Segments[]} red   Array of objects that contain points A.x, A.y, B.x, B.y
+ * @param {Segments[]} black   Array of objects that contain points A.x, A.y, B.x, B.y
+ * @param {Function} reportFn     Callback function that is passed pairs of
+ *                                segment objects that intersect.
  */
-function isLeft(edge1, edge2) {
-  compareXY(edge1.se, edge2.nw) < 0;
-}
+export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
+  const ln_red = red.length;
+  const ln_black = black.length;
+  if(!ln_red || !ln_black) return;
 
-/**
- * Return true if edge1 is entirely southeast of edge2
- */
-function isRight(edge1, edge2) {
-  compareXY(edge1.nw, edge2.se) > 0;
-}
+  // Build an array of endpoint objects like with SortSingle.
+  // But mark red/black segments so same color segments can be skipped.
+  // By convention, red is true; black is false.
+  // (slightly faster b/c the inner loop gets hit more and so inner tests for true?)
+  // Alternatively, could sort by red/black and then break a bit earlier in
+  // the inner loop. But the check for color => continue is pretty quick and simpler.
+  const endpoints = [];
+  for(let i = 0; i < ln_red; i += 1) {
+    const s = red[i];
+    endpoints.push({e: s.nw, s, se: -1, red: true},
+                   {e: s.se, s, se: 1,  red: true});
+  }
+  for(let i = 0; i < ln_black; i += 1) {
+    const s = black[i];
+    endpoints.push({e: s.nw, s, se: -1, red: false},
+                   {e: s.se, s, se: 1,  red: false});
+  }
 
+  endpoints.sort(sortEndpoints);
+  const ln_endpoints = endpoints.length;
+  for(let i = 0; i < ln_endpoints; i += 1) {
+    const endpoint1 = endpoints[i];
+    if(~endpoint1.se) continue; // avoid duplicating the check
 
+    // starting j is always i + 1 b/c any segment with an se endpoint after si
+    // would be after si or already processed b/c its ne endpoint was before.
+    const start_j = i + 1;
+    const si = endpoint1.s;
+    for(let j = start_j; j < ln_endpoints; j += 1) {
+      const endpoint2 = endpoints[j];
 
-/**
- * Given two arrays of either walls or SimplePolygonEdges, identify all intersections
- * between the two arrays. Only inter-array intersections, not intra-array.
- * (If you also want intra-array, see findIntersectionsSingle)
- * Shared endpoints do not count.
- * Intersections marked in the set
- * Comparable to identifyWallIntersections method from WallsLayer Class
- */
-export function findIntersectionsSortRedBlack(edges1, edges2, reportFn = (_s1, _s2) => {}) {
-  const ln1 = edges1.length;
-  const ln2 = edges2.length;
-  if(!ln1 || !ln2) return;
+      if(endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
+      if(!(endpoint1.red ^ endpoint2.red)) continue; // only want segments of different color
+      if(~endpoint2.se) continue;
 
-  edges1.sort((a, b) => compareXY(a.nw, b.nw));
-  edges2.sort((a, b) => compareXY(a.nw, b.nw));
-
-  for(let i = 0; i < ln1; i += 1) {
-    const edge1 = edges1[i];
-    for(let j = 0; j < ln2; j += 1) {
-      const edge2 = edges2[j];
-
-      // if we have not yet reached the left end of this edge, we can skip
-      if(isLeft(edge1, edge2)) continue;
-
-      // if we reach the right end of this edge, we can skip the rest
-      if(isRight(edge2, edge1)) break;
-
-      if(foundry.utils.lineSegmentIntersects(edge1.A, edge1.B, edge2.A, edge2.B)) {
-        reportFn(edge1, edge2);
-      }
+      const sj = endpoint2.s;
+      foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
     }
   }
 }
+// testing:
+// reportFn = (_s1, _s2) => { console.log(`${_s1.id} x ${_s2.id}`) }
+
 
 
