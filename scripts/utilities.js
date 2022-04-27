@@ -197,3 +197,10 @@ export function identifyIntersectionsWithNoEndpoint(s1, s2) {
   return identifyIntersectionsWith(s1, s2);
 }
 
+export function pointForSegmentGivenX(s, x) {
+    const denom = s.B.x - s.A.x;
+    if(!denom) return undefined;
+    return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+  }
+
+

@@ -53,7 +53,7 @@ segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
 
 */
 
-import { pointForSegmentGivenX } from "./IntersectionsSweep.js";
+import { pointForSegmentGivenX } from "./utilities.js";
 import { SkipList } from "./SkipList.js";
 import { MODULE_ID } from "./module.js";
 import { DoubleLinkedList } from "./DoubleLinkedList.js";

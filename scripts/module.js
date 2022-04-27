@@ -156,9 +156,6 @@ Hooks.once('init', async function() {
     binaryFindIndex,
     binaryIndexOf,
     SkipList,
-    hashSegments,
-    EventType,
-    pointForSegmentGivenX,
     DoubleLinkedList,
 
     Drawing,
