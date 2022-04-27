@@ -50,7 +50,7 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
     endpoints.push({e: s.nw, s, se: -1},
                    {e: s.se, s, se: 1});
   }
-  endpoints.sort((a, b) => sortEndpoints(a, b));
+  endpoints.sort(sortEndpoints);
 
   const ln2 = endpoints.length;
   for(let i = 0; i < ln2; i += 1) {
