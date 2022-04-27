@@ -1238,11 +1238,23 @@ reportFnSweepSkipCombined = (s1, s2, ix) => {
 }
 
 reportFnSweepMyers = (s1, s2, ix) => {
-  reporting_arr_sweep_myers.push(ix);
+  // it is possible to have Myers return an intersection where
+  // two collinear segments meet at an endpoint. E.g., *
+  // In some cases, lineLineIntersection will (arguably incorrectly) return null
+  // for that intersection
+
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_sweep_myers.push(x); // avoid pushing null
 }
 
 reportFnSweepMyersNoEndpoints = (s1, s2, ix) => {
   reporting_arr_sweep_myers_no_endpoints.push(ix);
+}
+
+reportFnSweepMyersFilteredEndpoints = (s1, s2, ix) => {
+  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+  if(x) reporting_arr_sweep_myers_filtered_endpoints.push(x); // avoid pushing null
 }
 
 
@@ -1276,7 +1288,7 @@ for([key, str] of test_strings) {
   reporting_arr_brute_filtered = []
   reporting_arr_sort_filtered = []
   reporting_arr_sweep_myers_no_endpoints = [];
-
+  reporting_arr_sweep_myers_filtered_endpoints = [];
 
 
   segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
@@ -1298,6 +1310,7 @@ for([key, str] of test_strings) {
   findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints)
   sweepMyersNoEndpoints(segments, reportFnSweepMyersNoEndpoints)
   findIntersectionsSortSingle(segments, reportFnSortFilterEndpoints)
+  sweepMyers(segments, reportFnSweepMyersFilteredEndpoints)
 
   // for a shared endpoint where the two lines are co-linear, brute will
   // not report an intersection but sweep will.
@@ -1321,7 +1334,7 @@ for([key, str] of test_strings) {
   reporting_arr_brute_filtered.sort(compareXY);
   reporting_arr_sort_filtered.sort(compareXY)
   reporting_arr_sweep_myers_no_endpoints.sort(compareXY);
-
+  reporting_arr_sweep_myers_filtered_endpoints.sort(compareXY);
 
   if(reporting_arr_brute.length !== reporting_arr_sort.length ||
      !reporting_arr_brute.every((pt, idx) => pointsEqual(pt, reporting_arr_sort[idx]))) {
@@ -1419,9 +1432,20 @@ for([key, str] of test_strings) {
   if(reporting_arr_brute_filtered.length !== reporting_arr_sweep_myers_no_endpoints.length ||
      !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_myers_no_endpoints[idx]))) {
 
-     console.error(`\tx Endpoint Filtered Myers`, )
+     console.error(`\tx Endpoint Excluded Myers`, )
 //      console.table(reporting_arr_brute_filtered);
 //      console.table(reporting_arr_sweep_myers_no_endpoints);
+  } else {
+     console.log(`\t√ Endpoint Excluded Myers`)
+  }
+
+  // versions that skip endpoints
+  if(reporting_arr_brute_filtered.length !== reporting_arr_sweep_myers_filtered_endpoints.length ||
+     !reporting_arr_brute_filtered.every((pt, idx) => pointsEqual(pt, reporting_arr_sweep_myers_filtered_endpoints[idx]))) {
+
+     console.error(`\tx Endpoint Filtered Myers`, )
+//      console.table(reporting_arr_brute_filtered);
+//      console.table(reporting_arr_sweep_myers_filtered_endpoints);
   } else {
      console.log(`\t√ Endpoint Filtered Myers`)
   }

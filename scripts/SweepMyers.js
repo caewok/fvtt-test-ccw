@@ -4,6 +4,8 @@ canvas,
 foundry
 */
 
+
+
 // Myers (1985)
 // https://publications.mpi-cbg.de/Myers_1985_5441.pdf
 
@@ -71,8 +73,8 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
     }
 
     let ln = beg.length;
-    for(let i = 0; i < ln; i += 1) {
-      let e = beg[i];
+    for(let j = 0; j < ln; j += 1) {
+      let e = beg[j];
 //     for(let e of BEG[i]) {
 
       e._node = xot.insert(e);
@@ -100,21 +102,34 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
     }
 
     ln = vert.length;
-    for(let i = 0; i < ln; i += 1) {
-      let e = vert[i];
+    for(let j = 0; j < ln; j += 1) {
+      let e = vert[j];
 //     for(let e of VERT[i]) {
       e._node = xot.insert(e);
       num_ixs += report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
     }
 
-    for(let i = 0; i < ln; i += 1) {
-      let e = vert[i];
-//     for(let e of VERT[i]) {
-      deleteFromXOT(e, xot);
-
-
+    // check the previous for an endpoint intersection with current
+    // b/c if two verticals share an endpoint, they will not be picked up by report fn
+    for(let j = 1; j < ln; j += 1) {
+      let g = vert[j - 1];
+      if(e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) {
+        let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
+//       if(ix) {
+        num_ixs += 1;
+        if(debug) {
+          console.log(`${e.id} (e) and ${g.id} (verticals) intersect at ${ix?.x},${ix?.y}`);
+          if(ix) drawVertex(ix);
+        }
+        reportFn(e, g, ix);
+      }
     }
 
+    for(let j = 0; j < ln; j += 1) {
+      let e = vert[j];
+//     for(let e of VERT[i]) {
+      deleteFromXOT(e, xot);
+    }
 
     // 4C
     // Delete segments in END(i)
@@ -123,8 +138,8 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
       console.table(END[i], ["_id", "_node", "_work", "_work_i"]);
     }
     ln = end.length;
-    for(let i = 0; i < ln; i += 1) {
-      let e = end[i];
+    for(let j = 0; j < ln; j += 1) {
+      let e = end[j];
 //     for(let e of END[i]) {
       if(xot.length === 0) break;
       if(!e._node) continue;
@@ -159,14 +174,14 @@ export function sweepMyers(segments, reportFn = (e1, e2, ix) => {}, {use_linked_
 
       let g = e._node.prev.data; // Above(e)
       let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-      if(ix) {
+//       if(ix) {
         num_ixs += 1;
         if(debug) {
           console.log(`${e.id} (e) and ${g.id} (above(e)) intersect at ${ix.x},${ix.y}`);
-          drawVertex(ix);
+          if(ix) drawVertex(ix);
         }
         reportFn(e, g, ix);
-      }
+//       }
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -221,13 +236,13 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
 
     if(game.modules.get(MODULE_ID).api.debug) { console.log(`${e.id} and ${g.id} intersect`); }
     let ix = foundry.utils.lineLineIntersection(e.nw, e.se, g.nw, g.se);
-    if(ix) {
+//     if(ix) {
       num_ixs += 1;
       if(game.modules.get(MODULE_ID).api.debug) {
-        drawVertex(ix);
+        if(ix) drawVertex(ix);
       }
       reportFn(e, g, ix);
-    }
+//     }
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
   if(iter >= MAX_ITERATIONS) { console.log("_reportDirection: hit max iterations."); }
