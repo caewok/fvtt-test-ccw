@@ -1,6 +1,6 @@
 /* globals
 game,
-RadialSweepPolygon,
+foundry,
 ClockwiseSweepPolygon
 canvas,
 WallEndpoint,
@@ -12,14 +12,14 @@ CONFIG
 import { MODULE_ID } from "./module.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
-import { describeSceneParameters } from "./utilities.js";
+import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
+import { describeSceneParameters, pointsEqual, generateBisectingCanvasSegments } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
-export function benchSceneIntersections(n = 100) {
+export async function benchSceneIntersections(n = 100) {
   describeSceneParameters();
 
-  const walls = [...canvas.walls.placeables]
+  const walls = [...canvas.walls.placeables];
   const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
   // relatively realistic benchmark should include getting the ix point
@@ -27,21 +27,52 @@ export function benchSceneIntersections(n = 100) {
   // during benchmark repetitions.
   const reportFn = (s1, s2) => {
     return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  }
+  };
 
   const reportFilteredFn = (s1, s2) => {
     if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
     return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  }
+  };
 
-  QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
-  QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
-  QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
 
-  console.log("Filtered endpoints")
-  QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
-  QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
-  QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
+  console.log("\nFiltered endpoints");
+  await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
+
+  console.log("\n\nRed/Black tests")
+  console.log("\nAdding a single short segment (20% diagonal nw/se at center)");
+  // diagonal from 40% x/y to 60% x/y in the center
+  const { height, width } = canvas.dimensions;
+  const short_segment = new SimplePolygonEdge({ x: width * 0.4, y: height * 0.4 },
+                                          { x: width * 0.6, y: height * 0.6 });
+  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, [short_segment], reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, [short_segment], reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, [short_segment], reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, [short_segment], reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, [short_segment], reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, [short_segment], reportFilteredFn);
+
+  console.log("\nAdding four long segments bisecting canvas");
+  const long_segments = generateBisectingCanvasSegments();
+  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, long_segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, long_segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, long_segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, long_segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, long_segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, long_segments, reportFilteredFn);
+
+  console.log("\nAdding a randomly generated segment");
+  const setupFn = (segments, reportFn) => [segments, [randomSegment()], reportFn];
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute", segments, reportFn);
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort", segments, reportFn);
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers", segments, reportFn);
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers filtered", segments, reportFilteredFn);
 }
 
 
@@ -135,10 +166,10 @@ function precision(n, digits = 2) {
   * @param {Object} ...args       Additional arguments to pass to function
   * @return {Number[]}            Array with the time elapsed for each iteration.
   */
-export function QBenchmarkLoop(iterations, thisArg, fn_name, ...args) {
+export async function QBenchmarkLoop(iterations, thisArg, fn_name, ...args) {
   const name = `${thisArg.name || thisArg.constructor.name}.${fn_name}`;
   const fn = (...args) => thisArg[fn_name](...args);
-  return QBenchmarkLoopFn(iterations, fn, name, ...args);
+  return await QBenchmarkLoopFn(iterations, fn, name, ...args);
 }
 
  /**
@@ -146,16 +177,14 @@ export function QBenchmarkLoop(iterations, thisArg, fn_name, ...args) {
   * Includes a 5% warmup (at least 1 iteration) and prints 10%/50%/90% quantiles along
   * with the mean timing.
   * @param {number} iterations    Number of repetitions. Will add an additional 5% warmup.
-  * @param {Object} fn            Function to benchmark
+  * @param {Function} fn            Function to benchmark
   * @param {string} name          Description to print to console
   * @param {Object} ...args       Additional arguments to pass to function
   * @return {Number[]}            Array with the time elapsed for each iteration.
   */
-export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
+export async function QBenchmarkLoopFn(iterations, fn, name, ...args) {
   const timings = [];
   const num_warmups = Math.ceil(iterations * .05);
-
-  const interval_id = setInterval(() => console.log('...'), 1000)
 
   for(let i = -num_warmups; i < iterations; i += 1) {
 //     if(i % (iterations / 10) === 0) { console.log("..."); } // useful for long loops but kindof annoying otherwise
@@ -164,7 +193,37 @@ export function QBenchmarkLoopFn(iterations, fn, name, ...args) {
     const t1 = performance.now();
     if(i >= 0) { timings.push(t1 - t0); }
   }
-  clearInterval(interval_id);
+
+  const sum = timings.reduce((prev, curr) => prev + curr);
+  const q = quantile(timings, [.1, .5, .9]);
+
+  console.log(`${name} | ${iterations} iterations | ${precision(sum, 4)}ms | ${precision(sum / iterations, 4)}ms per | 10/50/90: ${precision(q[.1], 6)} / ${precision(q[.5], 6)} / ${precision(q[.9], 6)}`);
+
+  return timings;
+}
+
+/**
+ * Benchmark a function using a setup function called outside the timing loop.
+ * The setup function must pass any arguments needed to the function to be timed.
+ * @param {number} iterations     Number of repetitions. Will add an additional 5% warmup.
+ * @param {Function} setupFn      Function to call prior to each loop of the benchmark.
+ * @param {Function} fn             Function to benchmark
+ * @param {string} name           Description to print to console
+ * @param {Object} ...args        Additional arguments to pass to setup function
+ * @return {Number[]}             Array with the time elapsed for each iteration.
+ */
+export async function QBenchmarkLoopWithSetupFn(iterations, setupFn, fn, name, ...setupArgs) {
+  const timings = [];
+  const num_warmups = Math.ceil(iterations * .05);
+
+  for(let i = -num_warmups; i < iterations; i += 1) {
+//     if(i % (iterations / 10) === 0) { console.log("..."); } // useful for long loops but kindof annoying otherwise
+    const args = setupFn.apply(null, [...setupArgs]);
+    const t0 = performance.now();
+    fn.apply(null, [...args]);
+    const t1 = performance.now();
+    if(i >= 0) { timings.push(t1 - t0); }
+  }
 
   const sum = timings.reduce((prev, curr) => prev + curr);
   const q = quantile(timings, [.1, .5, .9]);
@@ -188,3 +247,18 @@ export async function benchmarkLoop(iterations, thisArg, fn, ...args) {
   await foundry.utils.benchmark(f, iterations, ...args);
 }
 
+
+function randomPoint(max_coord) {
+  return { x: Math.floor(Math.random() * max_coord),
+           y: Math.floor(Math.random() * max_coord) };
+}
+function randomSegment(max_x = canvas.dimensions.width, max_y = canvas.dimensions.height) {
+  let a = randomPoint(max_x);
+  let b = randomPoint(max_y);
+  while(pointsEqual(a, b)) {
+    // don't create lines of zero length
+    a = randomPoint(max_x);
+    b = randomPoint(max_y);
+  }
+  return new SimplePolygonEdge(a, b);
+}

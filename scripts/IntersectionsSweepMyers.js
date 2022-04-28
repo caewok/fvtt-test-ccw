@@ -73,6 +73,7 @@ import { interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
  */
 export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => {}) {
   // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
+  if(!segments.length) return;
   sweepMyers(constructLists(segments), reportFn);
 }
 
@@ -94,6 +95,7 @@ export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => 
  */
 export function findIntersectionsMyersRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
+  if(!red.length || !black.length) return;
   sweepMyers(constructRedBlackLists(red, black), reportFn);
 }
 

@@ -18,7 +18,7 @@ import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./In
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { clearDrawings, clearLabels, drawEdge, COLORS } from "./drawing.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { pointsEqual, compareXY, describeSceneParameters } from "./utilities.js";
+import { pointsEqual, compareXY, describeSceneParameters, generateBisectingCanvasSegments } from "./utilities.js";
 
 /**
  * Test intersections algorithms against a map of pre-set segment arrays.
@@ -179,25 +179,6 @@ function checkIntersectionResults(base, test, label) {
      return true;
   }
 }
-
-
-/**
- * Return a set of 4 segments that bisect the canvas horizontally, vertically, diagonally.
- * For testing red-black intersections.
- * @return {Segments[]}
- */
-function generateBisectingCanvasSegments() {
-  const { height, width } = canvas.dimensions;
-  const segments = [];
-  segments.push(new SimplePolygonEdge({ x: 0, y: 0 }, { x: width, y: height })); // nw to se
-  segments.push(new SimplePolygonEdge({ x: 0, y: height }, { x: width, y: 0 })); // sw to ne
-  segments.push(new SimplePolygonEdge({ x: 0, y: height / 2 }, { x: width, y: height / 2 })); // horizontal
-  segments.push(new SimplePolygonEdge({ x: width / 2, y: height }, { x: width / 2, y: 0 })); // vertical
-
-  return segments;
-}
-
-
 
 
 // ----- Reporting callbacks for testIntersections
