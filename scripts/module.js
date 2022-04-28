@@ -75,12 +75,7 @@ import * as ConcaveMan from "./lib/concave_bundle.js";
 
 export const MODULE_ID = 'testccw';
 
-export const UseBinary = {
-  No: 0,
-  Yes: 1,
-  Test: 2,
-}
-
+import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 
 
 /**
