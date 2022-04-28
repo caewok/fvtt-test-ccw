@@ -1,5 +1,6 @@
 /* globals
-foundry
+foundry,
+canvas,
 */
 'use strict';
 
@@ -14,10 +15,10 @@ foundry
 
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
+import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { clearDrawings, clearLabels, drawEdge, COLORS } from "./drawing.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { pointsEqual, compareXY, describeSceneParameters } from "./utilities.js";
+import { pointsEqual, compareXY, describeSceneParameters, generateBisectingCanvasSegments } from "./utilities.js";
 
 /**
  * Test intersections algorithms against a map of pre-set segment arrays.
@@ -41,9 +42,9 @@ export function testIntersections() {
     const segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
 
     //  for debugging
-    clearDrawings();
-    clearLabels();
-    segments.forEach(s => drawEdge(s, COLORS.black));
+//     clearDrawings();
+//     clearLabels();
+//     segments.forEach(s => drawEdge(s, COLORS.black));
 
     findIntersectionsBruteSingle(segments, reportFnBrute);
     findIntersectionsSortSingle(segments, reportFnSort);
@@ -81,8 +82,13 @@ export function testIntersections() {
 export function testSceneIntersections() {
   describeSceneParameters();
 
-  const walls = [...canvas.walls.placeables]
+  const walls = [...canvas.walls.placeables];
   const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
+
+  //  for debugging
+//   clearDrawings();
+//   clearLabels();
+//   segments.forEach(s => drawEdge(s, COLORS.red));
 
   // store the results of the reporting callback in array
   reporting_arr_brute.length = 0;
@@ -114,6 +120,42 @@ export function testSceneIntersections() {
   console.log("\n\tFiltered endpoints");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
+
+  // Check red/black by intersecting the entire scene diagonally, horizontally, vertically
+  console.log("\n\nRed/Black (4 segments added)");
+  const black = generateBisectingCanvasSegments();
+//   black.forEach(s => drawEdge(s, COLORS.black));
+
+  reporting_arr_brute.length = 0;
+  reporting_arr_sort.length = 0;
+  reporting_arr_myers.length = 0;
+  reporting_arr_brute_filtered.length = 0;
+  reporting_arr_sort_filtered.length = 0;
+  reporting_arr_myers_filtered.length = 0;
+
+  findIntersectionsBruteRedBlack(segments, black, reportFnBrute);
+  findIntersectionsSortRedBlack(segments, black, reportFnSort);
+  findIntersectionsMyersRedBlack(segments, black, reportFnMyers);
+
+  findIntersectionsBruteRedBlack(segments, black, reportFnBruteFilterEndpoints);
+  findIntersectionsSortRedBlack(segments, black, reportFnSortFilterEndpoints);
+  findIntersectionsMyersRedBlack(segments, black, reportFnMyersFilteredEndpoints);
+
+
+  reporting_arr_brute.sort(compareXY);
+  reporting_arr_sort.sort(compareXY);
+  reporting_arr_myers.sort(compareXY);
+  reporting_arr_brute_filtered.sort(compareXY);
+  reporting_arr_sort_filtered.sort(compareXY);
+  reporting_arr_myers_filtered.sort(compareXY);
+
+  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
+  checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
+
+  console.log("\n\tFiltered endpoints");
+  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
+  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
+
 }
 
 /**
@@ -137,8 +179,6 @@ function checkIntersectionResults(base, test, label) {
      return true;
   }
 }
-
-
 
 
 // ----- Reporting callbacks for testIntersections

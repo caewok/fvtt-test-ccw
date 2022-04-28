@@ -72,8 +72,41 @@ import { interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
  *                                segment objects that intersect.
  */
 export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => {}) {
-  // Myers p. 626. Construct the lists.
-  const { EVENT, BEG, VERT, END, WORK } = constructLists(segments);
+  // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
+  if(!segments.length) return;
+  sweepMyers(constructLists(segments), reportFn);
+}
+
+/**
+ * Identify intersections between two arrays of segments.
+ * Segments within a single array are not checked for intersections.
+ * (If you want intra-array, see findIntersectionsMyersSingle.)
+ * Expected O(nlog(n) + i); Worst case O((n + i)log(n))
+ * Only does limited trimming of segments that are obviously outside the area of interest
+ * but in general runs the same sweep algorithm. Thus, the sortRedBlack algorithm
+ * might be faster, depending on the total number segments to examine.
+ * Fast for large number of segments assuming the segments do not all intersect one another.
+ * - Counts shared endpoints.
+ * - Passes pairs of intersecting segments to a reporting function but does not
+ *   calculate the intersection point.
+ * @param {Segments[]} segments   Array of objects that contain points A.x, A.y, B.x, B.y
+ * @param {Function} reportFn     Callback function that is passed pairs of
+ *                                segment objects that intersect.
+ */
+export function findIntersectionsMyersRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
+  // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
+  if(!red.length || !black.length) return;
+  sweepMyers(constructRedBlackLists(red, black), reportFn);
+}
+
+/**
+ * Helper function that runs the Myers sweep algorithm.
+ * @param {Object[]} Lists constructed by constructLists or constructRedBlackLists.
+ * @param {Function} reportFn     Callback function that is passed pairs of
+ *                                segment objects that intersect.
+ */
+function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
+  const { EVENT, BEG, VERT, END, WORK } = lists;
   const xot = new XOT();
 
   // See algorithm 1, p. 633
@@ -159,7 +192,8 @@ export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => 
       if(!e._node) continue; // likely already removed as an endpoint
 
       const g = e._node.prev.data; // Above(e)
-      reportFn(e, g);
+      if(typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // skip when segments are the same color
+
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -216,8 +250,9 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     const p1 = pointForSegmentGivenX(g, sweep_x);
     const yg = p1 ? p1.y : g.nw.y;
     if(cond(yg, e.nw.y, e.se.y)) { break; }
+    if(typeof e._red === "undefined" || (e._red ^ g._red)) {  reportFn(e, g); } // skip when segments are the same color
 
-    reportFn(e, g);
+
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
 }
@@ -231,6 +266,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
 function deleteFromXOT(s, xot) {
   xot.removeNode(s._node);
   s._node = undefined;
+  s._red = undefined;
 }
 
 /**
@@ -382,41 +418,7 @@ function intersectX(a, b, c, d) {
  */
 function constructLists(segments) {
   const aux = [];
-  segments.forEach(s => {
-    // for debugging
-    s._work = undefined;
-    s._work_i = undefined;
-    s._node = undefined;
-    if(s.A.x === s.B.x) {
-      // vertical segment
-      const tuple = {
-        segment: s,
-        start_x: s.nw.x,
-        type: 1,
-        start_y: s.nw.y
-      };
-
-      aux.push(tuple);
-
-    } else {
-      const tuple1 = {
-        segment: s,
-        start_x: s.nw.x,
-        type: 0,
-        start_y: s.nw.y
-      };
-
-      const tuple2 = {
-        segment: s,
-        start_x: s.se.x,
-        type: 2,
-        start_y: s.se.y
-      };
-
-      aux.push(tuple1, tuple2);
-    }
-  });
-
+  segments.forEach(s => buildTuple(s, aux));
   aux.sort(cmpAuxList);
 
   let curr_ev = aux[0].start_x;
@@ -455,6 +457,48 @@ function constructLists(segments) {
   }
 
   return { EVENT, VERT, BEG, END, WORK };
+}
+
+/**
+ * Build the tuple for a given segment for sorting.
+ * See Myer p. 626 and constructLists/constructRedBlackLists
+ * @param {Segment} s     Segment for the tuple.
+ * @param {Object[]} aux  Array to hold the tuples.
+ */
+function buildTuple(s, aux) {
+    // for debugging and just-in-case
+    s._work = undefined;
+    s._work_i = undefined;
+    s._node = undefined;
+    s._red = undefined;
+    if(s.A.x === s.B.x) {
+      // vertical segment
+      const tuple = {
+        segment: s,
+        start_x: s.nw.x,
+        type: 1,
+        start_y: s.nw.y
+      };
+
+      aux.push(tuple);
+
+    } else {
+      const tuple1 = {
+        segment: s,
+        start_x: s.nw.x,
+        type: 0,
+        start_y: s.nw.y
+      };
+
+      const tuple2 = {
+        segment: s,
+        start_x: s.se.x,
+        type: 2,
+        start_y: s.se.y
+      };
+
+      aux.push(tuple1, tuple2);
+    }
 }
 
 
@@ -538,4 +582,92 @@ class XOT extends SkipList {
     if(!dx) { return Number.POSITIVE_INFINITY; }
     return (s.se.y - s.nw.y) / dx;
   }
+}
+
+
+
+/**
+ * Construct the lists described in Myer p. 626:
+ * - BEG, VERT, END, EVENT, and WORK
+ * Each contain an array (possibly null) with ordered segments.
+ * For red/black, make the following adjustments versus constructLists:
+ * 1. Identify the first and last indices for red and black segments.
+ *    Drop any segment left that ends prior to the larger of the first red/black index.
+ *    Same for segments to the right.
+ * 2. Mark each segment as red/black so the primary algorithm can ignore accordingly.
+ * @param {Segment[]} segments
+ * @return {Object} Object with the constructed lists.
+ */
+function constructRedBlackLists(red, black) {
+  let aux = [];
+
+  // Track the first nw x coordinate and last se x coordinate.
+  let red_nw = Number.POSITIVE_INFINITY;
+  let black_nw = Number.POSITIVE_INFINITY;
+  let red_se = Number.NEGATIVE_INFINITY;
+  let black_se = Number.NEGATIVE_INFINITY;
+
+  red.forEach(s => {
+
+    red_nw = Math.min(s.nw.x, red_nw);
+    red_se = Math.max(s.se.x, red_se);
+    buildTuple(s, aux);
+    s._red = true; // must be set after buildTuple
+  });
+
+  black.forEach(s => {
+    black_nw = Math.min(s.nw.x, black_nw);
+    black_se = Math.max(s.se.x, black_se);
+    buildTuple(s, aux);
+    s._red = false; // must be set after buildTuple
+  });
+
+  // Take the maximum of red_nw or black_nw. Any segment that ends before that point
+  // (has a se x coordinate less than that) can be ignored.
+  // Same at the other end: min of red_se or black_se. Any segment that ends after
+  // that point can be ignored. (nw coordinate greater than that)
+  // Effectively, this brackets the segments so that ending segments are dropped if
+  // they definitely cannot intersect with an opposing color.
+  const nw_limit = Math.max(red_nw, black_nw);
+  const se_limit = Math.min(red_se, black_se);
+  aux = aux.filter(t => t.segment.se.x >= nw_limit || t.segment.nw.x <= se_limit);
+
+  aux.sort(cmpAuxList);
+
+  let curr_ev = aux[0].start_x;
+  const EVENT = [curr_ev];
+  const VERT = [[]];
+  const BEG = [[]];
+  const END = [[]];
+  const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
+  const ln = aux.length;
+  let j = 0;
+  for(let i = 0; i < ln; i += 1) {
+    const tuple = aux[i];
+    if(tuple.start_x !== curr_ev) {
+      j += 1;
+      curr_ev = tuple.start_x;
+      EVENT.push(curr_ev);
+      VERT.push([]);
+      BEG.push([]);
+      END.push([]);
+      WORK.push(new DoubleLinkedList());
+    }
+
+    switch(tuple.type) {
+      case 0:
+        BEG[j].push(tuple.segment);
+        break;
+
+      case 1:
+        VERT[j].push(tuple.segment);
+        break;
+
+      case 2:
+        END[j].push(tuple.segment);
+        break;
+    }
+  }
+
+  return { EVENT, VERT, BEG, END, WORK };
 }

@@ -72,6 +72,22 @@ Intersections (endpoints filtered): ${num_ix_filtered} (brute algorithm)
 }
 
 /**
+ * Return a set of 4 segments that bisect the canvas horizontally, vertically, diagonally.
+ * For testing red-black intersections.
+ * @return {Segments[]}
+ */
+export function generateBisectingCanvasSegments() {
+  const { height, width } = canvas.dimensions;
+  const segments = [];
+  segments.push(new SimplePolygonEdge({ x: 0, y: 0 }, { x: width, y: height })); // nw to se
+  segments.push(new SimplePolygonEdge({ x: 0, y: height }, { x: width, y: 0 })); // sw to ne
+  segments.push(new SimplePolygonEdge({ x: 0, y: height / 2 }, { x: width, y: height / 2 })); // horizontal
+  segments.push(new SimplePolygonEdge({ x: width / 2, y: height }, { x: width / 2, y: 0 })); // vertical
+
+  return segments;
+}
+
+/**
  * Measure whether two coordinates could be the same pixel.
  * Points within √2 / 2 distance of one another will be considered equal.
  * Consider coordinates on a square grid: √2 / 2 is the distance from any

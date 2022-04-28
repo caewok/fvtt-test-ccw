@@ -23,7 +23,7 @@ import {sweep, brute, bush} from "./lib/isect.js";
 import { identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./utilities.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { findIntersectionsMyersSingle } from "./IntersectionsSweepMyers.js";
+import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 
 
 // for debugging sweep
@@ -155,6 +155,7 @@ Hooks.once('init', async function() {
       findIntersectionsSortSingle,
       findIntersectionsSortRedBlack,
       findIntersectionsMyersSingle,
+      findIntersectionsMyersRedBlack
     },
 
 
