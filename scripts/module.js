@@ -75,8 +75,6 @@ import * as ConcaveMan from "./lib/concave_bundle.js";
 
 export const MODULE_ID = 'testccw';
 
-import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-
 
 /**
  * Basic log to console function for debugging.
