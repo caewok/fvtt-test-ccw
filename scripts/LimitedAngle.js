@@ -64,7 +64,7 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   static build(origin, angle, rotation, { contain_origin = true } = {}) {
     if(contain_origin) { origin = this.offsetOrigin(origin, rotation); }
     const { rMin, rMax } = this.constructLimitedAngleRays(origin, rotation, angle);
-    const { new_rMin, new_rMax, canvas_points, points } = this.getBoundaryPoints(origin, rMin, rMax, angle);
+    const { new_rMin, new_rMax, canvas_points, points } = this.getBoundaryPoints(origin, rMin, rMax);
 
     const poly = new this(points);
     poly.origin = origin;
@@ -127,7 +127,7 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   * to know if some corners are included because the angle > 180º.
   * Easier to do by "walk" around canvas edges
   */
-  static getBoundaryPoints(origin, rMin, rMax, angle) {
+  static getBoundaryPoints(origin, rMin, rMax) {
     const points = [origin.x, origin.y]; // all the points of the LimitedAngle polygon
     const canvas_points = []; // just the canvas points, not including rMin or rMax endpoints
     const boundaries = [...canvas.walls.boundaries];
@@ -147,7 +147,7 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
         // reset rMin to the correct length to just intersect the canvas border
         new_rMin = new Ray(origin, ix);
-        new_rMin._angle = rMin.angle//this.aMin;
+        new_rMin._angle = rMin.angle; //this.aMin;
 
         break;
       }
@@ -188,7 +188,7 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
     points.push(origin.x, origin.y);
 
-    return { new_rMin, new_rMax, canvas_points, points}
+    return { new_rMin, new_rMax, canvas_points, points};
   }
 
  /**
@@ -320,7 +320,6 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     clockwise,
     is_tracing_polygon: undefined,
     // things added later
-    started_at_rMin: false,
     canvas_points: limitedAngle.canvas_points,
     circled_back: false,
     started_at_rMin: undefined,
@@ -342,7 +341,7 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     let edge_idx = i % ln;
     let next_edge_idx = (i + 1) % ln;
     let edge = edges[edge_idx];
-    drawEdge(edge, COLORS.red)
+//     drawEdge(edge, COLORS.red)
 
 //     console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
 
@@ -445,7 +444,7 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
     let b = pointsEqual(ix, edge.B) ? edges[next_edge_idx].B : edge.B;
     let c = rMin.B;
 
-    orientation = foundry.utils.orient2dFast(a, b, c);
+    const orientation = foundry.utils.orient2dFast(a, b, c);
 
     if(orientation > 0 && !clockwise ||
       orientation < 0 && clockwise) {
@@ -510,7 +509,7 @@ function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
   let a = ix;
   let b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
   let c = rMax.A;
-  let orientation = foundry.utils.orient2dFast(ix, b, c);
+  let orientation = foundry.utils.orient2dFast(a, b, c);
 
   if(!orientation) { return; } // stick with the current path
 
