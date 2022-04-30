@@ -20,8 +20,10 @@ PolygonVertex
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { identifyIntersectionsWithNoEndpoint } from "./utilities.js";
+import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { LimitedAngleSweepObject } from "./LimitedAngle.js";
+import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
+import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 
 /* Testing
 
@@ -141,6 +143,10 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     super.initialize(origin, config);
     const cfg = this.config;
 
+    // testing method of intersection
+    cfg.findIntersectionsSingle ||= findIntersectionsSortSingle;
+    cfg.findIntersectionsRedBlack ||= findIntersectionsBruteRedBlack;
+
     // *** NEW ***: Round origin b/c:
     // Origin can be non-integer in certain situations (like when dragging lights)
     // - we want a consistent angle when calculating the limited angle polygon
@@ -204,7 +210,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // 1 pixel behind the actual origin along rMin to the canvas border, then
     // along the canvas border to rMax, then back to 1 pixel behind the actual origin.
     if(cfg.hasLimitedAngle) {
-      cfg.limitedAngle = new LimitedAngleSweepObject(this.origin, cfg.angle, cfg.rotation, { contain_origin: true });
+      cfg.limitedAngle = LimitedAngleSweepPolygon.build(this.origin, cfg.angle, cfg.rotation, { contain_origin: true });
 
       // needed for visualization only: reset aMin, aMax, rMin, rMax
       // based on slightly moving the origin in limitedAngle
@@ -309,7 +315,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       // existing walls array is likely longer than tempEdges; thus it is second param
       // here b/c findIntersectionsDouble might be faster when the inner loop is the
       // longer one (more edges --> more chances for the inner loop to skip some)
-      findIntersectionsSortRedBlack(tempEdges, Array.from(this.edges.values()), identifyIntersectionsWithNoEndpoint);
+      this.config.findIntersectionsRedBlack(tempEdges, Array.from(this.edges.values()), identifyIntersectionsWithNoEndpoint);
 
       // Add the temporary edges to the set of edges for the sweep.
       tempEdges.forEach(e => this.edges.set(e.id, e));
@@ -898,7 +904,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     if(tempEdges.length) {
       // Cannot guarantee the customEdges have intersections set up,
       // so process that set here before combining with edges that we know do not intersect.
-      findIntersectionsSortSingle(tempEdges, identifyIntersectionsWithNoEndpoint);
+      this.config.findIntersectionsSingle(tempEdges, identifyIntersectionsWithNoEndpoint);
     }
 
     if(boundaryPolygon) {
@@ -908,7 +914,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       }
       // boundaryPolygon edges should not intersect
       // intersect against any tempEdges
-      findIntersectionsSortRedBlack(tempEdges, boundaryEdges, identifyIntersectionsWithNoEndpoint);
+      this.config.findIntersectionsRedBlack(tempEdges, boundaryEdges, identifyIntersectionsWithNoEndpoint);
       tempEdges.push(...boundaryEdges);
     }
 
@@ -917,7 +923,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
       // limitedAngle edges should not intersect
       // intersect against any tempEdges
-      findIntersectionsSortRedBlack(tempEdges, angleEdges, identifyIntersectionsWithNoEndpoint);
+      this.config.findIntersectionsRedBlack(tempEdges, angleEdges, identifyIntersectionsWithNoEndpoint);
       tempEdges.push(...angleEdges);
     }
 

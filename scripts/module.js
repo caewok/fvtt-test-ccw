@@ -7,11 +7,11 @@ import * as bench from "./benchmark.js";
 import * as drawing from "./drawing.js";
 
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-// import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
+import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 // import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { LimitedAngleSweepObject } from "./LimitedAngle.js";
+import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -133,11 +133,11 @@ Hooks.once('init', async function() {
     BenchmarkJS,
 
     MyClockwiseSweepPolygon,
-//     MyClockwiseSweepPolygon2,
+    MyClockwiseSweepPolygon2,
 //     MyClockwiseSweepPolygon3,
 
     SimplePolygonEdge,
-    LimitedAngleSweepObject,
+    LimitedAngleSweepPolygon,
 
     identifyIntersectionsWith,
     identifyIntersectionsWithNoEndpoint,
