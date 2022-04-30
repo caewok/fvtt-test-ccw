@@ -154,8 +154,6 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
 //     console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
 
-    if(edge_idx === first_intersecting_edge_idx) { circled_back = true; }
-
     let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
 //     console.log(`\t${ixs_result.intersections.length} intersections.`);
 
@@ -164,34 +162,38 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 //       return { x: Math.round(ix.x), y: Math.round(ix.y) };
 //     });
 
-    if(ixs_result.intersections.length == 2) {
-      if(first_intersecting_edge_idx == -1) {
+    if(ixs_result.intersections.length) {
+      // Flag if we are back at the first intersecting edge.
+      (edge_idx === first_intersecting_edge_idx) && (circled_back = true);
+
+      if(~first_intersecting_edge_idx) {
         first_intersecting_edge_idx = edge_idx;
         ix_data.is_tracing_segment = true;
       }
 
-      // we must have a outside --> i0 ---> i1 ---> b outside
-      ix_data.ix = ixs_result.intersections[0];
-      ix_data.aInside = ixs_result.aInside;
-      ix_data.aInside = ixs_result.aInside;
+      if(ixs_result.intersections.length == 2) {
 
-      processIntersection(circle, edge, ix_data, false);
+        // we must have a outside --> i0 ---> i1 ---> b outside
+        ix_data.ix = ixs_result.intersections[0];
+        ix_data.aInside = ixs_result.aInside;
+        ix_data.aInside = ixs_result.aInside;
 
-      ix_data.ix = ixs_result.intersections[1];
-      processIntersection(circle, edge, ix_data, true);
+        processIntersection(circle, edge, ix_data, false);
 
-    } else if(ixs_result.intersections.length === 1) {
-      if(first_intersecting_edge_idx === -1) {
-        first_intersecting_edge_idx = edge_idx;
-        ix_data.is_tracing_segment = true;
+        ix_data.ix = ixs_result.intersections[1];
+        processIntersection(circle, edge, ix_data, true);
+
+      } else if(ixs_result.intersections.length === 1) {
+
+        ix_data.ix = ixs_result.intersections[0];
+        ix_data.aInside = ixs_result.aInside;
+        ix_data.bInside = ixs_result.bInside;
+
+        processIntersection(circle, edge, ix_data, false);
       }
 
-      ix_data.ix = ixs_result.intersections[0];
-      ix_data.aInside = ixs_result.aInside;
-      ix_data.bInside = ixs_result.bInside;
-
-      processIntersection(circle, edge, ix_data, false);
     }
+
 
     if(ix_data.is_tracing_segment && !circled_back) {
       // add the edge B vertex to points array

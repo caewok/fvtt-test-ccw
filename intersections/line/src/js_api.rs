@@ -229,6 +229,22 @@ pub fn orient2d_f64_js(ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64) -> 
 	}
 }
 
+#[wasm_bindgen]
+pub fn orient2d_homogenous_f64_js(ax: f64, ay: f64, az: f64, bx: f64, by: f64, bz: f64, cx: f64, cy: f64, cz: f64) -> f64 {
+  let res = (ax*by*cz + ay*bz*cx + az*bx*cy) - (cx*by*az + cy*bz*ax + cz*bx*ay);
+
+  let mult = az.signum() * bz.signum() * cz.signum() * -1.;
+  res * mult
+}
+
+#[wasm_bindgen]
+pub fn orient2d_homogenous_i32_js(ax: i32, ay: i32, az: i32, bx: i32, by: i32, bz: i32, cx: i32, cy: i32, cz: i32) -> i32 {
+  let res = (ax*by*cz + ay*bz*cx + az*bx*cy) - (cx*by*az + cy*bz*ax + cz*bx*ay);
+
+  let mult = az.signum() * bz.signum() * cz.signum() * -1;
+  res * mult
+}
+
 
 #[cfg(test)]
 mod tests {

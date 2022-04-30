@@ -75,13 +75,6 @@ import * as ConcaveMan from "./lib/concave_bundle.js";
 
 export const MODULE_ID = 'testccw';
 
-export const UseBinary = {
-  No: 0,
-  Yes: 1,
-  Test: 2,
-}
-
-
 
 /**
  * Basic log to console function for debugging.
