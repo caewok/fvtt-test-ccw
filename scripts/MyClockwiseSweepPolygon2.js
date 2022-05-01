@@ -112,6 +112,11 @@ Changes to PolygonEdge:
 getBoundaryEdges: Return edges for a boundary, with intersections processed
 edgeOutsideBoundary: True if the edge does not cross and is not contained by the boundary
 vertexOutsideBoundary: True if the vertex does not cross and is not contained by the boundary
+
+Changes from MyCW1:
+- Intersect the limitedAngle polygon instead of adding temp walls
+- use limitedAngle.edgeIsOutside to drop edges not needed for the sweep
+
 */
 
 
