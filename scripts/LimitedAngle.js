@@ -50,6 +50,7 @@ limitedAngle.containsPoint(token.center)
 
 import { pixelLineContainsPoint, pointsEqual } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { drawEdge, drawVertex, COLORS } from "./drawing.js";
 
 export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
@@ -342,7 +343,7 @@ poly = new PIXI.Polygon(
  * @return {number[]} Points array, in format [x0, y0, x1, y1, ...]
  */
 function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
-  const debug = game.modules.get('testccw').api;
+  const debug = game.modules.get('testccw').api.debug;
 
   poly.close();
   if(!poly.isClockwise) poly.reverse();
@@ -478,7 +479,7 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
 
 
 function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  const debug = game.modules.get('testccw').api;
+  const debug = game.modules.get('testccw').api.debug;
   let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
   let was_tracing_polygon = ix_data.is_tracing_polygon;
 
@@ -586,7 +587,7 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
 }
 
 function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  const debug = game.modules.get('testccw').api;
+  const debug = game.modules.get('testccw').api.debug;
   let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
   let was_tracing_polygon = ix_data.is_tracing_polygon;
 
