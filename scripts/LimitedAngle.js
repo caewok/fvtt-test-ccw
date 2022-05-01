@@ -470,11 +470,11 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
   let circled_back = false;
   let i;
   for(i = 0; i < max_iterations; i += 1) {
-     // i += 1
+    // i += 1
     let edge_idx = i % ln;
     let next_edge_idx = (i + 1) % ln;
     let edge = edges[edge_idx];
-    debug && drawEdge(edge, COLORS.red)
+    debug && drawEdge(edge, ix_data.is_tracing_polygon ? COLORS.red : COLORS.blue)
 
     debug && console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_polygon ? "tracing" : "not tracing"} segment`);
 
@@ -483,6 +483,7 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     let rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
 
     if(rMin_intersects || rMax_intersects) {
+//       break;
       // Flag if we are back at the first intersecting edge.
       (edge_idx === first_intersecting_edge_idx) && (circled_back = true);
 
@@ -594,7 +595,13 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
     // orientation < 0: rMin.B is CW from the edge
     // orientation > 0: rMin.B is CCW from the edge
     let orientation = foundry.utils.orient2dFast(a, b, c);
-    if(!orientation) { return; } // stick with the current path
+    if(orientation.almostEqual(0)) { // almostEqual is important here, where the edge and rMin are colinear
+      // could be that the edge is in line with the ray and rMin_ix.
+      // particularly likely if angle = 180º
+      // try edge.A --> ix --> rMin_ix
+      orientation = foundry.utils.orient2dFast(edge.A, ix, rMin_ix);
+      if(!orientation) return; // stick with the current path
+    }
 
     // Switch to other polygon?
     // If we are tracing one polygon and moving to the other would move
@@ -696,7 +703,13 @@ function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
   let b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
   let c = origin;
   let orientation = foundry.utils.orient2dFast(a, b, c);
-  if(!orientation) { return; } // stick with the current path
+  if(orientation.almostEqual(0)) { // almostEqual is important here, where the edge and rMin are colinear
+    // could be that the edge is in line with the ray and origin.
+    // particularly likely if angle = 180º
+    // try edge.A --> ix --> origin
+    orientation = foundry.utils.orient2dFast(edge.A, ix, origin);
+    if(!orientation) return; // stick with the current path
+  }
 
   let change_direction = false;
   change_direction ||= ix_data.is_tracing_polygon &&
