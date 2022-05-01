@@ -9,6 +9,7 @@ import * as drawing from "./drawing.js";
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 // import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
+import { MyClockwiseSweepPolygon4 } from "./MyClockwiseSweepPolygon4.js";
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
@@ -134,6 +135,7 @@ Hooks.once('init', async function() {
 
     MyClockwiseSweepPolygon,
     MyClockwiseSweepPolygon2,
+    MyClockwiseSweepPolygon4,
 //     MyClockwiseSweepPolygon3,
 
     SimplePolygonEdge,

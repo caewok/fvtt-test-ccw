@@ -203,7 +203,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
 
     // Store flag to indicate if the boundary is anything other than canvas walls.
     cfg.hasCustomBoundary = Boolean(cfg.boundaryPolygon) ||
-                            cfg.hasLimitedAngle ||
+                          //  cfg.hasLimitedAngle ||  // limitedAngle does not use walls, so cannot ignore vertices based on its borders.
                             cfg.hasLimitedRadius;
 
     // Object representing the limited angle:
@@ -258,7 +258,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
 
     // *** NEW *** //
     // Step 5 - Intersect boundary
-    this._intersectBoundary()
+    this._intersectBoundary();
 
   }
 
@@ -388,9 +388,19 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
     // *** NEW ***
     if(this.config.hasCustomBoundary) {
       // Restrict vertices outside the bounding box
+      // but keep the four canvas corners b/c we may need them to intersect against
+      // if the custom boundary is a limited angle
+//       const canvasCorners = new Set();
+//       canvas.walls.boundaries.forEach(b => {
+//         // boundary walls overlap at corners, so just get one corner from each
+//         const [key1] = b.wallKeys;
+//         canvasCorners.add(key1);
+//       });
+
       //const bbox = this.config.bbox;
       for(let vertex of this.vertices.values()) {
-        vertex.is_outside = this._vertexOutsideBoundary(vertex);
+        vertex.is_outside = //!canvasCorners.has(vertex.key) &&
+                            this._vertexOutsideBoundary(vertex);
       }
     }
     // *** END NEW ***
@@ -872,10 +882,6 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
         bbox = bbox.intersection(limitedRadiusCircle.getBounds());
      }
 
-     if(hasLimitedAngle) {
-        bbox = bbox.intersection(limitedAngle.getBounds());
-     }
-
      // convert to NormalizedRectangle, which is expected by _getWalls.
      // should probably be handled by the respective getBounds methods above.
      bbox = new NormalizedRectangle(bbox.x, bbox.y, bbox.width, bbox.height);
@@ -898,7 +904,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
   * tempEdges array may already contain user-provided temporary edges.
   */
   _constructTemporaryEdges() {
-    const { boundaryPolygon, hasLimitedAngle, limitedAngle } = this.config;
+    const { boundaryPolygon } = this.config;
     const tempEdges = this.config.tempEdges ?? [];
 
     if(tempEdges.length) {
@@ -916,15 +922,6 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
       // intersect against any tempEdges
       this.config.findIntersectionsRedBlack(tempEdges, boundaryEdges, identifyIntersectionsWithNoEndpoint);
       tempEdges.push(...boundaryEdges);
-    }
-
-    if(hasLimitedAngle) {
-      const angleEdges = limitedAngle.getEdges();
-
-      // limitedAngle edges should not intersect
-      // intersect against any tempEdges
-      this.config.findIntersectionsRedBlack(tempEdges, angleEdges, identifyIntersectionsWithNoEndpoint);
-      tempEdges.push(...angleEdges);
     }
 
     return tempEdges;
@@ -1023,7 +1020,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
   * (limited angle handled in the sweep using temp walls)
   */
   _intersectBoundary() {
-    const { boundaryPolygon, limitedRadiusCircle } = this.config;
+    const { boundaryPolygon, limitedRadiusCircle, limitedAngle } = this.config;
     const pts = this.points;
 
     // store a copy for debugging
@@ -1038,38 +1035,25 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
     // we know the sweep here forms a clockwise polygon.
     this._isClockwise = true;
 
-    let poly = undefined;
+    let poly = this;
+
+    limitedAngle && (poly = limitedAngle.intersectPolygon(poly));
+
     if(boundaryPolygon) {
-      poly = this._intersectPolygons(this, boundaryPolygon);
+      poly = poly.clipperClip(boundaryPolygon, { cliptype: ClipperLib.ClipType.ctIntersection });
+
     } else if(limitedRadiusCircle) {
-      poly = this._intersectPolygons(this, limitedRadiusCircle);
-    } else {
-      return;
+      poly = limitedRadiusCircle.polygonIntersect(poly, { density: this.config.density } );
     }
 
     // if poly is null, length less than 6, or undefined, something has gone wrong: no intersection found.
     if(!poly || poly.length < 6) {
-      console.warn("MyClockwiseSweep|intersectBoundary failed.");
+      console.warn("MyClockwiseSweep|intersectBoundary failed.", poly);
+
       return;
     }
 
     this.points = poly.points;
-  }
-
- /**
-  * Helper to select best method to intersect two polygons
-  * @param {PIXI.Polygon|PIXI.Circle} poly1
-  * @param {PIXI.Polygon|PIXI.Circle} poly2
-  */
-  _intersectPolygons(poly1, poly2) {
-    // use circle method to process intersection if we have a circle
-    if(poly1 instanceof PIXI.Circle)
-      return poly1.polygonIntersect(poly2, { density: this.config.density });
-
-    if(poly2 instanceof PIXI.Circle)
-      return poly2.polygonIntersect(poly1, { density: this.config.density });
-
-    return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });
   }
 
 }
