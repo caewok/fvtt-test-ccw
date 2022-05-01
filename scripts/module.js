@@ -25,10 +25,6 @@ import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 
-import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
-import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
-import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
-
 export const MODULE_ID = 'testccw';
 /**
  * Basic log to console function for debugging.
@@ -56,10 +52,6 @@ export function log(...args) {
 // });
 
 Hooks.once('init', async function() {
-	initWASMLine();
-	initWASMCircle();
-	initWASMPolygon();
-
   registerPIXIPolygonMethods();
   registerPIXIRectangleMethods();
   registerPIXICircleMethods();
@@ -103,11 +95,7 @@ Hooks.once('init', async function() {
       findIntersectionsMyersSingle,
       findIntersectionsMyersRedBlack
     },
-
-    WASMLine,
-    WASMCircle,
-    WASMPolygon,
-    }
+  }
 });
 
 // modules ready
