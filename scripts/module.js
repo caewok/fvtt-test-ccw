@@ -19,64 +19,17 @@ import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
 import * as ClipperLib from "./lib/clipper_unminified.js";
-import {sweep, brute, bush} from "./lib/isect.js";
 
 import { identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./utilities.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 
-
-// for debugging sweep
-import { binaryFindIndex, binaryIndexOf } from "./BinarySearch.js";
-import { SkipList } from "./SkipList.js";
-import { DoubleLinkedList } from "./DoubleLinkedList.js";
-
 import initWASMLine, * as WASMLine from "../wasm_line/intersections_line.js";
 import initWASMCircle, * as WASMCircle from "../wasm_circle/intersections_circle.js";
 import initWASMPolygon, * as WASMPolygon from "../wasm_polygon/intersections_polygon.js";
 
-// https://sean.cm/a/polygon-clipping-pt2
-// import * as Martinez from "./lib/martinez.min.js";
-// https://github.com/w8r/martinez
-import * as Martinez from "./lib/martinez.umd.js";
-
-// https://github.com/mfogel/polygon-clipping
-import * as PolyClipping from "./lib/polygon-clipping.umd.js";
-
-// https://github.com/velipso/polybooljs
-import {PolyBool} from "./lib/polybool.js";
-// var PolyBool = import("./lib/polybool.mjs");
-
-import * as BenchmarkJS from "./lib/benchmark.js";
-
-
-
-// async function sourceUMD(url, module = {exports:{}})
-// {
-//     const response = await fetch(url);
-//     const script = await response.text();
-//     const func = Function("module", "exports", script)
-//     func.call(module, module, module.exports);
-//     return module.exports;
-// };
-//
-// const ConcaveMan = await sourceUMD("./Data/modules/testccw/scripts/lib/concaveman.bundle.js");
-// import * as ConcaveMan from "./lib/concaveman_lib.js";
-// import("./lib/concaveman.bundle.js")
-// const ConcaveMan = (await import("./lib/concaveman_lib.js"));
-// import("./lib/concaveman_lib.js");
-// console.log(window.lib);
-//
-// import('./lib/concaveman_lib.js').then({default: myUmdModule} => {
-// 	console.log(myUmdModule);
-//  });
-
-import * as ConcaveMan from "./lib/concave_bundle.js";
-
 export const MODULE_ID = 'testccw';
-
-
 /**
  * Basic log to console function for debugging.
  */
@@ -131,8 +84,6 @@ Hooks.once('init', async function() {
     tests,
     drawing,
 
-    BenchmarkJS,
-
     MyClockwiseSweepPolygon,
     MyClockwiseSweepPolygon2,
     MyClockwiseSweepPolygon3,
@@ -153,27 +104,9 @@ Hooks.once('init', async function() {
       findIntersectionsMyersRedBlack
     },
 
-
-    binaryFindIndex,
-    binaryIndexOf,
-    SkipList,
-    DoubleLinkedList,
-
-
-    sweep,
-    brute,
-    bush,
-
     WASMLine,
     WASMCircle,
     WASMPolygon,
-
-    Martinez,
-    PolyBool,
-    PolyClipping,
-
-    ConcaveMan,
-
     }
 });
 
