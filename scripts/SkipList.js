@@ -8,7 +8,6 @@ game
 // https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/skiplists.pdf
 // https://www.cs.umd.edu/class/fall2020/cmsc420-0201/Lects/lect09-skip.pdf
 
-import { xmur3, mulberry32 } from "./Random.js";
 import { MODULE_ID } from "./module.js";
 
 class SkipNode {
@@ -166,11 +165,7 @@ class SkipNode {
 export class SkipList {
   constructor({ comparator = (a, b) => a - b,
                 minObject = Number.NEGATIVE_INFINITY,
-                maxObject = Number.POSITIVE_INFINITY,
-                seed = Math.random.toString() } = {}) {
-    // build a seedable random generator, primarily for debugging
-    const rng_seed = xmur3(seed);
-    this.rng = mulberry32(rng_seed());
+                maxObject = Number.POSITIVE_INFINITY } = {}) {
 
     this._length = 0; // track length mostly for debugging
     this.start = SkipNode.newSentinel(minObject); // sentinels don't really need the seeded rng
