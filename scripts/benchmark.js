@@ -92,10 +92,12 @@ export async function benchSweep(n = 1000, ...args) {
   CONFIG.debug.polygons = false;
 
   const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
+  const MyClockwiseSweepPolygon2 = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2;
 
 //   await RadialSweepPolygon.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
   await MyClockwiseSweepPolygon.benchmark(n, ...args);
+  await MyClockwiseSweepPolygon2.benchmark(n, ...args);
 }
 
 /*
@@ -104,7 +106,7 @@ export async function benchSweep(n = 1000, ...args) {
  * @param {number} n      The number of iterations
  * @param {...any} args   Arguments passed to the polygon compute function
  */
-export function quantileBenchSweep(n=1000, ...args) {
+export async function quantileBenchSweep(n=1000, ...args) {
   // count number of unique endpoints
   const num_endpoints = new Set();
   canvas.walls.placeables.forEach(w => {
@@ -120,10 +122,12 @@ export function quantileBenchSweep(n=1000, ...args) {
   CONFIG.debug.polygons = false;
 
   const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
+  const MyClockwiseSweepPolygon2 = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2;
 
 //   QBenchmarkLoop(n, RadialSweepPolygon, "create", ...args);
-  QBenchmarkLoop(n, ClockwiseSweepPolygon, "create", ...args);
-  QBenchmarkLoop(n, MyClockwiseSweepPolygon, "create", ...args);
+  await QBenchmarkLoop(n, ClockwiseSweepPolygon, "create", ...args);
+  await QBenchmarkLoop(n, MyClockwiseSweepPolygon, "create", ...args);
+  await QBenchmarkLoop(n, MyClockwiseSweepPolygon2, "create", ...args);
 }
 
 
@@ -252,6 +256,7 @@ function randomPoint(max_coord) {
   return { x: Math.floor(Math.random() * max_coord),
            y: Math.floor(Math.random() * max_coord) };
 }
+
 function randomSegment(max_x = canvas.dimensions.width, max_y = canvas.dimensions.height) {
   let a = randomPoint(max_x);
   let b = randomPoint(max_y);
@@ -262,3 +267,5 @@ function randomSegment(max_x = canvas.dimensions.width, max_y = canvas.dimension
   }
   return new SimplePolygonEdge(a, b);
 }
+
+
