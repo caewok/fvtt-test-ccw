@@ -115,7 +115,7 @@ vertexOutsideBoundary: True if the vertex does not cross and is not contained by
 */
 
 
-export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
+export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
   constructor(...args) {
     super(...args);
 
@@ -260,6 +260,8 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
     // Step 5 - Intersect boundary
     this._intersectBoundary();
 
+//     console.log(`MyCW2 origin ${this.origin.x},${this.origin.y}. ${this.points.length} points; ${this._sweepPoints.length} sweep points;`);
+
   }
 
   /* -------------------------------------------- */
@@ -279,7 +281,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, tempEdges } = this.config;
+    const { type, tempEdges, limitedAngle } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
@@ -288,6 +290,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
 
       // *** NEW *** //
+      if(limitedAngle && limitedAngle.edgeIsOutside(wall)) continue;
       const edge = SimplePolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
       // *** END NEW *** //
@@ -1024,7 +1027,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
     const pts = this.points;
 
     // store a copy for debugging
-    if(this.config.debug) { this._sweepPoints = [...pts]; }
+    this._sweepPoints = [...pts];
 
     // Jump early if nothing to intersect
     // need three points (6 coords) to form a polygon to intersect
@@ -1048,7 +1051,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
 
     // if poly is null, length less than 6, or undefined, something has gone wrong: no intersection found.
     if(!poly || poly.length < 6) {
-      console.warn("MyClockwiseSweep|intersectBoundary failed.", poly);
+      console.warn(`MyClockwiseSweep2|intersectBoundary failed. Origin ${this.origin.x},${this.origin.y}. ${this._sweepPoints.length} sweep points.`, poly);
 
       return;
     }
