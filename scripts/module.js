@@ -20,7 +20,6 @@ import { registerPIXICircleMethods } from "./PIXICircle.js";
 
 import * as ClipperLib from "./lib/clipper_unminified.js";
 
-import { identifyIntersectionsWith, identifyIntersectionsWithNoEndpoint } from "./utilities.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
@@ -70,7 +69,6 @@ Hooks.once('init', async function() {
 
   game.modules.get(MODULE_ID).api = {
     debug: false, // see also CONFIG.debug.polygons = true
-    debug_binary: 2,
 
     bench,
     tests,
@@ -83,9 +81,6 @@ Hooks.once('init', async function() {
 
     SimplePolygonEdge,
     LimitedAngleSweepPolygon,
-
-    identifyIntersectionsWith,
-    identifyIntersectionsWithNoEndpoint,
 
     intersections: {
       findIntersectionsBruteSingle,
