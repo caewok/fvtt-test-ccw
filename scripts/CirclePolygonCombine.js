@@ -145,14 +145,11 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
   for(let i = 0; i < max_iterations; i += 1) {
-    if(circled_back) { break; } // back to first intersecting edge
-
-
-
     let edge_idx = i % ln;
     let edge = edges[edge_idx];
 
-//     console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
+    // console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
+//     drawEdge(edge, ix_data.is_tracing_segment ? COLORS.red : COLORS.blue)
 
     let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
 //     console.log(`\t${ixs_result.intersections.length} intersections.`);
@@ -166,7 +163,7 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
       // Flag if we are back at the first intersecting edge.
       (edge_idx === first_intersecting_edge_idx) && (circled_back = true);
 
-      if(~first_intersecting_edge_idx) {
+      if(!~first_intersecting_edge_idx) {
         first_intersecting_edge_idx = edge_idx;
         ix_data.is_tracing_segment = true;
       }
@@ -183,7 +180,7 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
         ix_data.ix = ixs_result.intersections[1];
         processIntersection(circle, edge, ix_data, true);
 
-      } else if(ixs_result.intersections.length === 1) {
+      } else {//if(ixs_result.intersections.length === 1) {
 
         ix_data.ix = ixs_result.intersections[0];
         ix_data.aInside = ixs_result.aInside;
@@ -194,12 +191,15 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
     }
 
+    if(circled_back) { break; } // back to first intersecting edge
 
-    if(ix_data.is_tracing_segment && !circled_back) {
+    if(ix_data.is_tracing_segment) { // && !circled_back) {
       // add the edge B vertex to points array
 //       console.log(`\tAdding edge.B ${edge.B.x},${edge.B.y}`);
       ix_data.pts.push(edge.B.x, edge.B.y);
     }
+
+
   }
 
   return ix_data.pts;

@@ -18,7 +18,8 @@ import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./In
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { clearDrawings, clearLabels, drawEdge, COLORS } from "./drawing.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { pointsEqual, compareXY, describeSceneParameters, generateBisectingCanvasSegments } from "./utilities.js";
+import { pointsEqual, compareXY, generateBisectingCanvasSegments } from "./utilities.js";
+import { describeSceneParameters } from "./benchmark.js";
 
 /**
  * Test intersections algorithms against a map of pre-set segment arrays.

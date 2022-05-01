@@ -19,57 +19,7 @@ Sort two points for locating line-line intersections:
 - compareXY: Sort points nw to se.
 */
 
-/**
- * Describe in the console.log relevant scene parameters:
- * - scene name
- * - scene size
- * - number of walls
- * - number of unique wall endpoints
- * - number of intersections (brute algorithm)
- * - number of filtered intersections (brute algorithm)
- */
-export function describeSceneParameters() {
-  const walls = [...canvas.walls.placeables]
-  const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
-  // Determine the unique number of endpoints, which tells us something about
-  // how many segments intersect at endpoints here.
-  const numEndpoints = new Set();
-  canvas.walls.placeables.forEach(w => {
-    const c = w.data.c;
-    numEndpoints.add(WallEndpoint.getKey(c[0], c[1]));
-    numEndpoints.add(WallEndpoint.getKey(c[2], c[3]));
-  });
-
-  // reporting function to get number of intersections using brute
-  const reporting_arr = [];
-  const reportNumIx = (s1, s2) => {
-    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    if(x) reporting_arr.push(x);
-  }
-
-  const reportNumIxFiltered = (s1, s2) => {
-    if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
-    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    if(x) reporting_arr.push(x);
-  }
-
-  findIntersectionsBruteSingle(segments, reportNumIx);
-  const num_ix = reporting_arr.length;
-
-  reporting_arr.length = 0;
-  findIntersectionsBruteSingle(segments, reportNumIxFiltered);
-  const num_ix_filtered = reporting_arr.length;
-
-  console.log(
-`Scene ${canvas.scene.name}
-Walls: ${canvas.walls.placeables.length}
-Endpoints: ${numEndpoints.size}
-Canvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}
-Intersections: ${num_ix} (brute algorithm)
-Intersections (endpoints filtered): ${num_ix_filtered} (brute algorithm)
-`);
-}
 
 /**
  * Return a set of 4 segments that bisect the canvas horizontally, vertically, diagonally.

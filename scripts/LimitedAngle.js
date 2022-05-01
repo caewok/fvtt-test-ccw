@@ -50,6 +50,7 @@ limitedAngle.containsPoint(token.center)
 
 import { pixelLineContainsPoint, pointsEqual } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { drawEdge, drawVertex, COLORS } from "./drawing.js";
 
 export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
@@ -64,15 +65,13 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   static build(origin, angle, rotation, { contain_origin = true } = {}) {
     if(contain_origin) { origin = this.offsetOrigin(origin, rotation); }
     const { rMin, rMax } = this.constructLimitedAngleRays(origin, rotation, angle);
-    const { new_rMin, new_rMax, canvas_points, points } = this.getBoundaryPoints(origin, rMin, rMax, angle);
+    const points = this.getBoundaryPoints(origin, rMin, rMax);
 
     const poly = new this(points);
-    poly.origin = origin;
     poly.angle = angle;
     poly.rotation = rotation;
-    poly.rMin = new_rMin;
-    poly.rMax = new_rMax;
-    poly.canvas_points = canvas_points;
+    poly.rMin = rMin;
+    poly.rMax = rMax;
 
     // set certain known polygon properties
     poly._isClosed = true;
@@ -80,6 +79,40 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     poly._isClockwise = true;
 
     return poly;
+  }
+
+ /**
+  * @type {Point}
+  */
+  get origin() { return { x: this.points[0], y: this.points[1] }; }
+
+ /**
+  * Points between rMin.B and rMax.B along the canvas edge. May be length 0.
+  * @type {Number[]}
+  */
+  get canvas_points() {
+    // points[0,1]: origin x,y
+    // points[2,3]: rMin.B x,y
+    // points[ln-4, ln-3]: rMax.B x,y
+    // points[ln-2, ln-1]: origin x.y
+    const ln = this.points.length;
+    if(ln < 8) return [];
+    return this.points.slice(4, ln - 4);
+  }
+
+ /**
+  * Point where rMin intersects the canvas edge.
+  * @type {Point}
+  */
+  get rMin_ix() { return { x: this.points[2], y: this.points[3] }; }
+
+ /**
+  * Point where rMax intersects the canvas edge.
+  * @type {Point}
+  */
+  get rMax_ix() {
+    const ln = this.points.length;
+    return { x: this.points[ln - 4], y: this.points[ln - 3] };
   }
 
  /**
@@ -112,6 +145,8 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     return { x: Math.round(r.B.x), y: Math.round(r.B.y) };
   }
 
+
+
  /**
   * Determine where the limited angle rays intersect the canvas edge.
   * (Needed primarily to easily construct a bounding box, but also helpful for
@@ -127,11 +162,9 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   * to know if some corners are included because the angle > 180º.
   * Easier to do by "walk" around canvas edges
   */
-  static getBoundaryPoints(origin, rMin, rMax, angle) {
+  static getBoundaryPoints(origin, rMin, rMax) {
     const points = [origin.x, origin.y]; // all the points of the LimitedAngle polygon
-    const canvas_points = []; // just the canvas points, not including rMin or rMax endpoints
     const boundaries = [...canvas.walls.boundaries];
-    let new_rMin, new_rMax;
     // Find the boundary that intersects rMin and add intersection point.
     // store i, representing the boundary index.
     let i;
@@ -145,9 +178,12 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
                                                    boundary.A, boundary.B);
         points.push(ix.x, ix.y);
 
-        // reset rMin to the correct length to just intersect the canvas border
-        new_rMin = new Ray(origin, ix);
-        new_rMin._angle = rMin.angle//this.aMin;
+        // Do not reset rMin or rMax to the canvas border b/c it can cause problems
+        // when we later try to intersect it against the canvas border
+        // (the intersection will sometimes be missed if the endpoint is right on the
+        //  line)
+//         new_rMin = new Ray(origin, ix);
+//         new_rMin._angle = rMin.angle; //this.aMin;
 
         break;
       }
@@ -161,7 +197,6 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     if(this.angle > 180) {
       const boundary = boundaries[i];
       points.push(boundary.B.x, boundary.B.y);
-      canvas_points.push(boundary.B.x, boundary.B.y);
       i = i + 1;
     }
 
@@ -173,22 +208,24 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
                                                      boundary.A, boundary.B);
         points.push(ix.x, ix.y);
 
-
-        // reset rMax to the correct length to just intersect the canvas border
-        new_rMax = new Ray(origin, ix);
-        new_rMax._angle = rMax.angle;
+        // Do not reset rMin or rMax to the canvas border b/c it can cause problems
+        // when we later try to intersect it against the canvas border
+        // (the intersection will sometimes be missed if the endpoint is right on the
+        //  line)
+//         // reset rMax to the correct length to just intersect the canvas border
+//         new_rMax = new Ray(origin, ix);
+//         new_rMax._angle = rMax.angle;
 
         break;
 
       } else {
         points.push(boundary.B.x, boundary.B.y);
-        canvas_points.push(boundary.B.x, boundary.B.y);
       }
     }
 
     points.push(origin.x, origin.y);
 
-    return { new_rMin, new_rMax, canvas_points, points}
+    return points;
   }
 
  /**
@@ -223,6 +260,101 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     return _combine(poly, this, { clockwise: true });
   }
 
+ /**
+  * Determine whether an edge can be excluded (for purposes of ClockwiseSweep).
+  * Edge is considered outside the limited angle if:
+  * Angle < 180º (outside the "V" shape):
+  *   - endpoints are both to the left (ccw) of rMin or
+  *   - endpoints are both to the right (cw) of rMax or
+  *   - endpoints are both "behind" the origin
+  * Angle > 180º (inside the "V" shape):
+  *   - endpoints are both to the left (ccw) of rMin and
+  *   - endpoints are both to the right (cw) of rMax and
+  *   - endpoints are both "behind" the origin
+  * Angle = 180º:
+  *   - endpoints are both to the left (ccw) of rMin and
+  *   - endpoints are both to the right (cw) of rMax
+  *
+  * Note: these rules prevent treating as "outside" an edge that crosses
+  *       the "V" either in part or in whole.
+  *
+  * @param {Segment} edge
+  * @return {Boolean}
+  */
+  edgeIsOutside(edge) {
+    const origin = this.origin;
+    const minB   = this.rMin.B;
+    const maxB   = this.rMax.B;
+    const edgeA  = edge.A;
+    const edgeB  = edge.B;
+    const angle  = this.angle;
+
+    // Remember, orientation > 0 if CCW (left)
+    // The following ignores orientation = 0. In theory, if an endpoint is on
+    // rMin or rMax, the edge can be ignored if it otherwise qualifies.
+    // But the below code only does that in one direction (angle > 180º).
+    // TO-DO: Are endpoints very near the rMin or rMax lines problematic because
+    //        this code uses a fast floating point approximation for orient2d?
+
+    let A_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeA) > 0;
+    let B_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeB) > 0;
+    let edge_left_of_rMin = A_left_of_rMin && B_left_of_rMin;
+    if(angle < 180 && edge_left_of_rMin) return true;
+
+    let A_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeA) < 0;
+    let B_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeB) < 0;
+    let edge_right_of_rMax = A_right_of_rMax && B_right_of_rMax
+    if(angle < 180 && edge_right_of_rMax) return true;
+
+    if(angle === 180) { return edge_left_of_rMin && edge_right_of_rMax; }
+
+    // If endpoints are "behind" the origin and angle < 180º, we know it is outside
+    // This is tricky: what is "behind" the origin varies based on rotation
+    // Luckily, we have the rotation.
+    // rOrthogonal goes from origin to the right (similar to rMax)
+    // test that origin --> orth.B --> pt is clockwise
+    let rOrthogonal = this.orthogonalOriginRay();
+    let A_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeA) < 0;
+    let B_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeB) < 0;
+    let edge_behind_origin = A_behind_origin && B_behind_origin;
+
+    if(angle > 180) {
+      return edge_left_of_rMin && edge_right_of_rMax && edge_behind_origin;
+    }
+
+    // angle < 180
+    // if one endpoint is behind the origin, then the other can be either left or right
+    let edge_sw_of_origin = (A_behind_origin && B_left_of_rMin) ||
+                            (B_behind_origin && A_left_of_rMin);
+
+    let edge_se_of_origin = (A_behind_origin && B_right_of_rMax) ||
+                            (B_behind_origin && A_right_of_rMax);
+
+    return edge_sw_of_origin  ||
+           edge_se_of_origin  ||
+           edge_left_of_rMin  ||
+           edge_right_of_rMax ||
+           edge_behind_origin;
+  }
+
+
+  /**
+   * Construct a ray orthogonal to the direction the token is facing, based
+   * on origin and rotation.
+   * See offsetOrigin for a similar calculation reversing the facing direction.
+   * Used by edgeIsOutside.
+   * @param {Number} d    Length or distance of the desired ray.
+   * @return  A ray that extends from origin to the right (direction of rMax)
+   *          from the perspective of the token.
+   */
+   orthogonalOriginRay(origin, rotation, d = 100) {
+     return Ray.fromAngle(origin.x, origin.y, Math.toRadians(rotation + 180), d)
+   }
+
+   orthogonalOriginRay(d = 100) {
+     return Ray.fromAngle(this.origin.x, this.origin.y, Math.toRadians(this.rotation + 180), d)
+   }
+
 }
 
 /**
@@ -242,19 +374,19 @@ function _combine(poly, limitedAngle, { clockwise = true } = {}) {
     // if no intersections, then either the polygons do not overlap (return null)
     // or one encompasses the other
     const union = !clockwise;
-    if(polyContainsOther(limitedAngle.getPolygon())) {
-      return union ? poly : limitedAngle.getPolygon();
+    if(polyContainsOther(poly, limitedAngle)) {
+      return union ? poly : limitedAngle;
     }
 
-    if(limitedAngle.containsPolygon(poly)) {
-      return union ? limitedAngle.getPolygon() : poly;
+    if(polyContainsOther(limitedAngle, poly)) {
+      return union ? limitedAngle : poly;
     }
 
     return null;
-
   }
 
   const new_poly = new PIXI.Polygon(pts);
+  new_poly.close();
 
   // algorithm always outputs a clockwise polygon
   new_poly._isClockwise = true;
@@ -308,6 +440,8 @@ poly = new PIXI.Polygon(
  * @return {number[]} Points array, in format [x0, y0, x1, y1, ...]
  */
 function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
+  const debug = game.modules.get('testccw').api.debug;
+
   poly.close();
   if(!poly.isClockwise) poly.reverse();
 
@@ -320,13 +454,13 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     clockwise,
     is_tracing_polygon: undefined,
     // things added later
-    started_at_rMin: false,
     canvas_points: limitedAngle.canvas_points,
     circled_back: false,
     started_at_rMin: undefined,
     prior_ix: undefined,
-    rMin: limitedAngle.rMin,
-    rMax: limitedAngle.rMax,
+    origin: limitedAngle.origin,
+    rMin_ix: limitedAngle.rMin_ix,
+    rMax_ix: limitedAngle.rMax_ix,
   };
 
   let edges = [...poly.iterateEdges()];
@@ -334,23 +468,22 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
   let max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
-  for(let i = 0; i < max_iterations; i += 1) {
-
-    if(circled_back) { break; } // back to first intersecting edge
-
-     // i += 1
+  let i;
+  for(i = 0; i < max_iterations; i += 1) {
+    // i += 1
     let edge_idx = i % ln;
     let next_edge_idx = (i + 1) % ln;
     let edge = edges[edge_idx];
-    drawEdge(edge, COLORS.red)
+    debug && drawEdge(edge, ix_data.is_tracing_polygon ? COLORS.red : COLORS.blue)
 
-//     console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
+    debug && console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_polygon ? "tracing" : "not tracing"} segment`);
 
     // test each limited angle ray in turn for intersection with this segment.
     let rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
     let rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
 
     if(rMin_intersects || rMax_intersects) {
+//       break;
       // Flag if we are back at the first intersecting edge.
       (edge_idx === first_intersecting_edge_idx) && (circled_back = true);
 
@@ -365,16 +498,19 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     // for union, walk clockwise and turn counterclockwise at each intersection
     // for intersect, walk clockwise and turn clockwise at each intersection
     if(rMax_intersects && rMin_intersects) {
+      debug && console.log(`rMin and rMax both intersect!`);
       // start with the intersection closest to edge.A
       const ix_min = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
       const ix_max = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
+      debug && drawVertex(ix_min, COLORS.blue, .5)
+      debug && drawVertex(ix_max, COLORS.green, .5)
 
       // unclear if this additional check for null is necessary
       if(!ix_min) {
-        console.log(`ix_min should have an intersection but reported null.`);
+        debug && console.log(`ix_min should have an intersection but reported null.`);
         ix_max && processRMaxIntersection(ix_max, edges, next_edge_idx, edge, ix_data);
       } else if(!ix_max) {
-        console.log(`ix_max should have an intersection but reported null.`);
+        debug && console.log(`ix_max should have an intersection but reported null.`);
         ix_min && processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
       } else if(pointsEqual(ix_min, ix_max)) {
         // should only happen at origin
@@ -400,20 +536,30 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
       }
 
     } else if(rMin_intersects) {
+      debug && console.log(`rMin intersects!`);
       const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
+      debug && drawVertex(ix, COLORS.blue, .5)
+
       ix && processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data);
 
     } else if(rMax_intersects) {
+      debug && console.log(`rMax intersects!`);
       const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
+      debug && drawVertex(ix, COLORS.blue, .5)
       ix && processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data);
     }
 
     if(ix_data.is_tracing_polygon && !circled_back) {
       ix_data.pts.push(edge.B.x, edge.B.y);
+      debug && drawVertex(edge.B);
+      debug && console.log(`Point ${edge.B.x},${edge.B.y} (edge.B)`)
     }
+
+    debug && circled_back && console.log(`Circled back is true; finished!`);
+
+    if(circled_back) { break; } // back to first intersecting edge
   }
-
-
+  if(i >= (max_iterations - 1)) { console.warn("LimitedAngle trace is at max_iterations ${i}"); }
 
   return ix_data.pts;
 }
@@ -433,27 +579,46 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
 
 
 function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  let { clockwise, rMin, rMax, canvas_points } = ix_data;
+  const debug = game.modules.get('testccw').api.debug;
+  let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
   let was_tracing_polygon = ix_data.is_tracing_polygon;
 
-  if(!ix_data.is_tracing_polygon && !ix_data.at_rMin) { ix_data.circled_back = true; }
+  if(!ix_data.is_tracing_polygon && ix_data.started_at_rMin) { ix_data.circled_back = true; }
 
-  if(pointsEqual(ix, rMin.B)) {
+  if(pointsEqual(ix, rMin_ix)) {
     ix_data.is_tracing_polygon = true;
   } else {
     let a = ix;
     let b = pointsEqual(ix, edge.B) ? edges[next_edge_idx].B : edge.B;
-    let c = rMin.B;
+    let c = rMin_ix;
 
-    orientation = foundry.utils.orient2dFast(a, b, c);
-
-    if(orientation > 0 && !clockwise ||
-      orientation < 0 && clockwise) {
-      // switch to the other polygon
-      ix_data.is_tracing_polygon = !was_tracing_polygon;
+    // orientation < 0: rMin.B is CW from the edge
+    // orientation > 0: rMin.B is CCW from the edge
+    let orientation = foundry.utils.orient2dFast(a, b, c);
+    if(orientation.almostEqual(0)) { // almostEqual is important here, where the edge and rMin are colinear
+      // could be that the edge is in line with the ray and rMin_ix.
+      // particularly likely if angle = 180º
+      // try edge.A --> ix --> rMin_ix
+      orientation = foundry.utils.orient2dFast(edge.A, ix, rMin_ix);
+      if(!orientation) return; // stick with the current path
     }
 
-    if(!orientation) { return; } // stick with the current path
+    // Switch to other polygon?
+    // If we are tracing one polygon and moving to the other would move
+    //   CW/CCW (depending on union/intersect) then move.
+    // Note desired orientation flips when we are tracing the limitedAngle instead of the poly
+    let change_direction = false;
+    change_direction ||= ix_data.is_tracing_polygon &&
+      ((orientation > 0 && !clockwise) ||
+       (orientation < 0 && clockwise))
+
+    change_direction ||= !ix_data.is_tracing_polygon &&
+      ((orientation < 0 && !clockwise) ||
+       (orientation > 0 && clockwise))
+
+    change_direction && (ix_data.is_tracing_polygon = !was_tracing_polygon);
+
+    debug && change_direction && console.log(`Switching`);
   }
 
   if(!(was_tracing_polygon ^ ix_data.is_tracing_polygon)) return;
@@ -461,11 +626,16 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
   if(was_tracing_polygon && !ix_data.is_tracing_polygon) {
     // we moved from polygon --> limitedAngle
     // store the intersection and whether this is rMin or rMax
+    debug && console.log(`Polygon --> limitedAngle at rMin`);
+    debug && drawVertex(ix, COLORS.blue, .75)
     ix_data.prior_ix = ix;
     ix_data.started_at_rMin = true;
     ix_data.circled_back = false;
     return;
   }
+
+  debug && console.log(`limitedAngle --> Polygon at rMin`);
+  debug && drawVertex(ix, COLORS.blue, .75)
 
   // (!was_tracing_polygon && is_tracing_polygon)
   // we moved from limitedAngle --> polygon
@@ -479,62 +649,96 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
   //    (a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
   //    (b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
   ix_data.pts.push(ix_data.prior_ix.x, ix_data.prior_ix.y);
+  debug && drawVertex(ix_data.prior_ix);
+  debug && console.log(`Point ${ix_data.prior_ix.x},${ix_data.prior_ix.y} (prior_ix)`)
 
   if(ix_data.started_at_rMin) {
     if(ix_data.circled_back) {
       // (4)(b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
-      if(!pointsEqual(ix, rMin.B)) { ix_data.pts.push(rMin.B.x, rMin.B.y); }
+      if(!pointsEqual(ix, rMin_ix)) {
+        ix_data.pts.push(rMin_ix.x, rMin_ix.y);
+        debug && drawVertex(rMin_ix);
+      }
       ix_data.pts.push(...canvas_points);
-      ix_data.pts.push(rMax.B.x, rMax.B.y);
-      ix_data.pts.push(rMin.A.x, rMin.A.y);
+      debug && canvas_points.forEach(pt => {
+        drawVertex(pt)
+        console.log(`Point ${pt.x},${pt.y} (canvas)`)
+      });
+
+      ix_data.pts.push(rMax_ix.x, rMax_ix.y);
+      debug && drawVertex(rMax_ix);
+      debug && console.log(`Point ${rMax_ix.x},${rMax_ix.y} (rMax_ix)`)
+
+      ix_data.pts.push(origin.x, origin.y);
+      debug && drawVertex(origin);
+      debug && console.log(`Point ${origin.x},${origin.y} (origin)`)
     }
     // otherwise: (1) previous and current ix on the same ray; do nothing
 
   } else { // started at rMax
     // (2) rMax --> origin/rMin.A --> rMin
-    if(!pointsEqual(ix, rMax.A)) { ix_data.pts.push(rMax.A.x, rMax.A.y); }
+    if(!pointsEqual(ix, origin)) {
+      ix_data.pts.push(origin.x, origin.y);
+      debug && drawVertex(origin);
+      debug && console.log(`Point ${origin.x},${origin.y} (origin)`)
+    }
   }
 
   ix_data.prior_ix = undefined;
   ix_data.circled_back = false;
 
   ix_data.pts.push(ix.x, ix.y);
+  debug && drawVertex(ix);
+  debug && console.log(`Point ${ix.x},${ix.y} (ix)`)
 }
 
 function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  let { clockwise, rMin, rMax, canvas_points } = ix_data;
+  const debug = game.modules.get('testccw').api.debug;
+  let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
   let was_tracing_polygon = ix_data.is_tracing_polygon;
 
-  if(!ix_data.is_tracing_polygon && !ix_data.at_rMin) { ix_data.circled_back = true; }
+  if(!ix_data.is_tracing_polygon && !ix_data.started_at_rMin) { ix_data.circled_back = true; }
 
   let a = ix;
   let b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
-  let c = rMax.A;
-  let orientation = foundry.utils.orient2dFast(ix, b, c);
-
-  if(!orientation) { return; } // stick with the current path
-
-  // clockwise edges in 2 directions:
-  // 1. next edge: edge.A --> ix --> edge.B --> next edge.B
-  // 2. rMax: edge.A --> ix --> (along rMax) --> origin/rMax.A
-  // if ix --> origin --> edge.B oriented clockwise && clockwise option is true, use edge.B
-  // orientation is positive if edge.B is to the left (ccw) of ix --> origin
-  if(orientation > 0 && !clockwise ||
-       orientation < 0 && clockwise) {
-    // switch to the other polygon
-    ix_data.is_tracing_polygon = !was_tracing_polygon;
+  let c = origin;
+  let orientation = foundry.utils.orient2dFast(a, b, c);
+  if(orientation.almostEqual(0)) { // almostEqual is important here, where the edge and rMin are colinear
+    // could be that the edge is in line with the ray and origin.
+    // particularly likely if angle = 180º
+    // try edge.A --> ix --> origin
+    orientation = foundry.utils.orient2dFast(edge.A, ix, origin);
+    if(!orientation) return; // stick with the current path
   }
+
+  let change_direction = false;
+  change_direction ||= ix_data.is_tracing_polygon &&
+    ((orientation > 0 && !clockwise) ||
+     (orientation < 0 && clockwise))
+
+  change_direction ||= !ix_data.is_tracing_polygon &&
+    ((orientation < 0 && !clockwise) ||
+     (orientation > 0 && clockwise))
+
+  change_direction && (ix_data.is_tracing_polygon = !was_tracing_polygon);
+
+  debug && change_direction && console.log(`Switching`);
 
   if(!(was_tracing_polygon ^ ix_data.is_tracing_polygon)) return;
 
   if(was_tracing_polygon && !ix_data.is_tracing_polygon) {
     // we moved from polygon --> limitedAngle
     // store the intersection and whether this is rMin or rMax
+    debug && console.log(`Polygon --> limitedAngle at rMax`);
+    debug && drawVertex(ix, COLORS.blue, .75)
     ix_data.prior_ix = ix;
     ix_data.started_at_rMin = false;
     ix_data.circled_back = false;
     return;
   }
+
+  debug && console.log(`limitedAngle --> Polygon at rMax`);
+  debug && drawVertex(ix, COLORS.blue, .75)
 
   // (!was_tracing_polygon && is_tracing_polygon)
   // we moved from limitedAngle --> polygon
@@ -548,26 +752,53 @@ function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
   //    (a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
   //    (b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
   ix_data.pts.push(ix_data.prior_ix.x, ix_data.prior_ix.y);
+  debug && drawVertex(ix_data.prior_ix);
+  debug && console.log(`Point ${ix_data.prior_ix.x},${ix_data.prior_ix.y} (prior_ix)`)
 
   if(!ix_data.started_at_rMin) {
     if(ix_data.circled_back) {
       // (4)(a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
-      if(!pointsEqual(ix, rMin.A)) { ix_data.pts.push(rMin.A.x, rMin.A.y); }
-      ix_data.pts.push(rMin.B.x, rMin.B.y);
+      if(!pointsEqual(ix, origin)) {
+        ix_data.pts.push(origin.x, origin.y);
+        debug && drawVertex(origin);
+        debug && console.log(`Point ${origin.x},${origin.y} (origin)`)
+      }
+      ix_data.pts.push(rMin_ix.x, rMin_ix.y);
+      debug && drawVertex(rMin_ix);
+      debug && console.log(`Point ${rMin_ix.x},${rMin_ix.y} (rMin_ix)`)
       ix_data.pts.push(...canvas_points);
-      ix_data.pts.push(rMax.B.x, rMax.B.y);
+      debug && canvas_points.forEach(pt => {
+        drawVertex(pt)
+        console.log(`Point ${pt.x},${pt.y} (canvas)`)
+        });
+      ix_data.pts.push(rMax_ix.x, rMax_ix.y);
+      debug && console.log(`Point ${rMax_ix.x},${rMax_ix.y} (rMax_ix)`)
+      debug && drawVertex(rMax_ix);
     }
     // otherwise (1) previous and current ix on the same ray
 
   } else { // started at rMin
     // (3) rMin.B --> canvas --> rMax.B
-    if(!pointsEqual(ix, rMin.B)) { ix_data.pts.push(rMin.B.x, rMin.B.y); }
+    if(!pointsEqual(ix, rMin_ix)) {
+      ix_data.pts.push(rMin_ix.x, rMin_ix.y);
+      debug && drawVertex(rMin_ix);
+      debug && console.log(`Point ${rMin_ix.x},${rMin_ix.y} (rMin_ix)`)
+
+    }
     ix_data.pts.push(...canvas_points);
-    ix_data.pts.push(rMax.B.x, rMax.B.y);
+    debug && canvas_points.forEach(pt => {
+      drawVertex(pt)
+      console.log(`Point ${pt.x},${pt.y} (canvas)`)
+    });
+    ix_data.pts.push(rMax_ix.x, rMax_ix.y);
+    debug && drawVertex(rMax_ix);
+    debug && console.log(`Point ${rMax_ix.x},${rMax_ix.y} (rMax_ix)`)
   }
 
   ix_data.prior_ix = undefined;
   ix_data.circled_back = false;
 
   ix_data.pts.push(ix.x, ix.y);
+  debug && drawVertex(ix);
+  debug && console.log(`Point ${ix.x},${ix.y} (ix)`)
 }

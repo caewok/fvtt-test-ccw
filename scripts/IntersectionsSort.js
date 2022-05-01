@@ -157,5 +157,8 @@ export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) 
 // testing:
 // reportFn = (_s1, _s2) => { console.log(`${_s1.id} x ${_s2.id}`) }
 
-
+// TO-DO: Version of RedBlack that uses an existing sorted endpoint list,
+// adds to it (using insertion sort?) and returns the updated list.
+// Could be used to add wall segments or just store a sorted list
+// for use with temp walls.
 
