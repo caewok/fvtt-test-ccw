@@ -260,7 +260,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // Step 5 - Intersect boundary
     this._intersectBoundary();
 
-    console.log(`MyCW2 origin ${this.origin.x},${this.origin.y}. ${this.points.length} points; ${this._sweepPoints.length} sweep points;`);
+//     console.log(`MyCW2 origin ${this.origin.x},${this.origin.y}. ${this.points.length} points; ${this._sweepPoints.length} sweep points;`);
 
   }
 
