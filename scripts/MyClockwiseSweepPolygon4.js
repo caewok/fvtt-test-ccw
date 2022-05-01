@@ -134,6 +134,8 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
      * @type {EdgeMap}
      */
     this.edges = new Map(); // ** NEW ** //
+
+    this.collisions = []; // ** NEW ** Collisions formatted as [{x, y}, ...]
   }
 
 
