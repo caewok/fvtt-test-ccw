@@ -145,6 +145,8 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     return { x: Math.round(r.B.x), y: Math.round(r.B.y) };
   }
 
+
+
  /**
   * Determine where the limited angle rays intersect the canvas edge.
   * (Needed primarily to easily construct a bounding box, but also helpful for
@@ -257,6 +259,101 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   intersectPolygon(poly) {
     return _combine(poly, this, { clockwise: true });
   }
+
+ /**
+  * Determine whether an edge can be excluded (for purposes of ClockwiseSweep).
+  * Edge is considered outside the limited angle if:
+  * Angle < 180º (outside the "V" shape):
+  *   - endpoints are both to the left (ccw) of rMin or
+  *   - endpoints are both to the right (cw) of rMax or
+  *   - endpoints are both "behind" the origin
+  * Angle > 180º (inside the "V" shape):
+  *   - endpoints are both to the left (ccw) of rMin and
+  *   - endpoints are both to the right (cw) of rMax and
+  *   - endpoints are both "behind" the origin
+  * Angle = 180º:
+  *   - endpoints are both to the left (ccw) of rMin and
+  *   - endpoints are both to the right (cw) of rMax
+  *
+  * Note: these rules prevent treating as "outside" an edge that crosses
+  *       the "V" either in part or in whole.
+  *
+  * @param {Segment} edge
+  * @return {Boolean}
+  */
+  edgeIsOutside(edge) {
+    const origin = this.origin;
+    const minB   = this.rMin.B;
+    const maxB   = this.rMax.B;
+    const edgeA  = edge.A;
+    const edgeB  = edge.B;
+    const angle  = this.angle;
+
+    // Remember, orientation > 0 if CCW (left)
+    // The following ignores orientation = 0. In theory, if an endpoint is on
+    // rMin or rMax, the edge can be ignored if it otherwise qualifies.
+    // But the below code only does that in one direction (angle > 180º).
+    // TO-DO: Are endpoints very near the rMin or rMax lines problematic because
+    //        this code uses a fast floating point approximation for orient2d?
+
+    let A_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeA) > 0;
+    let B_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeB) > 0;
+    let edge_left_of_rMin = A_left_of_rMin && B_left_of_rMin;
+    if(angle < 180 && edge_left_of_rMin) return true;
+
+    let A_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeA) < 0;
+    let B_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeB) < 0;
+    let edge_right_of_rMax = A_right_of_rMax && B_right_of_rMax
+    if(angle < 180 && edge_right_of_rMax) return true;
+
+    if(angle === 180) { return edge_left_of_rMin && edge_right_of_rMax; }
+
+    // If endpoints are "behind" the origin and angle < 180º, we know it is outside
+    // This is tricky: what is "behind" the origin varies based on rotation
+    // Luckily, we have the rotation.
+    // rOrthogonal goes from origin to the right (similar to rMax)
+    // test that origin --> orth.B --> pt is clockwise
+    let rOrthogonal = this.orthogonalOriginRay();
+    let A_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeA) < 0;
+    let B_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeB) < 0;
+    let edge_behind_origin = A_behind_origin && B_behind_origin;
+
+    if(angle > 180) {
+      return edge_left_of_rMin && edge_right_of_rMax && edge_behind_origin;
+    }
+
+    // angle < 180
+    // if one endpoint is behind the origin, then the other can be either left or right
+    let edge_sw_of_origin = (A_behind_origin && B_left_of_rMin) ||
+                            (B_behind_origin && A_left_of_rMin);
+
+    let edge_se_of_origin = (A_behind_origin && B_right_of_rMax) ||
+                            (B_behind_origin && A_right_of_rMax);
+
+    return edge_sw_of_origin  ||
+           edge_se_of_origin  ||
+           edge_left_of_rMin  ||
+           edge_right_of_rMax ||
+           edge_behind_origin;
+  }
+
+
+  /**
+   * Construct a ray orthogonal to the direction the token is facing, based
+   * on origin and rotation.
+   * See offsetOrigin for a similar calculation reversing the facing direction.
+   * Used by edgeIsOutside.
+   * @param {Number} d    Length or distance of the desired ray.
+   * @return  A ray that extends from origin to the right (direction of rMax)
+   *          from the perspective of the token.
+   */
+   orthogonalOriginRay(origin, rotation, d = 100) {
+     return Ray.fromAngle(origin.x, origin.y, Math.toRadians(rotation + 180), d)
+   }
+
+   orthogonalOriginRay(d = 100) {
+     return Ray.fromAngle(this.origin.x, this.origin.y, Math.toRadians(this.rotation + 180), d)
+   }
 
 }
 
@@ -371,7 +468,8 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
   let max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
-  for(let i = 0; i < max_iterations; i += 1) {
+  let i;
+  for(i = 0; i < max_iterations; i += 1) {
      // i += 1
     let edge_idx = i % ln;
     let next_edge_idx = (i + 1) % ln;
@@ -460,6 +558,7 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
 
     if(circled_back) { break; } // back to first intersecting edge
   }
+  if(i >= (max_iterations - 1)) { console.warn("LimitedAngle trace is at max_iterations ${i}"); }
 
   return ix_data.pts;
 }
@@ -647,7 +746,7 @@ function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
     if(ix_data.circled_back) {
       // (4)(a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
       if(!pointsEqual(ix, origin)) {
-        ix_data.pts.push(rorigin.x, origin.y);
+        ix_data.pts.push(origin.x, origin.y);
         debug && drawVertex(origin);
         debug && console.log(`Point ${origin.x},${origin.y} (origin)`)
       }

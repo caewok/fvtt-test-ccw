@@ -140,7 +140,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * @param {ClockwiseSweepPolygonConfig} config  The provided configuration object
    */
   initialize(origin, config) {
-    super.initialize(origin, config);
+    super.initialize(origin, {...config}); // for benchmark & debugging, it can be problematic if the original config object is modified
     const cfg = this.config;
 
     // testing method of intersection
@@ -260,6 +260,8 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // Step 5 - Intersect boundary
     this._intersectBoundary();
 
+    console.log(`MyCW2 origin ${this.origin.x},${this.origin.y}. ${this.points.length} points; ${this._sweepPoints.length} sweep points;`);
+
   }
 
   /* -------------------------------------------- */
@@ -279,7 +281,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, tempEdges } = this.config;
+    const { type, tempEdges, limitedAngle } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
@@ -288,6 +290,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
 
       // *** NEW *** //
+      if(limitedAngle && limitedAngle.edgeIsOutside(wall)) continue;
       const edge = SimplePolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
       // *** END NEW *** //
@@ -1024,7 +1027,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     const pts = this.points;
 
     // store a copy for debugging
-    if(this.config.debug) { this._sweepPoints = [...pts]; }
+    this._sweepPoints = [...pts];
 
     // Jump early if nothing to intersect
     // need three points (6 coords) to form a polygon to intersect

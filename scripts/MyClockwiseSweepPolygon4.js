@@ -140,7 +140,7 @@ export class MyClockwiseSweepPolygon4 extends ClockwiseSweepPolygon {
    * @param {ClockwiseSweepPolygonConfig} config  The provided configuration object
    */
   initialize(origin, config) {
-    super.initialize(origin, config);
+    super.initialize(origin, {...config}); // for benchmark & debugging, it can be problematic if the original config object is modified
     const cfg = this.config;
 
     // testing method of intersection
