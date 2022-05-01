@@ -1051,7 +1051,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
 
     // if poly is null, length less than 6, or undefined, something has gone wrong: no intersection found.
     if(!poly || poly.length < 6) {
-      console.warn("MyClockwiseSweep|intersectBoundary failed.", poly);
+      console.warn(`MyClockwiseSweep2|intersectBoundary failed. Origin ${this.origin.x},${this.origin.y}. ${this._sweepPoints.length} sweep points.`, poly);
 
       return;
     }
