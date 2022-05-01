@@ -9,12 +9,69 @@ CONFIG
 
 'use strict';
 
-import { MODULE_ID } from "./module.js";
+// import { MODULE_ID } from "./module.js";
+import { MyClockwiseSweepPolygon }  from "./MyClockwiseSweepPolygon.js";
+import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
+import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
+// import { MyClockwiseSweepPolygon4 } from "./MyClockwiseSweepPolygon4.js";
+
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
-import { describeSceneParameters, pointsEqual, generateBisectingCanvasSegments } from "./utilities.js";
+import { pointsEqual, generateBisectingCanvasSegments } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+
+/**
+ * Describe in the console.log relevant scene parameters:
+ * - scene name
+ * - scene size
+ * - number of walls
+ * - number of unique wall endpoints
+ * - number of intersections (brute algorithm)
+ * - number of filtered intersections (brute algorithm)
+ */
+export function describeSceneParameters() {
+  const walls = [...canvas.walls.placeables]
+  const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
+
+  // Determine the unique number of endpoints, which tells us something about
+  // how many segments intersect at endpoints here.
+  const numEndpoints = new Set();
+  canvas.walls.placeables.forEach(w => {
+    const c = w.data.c;
+    numEndpoints.add(WallEndpoint.getKey(c[0], c[1]));
+    numEndpoints.add(WallEndpoint.getKey(c[2], c[3]));
+  });
+
+  // reporting function to get number of intersections using brute
+  const reporting_arr = [];
+  const reportNumIx = (s1, s2) => {
+    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+    if(x) reporting_arr.push(x);
+  }
+
+  const reportNumIxFiltered = (s1, s2) => {
+    if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
+    if(x) reporting_arr.push(x);
+  }
+
+  findIntersectionsBruteSingle(segments, reportNumIx);
+  const num_ix = reporting_arr.length;
+
+  reporting_arr.length = 0;
+  findIntersectionsBruteSingle(segments, reportNumIxFiltered);
+  const num_ix_filtered = reporting_arr.length;
+
+  console.log(
+`Scene ${canvas.scene.name}
+Walls: ${canvas.walls.placeables.length}
+Endpoints: ${numEndpoints.size}
+Canvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}
+Intersections: ${num_ix} (brute algorithm)
+Intersections (endpoints filtered): ${num_ix_filtered} (brute algorithm)
+`);
+}
 
 export async function benchSceneIntersections(n = 100) {
   describeSceneParameters();
@@ -43,7 +100,7 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
 
-  console.log("\n\nRed/Black tests")
+  console.log("\n\nRed/Black tests");
   console.log("\nAdding a single short segment (20% diagonal nw/se at center)");
   // diagonal from 40% x/y to 60% x/y in the center
   const { height, width } = canvas.dimensions;
@@ -75,29 +132,61 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers filtered", segments, reportFilteredFn);
 }
 
+export async function benchScene(n = 100, { origin, rotation, radius = 60, angle = 80, angle2 = 280 } = {}) {
+  describeSceneParameters();
 
+  const t = canvas.tokens.controlled[0];
+  origin ||= t?.center;
 
-export async function benchSweep(n = 1000, ...args) {
-  const num_endpoints = new Set();
-  canvas.walls.placeables.forEach(w => {
-    const c = w.data.c;
-    num_endpoints.add(WallEndpoint.getKey(c[0], c[1]));
-    num_endpoints.add(WallEndpoint.getKey(c[2], c[3]));
-  });
+  if(!origin) {
+    console.log("Please select a token or use an origin point parameter.");
+    return;
+  }
+  console.log(`Origin: ${origin.x},${origin.y}`);
 
-  console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
-  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`);
+  rotation ||= t.data.rotation;
+  if(typeof rotation === "undefined") {
+    console.log("Please select a token or use a rotation parameter.");
+    return;
+  }
+  console.log(`Rotation: ${rotation}`);
 
+  console.log(`\n----- Full Vision`);
+  let config = {angle: 360, rotation: t.data.rotation, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+
+  console.log(`\n----- Limited Radius ${radius}`);
+  const radius_units = radius * canvas.dimensions.size / canvas.dimensions.distance;
+  config = {angle: 360, rotation, radius: radius_units, density: 12, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+
+  console.log(`\n----- Limited Angle ${angle}`);
+  config = {angle, rotation, density: 12, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+
+  console.log(`\n----- Limited Angle ${angle2}`);
+  config = {angle: angle2, rotation, density: 12, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+
+  console.log(`\n----- Limited Radius ${radius}  + Limited Angle ${angle}`);
+  config = {angle, radius: radius_units, rotation, density: 12, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+
+  console.log(`\n----- Limited Radius ${radius}  + Limited Angle ${angle2}`);
+  config = {angle: angle2, radius: radius_units, rotation, density: 12, type: "sight"};
+  await quantileBenchSweep(n, origin, config);
+}
+
+export async function benchSweep(n = 100, ...args) {
   game.modules.get('testccw').api.debug = false;
   CONFIG.debug.polygons = false;
 
-  const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
-  const MyClockwiseSweepPolygon2 = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2;
-
 //   await RadialSweepPolygon.benchmark(n, ...args);
   await ClockwiseSweepPolygon.benchmark(n, ...args);
-  await MyClockwiseSweepPolygon.benchmark(n, ...args);
-  await MyClockwiseSweepPolygon2.benchmark(n, ...args);
+  MyClockwiseSweepPolygon.benchmark(n, ...args);
+  MyClockwiseSweepPolygon2.benchmark(n, ...args);
+  MyClockwiseSweepPolygon3.benchmark(n, ...args);
+//   MyClockwiseSweepPolygon4.benchmark(n, ...args);
 }
 
 /*
@@ -106,28 +195,16 @@ export async function benchSweep(n = 1000, ...args) {
  * @param {number} n      The number of iterations
  * @param {...any} args   Arguments passed to the polygon compute function
  */
-export async function quantileBenchSweep(n=1000, ...args) {
-  // count number of unique endpoints
-  const num_endpoints = new Set();
-  canvas.walls.placeables.forEach(w => {
-    const c = w.data.c;
-    num_endpoints.add(WallEndpoint.getKey(c[0], c[1]));
-    num_endpoints.add(WallEndpoint.getKey(c[2], c[3]));
-  });
-
-  console.log(`${canvas.scene.name}\nWalls: ${canvas.walls.placeables.length}\nEndpoints: ${num_endpoints.size}\nLights: ${canvas.lighting?.placeables.length}\nCanvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}`);
-  console.log(`Angle: ${args[1].angle}, Radius: ${args[1].radius}`);
-
+export async function quantileBenchSweep(n=100, ...args) {
   game.modules.get('testccw').api.debug = false;
   CONFIG.debug.polygons = false;
-
-  const MyClockwiseSweepPolygon = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon;
-  const MyClockwiseSweepPolygon2 = game.modules.get(MODULE_ID).api.MyClockwiseSweepPolygon2;
 
 //   QBenchmarkLoop(n, RadialSweepPolygon, "create", ...args);
   await QBenchmarkLoop(n, ClockwiseSweepPolygon, "create", ...args);
   await QBenchmarkLoop(n, MyClockwiseSweepPolygon, "create", ...args);
   await QBenchmarkLoop(n, MyClockwiseSweepPolygon2, "create", ...args);
+  await QBenchmarkLoop(n, MyClockwiseSweepPolygon3, "create", ...args);
+//   await QBenchmarkLoop(n, MyClockwiseSweepPolygon4, "create", ...args);
 }
 
 
