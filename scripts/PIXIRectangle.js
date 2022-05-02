@@ -52,12 +52,12 @@ function toPolygon() {
  */
 function containsPoint(p, e = 1e-8) {
   // follow how contains method handles this
-  if(this.width <= 0 || this.height <= 0) { return false; }
+  if (this.width <= 0 || this.height <= 0) { return false; }
 
-  if((p.x > this.x && p.x < this.right) ||
+  if ((p.x > this.x && p.x < this.right) ||
      p.x.almostEqual(this.x, e) ||
      p.x.almostEqual(this.right, e)) {
-    if((p.y > this.y && p.y < this.bottom) ||
+    if ((p.y > this.y && p.y < this.bottom) ||
        p.y.almostEqual(this.y, e) ||
        p.y.almostEqual(this.bottom, e)) {
       return true;
@@ -116,14 +116,14 @@ function _intersectsLeft(a, b) {
  * @return {number} 0–9
  */
 function _zone(p) {
-  if(this.containsPoint(p)) return 0;
+  if (this.containsPoint(p)) return 0;
 
-  if(p.x < this.x) {
+  if (p.x < this.x) {
     // zones 1, 8, 7
     return p.y < this.y ? 1 :
            p.y > this.bottom ? 7 :
            8;
-  } else if(p.x > this.right) {
+  } else if (p.x > this.right) {
     // zones 3, 4, 5
     return p.y < this.y ? 3 :
            p.y > this.bottom ? 5 :
@@ -137,41 +137,41 @@ function _zone(p) {
 function lineSegmentIntersects(a, b) {
   const zone_a = this._zone(a);
   const zone_b = this._zone(b);
-  if(!zone_a && !zone_b) return false; // both points inside
-  if(zone_a === 0 || zone_b === 0) return true; // one point inside, one outside
+  if (!zone_a && !zone_b) return false; // both points inside
+  if (zone_a === 0 || zone_b === 0) return true; // one point inside, one outside
 
   // checking every zone combination is complicated
   // and does not give a huge speed increase.
   // instead, check the easy ones.
 
   // points outside && a is on a corner:
-  if((zone_a === 1) &&
+  if ((zone_a === 1) &&
      (zone_b === 1 || zone_b === 2 || zone_b === 3 ||
       zone_b === 7 || zone_b === 8)) return false;
 
-  if((zone_a === 3) &&
+  if ((zone_a === 3) &&
      (zone_b === 1 || zone_b === 2 || zone_b === 3 ||
       zone_b === 4 || zone_b === 5)) return false;
 
-  if((zone_a === 5) &&
+  if ((zone_a === 5) &&
      (zone_b === 3 || zone_b === 4 || zone_b === 5 ||
       zone_b === 6 || zone_b === 7)) return false;
 
-  if((zone_a === 7) &&
+  if ((zone_a === 7) &&
      (zone_b === 5 || zone_b === 6 || zone_b === 7 ||
       zone_b === 8 || zone_b === 1)) return false;
 
   // points outside && on same side of rectangle:
-  if((zone_a === 1 || zone_a === 2 || zone_a === 3) &&
+  if ((zone_a === 1 || zone_a === 2 || zone_a === 3) &&
      (zone_b === 1 || zone_b === 2 || zone_b === 3)) return false;
 
-  if((zone_a === 3 || zone_a === 4 || zone_a === 5) &&
+  if ((zone_a === 3 || zone_a === 4 || zone_a === 5) &&
      (zone_b === 3 || zone_b === 4 || zone_b === 5)) return false;
 
-  if((zone_a === 5 || zone_a === 6 || zone_a === 7) &&
+  if ((zone_a === 5 || zone_a === 6 || zone_a === 7) &&
      (zone_b === 5 || zone_b === 6 || zone_b === 7)) return false;
 
-  if((zone_a === 7 || zone_a === 8 || zone_a === 1) &&
+  if ((zone_a === 7 || zone_a === 8 || zone_a === 1) &&
      (zone_b === 7 || zone_b === 8 || zone_b === 1)) return false;
 
 

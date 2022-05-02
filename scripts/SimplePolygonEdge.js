@@ -70,7 +70,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   * @type {PolygonVertex}
   */
 //   get nw() {
-//     if(!this._nw) {
+//     if (!this._nw) {
 //        const is_nw = compareXY(this.A, this.B) < 0;
 //        this._nw = is_nw ? this.A : this.B;
 //        this._se = is_nw ? this.B : this.A;
@@ -79,7 +79,7 @@ export class SimplePolygonEdge extends PolygonEdge {
 //   }
 
   get nw() {
-    if(!this._nw) {
+    if (!this._nw) {
       const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
       this._nw = is_nw ? this.A : this.B;
       this._se = is_nw ? this.B : this.A;
@@ -88,7 +88,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   }
 
   get nwByKey() {
-    if(!this._nw) {
+    if (!this._nw) {
       const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
       this._nw = is_nw ? this.A : this.B;
       this._se = is_nw ? this.B : this.A;
@@ -103,7 +103,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   * @type {PolygonVertex}
   */
 //   get se() {
-//     if(!this._se) {
+//     if (!this._se) {
 //       const is_nw = compareXY(this.A, this.B) < 0;
 //       this._nw = is_nw ? this.A : this.B;
 //       this._se = is_nw ? this.B : this.A;
@@ -112,7 +112,7 @@ export class SimplePolygonEdge extends PolygonEdge {
 //   }
 
   get se() {
-    if(!this._se) {
+    if (!this._se) {
         const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
         this._nw = is_nw ? this.A : this.B;
         this._se = is_nw ? this.B : this.A;
@@ -121,7 +121,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   }
 
   get seByKey() {
-    if(!this._se) {
+    if (!this._se) {
         const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
         this._nw = is_nw ? this.A : this.B;
         this._se = is_nw ? this.B : this.A;

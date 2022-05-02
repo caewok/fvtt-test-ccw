@@ -52,10 +52,10 @@ function equivalentPixel(p1, p2) {
   // Ultimately need the distance between the two points but first check the easy case
   // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
   const dx = Math.abs(p2.x - p1.x);
-  if(dx > Math.SQRT1_2) return false; // Math.SQRT1_2 === √2 / 2
+  if (dx > Math.SQRT1_2) return false; // Math.SQRT1_2 === √2 / 2
 
   const dy = Math.abs(p2.y - p1.y);
-  if(dy > Math.SQRT1_2) return false;
+  if (dy > Math.SQRT1_2) return false;
 
   // within the √2 / 2 bounding box
   // compare distance squared.
@@ -91,10 +91,10 @@ function orient2dPixelLine(ray, c) {
  * @return {boolean}  True if the ray contains the point c.
  */
 export function pixelLineContainsPoint(ray, c) {
-  if(equivalentPixel(ray.A, c) ||
+  if (equivalentPixel(ray.A, c) ||
      equivalentPixel(ray.B, c)) return true;
 
-  if(orient2dPixelLine(ray, c) !== 0) return false;
+  if (orient2dPixelLine(ray, c) !== 0) return false;
 
   // test if point is between the endpoints, given we already established collinearity
   const dot = function(r1, r2) {
@@ -123,7 +123,7 @@ export function compareXYInt(a, b) {
 
 export function compareXY(a, b) {
   const diff_x = a.x - b.x;
-  if(diff_x.almostEqual(0)) {
+  if (diff_x.almostEqual(0)) {
     const diff_y = a.y - b.y;
     return diff_y.almostEqual(0) ? 0 : diff_y;
   }
@@ -151,7 +151,7 @@ export function compareYXInt(a, b) {
 
 export function compareYX(a, b) {
   const diff_y = a.y - b.y;
-  if(diff_y.almostEqual(0)) {
+  if (diff_y.almostEqual(0)) {
     const diff_x = a.x - b.x;
     return diff_x.almostEqual(0) ? 0 : diff_x;
   }
@@ -201,26 +201,26 @@ export function lineBlocksPoint(a, b, p, o) {
 export function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)) }
 
 export function identifyIntersectionsWith(s1, s2) {
-  if(s1 === s2) return; // probably unnecessary
+  if (s1 === s2) return; // probably unnecessary
 
   const {a: a1, b: b1} = s1.vertices;
   const {a: a2, b: b2} = s2.vertices;
 
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(!x) return; // may not be necessary but may eliminate colinear lines
+  if (!x) return; // may not be necessary but may eliminate colinear lines
   s1.intersectsWith.set(s2, x);
   s2.intersectsWith.set(s1, x);
 }
 
 export function identifyIntersectionsWithNoEndpoint(s1, s2) {
-  if(s1.wallKeys.intersects(s2.wallKeys)) return;
+  if (s1.wallKeys.intersects(s2.wallKeys)) return;
 
   return identifyIntersectionsWith(s1, s2);
 }
 
 export function pointForSegmentGivenX(s, x) {
     const denom = s.B.x - s.A.x;
-    if(!denom) return undefined;
+    if (!denom) return undefined;
     return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
   }
 

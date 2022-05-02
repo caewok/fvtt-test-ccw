@@ -73,7 +73,7 @@ import { interpolationFindIndexBeforeScalar } from "./BinarySearch.js";
  */
 export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => {}) {
   // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
-  if(!segments.length) return;
+  if (!segments.length) return;
   sweepMyers(constructLists(segments), reportFn);
 }
 
@@ -95,7 +95,7 @@ export function findIntersectionsMyersSingle(segments, reportFn = (_s1, _s2) => 
  */
 export function findIntersectionsMyersRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   // Myers p. 626. Construct the lists. Then pass the lists to Algorithm 1.
-  if(!red.length || !black.length) return;
+  if (!red.length || !black.length) return;
   sweepMyers(constructRedBlackLists(red, black), reportFn);
 }
 
@@ -111,7 +111,7 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
 
   // See algorithm 1, p. 633
   const ln = EVENT.length;
-  for(let i = 0; i < ln; i += 1) {
+  for (let i = 0; i < ln; i += 1) {
     const beg = BEG[i];
     const vert = VERT[i];
     const end = END[i];
@@ -122,15 +122,15 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     // 4A
     // Add segments in BEG(i) and list their start point ix
     let ln = beg.length;
-    for(let j = 0; j < ln; j += 1) {
+    for (let j = 0; j < ln; j += 1) {
       const e = beg[j];
-//     for(let e of BEG[i]) {
+//     for (let e of BEG[i]) {
 
       e._node = xot.insert(e);
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
-      if(f) {
+      if (f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
 
@@ -142,24 +142,24 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     // 4B
     // Find all intersections with segments in VERT(i)
     ln = vert.length;
-    for(let j = 0; j < ln; j += 1) {
+    for (let j = 0; j < ln; j += 1) {
       const e = vert[j];
-//     for(let e of VERT[i]) {
+//     for (let e of VERT[i]) {
       e._node = xot.insert(e);
       report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
     }
 
     // check the previous for an endpoint intersection with current
     // b/c if two verticals share an endpoint, they will not be picked up by report fn
-    for(let j = 1; j < ln; j += 1) {
+    for (let j = 1; j < ln; j += 1) {
       const g = vert[j - 1];
       const e = vert[j];
-      if(e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) {
+      if (e.wallKeys.has(g.nw.key) || e.wallKeys.has(g.se.key)) {
         reportFn(e, g);
       }
     }
 
-    for(let j = 0; j < ln; j += 1) {
+    for (let j = 0; j < ln; j += 1) {
       const e = vert[j];
       deleteFromXOT(e, xot);
     }
@@ -167,10 +167,10 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     // 4C
     // Delete segments in END(i)
     ln = end.length;
-    for(let j = 0; j < ln; j += 1) {
+    for (let j = 0; j < ln; j += 1) {
       const e = end[j];
-      if(xot.length === 0) break;
-      if(!e._node) continue;
+      if (xot.length === 0) break;
+      if (!e._node) continue;
 
       let f = e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
@@ -178,7 +178,7 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
       deleteFromXOT(e, xot);
       remove(e, WORK);
 
-      if(f) {
+      if (f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
       }
@@ -186,13 +186,13 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
 
     // 4D
     // Find all "event exchange" intersections in [xi, xi+1]
-    while(work.length > 0) {
+    while (work.length > 0) {
       const e = pop(i, WORK);
       //let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
-      if(!e._node) continue; // likely already removed as an endpoint
+      if (!e._node) continue; // likely already removed as an endpoint
 
       const g = e._node.prev.data; // Above(e)
-      if(typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // skip when segments are the same color
+      if (typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // skip when segments are the same color
 
 
       let f = e._node && e._node.next; // Below(e)
@@ -200,7 +200,7 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
       xot.swapNodes(e._node, g._node); // xot.swap(e) // exchange e with above(e)
       remove(e._node.next.data, WORK); // remove(Below(e))
 
-      if(f) {
+      if (f) {
         remove(f, WORK);
         enter(f, WORK, EVENT);
       }
@@ -246,11 +246,11 @@ function report(e, sweep_x, reportFn, cond) {
  */
 function _reportDirection(e, sweep_x, reportFn, cond, dir) {
   let g = e._node[dir].isSentinel ? undefined : e._node[dir].data; // Below(e) or Above(e)
-  while(g) {
+  while (g) {
     const p1 = pointForSegmentGivenX(g, sweep_x);
     const yg = p1 ? p1.y : g.nw.y;
-    if(cond(yg, e.nw.y, e.se.y)) { break; }
-    if(typeof e._red === "undefined" || (e._red ^ g._red)) {  reportFn(e, g); } // skip when segments are the same color
+    if (cond(yg, e.nw.y, e.se.y)) { break; }
+    if (typeof e._red === "undefined" || (e._red ^ g._red)) {  reportFn(e, g); } // skip when segments are the same color
 
 
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
@@ -292,11 +292,11 @@ function pop(i, WORK) {
  * @param {Number[]}            EVENT Array of x-coordinates.
  */
 function enter(e, WORK, EVENT) {
-  if(!e._node) return;
+  if (!e._node) return;
   const g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
-  if(!g) return;
+  if (!g) return;
 
-  // if(g && e > min(xe",xg")g) then push(e, Hash(e,g))
+  // if (g && e > min(xe",xg")g) then push(e, Hash(e,g))
   // (" means the se endpoint)
   // e greater than g at x when x is minimum of e.se.x or g.se.x?
 
@@ -309,13 +309,13 @@ function enter(e, WORK, EVENT) {
 
   let y1 = e.se.y;
   let y2 = e.se.y;
-  if(e.se.x < g.se.x) {
+  if (e.se.x < g.se.x) {
     // min is xe"; find g at xe"
     y1 = e.se.y;
     const p2 = pointForSegmentGivenX(g, e.se.x);
     y2 = p2 ? p2.y : g.nw.y;
 
-  } else if(e.se.x > g.se.x) {
+  } else if (e.se.x > g.se.x) {
     // min is xg"; find e at xg"
     const p1 = pointForSegmentGivenX(e, g.se.x);
     y1 = p1 ? p1.y : e.nw.y;
@@ -323,10 +323,10 @@ function enter(e, WORK, EVENT) {
   }
   const dy = y1 - y2;
   const cmp = dy || XOT.slope(e) - XOT.slope(g);
-  if(cmp < 0) {
+  if (cmp < 0) {
     const i = hash(e, g, EVENT);
-    if(~i) {
-      if(game.modules.get(MODULE_ID).api.debug) { console.log(`Adding e ${e.id} to WORK ${i} (hash e and g ${g.id}).`); }
+    if (~i) {
+      if (game.modules.get(MODULE_ID).api.debug) { console.log(`Adding e ${e.id} to WORK ${i} (hash e and g ${g.id}).`); }
       e._work = WORK[i].push(e);
       e._work_i = i;
     }
@@ -341,8 +341,8 @@ function enter(e, WORK, EVENT) {
  * @param {DoubleLinkedList[]}  WORK  Array of double-linked lists.
  */
 function remove(e, WORK) {
-  if(!e._work) return;
-  if(game.modules.get(MODULE_ID).api.debug) { console.log(`Removing ${e.id} from WORK ${e._work_i}.`); }
+  if (!e._work) return;
+  if (game.modules.get(MODULE_ID).api.debug) { console.log(`Removing ${e.id} from WORK ${e._work_i}.`); }
   WORK[e._work_i].removeNode(e._work);
   e._work_i = undefined;
   e._work = undefined;
@@ -382,10 +382,10 @@ an interpolate binary search would work.
  */
 function hash(e, g, EVENT) {
   const x = intersectX(e.nw, e.se, g.nw, g.se);
-  if(typeof x === "undefined") { return; }
+  if (typeof x === "undefined") { return; }
 
   //let i = binaryFindIndex(EVENT, elem => elem > x) - 1;
-  if(x === EVENT[0]) return 0;
+  if (x === EVENT[0]) return 0;
 
   return interpolationFindIndexBeforeScalar(EVENT, x);
   //return interpolateBinaryFindIndexBeforeScalar(EVENT, x);
@@ -429,9 +429,9 @@ function constructLists(segments) {
   const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
   const ln = aux.length;
   let j = 0;
-  for(let i = 0; i < ln; i += 1) {
+  for (let i = 0; i < ln; i += 1) {
     const tuple = aux[i];
-    if(tuple.start_x !== curr_ev) {
+    if (tuple.start_x !== curr_ev) {
       j += 1;
       curr_ev = tuple.start_x;
       EVENT.push(curr_ev);
@@ -471,7 +471,7 @@ function buildTuple(s, aux) {
     s._work_i = undefined;
     s._node = undefined;
     s._red = undefined;
-    if(s.A.x === s.B.x) {
+    if (s.A.x === s.B.x) {
       // vertical segment
       const tuple = {
         segment: s,
@@ -579,7 +579,7 @@ class XOT extends SkipList {
   */
   static slope(s) {
     const dx = s.se.x - s.nw.x;
-    if(!dx) { return Number.POSITIVE_INFINITY; }
+    if (!dx) { return Number.POSITIVE_INFINITY; }
     return (s.se.y - s.nw.y) / dx;
   }
 }
@@ -642,9 +642,9 @@ function constructRedBlackLists(red, black) {
   const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
   const ln = aux.length;
   let j = 0;
-  for(let i = 0; i < ln; i += 1) {
+  for (let i = 0; i < ln; i += 1) {
     const tuple = aux[i];
-    if(tuple.start_x !== curr_ev) {
+    if (tuple.start_x !== curr_ev) {
       j += 1;
       curr_ev = tuple.start_x;
       EVENT.push(curr_ev);

@@ -34,7 +34,7 @@ identifying the endpoints.
  */
 export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {}) {
   const ln = segments.length;
-  if(!ln) { return; }
+  if (!ln) { return; }
 
   // In a single pass through the array, build an array of endpoint objects.
   // Each object contains an endpoint, a link to the underlying segment, and a boolean
@@ -43,7 +43,7 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
   // (it is fine if two segments are otherwise equivalent in the sort)
 
   const endpoints = [];
-  for(let i = 0; i < ln; i += 1) {
+  for (let i = 0; i < ln; i += 1) {
     const s = segments[i];
     endpoints.push({e: s.nw, s, se: -1},
                    {e: s.se, s, se: 1});
@@ -51,19 +51,19 @@ export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {
   endpoints.sort(sortEndpoints);
 
   const ln2 = endpoints.length;
-  for(let i = 0; i < ln2; i += 1) {
+  for (let i = 0; i < ln2; i += 1) {
     const endpoint1 = endpoints[i];
-    if(~endpoint1.se) continue; // avoid duplicating the check
+    if (~endpoint1.se) continue; // avoid duplicating the check
 
     // starting j is always i + 1 b/c any segment with an se endpoint after si
     // would be after si or already processed b/c its ne endpoint was before.
     const start_j = i + 1;
     const si = endpoint1.s;
-    for(let j = start_j; j < ln2; j += 1) {
+    for (let j = start_j; j < ln2; j += 1) {
       const endpoint2 = endpoints[j];
 
-      if(endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
-      if(~endpoint2.se) continue;
+      if (endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
+      if (~endpoint2.se) continue;
 
       const sj = endpoint2.s;
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
@@ -112,7 +112,7 @@ function sortEndpoints(e1, e2) {
 export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   const ln_red = red.length;
   const ln_black = black.length;
-  if(!ln_red || !ln_black) return;
+  if (!ln_red || !ln_black) return;
 
   // Build an array of endpoint objects like with SortSingle.
   // But mark red/black segments so same color segments can be skipped.
@@ -121,12 +121,12 @@ export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) 
   // Alternatively, could sort by red/black and then break a bit earlier in
   // the inner loop. But the check for color => continue is pretty quick and simpler.
   const endpoints = [];
-  for(let i = 0; i < ln_red; i += 1) {
+  for (let i = 0; i < ln_red; i += 1) {
     const s = red[i];
     endpoints.push({e: s.nw, s, se: -1, red: true},
                    {e: s.se, s, se: 1,  red: true});
   }
-  for(let i = 0; i < ln_black; i += 1) {
+  for (let i = 0; i < ln_black; i += 1) {
     const s = black[i];
     endpoints.push({e: s.nw, s, se: -1, red: false},
                    {e: s.se, s, se: 1,  red: false});
@@ -134,20 +134,20 @@ export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) 
 
   endpoints.sort(sortEndpoints);
   const ln_endpoints = endpoints.length;
-  for(let i = 0; i < ln_endpoints; i += 1) {
+  for (let i = 0; i < ln_endpoints; i += 1) {
     const endpoint1 = endpoints[i];
-    if(~endpoint1.se) continue; // avoid duplicating the check
+    if (~endpoint1.se) continue; // avoid duplicating the check
 
     // starting j is always i + 1 b/c any segment with an se endpoint after si
     // would be after si or already processed b/c its ne endpoint was before.
     const start_j = i + 1;
     const si = endpoint1.s;
-    for(let j = start_j; j < ln_endpoints; j += 1) {
+    for (let j = start_j; j < ln_endpoints; j += 1) {
       const endpoint2 = endpoints[j];
 
-      if(endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
-      if(!(endpoint1.red ^ endpoint2.red)) continue; // only want segments of different color
-      if(~endpoint2.se) continue;
+      if (endpoint2.e.x > si.se.x) break; // segments past here are entirely right of si
+      if (!(endpoint1.red ^ endpoint2.red)) continue; // only want segments of different color
+      if (~endpoint2.se) continue;
 
       const sj = endpoint2.s;
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);

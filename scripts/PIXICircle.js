@@ -34,7 +34,7 @@ function toPolygon({ density = 60 } = {}) {
 
   // padding is in {x, y} format; convert to polygon
   let poly = PIXI.Polygon.fromPoints(padding);
-  if(density === 60 || density === 12) {
+  if (density === 60 || density === 12) {
     // re-scale normalized circle to desired center and radius
     poly = poly.unscale({ position_dx: this.x,
                    position_dy: this.y,

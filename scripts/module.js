@@ -97,8 +97,8 @@ Hooks.once('init', async function() {
 // ready is called once everything is loaded up and ready to go.
 // Hooks.once('ready', async function() {
 //
-//   if(typeof game?.user?.isGM === "undefined" || game.user.isGM) {
-//     if(!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
+//   if (typeof game?.user?.isGM === "undefined" || game.user.isGM) {
+//     if (!game.modules.get('lib-wrapper')?.active) ui.notifications.error("'Test ccw' requires the 'libWrapper' module. Please install and activate this dependency.");
 //
 //   }
 // });

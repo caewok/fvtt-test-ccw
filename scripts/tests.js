@@ -16,7 +16,7 @@ canvas,
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack,  } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
-import { clearDrawings, clearLabels, drawEdge, COLORS } from "./drawing.js";
+import { clearDrawings, clearLabels, drawSegment, COLORS } from "./drawing.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { pointsEqual, compareXY, generateBisectingCanvasSegments } from "./utilities.js";
 import { describeSceneParameters } from "./benchmark.js";
@@ -29,7 +29,7 @@ export function testIntersections() {
   const testStrings = testSegmentStrings();
 
   let passed = true;
-  for(const [key, str] of testStrings) {
+  for (const [key, str] of testStrings) {
     console.log(`\nTesting ${key}`);
 
     // store the results of the reporting callback in array
@@ -45,7 +45,7 @@ export function testIntersections() {
     //  for debugging
 //     clearDrawings();
 //     clearLabels();
-//     segments.forEach(s => drawEdge(s, COLORS.black));
+//     segments.forEach(s => drawSegment(s, COLORS.black));
 
     findIntersectionsBruteSingle(segments, reportFnBrute);
     findIntersectionsSortSingle(segments, reportFnSort);
@@ -71,7 +71,7 @@ export function testIntersections() {
 
     passed = passed && res1 && res2 && res3 && res4;
 
-    if(!passed) break;
+    if (!passed) break;
   }
   return passed;
 }
@@ -89,7 +89,7 @@ export function testSceneIntersections() {
   //  for debugging
 //   clearDrawings();
 //   clearLabels();
-//   segments.forEach(s => drawEdge(s, COLORS.red));
+//   segments.forEach(s => drawSegment(s, COLORS.red));
 
   // store the results of the reporting callback in array
   reporting_arr_brute.length = 0;
@@ -125,7 +125,7 @@ export function testSceneIntersections() {
   // Check red/black by intersecting the entire scene diagonally, horizontally, vertically
   console.log("\n\nRed/Black (4 segments added)");
   const black = generateBisectingCanvasSegments();
-//   black.forEach(s => drawEdge(s, COLORS.black));
+//   black.forEach(s => drawSegment(s, COLORS.black));
 
   reporting_arr_brute.length = 0;
   reporting_arr_sort.length = 0;
@@ -168,7 +168,7 @@ export function testSceneIntersections() {
  * @return {Boolean} True if equal.
  */
 function checkIntersectionResults(base, test, label) {
-  if(base.length !== test.length ||
+  if (base.length !== test.length ||
      !base.every((pt, idx) => pointsEqual(pt, test[idx]))) {
 
      console.error(`\tx ${label} (${base.length} ixs expected; ${test.length} ixs found)`);
@@ -192,35 +192,35 @@ var reporting_arr_myers_filtered = [];
 
 let reportFnBrute = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_brute.push(x); // avoid pushing null
+  if (x) reporting_arr_brute.push(x); // avoid pushing null
 };
 
 let reportFnSort = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_sort.push(x);
+  if (x) reporting_arr_sort.push(x);
 };
 
 let reportFnMyers = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_myers.push(x); // avoid pushing null
+  if (x) reporting_arr_myers.push(x); // avoid pushing null
 };
 
 let reportFnBruteFilterEndpoints = (s1, s2) => {
-  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_brute_filtered.push(x); // avoid pushing null
+  if (x) reporting_arr_brute_filtered.push(x); // avoid pushing null
 };
 
 let reportFnSortFilterEndpoints = (s1, s2) => {
-  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_sort_filtered.push(x); // avoid pushing null
+  if (x) reporting_arr_sort_filtered.push(x); // avoid pushing null
 };
 
 let reportFnMyersFilteredEndpoints = (s1, s2) => {
-  if(s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
+  if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(x) reporting_arr_myers_filtered.push(x); // avoid pushing null
+  if (x) reporting_arr_myers_filtered.push(x); // avoid pushing null
 };
 
 // ----- Test segments for testIntersections

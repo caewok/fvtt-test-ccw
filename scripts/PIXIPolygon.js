@@ -35,7 +35,7 @@ function fromPoints(points) {
   //const out = new this(points.flatMap(pt => [pt.x, pt.y]));
   // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
   const pts = [];
-  for(const pt of points) {
+  for (const pt of points) {
     pts.push(pt.x, pt.y);
   }
   const out = new this(...pts);
@@ -53,7 +53,7 @@ function fromPoints(points) {
 function* iteratePoints({close = true} = {}) {
   const dropped = (!this.isClosed || close) ? 0 : 2;
   const ln = this.points.length - dropped;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
   }
 }
@@ -72,7 +72,7 @@ function* iterateEdges({close = true} = {}) {
   // very similar to iteratePoints
   const dropped = (!this.isClosed || close) ? 0 : 2;
   const iter = this.points.length - dropped - 2;
-  for(let i = 0; i < iter; i += 2) {
+  for (let i = 0; i < iter; i += 2) {
     yield { A: { x: this.points[i], y: this.points[i + 1] },
             B: { x: this.points[i + 2], y: this.points[i + 3] }
           };
@@ -92,9 +92,9 @@ function coordinates() {
  * @return {boolean}  True if closed.
  */
 function isClosed() {
-  if(typeof this._isClosed === "undefined") {
+  if (typeof this._isClosed === "undefined") {
     const ln = this.points.length;
-    if(ln < 2) return undefined;
+    if (ln < 2) return undefined;
 
     this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) &&
                      this.points[1].almostEqual(this.points[ln - 1]);
@@ -106,7 +106,7 @@ function isClosed() {
  * Close the polygon by adding the first point to the end.
  */
 function close() {
-  if(this.isClosed == undefined || this.isClosed) return;
+  if (this.isClosed == undefined || this.isClosed) return;
   this.points.push(this.points[0], this.points[1]);
   this._isClosed = true;
 }
@@ -115,7 +115,7 @@ function close() {
  * Open the polygon by removing the first point from the end.
  */
 function open() {
-  if(!this.isClosed || this.points.length < 4) return;
+  if (!this.isClosed || this.points.length < 4) return;
   this.points.pop();
   this.points.pop();
   this._isClosed = false;
@@ -127,7 +127,7 @@ function open() {
  * If you already know the polygon convexity, you should set this._isConvex manually.
  */
 function isConvex() {
-  if(typeof this._isConvex === "undefined") {
+  if (typeof this._isConvex === "undefined") {
     this._isConvex = this.determineConvexity();
   }
   return this._isConvex;
@@ -143,13 +143,13 @@ function isConvex() {
  * (meaning it intersects itself, forming 2+ smaller polygons)
  */
 function determineConvexity() {
-  if(!this.isClosed) {
+  if (!this.isClosed) {
     console.warn(`Convexity is not defined for open polygons.`);
     return undefined;
   }
 
   // if a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)
-  if(this.points.length === 8) return true;
+  if (this.points.length === 8) return true;
 
   const iter = this.iteratePoints();
   let prev_pt = iter.next().value;
@@ -160,19 +160,19 @@ function determineConvexity() {
   const sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
 
   // if polygon is a triangle, while loop should be skipped and will always return true
-  while( (new_pt = iter.next().value) ) {
+  while ( (new_pt = iter.next().value) ) {
     prev_pt = curr_pt;
     curr_pt = next_pt;
     next_pt = new_pt;
     const new_sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
 
-    if(sign !== new_sign) return false;
+    if (sign !== new_sign) return false;
   }
   return true;
 }
 
 function isClockwise() {
-  if(typeof this._isClockwise === "undefined") {
+  if (typeof this._isClockwise === "undefined") {
     // recall that orient2dFast returns positive value if points are ccw
     this._isClockwise = this.determineOrientation() < 0;
   }
@@ -186,7 +186,7 @@ function isClockwise() {
  * prior point and next point.
  */
 function determineOrientation() {
-  if(this.isConvex) {
+  if (this.isConvex) {
     // can use any point to determine orientation
     const iter = this.iteratePoints();
     const prev_pt = iter.next().value;
@@ -202,11 +202,11 @@ function determineOrientation() {
   let min_x = Number.POSITIVE_INFINITY;
   let min_y = Number.POSITIVE_INFINITY;
   let min_i = 0;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     const curr_x = pts[i];
     const curr_y = pts[i+1];
 
-    if(curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
+    if (curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
       min_x = curr_x;
       min_y = curr_y;
       min_i = i;
@@ -232,11 +232,11 @@ function reverse() {
   const reversed_pts = [];
   const pts = this.points;
   const ln = pts.length - 2;
-  for(let i = ln; i >= 0; i -= 2) {
+  for (let i = ln; i >= 0; i -= 2) {
     reversed_pts.push(pts[i], pts[i + 1]);
   }
   this.points = reversed_pts;
-  if(typeof this._isClockwise !== "undefined") {
+  if (typeof this._isClockwise !== "undefined") {
     this._isClockwise = !this._isClockwise;
   }
 }
@@ -292,7 +292,7 @@ function getCenter() {
 function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {}) {
   const pts = [...this.points];
   const ln = pts.length;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     pts[i]   = (pts[i] - position_dx) / size_dx;
     pts[i+1] = (pts[i+1] - position_dy) / size_dy;
   }
@@ -325,7 +325,7 @@ function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {
 function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } = {}) {
   const pts = [...this.points];
   const ln = pts.length;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     pts[i]   = (pts[i] * size_dx) + position_dx;
     pts[i+1] = (pts[i+1] * size_dy) + position_dy;
   }
@@ -356,7 +356,7 @@ function fromClipperPoints(points) {
   // const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
   // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
   const pts = [];
-  for(const pt of points) {
+  for (const pt of points) {
     pts.push(pt.X, pt.Y);
   }
   const out = new this(...pts);
@@ -373,7 +373,7 @@ function fromClipperPoints(points) {
  */
 function* iterateClipperLibPoints({close = true} = {}) {
   const dropped = (!this.isClosed || close) ? 0 : 2;
-  for(let i = 0; i < (this.points.length - dropped); i += 2) {
+  for (let i = 0; i < (this.points.length - dropped); i += 2) {
     yield {X: this.points[i], Y: this.points[i + 1]};
   }
 }
