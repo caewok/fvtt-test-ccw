@@ -52,7 +52,7 @@ Exported methods are added to PIXI.Circle in PIXICircle.js.
  *                            a polygon.
  * @return {PIXI.Polygon}
  */
-export function circle_union(poly, { density = 60 } = {}) {
+export function circleUnion(poly, { density = 60 } = {}) {
   // When tracing a polygon in the clockwise direction:
   // - Union: pick the counter-clockwise choice at intersections
   // - Intersect: pick the clockwise choice at intersections
@@ -66,7 +66,7 @@ export function circle_union(poly, { density = 60 } = {}) {
  *                            a polygon.
  * @return {PIXI.Polygon}
  */
-export function circle_intersect(poly, { density = 60 } = {}) {
+export function circleIntersect(poly, { density = 60 } = {}) {
   const out = _combine(poly, this, { clockwise: true, density });
 
   // Intersection of two convex polygons is convex
