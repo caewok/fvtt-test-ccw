@@ -1,13 +1,14 @@
 /* globals
 foundry,
 PolygonEdge,
+PolygonVertex,
 CONST,
 Wall
 */
 
-'use strict';
+"use strict";
 
-import { compareXY, compareXYSortKeysInt } from "./utilities.js";
+import { compareXY, compareXYSortKeysInt } from "./utilities.js"; // eslint-disable-line no-unused-vars
 
 const MAX_TEXTURE_SIZE = 16384;
 
@@ -43,40 +44,43 @@ Going with (3) for speed plus the intersectsAt is useful for processing polygon 
 */
 
 export class SimplePolygonEdge extends PolygonEdge {
-  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall) {
+  constructor(a, b, type=CONST.WALL_SENSE_TYPES.NORMAL, wall=undefined) {
     super(a, b, type, wall);
 
     // Track wall ids if this edge corresponds to existing wall
     // This replaces wallEdgeMap in ClockwiseSweep.
     this._id = undefined;
 
-    // following used in finding intersections
+    // Following used in finding intersections
     this._wallKeys = undefined;
 
     this.intersectsWith = new Map();  // Map just as with wall.intersectsWith
   }
 
- /**
-  * Get the id for this edge (needed for ClockwiseSweep)
-  * @type {string}
-  */
+  /**
+   * Get the id for this edge (needed for ClockwiseSweep)
+   * @type {string}
+   */
   get id() {
     return this._id || (this._id = this.wall?.id || foundry.utils.randomID());
   }
 
- /**
-  * Identify which endpoint is further west, or if vertical, further north.
-  * Required for quick intersection processing.
-  * @type {PolygonVertex}
-  */
-//   get nw() {
-//     if (!this._nw) {
-//        const is_nw = compareXY(this.A, this.B) < 0;
-//        this._nw = is_nw ? this.A : this.B;
-//        this._se = is_nw ? this.B : this.A;
-//     }
-//     return this._nw;
-//   }
+  /**
+   * Identify which endpoint is further west, or if vertical, further north.
+   * Required for quick intersection processing.
+   * @type {PolygonVertex}
+   */
+  /*
+Use this or the below sort key version
+  get nw() {
+    if (!this._nw) {
+       const is_nw = compareXY(this.A, this.B) < 0;
+       this._nw = is_nw ? this.A : this.B;
+       this._se = is_nw ? this.B : this.A;
+    }
+    return this._nw;
+  }
+*/
 
   get nw() {
     if (!this._nw) {
@@ -96,35 +100,36 @@ export class SimplePolygonEdge extends PolygonEdge {
     return this._nw;
   }
 
-
-
- /**
-  * Identify which endpoint is further east, or if vertical, further south.
-  * @type {PolygonVertex}
-  */
-//   get se() {
-//     if (!this._se) {
-//       const is_nw = compareXY(this.A, this.B) < 0;
-//       this._nw = is_nw ? this.A : this.B;
-//       this._se = is_nw ? this.B : this.A;
-//     }
-//     return this._se;
-//   }
+  /**
+   * Identify which endpoint is further east, or if vertical, further south.
+   * @type {PolygonVertex}
+   */
+  /*
+Use this or the below sort key version
+  get se() {
+    if (!this._se) {
+      const is_nw = compareXY(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
+    }
+    return this._se;
+  }
+*/
 
   get se() {
     if (!this._se) {
-        const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
-        this._nw = is_nw ? this.A : this.B;
-        this._se = is_nw ? this.B : this.A;
+      const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
     }
     return this._se;
   }
 
   get seByKey() {
     if (!this._se) {
-        const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
-        this._nw = is_nw ? this.A : this.B;
-        this._se = is_nw ? this.B : this.A;
+      const is_nw = compareXYSortKeysInt(this.A, this.B) < 0;
+      this._nw = is_nw ? this.A : this.B;
+      this._se = is_nw ? this.B : this.A;
     }
     return this._se;
   }
@@ -136,7 +141,7 @@ export class SimplePolygonEdge extends PolygonEdge {
   }
 
   get wallKeys() {
-    return this._wallKeys || (this._wallKeys = new Set([ this.A.key, this.B.key ]));
+    return this._wallKeys || (this._wallKeys = new Set([this.A.key, this.B.key]));
   }
 
   fromWall(wall, type) {
@@ -147,20 +152,24 @@ export class SimplePolygonEdge extends PolygonEdge {
   }
 }
 
- /**
-  * Record the intersection points between this edge and another, if any.
-  */
+/**
+ * Record the intersection points between this edge and another, if any.
+ */
 Object.defineProperty(SimplePolygonEdge.prototype, "_identifyIntersectionsWith", {
   value: Wall.prototype._identifyIntersectionsWith,
   writable: true,
   configurable: true
 });
 
-
-function sortKey() { return this._sortKey || (this._sortKey = MAX_TEXTURE_SIZE * this.x + this.y); }
+/**
+ * Calculate a numeric key that scores a point lower if it is more nw, higher if more se.
+ * Formula: xN + y = key
+ * @return {Number} Numeric key. Note: could be rather large depending on texture size.
+ */
+function sortKey() { return this._sortKey || (this._sortKey = (MAX_TEXTURE_SIZE * this.x) + this.y); }
 
 
 Object.defineProperty(PolygonVertex.prototype, "sortKey", {
   get: sortKey
-})
+});
 
