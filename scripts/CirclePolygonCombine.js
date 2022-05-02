@@ -5,10 +5,41 @@ Ray,
 ClockwiseSweepPolygon,
 */
 
-'use strict';
+"use strict";
 
 /*
-Intersect or union a polygon with a circle without immediately converting circle to a polygon. Similar method to that of SimplePolygon._combine. Start at intersection point, tracing polygon or circle. At each intersection point, pick the clockwise (intersect) or counterclockwise (union) direction. Use padding to fill the circle to the next intersection.
+Intersect or union a polygon with a circle without immediately converting circle to a polygon.
+
+Steps to find the points of a polygon representing the intersect or union:
+- For each step below, always move clockwise around the polygon or circle.
+- Locate the first intersection point between the polygon and circle.
+  (Here, currently done simply by walking the polygon edges, testing each in turn.)
+- At each intersection point, there are two valid directions to continue walking
+  clockwise: circle or polygon. Select the one that is more clockwise (intersect) or
+  more counterclockwise (union) relative to one another.
+- If switching from polygon to circle, note the intersection location and continue
+  walking clockwise around the polygon until the next intersection point.
+- If switching from circle to polygon, add padding points representing the arc of the
+  circle from the previous intersection to the current.
+- If currently walking the polygon, add each vertex.
+
+Obviously will not work if the polygon is shaped like an "E" and the circle does not
+entirely encompass the E---the resulting polygon will have holes.
+
+Hypothesis #1: A circle that shares the weighted center point (or, for sweep, origin)
+               with a polygon can be intersect or union without creating holes.
+
+Hypothesis #2: If the circle and polygon both encompass the center point or origin,
+               the resulting intersect or union will not have holes.
+
+So long as the conditions for Hypothesis #1 or #2 hold, the polygon intersect or union
+can be done using a single walk around the polygon, which can be done relatively quickly.
+This speed is increased with the circle, because its dimensions are easily known and thus
+instead of walking it, a set of padding points can be quickly calculated and added.
+
+Hypothesis #1 is the typical condition in Foundry for vision sweep,
+in which a token has a limited radius circle of vision and a vision polygon is constructed
+from a clockwise sweep around the center point of the token.
 
 Exported methods are added to PIXI.Circle in PIXICircle.js.
 */
@@ -22,9 +53,9 @@ Exported methods are added to PIXI.Circle in PIXICircle.js.
  * @return {PIXI.Polygon}
  */
 export function circle_union(poly, { density = 60 } = {}) {
-  // when tracing a polygon in the clockwise direction:
-  // union: pick the counter-clockwise choice at intersections
-  // intersect: pick the clockwise choice at intersections
+  // When tracing a polygon in the clockwise direction:
+  // - Union: pick the counter-clockwise choice at intersections
+  // - Intersect: pick the clockwise choice at intersections
   return _combine(poly, this, { clockwise: false, density });
 }
 
@@ -38,10 +69,10 @@ export function circle_union(poly, { density = 60 } = {}) {
 export function circle_intersect(poly, { density = 60 } = {}) {
   const out = _combine(poly, this, { clockwise: true, density });
 
-  // intersection of two convex polygons is convex
-  // circle is always convex
-  // don't re-run convexity but add parameter if available
-  if(poly._isConvex) { out._isConvex = true; }
+  // Intersection of two convex polygons is convex
+  // Circle is always convex
+  // Don't re-run convexity but add parameter if available
+  if (poly._isConvex) { out._isConvex = true; }
 
   return out;
 }
@@ -61,25 +92,27 @@ export function circle_intersect(poly, { density = 60 } = {}) {
 function _combine(poly, circle, { clockwise = true, density = 60 } = {}) {
   const pts = _tracePolygon(poly, circle, { clockwise, density });
 
-  if(pts.length === 0) {
-    // if no intersections, then either the polygons do not overlap (return null)
+  if (pts.length === 0) {
+    // If no intersections, then either the polygons do not overlap (return null)
     // or one encompasses the other (return the one that encompasses the other)
     const union = !clockwise;
-    if(_circleEncompassesPolygon(circle, poly))
+    if (_circleEncompassesPolygon(circle, poly)) {
       return union ? circle.toPolygon({ density }) : poly;
+    }
 
-    // already know that the circle does not contain any polygon points
+    // Already know that the circle does not contain any polygon points
     // if circle center is within polygon, polygon must therefore contain the circle.
     // (recall that we already found no intersecting points)
-    if(poly.contains(circle.x, circle.y))
+    if (poly.contains(circle.x, circle.y)) {
       return union ? poly : circle.toPolygon({ density });
+    }
 
     return null;
   }
 
   const new_poly = new PIXI.Polygon(pts);
 
-  // algorithm always outputs a clockwise polygon
+  // Algorithm always outputs a clockwise polygon
   new_poly._isClockwise = true;
   return new_poly;
 }
@@ -94,8 +127,8 @@ function _combine(poly, circle, { clockwise = true, density = 60 } = {}) {
  */
 function _circleEncompassesPolygon(circle, poly) {
   const iter = poly.iteratePoints();
-  for(const pt of iter) {
-    if(!circle.contains(pt.x, pt.y)) return false;
+  for (const pt of iter) {
+    if (!circle.contains(pt.x, pt.y)) return false;
   }
   return true;
 }
@@ -121,22 +154,22 @@ function _circleEncompassesPolygon(circle, poly) {
  */
 export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } = {}) {
   poly.close();
-  if(!poly.isClockwise) poly.reverse();
+  if (!poly.isClockwise) poly.reverse();
 
   let center = { x: circle.x, y: circle.y };
   let radius = circle.radius;
 
-  // store the starting data
+  // Store the starting data
   let ix_data = {
     pts: [],
     clockwise,
     density,
     is_tracing_segment: false,
-    // things added later
+    // Things added later
     ix: undefined,
     circle_start: undefined,
     aInside: undefined,
-    bInside: undefined,
+    bInside: undefined
   };
 
   let edges = [...poly.iterateEdges()];
@@ -144,33 +177,22 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
   let max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
-  for(let i = 0; i < max_iterations; i += 1) {
+  for (let i = 0; i < max_iterations; i += 1) {
     let edge_idx = i % ln;
     let edge = edges[edge_idx];
-
-    // console.log(`${i}: ${edge.A.x},${edge.A.y}|${edge.B.x},${edge.B.y} ${ix_data.is_tracing_segment ? "tracing" : "not tracing"} segment`);
-//     drawEdge(edge, ix_data.is_tracing_segment ? COLORS.red : COLORS.blue)
-
     let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
-//     console.log(`\t${ixs_result.intersections.length} intersections.`);
 
-    // round ix for testing to compare to original
-//     ixs_result.intersections = ixs_result.intersections.map(ix => {
-//       return { x: Math.round(ix.x), y: Math.round(ix.y) };
-//     });
-
-    if(ixs_result.intersections.length) {
+    if (ixs_result.intersections.length) {
       // Flag if we are back at the first intersecting edge.
-      (edge_idx === first_intersecting_edge_idx) && (circled_back = true);
+      if (edge_idx === first_intersecting_edge_idx) { circled_back = true; }
 
-      if(!~first_intersecting_edge_idx) {
+      if (!~first_intersecting_edge_idx) {
         first_intersecting_edge_idx = edge_idx;
         ix_data.is_tracing_segment = true;
       }
 
-      if(ixs_result.intersections.length == 2) {
-
-        // we must have a outside --> i0 ---> i1 ---> b outside
+      if (ixs_result.intersections.length === 2) {
+        // We must have a outside --> i0 ---> i1 ---> b outside
         ix_data.ix = ixs_result.intersections[0];
         ix_data.aInside = ixs_result.aInside;
         ix_data.aInside = ixs_result.aInside;
@@ -180,7 +202,7 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
         ix_data.ix = ixs_result.intersections[1];
         processIntersection(circle, edge, ix_data, true);
 
-      } else {//if(ixs_result.intersections.length === 1) {
+      } else {
 
         ix_data.ix = ixs_result.intersections[0];
         ix_data.aInside = ixs_result.aInside;
@@ -188,18 +210,13 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
         processIntersection(circle, edge, ix_data, false);
       }
-
     }
 
-    if(circled_back) { break; } // back to first intersecting edge
+    if (circled_back) { break; } // Back to first intersecting edge
 
-    if(ix_data.is_tracing_segment) { // && !circled_back) {
-      // add the edge B vertex to points array
-//       console.log(`\tAdding edge.B ${edge.B.x},${edge.B.y}`);
+    if (ix_data.is_tracing_segment) {
       ix_data.pts.push(edge.B.x, edge.B.y);
     }
-
-
   }
 
   return ix_data.pts;
@@ -210,54 +227,46 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
  * multiple intersections.
  */
 function processIntersection(circle, edge, ix_data, is_second_ix) {
-  let { aInside,
-          bInside,
-          clockwise,
-          ix } = ix_data;
+  let { aInside, bInside, clockwise, ix } = ix_data;
 
   let was_tracing_segment = ix_data.is_tracing_segment;
-  // determine whether we are now tracing the segment or the circle
+  // Determine whether we are now tracing the segment or the circle
   let is_tracing_segment = false;
-  if(aInside && bInside) {
+  if (aInside && bInside) {
     console.warn("processIntersection2: Both endpoints are inside the circle!");
-  } else if(!aInside && !bInside) {
-    // two intersections
-    // we must have a_outside --> i0 --> i1 --> b_outside
+  } else if (!aInside && !bInside) {
+    // Two intersections
+    // We must have a_outside --> i0 --> i1 --> b_outside
     is_tracing_segment = is_second_ix ? !clockwise : clockwise;
   } else {
-    // either aInside or bInside are true, but not both
+    // Either aInside or bInside are true, but not both
     is_tracing_segment = aInside ? !clockwise : clockwise;
   }
 
-  if(!was_tracing_segment && is_tracing_segment) {
-    // we have moved from circle --> segment; pad the previous intersection to here.
-//     console.log("\tMoving circle --> segment.");
-    if(!ix_data.circle_start) {
+  if (!was_tracing_segment && is_tracing_segment) {
+    // We have moved from circle --> segment; pad the previous intersection to here.
+    if (!ix_data.circle_start) {
       console.warn("processIntersection2: undefined circle start circle --> segment");
     }
     let padding = paddingPoints(ix_data.circle_start, ix, circle, { density: ix_data.density });
-//     console.log(`\tAdding ${padding.length} padding points.`, padding);
 
-    // convert padding {x, y} to points array
-    //pts = padding.flatMap(pt => [pt.x, pt.y]);
-    for(const pt of padding) {
+    // Convert padding {x, y} to points array
+    for (const pt of padding) {
       ix_data.pts.push(pt.x, pt.y);
     }
 
   } else if (was_tracing_segment && !is_tracing_segment) {
-    // we have moved from segment --> circle; remember the previous intersection
-//     console.log("\tMoving segment --> circle");
+    // We have moved from segment --> circle; remember the previous intersection
     ix_data.circle_start = ix;
   }
 
-  // if we were tracing the segment or are now tracing the segment, add intersection
+  // If we were tracing the segment or are now tracing the segment, add intersection
   // Skip if:
   // - we are just continuing the circle; or
   // - the intersection is equal to the line end
-  if(was_tracing_segment || is_tracing_segment &&
-     !(edge.B.x.almostEqual(ix.x) &&
-       edge.B.y.almostEqual(ix.y))) {
-//     console.log(`\tAdding intersection ${ix.x},${ix.y}`);
+  if ((was_tracing_segment || is_tracing_segment)
+     && !(edge.B.x.almostEqual(ix.x)
+     && edge.B.y.almostEqual(ix.y))) {
     ix_data.pts.push(ix.x, ix.y);
   }
 
@@ -281,6 +290,3 @@ function paddingPoints(fromPoint, toPoint, center, { density = 60 } = {}) {
 
   return ClockwiseSweepPolygon.prototype._getPaddingPoints.call(obj, r0, r1);
 }
-
-
-
