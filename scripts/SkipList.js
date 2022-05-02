@@ -2,42 +2,60 @@
 game
 */
 
-// Skip List
-// Based in part on
-// https://wesleytsai.io/2015/08/09/skip-lists/
-// https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/skiplists.pdf
-// https://www.cs.umd.edu/class/fall2020/cmsc420-0201/Lects/lect09-skip.pdf
+/* Skip List
+Based in part on
+https://wesleytsai.io/2015/08/09/skip-lists/
+https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/skiplists.pdf
+https://www.cs.umd.edu/class/fall2020/cmsc420-0201/Lects/lect09-skip.pdf
+
+Skip list is a simplified alternative to a self-balancing tree.
+See above links for description and diagrams.
+
+Used by MyersSweep because it allows O(log(n)) insertion of a value, along
+with O(1) removal and swapping of nodes, assuming a node is provided.
+Otherwise, O(log(n)) to search for the value to remove or swap.
+
+O(1) to locate the previous and next values. To facilitate this, the skip nodes link to
+both previous and next nodes.
+*/
 
 import { MODULE_ID } from "./module.js";
 
 class SkipNode {
+
+  /**
+   * Set the number of levels randomly using the provided rng function or by setting
+   * to the provided num_lvls.
+   * Create arrays with size set to the number of levels, which will contain pointers
+   * to the next and previous node at each level.
+   */
   constructor(data, { num_lvls, rng = Math.random } = {}) {
     this.data = data;
 
-    // need to first set the rng above so randomHeight can access it
-    this.num_lvls = num_lvls ?? SkipNode.randomHeight(rng); // number of levels, including the 0 level
+    // Need to first set the rng above so randomHeight can access it
+    this.num_lvls = num_lvls ?? SkipNode.randomHeight(rng); // Number of levels, including the 0 level
 
     // Array holds pointers to next and previous SkipNodes, 1 per array level
     this.skipNext = Array(this.num_lvls);
     this.skipPrev = Array(this.num_lvls);
   }
 
- /**
-  * Immediately subsequent node.
-  * @type {SkipNode}
-  */
+  /**
+   * Immediately subsequent node.
+   * @type {SkipNode}
+   */
   get next() { return this.skipNext[0]; }
 
- /**
-  * Immediately prior node.
-  * @type {SkipNode}
-  */
+  /**
+   * Immediately prior node.
+   * @type {SkipNode}
+   */
   get prev() { return this.skipPrev[0]; }
 
- /**
-  * A special skip node that represents the head of the skip list.
-  * Two special properties: value is -Infinity and has infinite height
-  */
+  /**
+   * A special skip node that represents the head of the skip list.
+   * Two special properties: value is -Infinity and has infinite height
+   */
   static newSentinel(sentinel_value = Number.POSITIVE_INFINITY) {
     const sentinel = new this(sentinel_value);
     sentinel.num_lvls = Number.POSITIVE_INFINITY;
@@ -46,36 +64,36 @@ class SkipNode {
     return sentinel;
   }
 
- /**
-  * Quick test if this node is a sentinel node
-  */
+  /**
+   * Quick test if this node is a sentinel node
+   */
   get isSentinel() { return !isFinite(this.num_lvls); }
 
- /**
-  * Randomly determine the height of this node
-  */
+  /**
+   * Randomly determine the height of this node
+   */
   static randomHeight(rng) {
     let num_lvls = 1;
     while (rng() < 0.5) { num_lvls += 1; }
     return num_lvls;
   }
 
- /**
-  * Add this node after an existing node at a given level
-  * @param {SkipNode} existing
-  * @param {Number}   h         Level to link in skipNext array
-  */
+  /**
+   * Add this node after an existing node at a given level
+   * @param {SkipNode} existing
+   * @param {Number}   h         Level to link in skipNext array
+   */
   insertAfter(existing, h) {
-    // change existingH ... nextH
-    // to     existingH ... thisH... nextH
+    // Change existingH ... nextH
+    // To     existingH ... thisH... nextH
 
     if (h > this.num_levels) {
-      console.warn("This node only has ${this.num_levels} levels. Cannot link at height ${h}.", this, existing);
+      console.warn(`This node only has ${this.num_levels} levels. Cannot link at height ${h}.`, this, existing);
       return;
     }
 
     if (h > existing.num_levels) {
-      console.warn("Existing only has ${existing.num_levels} levels. Cannot link at height ${h}.", this, existing);
+      console.warn(`Existing only has ${existing.num_levels} levels. Cannot link at height ${h}.`, this, existing);
       return;
     }
 
@@ -86,22 +104,22 @@ class SkipNode {
     existing.skipNext[h] = this;
   }
 
- /**
-  * Remove this node after an existing node at a given level
-  * @param {SkipNode} existing
-  * @param {Number}   h         Level to de-link in skipNext array.
-  */
+  /**
+   * Remove this node after an existing node at a given level
+   * @param {SkipNode} existing
+   * @param {Number}   h         Level to de-link in skipNext array.
+   */
   removeAfter(existing, h) {
-    // change existingH ... thisH... nextH
-    // to     existingH ... nextH
+    // Change existingH ... thisH... nextH
+    // To     existingH ... nextH
 
     if (h > this.num_levels) {
-      console.warn("This node only has ${this.num_levels} levels. Cannot de-link at height ${h}.", this, existing);
+      console.warn(`This node only has ${this.num_levels} levels. Cannot de-link at height ${h}.`, this, existing);
       return;
     }
 
     if (h > existing.num_levels) {
-      console.warn("Existing only has ${existing.num_levels} levels. Cannot de-link at height ${h}.", this, existing);
+      console.warn(`Existing only has ${existing.num_levels} levels. Cannot de-link at height ${h}.`, this, existing);
       return;
     }
 
@@ -112,49 +130,49 @@ class SkipNode {
     this.skipNext[h] = null;
   }
 
- /**
-  * Swap this node with another at a given level
-  * @param {SkipNode} other
-  * @param {Number}   h       Level for the swap
-  */
+  /**
+   * Swap this node with another at a given level
+   * @param {SkipNode} other
+   * @param {Number}   h       Level for the swap
+   */
   swap(other, h) {
     if (h > this.num_levels) {
-      console.warn("This node only has ${this.num_levels} levels. Cannot swap at height ${h}.", this, other);
+      console.warn(`This node only has ${this.num_levels} levels. Cannot swap at height ${h}.`, this, other);
       return;
     }
 
     if (h > other.num_levels) {
-      console.warn("Existing only has ${other.num_levels} levels. Cannot swap at height ${h}.", this, other);
+      console.warn(`Existing only has ${other.num_levels} levels. Cannot swap at height ${h}.`, this, other);
       return;
     }
 
-    // other.skipNext, etc. may be undefined for a given level
+    // Other.skipNext, etc. may be undefined for a given level
     if (this.skipNext[h] === other) {
-      // change prevH ... thisH ... otherH ... nextH
-      // to     prevH ... otherH ... thisH ... nextH
-      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this);
-      this.skipPrev[h]  && (this.skipPrev[h].skipNext[h] = other);
+      // Change prevH ... thisH ... otherH ... nextH
+      // To     prevH ... otherH ... thisH ... nextH
+      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this); // eslint-disable-line no-unused-expressions
+      this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other);  // eslint-disable-line no-unused-expressions
 
       [other.skipPrev[h], this.skipPrev[h]] = [this.skipPrev[h], other];
       [other.skipNext[h], this.skipNext[h]] = [this, other.skipNext[h]];
 
     } else if (this.skipPrev[h] === other) {
-      // change prevH ... otherH ... thisH ... nextH
-      // to     prevH ... thisH ... otherH ... nextH
-      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
-      this.skipNext[h]  && (this.skipNext[h].skipPrev[h] = other);
+      // Change prevH ... otherH ... thisH ... nextH
+      // To     prevH ... thisH ... otherH ... nextH
+      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this); // eslint-disable-line no-unused-expressions
+      this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other);  // eslint-disable-line no-unused-expressions
 
       [other.skipPrev[h], this.skipPrev[h]] = [this, other.skipPrev[h]];
       [other.skipNext[h], this.skipNext[h]] = [this.skipNext[h], other];
 
     } else {
-      // change prevH ... otherH ... nextH ... prevH ... thisH ... nextH or vice-versa
-      // to     prevH ... thisH ... nextH ... prevH ... otherH ... nextH or vice-versa
-      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this);
-      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this);
+      // Change prevH ... otherH ... nextH ... prevH ... thisH ... nextH or vice-versa
+      // To     prevH ... thisH ... nextH ... prevH ... otherH ... nextH or vice-versa
+      other.skipPrev[h] && (other.skipPrev[h].skipNext[h] = this); // eslint-disable-line no-unused-expressions
+      other.skipNext[h] && (other.skipNext[h].skipPrev[h] = this); // eslint-disable-line no-unused-expressions
 
-      this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other);
-      this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other);
+      this.skipPrev[h] && (this.skipPrev[h].skipNext[h] = other); // eslint-disable-line no-unused-expressions
+      this.skipNext[h] && (this.skipNext[h].skipPrev[h] = other); // eslint-disable-line no-unused-expressions
 
       [other.skipPrev[h], this.skipPrev[h]] = [this.skipPrev[h], other.skipPrev[h]];
       [other.skipNext[h], this.skipNext[h]] = [this.skipNext[h], other.skipNext[h]];
@@ -163,12 +181,19 @@ class SkipNode {
 }
 
 export class SkipList {
+  /**
+   * @param {Function} comparator  Comparator is a callback function used to contrast data of two nodes.
+   *                               The default assumes a numeric array of data, to be sorted low to high.
+   * @param {Object} minObject     An object representing the theoretical minimum object,
+   *                               for purposes of comparator. Used to set the minimum sentinel node.
+   * @param {Object} maxObject     An object representing the theoretical maximum object,
+   *                               for purposes of comparator. Used to set the maximum sentinel node.
+   */
   constructor({ comparator = (a, b) => a - b,
-                minObject = Number.NEGATIVE_INFINITY,
-                maxObject = Number.POSITIVE_INFINITY } = {}) {
-
-    this._length = 0; // track length mostly for debugging
-    this.start = SkipNode.newSentinel(minObject); // sentinels don't really need the seeded rng
+                minObject = Number.NEGATIVE_INFINITY,           // eslint-disable-line indent
+                maxObject = Number.POSITIVE_INFINITY } = {}) {  // eslint-disable-line indent
+    this._length = 0; // Track length mostly for debugging
+    this.start = SkipNode.newSentinel(minObject); // Sentinels don't really need a special rng
     this.end = SkipNode.newSentinel(maxObject);
     this.start.skipNext[0] = this.end;
 
@@ -176,18 +201,18 @@ export class SkipList {
     this.max_lvls = 1;
   }
 
- /**
-  * @prop {number}
-  */
+  /**
+   * @prop {number}
+   */
   get length() { return this._length; }
 
- /**
-  * Insert a specific node into the list.
-  * @param {SkipNode} node
-  * @return {SkipNode} Object containing the stored data, which can be used to walk the list
-  */
+  /**
+   * Insert a specific node into the list.
+   * @param {SkipNode} node
+   * @return {SkipNode} Object containing the stored data, which can be used to walk the list
+   */
   insertNode(node) {
-    // walk each level from the top
+    // Walk each level from the top
     // - stop at the node where node.skipNext is greater than data
     // - link that node
     let self = this;
@@ -198,7 +223,7 @@ export class SkipList {
     self.max_lvls = Math.max(self.max_lvls, node.num_lvls);
     let curr_sentinel_level = self.start.skipNext.length;
     if (curr_sentinel_level < self.max_lvls) {
-      // add slots to the start skipNext array; connect to end
+      // Add slots to the start skipNext array; connect to end
       self.start.skipNext.length = self.max_lvls;
       for (let h = curr_sentinel_level; h < self.max_lvls; h += 1) {
         self.start.skipNext[h] = self.end;
@@ -207,33 +232,35 @@ export class SkipList {
 
     let level_nodes = self._walkList(data);
 
-    // connect at each height present for the node
+    // Connect at each height present for the node
     for (let h = node.num_lvls - 1; h >= 0; h -= 1) {
       node.insertAfter(level_nodes[h], h);
     }
 
     self._length += 1;
 
-    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after insert: structure inconsistent.`, self, node); }
+    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) {
+      console.log("after insert: structure inconsistent.", self, node);
+    }
 
     return node;
   }
 
   /**
-  * Insert an object into the skip list.
-  * @param {Object} data  Object to insert into the list.
-  *                       Must be comparable using the comparator.
-  * @return {SkipNode} Object containing the stored data, which can be used to walk the list
-  */
+   * Insert an object into the skip list.
+   * @param {Object} data  Object to insert into the list.
+   *                       Must be comparable using the comparator.
+   * @return {SkipNode} Object containing the stored data, which can be used to walk the list
+   */
   insert(data) {
     const node = new SkipNode(data, { rng: self.rng });
     return this.insertNode(node);
   }
 
- /**
-  * Helper to walk the list, store the last node encountered at each level,
-  * and return along with the node.
-  */
+  /**
+   * Helper to walk the list, store the last node encountered at each level,
+   * and return along with the node.
+   */
   _walkList(data) {
     let self = this;
     let curr = self.start;
@@ -249,7 +276,7 @@ export class SkipList {
       }
       if (iter >= max_iterations) { console.warn("remove: max_iterations exceeded."); }
 
-      // we are at a level for which this node connects. Store for disconnection
+      // We are at a level for which this node connects. Store for disconnection
       level_nodes[h] = curr;
     }
 
@@ -257,10 +284,10 @@ export class SkipList {
   }
 
 
- /**
-  * Remove node from the skip list directly.
-  * Instead of searching the list, remove the nodes directly at each level
-  */
+  /**
+   * Remove node from the skip list directly.
+   * Instead of searching the list, remove the nodes directly at each level
+   */
   removeNode(node) {
     let self = this;
 
@@ -268,17 +295,19 @@ export class SkipList {
       node.removeAfter(node.skipPrev[h], h);
     }
 
-    this._trimMaxLevel(); // not absolutely needed, but this prevents the skip height from being unnecessarily high
+    this._trimMaxLevel(); // Not absolutely needed, but this prevents the skip height from being unnecessarily high
     self._length -= 1;
-    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove node: structure inconsistent.`, self, node); }
+    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) {
+      console.log("after remove node: structure inconsistent.", self, node);
+    }
   }
 
- /**
-  * Remove data from the skip list
-  * @param {SkipNode} node
-  */
+  /**
+   * Remove data from the skip list
+   * @param {SkipNode} node
+   */
   remove(data) {
-    // walk each level from the top
+    // Walk each level from the top
     // - stop at the node where node.skipNext is greater than data
     // - store that node for delinking
     // - find the actual node for the data, then delink it at each level
@@ -286,28 +315,30 @@ export class SkipList {
 
     let level_nodes = self._walkList(data);
 
-    // we have found the node corresponding to data.
+    // We have found the node corresponding to data.
     let node = level_nodes[0].skipNext[0];
     if (self.comparator(node.data, data)) {
       console.warn("Node to remove does not contain data to remove", data, node);
       return;
     }
 
-    // disconnect at each height present for the node
+    // Disconnect at each height present for the node
     for (let h = node.num_lvls - 1; h >= 0; h -= 1) {
       node.removeAfter(level_nodes[h], h);
     }
 
-    this._trimMaxLevel(); // not absolutely needed, but this prevents the skip height from being unnecessarily high
+    this._trimMaxLevel(); // Not absolutely needed, but this prevents the skip height from being unnecessarily high
     self._length -= 1;
-    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after remove: structure inconsistent.`, self, node); }
+    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) {
+      console.log("after remove: structure inconsistent.", self, node);
+    }
   }
 
- /**
-  * Trim the maximum level
-  */
+  /**
+   * Trim the maximum level
+   */
   _trimMaxLevel() {
-    // if the start simply points to the end, then we don't need it
+    // If the start simply points to the end, then we don't need it
     for (let h = this.max_lvls - 1; h > 0; h -= 1) {
       if (this.start.skipNext[h].isSentinel) {
         this.max_lvls -= 1;
@@ -318,13 +349,13 @@ export class SkipList {
   }
 
 
- /**
-  * Swap two nodes directly
-  */
+  /**
+   * Swap two nodes directly
+   */
   swapNodes(node1, node2) {
     let self = this;
 
-    // increase levels to match so links can be transferred
+    // Increase levels to match so links can be transferred
     let max_lvl = Math.max(node1.num_lvls, node2.num_lvls);
     node1.skipNext.length = max_lvl;
     node2.skipNext.length = max_lvl;
@@ -336,8 +367,8 @@ export class SkipList {
       node1.swap(node2, h);
     }
 
-    // reset the skip array lengths to correspond to the correct height
-    [node1.num_lvls, node2.num_lvls] = [node2.num_lvls, node1.num_lvls]
+    // Reset the skip array lengths to correspond to the correct height
+    [node1.num_lvls, node2.num_lvls] = [node2.num_lvls, node1.num_lvls];
 
     node1.skipNext.length = node1.num_lvls;
     node1.skipPrev.length = node1.num_lvls;
@@ -345,19 +376,21 @@ export class SkipList {
     node2.skipNext.length = node2.num_lvls;
     node2.skipPrev.length = node2.num_lvls;
 
-    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after swap node: structure inconsistent.`, self, node1, node2); }
+    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) {
+      console.log("after swap node: structure inconsistent.", self, node1, node2);
+    }
   }
 
- /**
-  * Swap two nodes based on data
-  */
+  /**
+   * Swap two nodes based on data
+   */
   swap(data1, data2) {
     let self = this;
 
-    // disconnect the two nodes (like remove but we are saving the connections)
-    // order matters—--removing node1 affects the links of node2
+    // Disconnect the two nodes (like remove but we are saving the connections)
+    // Order matters—--removing node1 affects the links of node2
 
-    // remove node1
+    // Remove node1
     let level_nodes1 = self._walkList(data1);
     let node1 = level_nodes1[0].skipNext[0];
     if (self.comparator(node1.data, data1)) {
@@ -368,7 +401,7 @@ export class SkipList {
       node1.removeAfter(level_nodes1[h], h);
     }
 
-    // remove node2
+    // Remove node2
     let level_nodes2 = self._walkList(data2);
     let node2 = level_nodes2[0].skipNext[0];
     if (self.comparator(node2.data, data2)) {
@@ -379,23 +412,25 @@ export class SkipList {
       node2.removeAfter(level_nodes2[h], h);
     }
 
-    // insert node1 using the node2 links
+    // Insert node1 using the node2 links
     for (let h = node1.num_lvls - 1; h >= 0; h -= 1) {
       node1.insertAfter(level_nodes2[h], h);
     }
 
-    // insert node2 using the node1 links
+    // Insert node2 using the node1 links
     for (let h = node2.num_lvls - 1; h >= 0; h -= 1) {
       node2.insertAfter(level_nodes1[h], h);
     }
 
-    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) { console.log(`after swap: structure inconsistent.`, self, node1, node2); }
+    if (game.modules.get(MODULE_ID).api.debug && !self.verifyStructure()) {
+      console.log("after swap: structure inconsistent.", self, node1, node2);
+    }
   }
 
- /**
-  * Reverse a span of nodes.
-  * Between start and end. Use outside-in swaps to reverse.
-  */
+  /**
+   * Reverse a span of nodes.
+   * Between start and end. Use outside-in swaps to reverse.
+   */
   reverseNodes(start_node, end_node) {
     let self = this;
 
@@ -405,27 +440,27 @@ export class SkipList {
     }
 
     // Build an array of nodes to reverse before starting the swaps
-    nodes_to_reverse = [start_node];
+    const nodes_to_reverse = [start_node];
     let next_node = start_node.next;
     while (next_node !== end_node && !next_node.isSentinel) {
       nodes_to_reverse.push(next_node);
       next_node = next_node.next;
     }
 
-    // outside-in swaps of the nodes.
-    // if nodes are [2,3, 4, 5, 6] ==> [6, 3, 4, 5, 2] => [6, 5, 4, 3, 2]
+    // Outside-in swaps of the nodes.
+    // If nodes are [2,3, 4, 5, 6] ==> [6, 3, 4, 5, 2] => [6, 5, 4, 3, 2]
     let ln = nodes_to_reverse.length;
     for (let i = 0, j = ln - 1; i < ln; i += 1, j -= 1) {
       self.swapNodes(nodes_to_reverse[i], nodes_to_reverse[j]);
     }
   }
 
- /**
-  * Find the node immediately prior to where the data would go in the list.
-  * Approximately O(log(n)) to search.
-  * @param {Object} data   Data to test for position.
-  * @return The node immediately prior, which may be this.start.
-  */
+  /**
+   * Find the node immediately prior to where the data would go in the list.
+   * Approximately O(log(n)) to search.
+   * @param {Object} data   Data to test for position.
+   * @return The node immediately prior, which may be this.start.
+   */
   findPrevNode(data) {
     let curr = this.start;
     for (let h = this.max_lvls - 1; h >= 0; h -= 1) {
@@ -443,12 +478,12 @@ export class SkipList {
     return curr;
   }
 
- /**
-  * Find data in the list and return the node, if any
-  * Approximately O(log(n)) to search.
-  * @param {Object} data    Data to search for in the list
-  * @return The node containing data or undefined if not found.
-  */
+  /**
+   * Find data in the list and return the node, if any
+   * Approximately O(log(n)) to search.
+   * @param {Object} data    Data to search for in the list
+   * @return The node containing data or undefined if not found.
+   */
   search(data) {
     const prev_node = this.findPrevNode(data);
     const node = prev_node.skipNext[0];
@@ -456,23 +491,23 @@ export class SkipList {
   }
 
 
- /**
-  * Construct an array of data from the nodes in order.
-  * For debugging
-  * @return {Object[]} Array of objects
-  */
+  /**
+   * Construct an array of data from the nodes in order.
+   * For debugging
+   * @return {Object[]} Array of objects
+   */
   inorder(num_lvls = 0) {
     const iter = this.iterateData(num_lvls);
     return [...iter];
   }
 
- /**
-  * Print a diagram of the SkipList to the console.
-  * For debugging (obv.)
-  */
+  /**
+   * Print a diagram of the SkipList to the console.
+   * For debugging (obv.)
+   */
   diagram() {
-    // start at height 0,
-    let lvls = Array.fromRange(this.max_lvls).map(elem => []);
+    // Start at height 0,
+    let lvls = Array.fromRange(this.max_lvls).map(elem => []); // eslint-disable-line no-unused-vars
     let iter = this.iterateNodes();
     let idx = 0;
     let hmax = this.max_lvls;
@@ -499,7 +534,7 @@ export class SkipList {
       l.push("∞");
     });
 
-    // go from top level down
+    // Go from top level down
     let out = "\n";
     for (let i = lvls.length - 1; i >= 0; i -= 1) {
       const l = lvls[i];
@@ -511,10 +546,10 @@ export class SkipList {
     return lvls;
   }
 
- /**
-  * Verify the SkipList structure.
-  * For debugging (obv.)
-  */
+  /**
+   * Verify the SkipList structure.
+   * For debugging (obv.)
+   */
   verifyStructure() {
     let self = this;
     let okay = true;
@@ -530,24 +565,24 @@ export class SkipList {
       if (self.start.skipNext[h] !== nH && !self.start.skipNext[h].isSentinel) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }
 
       for (const node of iter0) {
-        // check if the node's arrays are consistent with its indicated number of levels
+        // Check if the node's arrays are consistent with its indicated number of levels
         if (node.skipNext.length !== node.num_lvls || node.skipPrev.length !== node.num_lvls) {
           console.warn(`node has inconsistent skip heights: Levels: ${node.num_lvls}, skipNext: ${node.skipNext.length}`, self.start, nH);
           okay = false;
         }
 
         if (!node.skipNext[0]) {
-          console.warn(`node has undefined skipNext for height 0`);
+          console.warn("node has undefined skipNext for height 0");
           okay = false;
         }
 
         if (!node.skipPrev[0]) {
-          console.warn(`node has undefined skipNext for height 0`);
+          console.warn("node has undefined skipNext for height 0");
           okay = false;
         }
 
         if (node.num_lvls < (h + 1)) {
-          // continue walking along the bottom level until we find the node with the
+          // Continue walking along the bottom level until we find the node with the
           // requisite height
           continue;
         }
@@ -562,22 +597,22 @@ export class SkipList {
           okay = false;
         }
 
-        // we should be at the next node at the given height, after skipping 0+ nodes
+        // We should be at the next node at the given height, after skipping 0+ nodes
         // from walking along the bottom level
         if (node !== nH) { console.warn(`Node at height ${h} is unexpected`, node, nH); okay = false; }
-        nH = iter_h.next().value; // go to the next node at the given height
+        nH = iter_h.next().value; // Go to the next node at the given height
       }
     }
     return okay;
   }
 
 
- /**
-  * Iterate over the array.
-  * @return {Iterator} Iterator that will return data from each node.
-  */
+  /**
+   * Iterate over the array.
+   * @return {Iterator} Iterator that will return data from each node.
+   */
   * iterateNodes(level = 0) {
-    // for debugging
+    // For debugging
     const max_iterations = 10_000;
     let iter = 0;
     let curr = this.start.skipNext[level];
@@ -590,12 +625,12 @@ export class SkipList {
     if (iter >= max_iterations) { console.warn("Max iterations hit for inorder."); }
   }
 
- /**
-  * Iterate over the array.
-  * @return {Iterator} Iterator that will return data from each node.
-  */
+  /**
+   * Iterate over the array.
+   * @return {Iterator} Iterator that will return data from each node.
+   */
   * iterateData(level = 0) {
-    // for debugging
+    // For debugging
     const max_iterations = 10_000;
     let iter = 0;
     let curr = this.start.skipNext[level];
@@ -610,7 +645,7 @@ export class SkipList {
 
 }
 
-/* test
+/* Test
 pts = Array.fromRange(10).map(e => randomPoint(5000))
 sl = new SkipList(compareXY)
 pts.forEach(pt => sl.insert(pt))
