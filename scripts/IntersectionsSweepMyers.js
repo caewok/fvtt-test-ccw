@@ -2,9 +2,9 @@
 game,
 */
 
-/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
+/* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
 
-'use strict';
+"use strict";
 
 /*
 Myers (1985)
@@ -46,12 +46,13 @@ desirable to do so, foundry.utils.lineLineIntersection can be used.
 
 */
 
-/*
-// Segments at Myers fig. 3
+/* eslint-disable max-len */
+/* Segments at Myers fig. 3
 str = '[{"A":{"x":2700,"y":1000},"B":{"x":3900,"y":1800}},{"A":{"x":2700,"y":1800},"B":{"x":3900,"y":1000}},{"A":{"x":2700,"y":1400},"B":{"x":3900,"y":1400}},{"A":{"x":2700,"y":1200},"B":{"x":3900,"y":1500}},{"A":{"x":2700,"y":1600},"B":{"x":3900,"y":1300}}]'
 segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
-
 */
+/* eslint-enable max-len */
+
 
 import { pointForSegmentGivenX } from "./utilities.js";
 import { SkipList } from "./SkipList.js";
@@ -124,7 +125,6 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     let ln = beg.length;
     for (let j = 0; j < ln; j += 1) {
       const e = beg[j];
-//     for (let e of BEG[i]) {
 
       e._node = xot.insert(e);
 
@@ -144,13 +144,12 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     ln = vert.length;
     for (let j = 0; j < ln; j += 1) {
       const e = vert[j];
-//     for (let e of VERT[i]) {
       e._node = xot.insert(e);
       report(e, sweep_x, reportFn, REPORT_CONDITION.Vertical);
     }
 
-    // check the previous for an endpoint intersection with current
-    // b/c if two verticals share an endpoint, they will not be picked up by report fn
+    // Check the previous for an endpoint intersection with current.
+    // If two verticals share an endpoint, they will not be picked up by report fn.
     for (let j = 1; j < ln; j += 1) {
       const g = vert[j - 1];
       const e = vert[j];
@@ -188,17 +187,17 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
     // Find all "event exchange" intersections in [xi, xi+1]
     while (work.length > 0) {
       const e = pop(i, WORK);
-      //let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
-      if (!e._node) continue; // likely already removed as an endpoint
+      // Let g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
+      if (!e._node) continue; // Likely already removed as an endpoint
 
       const g = e._node.prev.data; // Above(e)
-      if (typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // skip when segments are the same color
+      if (typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // Skip when segments are the same color
 
 
       let f = e._node && e._node.next; // Below(e)
       f = (!f || f.isSentinel) ? undefined : f.data;
-      xot.swapNodes(e._node, g._node); // xot.swap(e) // exchange e with above(e)
-      remove(e._node.next.data, WORK); // remove(Below(e))
+      xot.swapNodes(e._node, g._node); // Xot.swap(e) // exchange e with above(e)
+      remove(e._node.next.data, WORK); // Remove(Below(e))
 
       if (f) {
         remove(f, WORK);
@@ -214,7 +213,7 @@ function sweepMyers(lists, reportFn = (_s1, _s2) => {}) {
 // Conditions are negated compared to Myers p. 633 so that _reportDirection can easily
 // break out of the while loop.
 const REPORT_CONDITION = {
-  Vertical: (y1, y2, y3) => y1 < y2 || y1 > y3, // y1 is not between [y2, y3]
+  Vertical: (y1, y2, y3) => y1 < y2 || y1 > y3, // The y1 is not between [y2, y3]
   Begin: (y1, y2) => y1 !== y2,
   End: (y1, y2, y3) => y1 !== y3
 };
@@ -250,8 +249,7 @@ function _reportDirection(e, sweep_x, reportFn, cond, dir) {
     const p1 = pointForSegmentGivenX(g, sweep_x);
     const yg = p1 ? p1.y : g.nw.y;
     if (cond(yg, e.nw.y, e.se.y)) { break; }
-    if (typeof e._red === "undefined" || (e._red ^ g._red)) {  reportFn(e, g); } // skip when segments are the same color
-
+    if (typeof e._red === "undefined" || (e._red ^ g._red)) { reportFn(e, g); } // Skip when segments are the same color
 
     g = g._node[dir].isSentinel ? undefined : g._node[dir].data; // Below(e) or Above(e)
   }
@@ -296,7 +294,7 @@ function enter(e, WORK, EVENT) {
   const g = e._node.prev.isSentinel ? undefined : e._node.prev.data; // Above(e)
   if (!g) return;
 
-  // if (g && e > min(xe",xg")g) then push(e, Hash(e,g))
+  // If (g && e > min(xe",xg")g) then push(e, Hash(e,g))
   // (" means the se endpoint)
   // e greater than g at x when x is minimum of e.se.x or g.se.x?
 
@@ -310,13 +308,13 @@ function enter(e, WORK, EVENT) {
   let y1 = e.se.y;
   let y2 = e.se.y;
   if (e.se.x < g.se.x) {
-    // min is xe"; find g at xe"
+    // Min is xe"; find g at xe"
     y1 = e.se.y;
     const p2 = pointForSegmentGivenX(g, e.se.x);
     y2 = p2 ? p2.y : g.nw.y;
 
   } else if (e.se.x > g.se.x) {
-    // min is xg"; find e at xg"
+    // Min is xg"; find e at xg"
     const p1 = pointForSegmentGivenX(e, g.se.x);
     y1 = p1 ? p1.y : e.nw.y;
     y2 = g.se.y;
@@ -384,11 +382,11 @@ function hash(e, g, EVENT) {
   const x = intersectX(e.nw, e.se, g.nw, g.se);
   if (typeof x === "undefined") { return; }
 
-  //let i = binaryFindIndex(EVENT, elem => elem > x) - 1;
+  // Let i = binaryFindIndex(EVENT, elem => elem > x) - 1;
   if (x === EVENT[0]) return 0;
 
   return interpolationFindIndexBeforeScalar(EVENT, x);
-  //return interpolateBinaryFindIndexBeforeScalar(EVENT, x);
+  // Return interpolateBinaryFindIndexBeforeScalar(EVENT, x);
 }
 
 /**
@@ -401,12 +399,12 @@ function hash(e, g, EVENT) {
  */
 function intersectX(a, b, c, d) {
   // Check denominator - avoid parallel lines where d = 0
-  const dnm = ((d.y - c.y) * (b.x - a.x) - (d.x - c.x) * (b.y - a.y));
+  const dnm = (((d.y - c.y) * (b.x - a.x)) - ((d.x - c.x) * (b.y - a.y)));
   if (dnm === 0) return undefined;
 
   // Vector distance from a
-  const t0 = ((d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x)) / dnm;
-  return a.x + t0 * (b.x - a.x);
+  const t0 = (((d.x - c.x) * (a.y - c.y)) - ((d.y - c.y) * (a.x - c.x))) / dnm;
+  return a.x + (t0 * (b.x - a.x));
 }
 
 /**
@@ -426,7 +424,7 @@ function constructLists(segments) {
   const VERT = [[]];
   const BEG = [[]];
   const END = [[]];
-  const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
+  const WORK = [new DoubleLinkedList()];
   const ln = aux.length;
   let j = 0;
   for (let i = 0; i < ln; i += 1) {
@@ -441,7 +439,7 @@ function constructLists(segments) {
       WORK.push(new DoubleLinkedList());
     }
 
-    switch(tuple.type) {
+    switch (tuple.type) {
       case 0:
         BEG[j].push(tuple.segment);
         break;
@@ -466,39 +464,39 @@ function constructLists(segments) {
  * @param {Object[]} aux  Array to hold the tuples.
  */
 function buildTuple(s, aux) {
-    // for debugging and just-in-case
-    s._work = undefined;
-    s._work_i = undefined;
-    s._node = undefined;
-    s._red = undefined;
-    if (s.A.x === s.B.x) {
-      // vertical segment
-      const tuple = {
-        segment: s,
-        start_x: s.nw.x,
-        type: 1,
-        start_y: s.nw.y
-      };
+  // For debugging and just-in-case
+  s._work = undefined;
+  s._work_i = undefined;
+  s._node = undefined;
+  s._red = undefined;
+  if (s.A.x === s.B.x) {
+    // Vertical segment
+    const tuple = {
+      segment: s,
+      start_x: s.nw.x,
+      type: 1,
+      start_y: s.nw.y
+    };
 
-      aux.push(tuple);
+    aux.push(tuple);
 
-    } else {
-      const tuple1 = {
-        segment: s,
-        start_x: s.nw.x,
-        type: 0,
-        start_y: s.nw.y
-      };
+  } else {
+    const tuple1 = {
+      segment: s,
+      start_x: s.nw.x,
+      type: 0,
+      start_y: s.nw.y
+    };
 
-      const tuple2 = {
-        segment: s,
-        start_x: s.se.x,
-        type: 2,
-        start_y: s.se.y
-      };
+    const tuple2 = {
+      segment: s,
+      start_x: s.se.x,
+      type: 2,
+      start_y: s.se.y
+    };
 
-      aux.push(tuple1, tuple2);
-    }
+    aux.push(tuple1, tuple2);
+  }
 }
 
 
@@ -509,9 +507,9 @@ function buildTuple(s, aux) {
  * @return {Number} Sort order
  */
 function cmpAuxList(a, b) {
-  return a.start_x - b.start_x ||
-         a.type - b.type ||
-         a.start_y - b.start_y;
+  return a.start_x - b.start_x
+         || a.type - b.type
+         || a.start_y - b.start_y;
 }
 
 /**
@@ -523,12 +521,14 @@ class XOT extends SkipList {
   constructor() {
     // Set the sentinels of the skip list to be fake segment objects.
     // y-order from top to bottom (opposite of Myer, b/c the y-axis is flipped here)
+    /* eslint-disable indent */
     const min_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
-                    B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
-                    id: "minSentinel"}; // id just for debugging
+                      B: { x: Number.MAX_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+                      id: "minSentinel"}; // Id just for debugging
     const max_seg = { A: { x: Number.MIN_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
-                    B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
-                    id: "maxSentinel"}; // id just for debugging
+                      B: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+                      id: "maxSentinel"}; // Id just for debugging
+    /* eslint-enable indent */
 
     min_seg.nw = min_seg.A;
     min_seg.se = min_seg.B;
@@ -540,29 +540,33 @@ class XOT extends SkipList {
     this._sweep_x = Number.MIN_SAFE_INTEGER;
   }
 
- /**
-  * @type {Number}
-  */
+  /**
+   * @type {Number}
+   */
   get sweep_x() { return this._sweep_x; }
+
+  /**
+   * @type {Number}
+   */
   set sweep_x(value) { this._sweep_x = value; }
 
-  // debug helper that displays a table of elements in the queue
+  // Debug helper that displays a table of elements in the queue
   log() {
     console.log(`XOT sweep @ ${this._sweep_x}`);
     console.table(this.inorder().map(s => {
       return {
         id: s.id,
-        segment: `${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`,
+        segment: `${s.nw.x},${s.nw.y}|${s.se.x},${s.se.y}`
       };
     }), ["id", "segment"]);
   }
 
- /**
-  * Myers p. 627
-  * Compare y coordinates at the sweep point; fall back to starting endpoint if vertical
-  * @param {Segment} s1
-  * @parma {Segment} s2
-  */
+  /**
+   * Myers p. 627
+   * Compare y coordinates at the sweep point; fall back to starting endpoint if vertical
+   * @param {Segment} s1
+   * @parma {Segment} s2
+   */
   xOrder(s1, s2) {
     const p1 = pointForSegmentGivenX(s1, this._sweep_x);
     const p2 = pointForSegmentGivenX(s2, this._sweep_x);
@@ -572,19 +576,17 @@ class XOT extends SkipList {
     return dy || (XOT.slope(s1) - XOT.slope(s2));
   }
 
- /**
-  * Calculate the slope of the segment
-  * @param {Segment} s
-  * @return {Number|Number.POSITIVE_INFINITY}
-  */
+  /**
+   * Calculate the slope of the segment
+   * @param {Segment} s
+   * @return {Number|Number.POSITIVE_INFINITY}
+   */
   static slope(s) {
     const dx = s.se.x - s.nw.x;
     if (!dx) { return Number.POSITIVE_INFINITY; }
     return (s.se.y - s.nw.y) / dx;
   }
 }
-
-
 
 /**
  * Construct the lists described in Myer p. 626:
@@ -612,14 +614,14 @@ function constructRedBlackLists(red, black) {
     red_nw = Math.min(s.nw.x, red_nw);
     red_se = Math.max(s.se.x, red_se);
     buildTuple(s, aux);
-    s._red = true; // must be set after buildTuple
+    s._red = true; // Must be set after buildTuple
   });
 
   black.forEach(s => {
     black_nw = Math.min(s.nw.x, black_nw);
     black_se = Math.max(s.se.x, black_se);
     buildTuple(s, aux);
-    s._red = false; // must be set after buildTuple
+    s._red = false; // Must be set after buildTuple
   });
 
   // Take the maximum of red_nw or black_nw. Any segment that ends before that point
@@ -639,7 +641,7 @@ function constructRedBlackLists(red, black) {
   const VERT = [[]];
   const BEG = [[]];
   const END = [[]];
-  const WORK = [new DoubleLinkedList()]; // alt: DoubleLinkedObjectList
+  const WORK = [new DoubleLinkedList()];
   const ln = aux.length;
   let j = 0;
   for (let i = 0; i < ln; i += 1) {
@@ -654,7 +656,7 @@ function constructRedBlackLists(red, black) {
       WORK.push(new DoubleLinkedList());
     }
 
-    switch(tuple.type) {
+    switch (tuple.type) {
       case 0:
         BEG[j].push(tuple.segment);
         break;
