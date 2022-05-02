@@ -1,4 +1,5 @@
 // Double Linked List
+"use strict";
 
 /* eslint no-unused-expressions: ["warn", { "allowShortCircuit": true }] */
 
