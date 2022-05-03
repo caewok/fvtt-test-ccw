@@ -55,16 +55,11 @@ function containsPoint(p, e = 1e-8) {
   // Follow how contains method handles this
   if (this.width <= 0 || this.height <= 0) { return false; }
 
-  if ((p.x > this.x && p.x < this.right)
-     || p.x.almostEqual(this.x, e)
-     || p.x.almostEqual(this.right, e)) {
-    if ((p.y > this.y && p.y < this.bottom)
-       || p.y.almostEqual(this.y, e)
-       || p.y.almostEqual(this.bottom, e)) {
-      return true;
-    }
-  }
-  return false;
+  const x_inside = (p.x > this.x && p.x < this.right) || p.x.almostEqual(this.x, e) || p.x.almostEqual(this.right, e);
+  if(!x_inside) return false;
+
+  // y inside
+  return (p.y > this.y && p.y < this.bottom) || p.y.almostEqual(this.y, e) || p.y.almostEqual(this.bottom, e);
 }
 
 /**
