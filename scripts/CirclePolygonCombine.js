@@ -90,12 +90,17 @@ export function circleIntersect(poly, { density = 60 } = {}) {
  * @private
  */
 function _combine(poly, circle, { clockwise = true, density = 60 } = {}) {
+  const union = !clockwise;
+
+  if(!poly) { return union ? circle.toPolygon({ density }) : null; }
+  if(!circle) { return union ? poly : null; }
+
   const pts = _tracePolygon(poly, circle, { clockwise, density });
 
   if (pts.length === 0) {
     // If no intersections, then either the polygons do not overlap (return null)
     // or one encompasses the other (return the one that encompasses the other)
-    const union = !clockwise;
+
     if (_circleEncompassesPolygon(circle, poly)) {
       return union ? circle.toPolygon({ density }) : poly;
     }
@@ -156,15 +161,15 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
   poly.close();
   if (!poly.isClockwise) poly.reverse();
 
-  const center = { x: circle.x, y: circle.y };
-  const radius = circle.radius;
+  let center = { x: circle.x, y: circle.y };
+  let radius = circle.radius;
 
   // Store the starting data
-  const ix_data = {
+  let ix_data = {
     pts: [],
     clockwise,
     density,
-    is_tracing_segment: false,
+    is_tracing_polygon: false,
     // Things added later
     ix: undefined,
     circle_start: undefined,
@@ -172,15 +177,19 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
     bInside: undefined
   };
 
-  const edges = [...poly.iterateEdges()];
-  const ln = edges.length;
-  const max_iterations = ln * 2;
+  let edges = [...poly.iterateEdges()];
+  let ln = edges.length;
+  let max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
   for (let i = 0; i < max_iterations; i += 1) {
-    const edge_idx = i % ln;
-    const edge = edges[edge_idx];
-    const ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
+//     console.log(`${i}`);
+    let edge_idx = i % ln;
+    let edge = edges[edge_idx];
+//     api.drawing.drawSegment(edge, { color: ix_data.is_tracing_polygon ? api.drawing.COLORS.red : api.drawing.COLORS.blue })
+
+
+    let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
 
     if (ixs_result.intersections.length) {
       // Flag if we are back at the first intersecting edge.
@@ -188,7 +197,7 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
       if (!~first_intersecting_edge_idx) {
         first_intersecting_edge_idx = edge_idx;
-        ix_data.is_tracing_segment = true;
+        ix_data.is_tracing_polygon = true;
       }
 
       if (ixs_result.intersections.length === 2) {
@@ -214,8 +223,9 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 
     if (circled_back) { break; } // Back to first intersecting edge
 
-    if (ix_data.is_tracing_segment) {
+    if (ix_data.is_tracing_polygon) {
       ix_data.pts.push(edge.B.x, edge.B.y);
+//       api.drawing.drawPoint(edge.B)
     }
   }
 
@@ -229,22 +239,25 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
 function processIntersection(circle, edge, ix_data, is_second_ix) {
   const { aInside, bInside, clockwise, ix } = ix_data;
 
-  const was_tracing_segment = ix_data.is_tracing_segment;
+  const was_tracing_polygon = ix_data.is_tracing_polygon;
   // Determine whether we are now tracing the segment or the circle
-  let is_tracing_segment = false;
+  let is_tracing_polygon = false;
   if (aInside && bInside) {
     console.warn("processIntersection2: Both endpoints are inside the circle!");
   } else if (!aInside && !bInside) {
     // Two intersections
     // We must have a_outside --> i0 --> i1 --> b_outside
-    is_tracing_segment = is_second_ix ? !clockwise : clockwise;
+    is_tracing_polygon = is_second_ix ? !clockwise : clockwise;
   } else {
     // Either aInside or bInside are true, but not both
-    is_tracing_segment = aInside ? !clockwise : clockwise;
+    is_tracing_polygon = aInside ? !clockwise : clockwise;
   }
 
-  if (!was_tracing_segment && is_tracing_segment) {
+  if (!was_tracing_polygon && is_tracing_polygon) {
     // We have moved from circle --> segment; pad the previous intersection to here.
+//     console.log(`circle --> segment at ${ix.x}, ${ix.y}`);
+//     api.drawing.drawPoint(ix, { alpha: .5 });
+
     if (!ix_data.circle_start) {
       console.warn("processIntersection2: undefined circle start circle --> segment");
     }
@@ -253,10 +266,13 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
     // Convert padding {x, y} to points array
     for (const pt of padding) {
       ix_data.pts.push(pt.x, pt.y);
+//       api.drawing.drawPoint(pt)
     }
 
-  } else if (was_tracing_segment && !is_tracing_segment) {
+  } else if (was_tracing_polygon && !is_tracing_polygon) {
     // We have moved from segment --> circle; remember the previous intersection
+//     console.log(`segment --> circle at ${ix.x}, ${ix.y}`);
+//     api.drawing.drawPoint(ix, { alpha: .5 });
     ix_data.circle_start = ix;
   }
 
@@ -264,13 +280,14 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
   // Skip if:
   // - we are just continuing the circle; or
   // - the intersection is equal to the line end
-  if ((was_tracing_segment || is_tracing_segment)
+  if ((was_tracing_polygon || is_tracing_polygon)
      && !(edge.B.x.almostEqual(ix.x)
      && edge.B.y.almostEqual(ix.y))) {
     ix_data.pts.push(ix.x, ix.y);
+//     api.drawing.drawPoint(ix)
   }
 
-  ix_data.is_tracing_segment = is_tracing_segment;
+  ix_data.is_tracing_polygon = is_tracing_polygon;
 }
 
 /**

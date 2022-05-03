@@ -345,12 +345,17 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
  * @private
  */
 function _combine(poly, limitedAngle, { clockwise = true } = {}) {
+  const union = !clockwise;
+
+  if(!poly) { return union ? limitedAngle : null; }
+  if(!limitedAngle) { return union ? poly : null; }
+
   const pts = _tracePolygon(poly, limitedAngle, { clockwise });
 
   if (pts.length === 0) {
     // If no intersections, then either the polygons do not overlap (return null)
     // or one encompasses the other
-    const union = !clockwise;
+
     if (polyContainsOther(poly, limitedAngle)) {
       return union ? poly : limitedAngle;
     }
@@ -408,11 +413,11 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
   poly.close();
   if (!poly.isClockwise) poly.reverse();
 
-  const rMax = limitedAngle.rMax;
-  const rMin = limitedAngle.rMin;
+  let rMax = limitedAngle.rMax;
+  let rMin = limitedAngle.rMin;
 
   // Store the starting data
-  const ix_data = {
+  let ix_data = {
     pts: [],
     clockwise,
     is_tracing_polygon: undefined,
@@ -425,22 +430,24 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     rMax_ix: limitedAngle.rMax_ix
   };
 
-  const edges = [...poly.iterateEdges()];
-  const ln = edges.length;
-  const max_iterations = ln * 2;
+  let edges = [...poly.iterateEdges()];
+  let ln = edges.length;
+  let max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
   let i;
   for (i = 0; i < max_iterations; i += 1) {
-    const edge_idx = i % ln;
-    const next_edge_idx = (i + 1) % ln;
-    const edge = edges[edge_idx];
+    let edge_idx = i % ln;
+    let next_edge_idx = (i + 1) % ln;
+    let edge = edges[edge_idx];
+//     api.drawing.drawSegment(edge, { color: ix_data.is_tracing_polygon ? api.drawing.COLORS.red : api.drawing.COLORS.blue })
 
     // Test each limited angle ray in turn for intersection with this segment.
-    const rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
-    const rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
+    let rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
+    let rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
 
     if (rMin_intersects || rMax_intersects) {
+//       console.log(`Intersection at ${i}`);
       // Flag if we are back at the first intersecting edge.
       (edge_idx === first_intersecting_edge_idx) && (circled_back = true); // eslint-disable-line no-unused-expressions
 
@@ -456,8 +463,8 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     // For intersect, walk clockwise and turn clockwise at each intersection
     if (rMax_intersects && rMin_intersects) {
       // Start with the intersection closest to edge.A
-      const ix_min = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
-      const ix_max = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
+      let ix_min = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
+      let ix_max = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
 
       // Unclear if this additional check for null is necessary
       if (!ix_min) {
@@ -470,13 +477,13 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
         processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
 
       } else {
-        const dx_min = ix_min.x - edge.A.x;
-        const dy_min = ix_min.y - edge.A.y;
-        const dx_max = ix_max.x - edge.A.x;
-        const dy_max = ix_max.y - edge.A.y;
+        let dx_min = ix_min.x - edge.A.x;
+        let dy_min = ix_min.y - edge.A.y;
+        let dx_max = ix_max.x - edge.A.x;
+        let dy_max = ix_max.y - edge.A.y;
 
-        const d2_min = (dx_min * dx_min) + (dy_min * dy_min);
-        const d2_max = (dx_max * dx_max) + (dy_max * dy_max);
+        let d2_min = (dx_min * dx_min) + (dy_min * dy_min);
+        let d2_max = (dx_max * dx_max) + (dy_max * dy_max);
 
         if (d2_min < d2_max) {
           processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
@@ -488,11 +495,11 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
       }
 
     } else if (rMin_intersects) {
-      const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
+      let ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
       ix && processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
 
     } else if (rMax_intersects) {
-      const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
+      let ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
       ix && processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
     }
 
