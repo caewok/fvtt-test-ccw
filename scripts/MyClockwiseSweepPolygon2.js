@@ -15,7 +15,7 @@ PolygonVertex
 "use strict";
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { identifyIntersectionsWithNoEndpoint } from "./utilities.js";
+import { identifyIntersectionsWithNoEndpoint, keyForPoint } from "./utilities.js";
 import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle } from "./IntersectionsSort.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
@@ -339,8 +339,10 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
       // Otherwise, the sweep polygon might not contain the origin, which breaks things.
       const fourCorners = new Set();
       canvas.walls.boundaries.forEach(w => {
-        fourCorners.add(w._nw.key);
-        fourCorners.add(w._se.key);
+        // Foundry will not have always defined w._nw when first loading map
+        // Instead, use w.A and w.B and calculate the keys.
+        fourCorners.add(keyForPoint(w.A));
+        fourCorners.add(keyForPoint(w.B));
       });
 
       for (const vertex of this.vertices.values()) {
