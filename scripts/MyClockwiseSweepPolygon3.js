@@ -224,7 +224,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, tempEdges, limitedAngle } = this.config;
+    const { type, tempEdges, limitedAngle, hasCustomBoundary } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
@@ -234,6 +234,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
       // *** NEW *** //
       if (limitedAngle && limitedAngle.edgeIsOutside(wall)) continue;
+      if (hasCustomBoundary && this._edgeIsOutside(wall)) continue;
+
       const edge = SimplePolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
       // *** END NEW *** //
@@ -272,6 +274,33 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // *** END NEW *** //
   }
 
+  /**
+   * *** NEW ***
+   * Alternative to passing a bbox to canvas.walls.quadtree.
+   * For unknown reasons, quadtree is returning a lot more walls than expected
+   * when using a bbox.
+   * @param {Segment} edge
+   * @return {Boolean}
+   */
+  _edgeIsOutside(edge) {
+    const bbox = this.config.bbox;
+
+    // if either endpoint is within the rectangle, the edge is considered inside.
+    if(bbox.containsPoint(edge.A) || bbox.containsPoint(edge.B)) return false;
+
+    // If both points are on the outside of a single bbox side, then the edge is outside
+    // Otherwise, could either cross multiple sides with endpoints remaining outside or
+    // not cross at all (see segmentIntersects test below).
+    if(bbox.top > edge.A.y && bbox.top > edge.B.y) return true;
+    if(bbox.bottom < edge.A.y && bbox.bottom < edge.B.y) return true;
+    if(bbox.left > edge.A.x && bbox.left > edge.B.x) return true;
+    if(bbox.right < edge.A.x && bbox.right < edge.B.x) return true;
+
+    // To distinguish lines that run  across two sides versus ones that
+    // run completely outside, check for intersections.
+    return !bbox.lineSegmentIntersects(edge.A, edge.B);
+  }
+
   /* -------------------------------------------- */
 
   /**
@@ -284,8 +313,9 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    */
   _getWalls() {
     // *** NEW *** //
-    if ( !this.config.hasCustomBoundary ) return canvas.walls.placeables;
-    return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
+    return canvas.walls.placeables;
+   //  if ( !this.config.hasCustomBoundary ) return canvas.walls.placeables;
+//     return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
   }
 
   /* -------------------------------------------- */
@@ -336,10 +366,16 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // *** NEW ***
     if (this.config.hasCustomBoundary) {
       // Restrict vertices outside the bounding box
-      // but keep the four canvas corners b/c we may need them to intersect against
-      // if the custom boundary is a limited angle
+      // but keep the four canvas corners  b/c we may need them to intersect the boundary.
+      // Otherwise, the sweep polygon might not contain the origin, which breaks things.
+      const fourCorners = new Set();
+      canvas.walls.boundaries.forEach(w => {
+        fourCorners.add(w._nw.key);
+        fourCorners.add(w._se.key);
+      });
+
       for (const vertex of this.vertices.values()) {
-        vertex.is_outside = this._vertexOutsideBoundary(vertex);
+        vertex.is_outside = !fourCorners.has(vertex.key) && this._vertexOutsideBoundary(vertex);
       }
     }
     // *** END NEW ***
@@ -732,6 +768,9 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       }
     }
 
+    // *** NEW *** Draw bounding box, if any
+    this.config.bbox && dg.lineStyle(1, 0x808080).drawShape(this.config.bbox.toPolygon());
+
     // Draw emitted rays
     for ( const ray of this.rays ) {
       const r = ray.result;
@@ -995,14 +1034,17 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     let poly = this;
 
-    limitedAngle && (poly = limitedAngle.intersectPolygon(poly)); // eslint-disable-line no-unused-expressions
-
+    // Must construct the boundary polygon first.
+    // Otherwise, the limited angle may be incorrect because all edges outside the
+    // boundary have been trimmed.
     if (boundaryPolygon) {
       poly = poly.clipperClip(boundaryPolygon, { cliptype: ClipperLib.ClipType.ctIntersection });
 
     } else if (limitedRadiusCircle) {
       poly = limitedRadiusCircle.polygonIntersect(poly, { density: this.config.density } );
     }
+
+    limitedAngle && (poly = limitedAngle.intersectPolygon(poly)); // eslint-disable-line no-unused-expressions
 
     // If poly is null, length less than 6, or undefined, something has gone wrong: no intersection found.
     if (!poly || poly.length < 6) {
