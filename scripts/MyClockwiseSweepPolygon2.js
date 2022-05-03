@@ -222,7 +222,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, tempEdges, limitedAngle, hasCustomBoundary } = this.config;
+    const { type, tempEdges, limitedAngle } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();

@@ -224,7 +224,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    * @private
    */
   _identifyEdges() {
-    const { type, tempEdges, limitedAngle, hasCustomBoundary } = this.config;
+    const { type, tempEdges, limitedAngle } = this.config;
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
@@ -234,7 +234,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
       // *** NEW *** //
       if (limitedAngle && limitedAngle.edgeIsOutside(wall)) continue;
-      if (hasCustomBoundary && this._edgeIsOutside(wall)) continue;
 
       const edge = SimplePolygonEdge.fromWall(wall, type);
       this.edges.set(edge.id, edge);
