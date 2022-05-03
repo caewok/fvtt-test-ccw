@@ -215,13 +215,13 @@ export class SkipList {
     // Walk each level from the top
     // - stop at the node where node.skipNext is greater than data
     // - link that node
-    let self = this;
-    let data = node.data;
+    const self = this;
+    const data = node.data;
 
     // Update the maximum levels for this skip list and confirm the start sentinel's
     // skipNext is set to the correct height
     self.max_lvls = Math.max(self.max_lvls, node.num_lvls);
-    let curr_sentinel_level = self.start.skipNext.length;
+    const curr_sentinel_level = self.start.skipNext.length;
     if (curr_sentinel_level < self.max_lvls) {
       // Add slots to the start skipNext array; connect to end
       self.start.skipNext.length = self.max_lvls;
@@ -230,7 +230,7 @@ export class SkipList {
       }
     }
 
-    let level_nodes = self._walkList(data);
+    const level_nodes = self._walkList(data);
 
     // Connect at each height present for the node
     for (let h = node.num_lvls - 1; h >= 0; h -= 1) {
@@ -262,12 +262,12 @@ export class SkipList {
    * and return along with the node.
    */
   _walkList(data) {
-    let self = this;
+    const self = this;
     let curr = self.start;
-    let level_nodes = Array(self.max_lvls);
+    const level_nodes = Array(self.max_lvls);
+    const max_iterations = 10_000;
     for (let h = self.max_lvls - 1; h >= 0; h -= 1) {
       let cmp_res = self.comparator(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
       let iter = 0;
       while (cmp_res < 0 && iter < max_iterations) {
         iter += 1;
@@ -289,7 +289,7 @@ export class SkipList {
    * Instead of searching the list, remove the nodes directly at each level
    */
   removeNode(node) {
-    let self = this;
+    const self = this;
 
     for (let h = node.num_lvls - 1; h >= 0; h -= 1) {
       node.removeAfter(node.skipPrev[h], h);
@@ -311,12 +311,12 @@ export class SkipList {
     // - stop at the node where node.skipNext is greater than data
     // - store that node for delinking
     // - find the actual node for the data, then delink it at each level
-    let self = this;
+    const self = this;
 
-    let level_nodes = self._walkList(data);
+    const level_nodes = self._walkList(data);
 
     // We have found the node corresponding to data.
-    let node = level_nodes[0].skipNext[0];
+    const node = level_nodes[0].skipNext[0];
     if (self.comparator(node.data, data)) {
       console.warn("Node to remove does not contain data to remove", data, node);
       return;
@@ -353,10 +353,10 @@ export class SkipList {
    * Swap two nodes directly
    */
   swapNodes(node1, node2) {
-    let self = this;
+    const self = this;
 
     // Increase levels to match so links can be transferred
-    let max_lvl = Math.max(node1.num_lvls, node2.num_lvls);
+    const max_lvl = Math.max(node1.num_lvls, node2.num_lvls);
     node1.skipNext.length = max_lvl;
     node2.skipNext.length = max_lvl;
 
@@ -385,14 +385,14 @@ export class SkipList {
    * Swap two nodes based on data
    */
   swap(data1, data2) {
-    let self = this;
+    const self = this;
 
     // Disconnect the two nodes (like remove but we are saving the connections)
     // Order matters—--removing node1 affects the links of node2
 
     // Remove node1
-    let level_nodes1 = self._walkList(data1);
-    let node1 = level_nodes1[0].skipNext[0];
+    const level_nodes1 = self._walkList(data1);
+    const node1 = level_nodes1[0].skipNext[0];
     if (self.comparator(node1.data, data1)) {
       console.warn("Node to remove does not contain data to swap", data1, node1);
       return;
@@ -402,8 +402,8 @@ export class SkipList {
     }
 
     // Remove node2
-    let level_nodes2 = self._walkList(data2);
-    let node2 = level_nodes2[0].skipNext[0];
+    const level_nodes2 = self._walkList(data2);
+    const node2 = level_nodes2[0].skipNext[0];
     if (self.comparator(node2.data, data2)) {
       console.warn("Node to remove does not contain data to swap", data2, node2);
       return;
@@ -432,7 +432,7 @@ export class SkipList {
    * Between start and end. Use outside-in swaps to reverse.
    */
   reverseNodes(start_node, end_node) {
-    let self = this;
+    const self = this;
 
     if (self.comparator(start_node.data, end_node.data) > 0) {
       console.error("reverseNodes: start_node is after end_node.", start_node, end_node);
@@ -449,7 +449,7 @@ export class SkipList {
 
     // Outside-in swaps of the nodes.
     // If nodes are [2,3, 4, 5, 6] ==> [6, 3, 4, 5, 2] => [6, 5, 4, 3, 2]
-    let ln = nodes_to_reverse.length;
+    const ln = nodes_to_reverse.length;
     for (let i = 0, j = ln - 1; i < ln; i += 1, j -= 1) {
       self.swapNodes(nodes_to_reverse[i], nodes_to_reverse[j]);
     }
@@ -463,9 +463,9 @@ export class SkipList {
    */
   findPrevNode(data) {
     let curr = this.start;
+    const max_iterations = 10_000;
     for (let h = this.max_lvls - 1; h >= 0; h -= 1) {
       let cmp_res = this.comparator(curr.skipNext[h].data, data); // < 0: a before b; > 0: b before a
-      let max_iterations = 10_000;
       let iter = 0;
       while (cmp_res < 0 && iter < max_iterations) {
         iter += 1;
@@ -507,10 +507,10 @@ export class SkipList {
    */
   diagram() {
     // Start at height 0,
-    let lvls = Array.fromRange(this.max_lvls).map(elem => []); // eslint-disable-line no-unused-vars
-    let iter = this.iterateNodes();
+    const lvls = Array.fromRange(this.max_lvls).map(elem => []); // eslint-disable-line no-unused-vars
+    const iter = this.iterateNodes();
     let idx = 0;
-    let hmax = this.max_lvls;
+    const hmax = this.max_lvls;
     for (const node of iter) {
       console.log(node);
       for (let h = hmax; h > 0; h -= 1) {
@@ -551,15 +551,15 @@ export class SkipList {
    * For debugging (obv.)
    */
   verifyStructure() {
-    let self = this;
+    const self = this;
     let okay = true;
 
-    let hmax = self.max_lvls;
+    const hmax = self.max_lvls;
     if (self.start.skipNext.length < hmax) { console.warn(`Start skipNext length ${self.start.skipNext.length} ≠ ${hmax}`); okay = false; }
 
     for (let h = 1; h < hmax; h += 1) {
-      let iter0 = self.iterateNodes();
-      let iter_h = self.iterateNodes(h);
+      const iter0 = self.iterateNodes();
+      const iter_h = self.iterateNodes(h);
 
       let nH = iter_h.next().value;
       if (self.start.skipNext[h] !== nH && !self.start.skipNext[h].isSentinel) { console.warn(`Start skipNext at height ${h} does not point to expected node`, self.start, nH); okay = false; }

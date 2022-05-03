@@ -217,7 +217,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
     // Add edges for placed Wall objects
     const walls = this._getWalls();
-    for ( let wall of walls ) {
+    for ( const wall of walls ) {
       // Ignore edges that are of a type that should be ignored
       if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
 
@@ -233,7 +233,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     // Also, canvas boundaries are already intersected and defined, so easier to
     // add rather than try to figure out if we need them or not.
     // (If outside the bbox, could drop them)
-    for ( let boundary of canvas.walls.boundaries ) {
+    for ( const boundary of canvas.walls.boundaries ) {
       const edge = SimplePolygonEdge.fromWall(boundary, type);
       this.edges.set(edge.id, edge);
     }
@@ -290,7 +290,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   _identifyVertices() {
 
     // Register vertices for all edges
-    for ( let edge of this.edges.values() ) {
+    for ( const edge of this.edges.values() ) {
 
       // Get unique vertices A and B
       const ak = edge.A.key;
@@ -305,7 +305,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
       // Ensure B is clockwise of A
       if ( o > 0 ) {
-        let a = edge.A;
+        const a = edge.A;
         edge.A = edge.B;
         edge.B = a;
       }
@@ -325,7 +325,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     if (this.config.hasCustomBoundary) {
       // Restrict vertices outside the bounding box
       // const bbox = this.config.bbox;
-      for (let vertex of this.vertices.values()) {
+      for (const vertex of this.vertices.values()) {
         vertex.is_outside = this._vertexOutsideBoundary(vertex);
       }
     }
@@ -347,11 +347,11 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
    */
   _identifyIntersections() {
     const processed = new Set();
-    for ( let edge of this.edges.values() ) {
+    for ( const edge of this.edges.values() ) {
 
       // Check each intersecting wall
       if (edge.wall && edge.wall.intersectsWith.size) {
-        for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
+        for ( const [wall, i] of edge.wall.intersectsWith.entries() ) {
 
           // Some other walls may not be included in this polygon
           const other = this.edges.get(wall.id);
@@ -364,7 +364,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
       }
 
       if (edge.intersectsWith.size) {
-        for ( let [wall, i] of edge.intersectsWith.entries() ) {
+        for ( const [wall, i] of edge.intersectsWith.entries() ) {
           const other = this.edges.get(wall.id);
           if ( !other || processed.has(other) ) continue;
 
@@ -393,7 +393,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const { radiusMax2 } = this.config;
 
     // Initialize the set of active walls
-    let activeEdges = this._initializeActiveEdges();
+    const activeEdges = this._initializeActiveEdges();
 
     // Sort vertices from clockwise to counter-clockwise and begin the sweep
     const vertices = this._sortVertices();
@@ -448,7 +448,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   _initializeActiveEdges() {
     const rStart = this.config.rStart; // *** NEW ***
     const edges = new Set();
-    for ( let edge of this.edges.values() ) {
+    for ( const edge of this.edges.values() ) {
       // *** NEW ***: rStart
       const x = foundry.utils.lineSegmentIntersects(rStart.A, rStart.B, edge.A, edge.B);
       if ( x ) edges.add(edge);
@@ -467,7 +467,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
    */
   _sortVertices() {
     if ( !this.vertices.size ) return [];
-    let vertices = Array.from(this.vertices.values());
+    const vertices = Array.from(this.vertices.values());
     const o = this.origin;
 
     // *** NEW ***: No reference point
@@ -586,7 +586,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     const points = new Map();
 
     // Identify unique collision points
-    for ( let edge of activeEdges ) {
+    for ( const edge of activeEdges ) {
       const x = foundry.utils.lineLineIntersection(ray.A, ray.B, edge.A, edge.B);
       if ( !x || (x.t0 <= minimumDistance) ) continue; // Require minimum distance
 
@@ -633,11 +633,11 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     //        just add collision points to this.points array during the sweep.
 
     // Add points for rays in the sweep
-    for ( let ray of this.rays ) {
+    for ( const ray of this.rays ) {
       if ( !ray.result.collisions.length ) continue;
 
       // Add collision points for the ray
-      for ( let c of ray.result.collisions ) {
+      for ( const c of ray.result.collisions ) {
         this.points.push(c.x, c.y);
       }
     }
@@ -654,7 +654,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   visualize() {
     const {radius, hasLimitedAngle, hasLimitedRadius, rMin, rMax} = this.config;
 
-    let dg = canvas.controls.debug;
+    const dg = canvas.controls.debug;
     dg.clear();
 
     // Text debugging
@@ -687,26 +687,26 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
     // Draw candidate edges
     // *** NEW ***: this.edges.values() b/c this.edges is a Map.
-    for ( let edge of this.edges.values() ) {
+    for ( const edge of this.edges.values() ) {
       dg.lineStyle(4, limitColors[edge.type]).moveTo(edge.A.x, edge.A.y).lineTo(edge.B.x, edge.B.y);
     }
 
     // Draw vertices
-    for ( let vertex of this.vertices.values() ) {
+    for ( const vertex of this.vertices.values() ) {
       dg.lineStyle(1, 0x000000).beginFill(limitColors[vertex.type]).drawCircle(vertex.x, vertex.y, 8).endFill();
       if ( vertex._index ) {
-        let t = text.addChild(new PIXI.Text(String(vertex._index), CONFIG.canvasTextStyle));
+        const t = text.addChild(new PIXI.Text(String(vertex._index), CONFIG.canvasTextStyle));
         t.position.set(vertex.x, vertex.y);
       }
     }
 
     // Draw emitted rays
-    for ( let ray of this.rays ) {
+    for ( const ray of this.rays ) {
       const r = ray.result;
       if ( !r ) continue;
       dg.lineStyle(2, 0x00FF00, r.collisions.length ? 1.0 : 0.33).moveTo(ray.A.x, ray.A.y).lineTo(ray.B.x, ray.B.y);
 
-      for ( let c of r.collisions ) {
+      for ( const c of r.collisions ) {
         dg.lineStyle(1, 0x000000).beginFill(0xFF0000).drawCircle(c.x, c.y, 6).endFill();
       }
     }

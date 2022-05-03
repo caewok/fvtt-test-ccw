@@ -276,7 +276,7 @@ function deleteFromXOT(s, xot) {
  * @return {Segment} Segment popped from the work list.
  */
 function pop(i, WORK) {
-  let s = WORK[i].pop();
+  const s = WORK[i].pop();
   s._work = undefined;
   s._work_i = undefined;
   return s;

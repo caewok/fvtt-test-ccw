@@ -18,7 +18,6 @@ import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./In
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { pointsEqual, compareXY, generateBisectingCanvasSegments } from "./utilities.js";
-import { describeSceneParameters } from "./benchmark.js";
 
 /**
  * Test intersections algorithms against a map of pre-set segment arrays.
@@ -75,8 +74,6 @@ export function testIntersections() {
  * Compare each result to the brute algorithm results.
  */
 export function testSceneIntersections() {
-  describeSceneParameters();
-
   const walls = [...canvas.walls.placeables];
   const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
@@ -179,34 +176,34 @@ var reporting_arr_sort_filtered = [];
 var reporting_arr_myers_filtered = [];
 /* eslint-enable no-var */
 
-let reportFnBrute = (s1, s2) => {
+const reportFnBrute = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_brute.push(x); // Avoid pushing null
 };
 
-let reportFnSort = (s1, s2) => {
+const reportFnSort = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_sort.push(x);
 };
 
-let reportFnMyers = (s1, s2) => {
+const reportFnMyers = (s1, s2) => {
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_myers.push(x); // Avoid pushing null
 };
 
-let reportFnBruteFilterEndpoints = (s1, s2) => {
+const reportFnBruteFilterEndpoints = (s1, s2) => {
   if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_brute_filtered.push(x); // Avoid pushing null
 };
 
-let reportFnSortFilterEndpoints = (s1, s2) => {
+const reportFnSortFilterEndpoints = (s1, s2) => {
   if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_sort_filtered.push(x); // Avoid pushing null
 };
 
-let reportFnMyersFilteredEndpoints = (s1, s2) => {
+const reportFnMyersFilteredEndpoints = (s1, s2) => {
   if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_myers_filtered.push(x); // Avoid pushing null

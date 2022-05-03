@@ -229,7 +229,7 @@ export function interpolationIndexOfObject(arr, obj, valuationFn = a => a) {
   let end = arr.length - 1;
   let position = -1;
   let delta = -1;
-  let target = valuationFn(obj);
+  const target = valuationFn(obj);
   while (start <= end) {
     const v_start = valuationFn(arr[start]);
     const v_end = valuationFn(arr[end]);

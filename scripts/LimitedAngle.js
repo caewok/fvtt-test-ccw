@@ -277,14 +277,14 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     // TO-DO: Are endpoints very near the rMin or rMax lines problematic because
     //        this code uses a fast floating point approximation for orient2d?
 
-    let A_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeA) > 0;
-    let B_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeB) > 0;
-    let edge_left_of_rMin = A_left_of_rMin && B_left_of_rMin;
+    const A_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeA) > 0;
+    const B_left_of_rMin = foundry.utils.orient2dFast(origin, minB, edgeB) > 0;
+    const edge_left_of_rMin = A_left_of_rMin && B_left_of_rMin;
     if (angle < 180 && edge_left_of_rMin) return true;
 
-    let A_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeA) < 0;
-    let B_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeB) < 0;
-    let edge_right_of_rMax = A_right_of_rMax && B_right_of_rMax;
+    const A_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeA) < 0;
+    const B_right_of_rMax = foundry.utils.orient2dFast(origin, maxB, edgeB) < 0;
+    const edge_right_of_rMax = A_right_of_rMax && B_right_of_rMax;
     if (angle < 180 && edge_right_of_rMax) return true;
 
     if (angle === 180) { return edge_left_of_rMin && edge_right_of_rMax; }
@@ -294,10 +294,10 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     // Luckily, we have the rotation.
     // rOrthogonal goes from origin to the right (similar to rMax)
     // test that origin --> orth.B --> pt is clockwise
-    let rOrthogonal = this.orthogonalOriginRay();
-    let A_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeA) < 0;
-    let B_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeB) < 0;
-    let edge_behind_origin = A_behind_origin && B_behind_origin;
+    const rOrthogonal = this.orthogonalOriginRay();
+    const A_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeA) < 0;
+    const B_behind_origin = foundry.utils.orient2dFast(rOrthogonal.A, rOrthogonal.B, edgeB) < 0;
+    const edge_behind_origin = A_behind_origin && B_behind_origin;
 
     if (angle > 180) {
       return edge_left_of_rMin && edge_right_of_rMax && edge_behind_origin;
@@ -306,11 +306,11 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
     // Angle < 180
     // If one endpoint is behind the origin, then the other can be either left or right
     /* eslint-disable no-multi-spaces */
-    let edge_sw_of_origin =    (A_behind_origin && B_left_of_rMin)
-                            || (B_behind_origin && A_left_of_rMin);
+    const edge_sw_of_origin =    (A_behind_origin && B_left_of_rMin)
+                              || (B_behind_origin && A_left_of_rMin);
 
-    let edge_se_of_origin =    (A_behind_origin && B_right_of_rMax)
-                            || (B_behind_origin && A_right_of_rMax);
+    const edge_se_of_origin =    (A_behind_origin && B_right_of_rMax)
+                              || (B_behind_origin && A_right_of_rMax);
 
     return    edge_sw_of_origin
            || edge_se_of_origin
@@ -408,11 +408,11 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
   poly.close();
   if (!poly.isClockwise) poly.reverse();
 
-  let rMax = limitedAngle.rMax;
-  let rMin = limitedAngle.rMin;
+  const rMax = limitedAngle.rMax;
+  const rMin = limitedAngle.rMin;
 
   // Store the starting data
-  let ix_data = {
+  const ix_data = {
     pts: [],
     clockwise,
     is_tracing_polygon: undefined,
@@ -425,20 +425,20 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     rMax_ix: limitedAngle.rMax_ix
   };
 
-  let edges = [...poly.iterateEdges()];
-  let ln = edges.length;
-  let max_iterations = ln * 2;
+  const edges = [...poly.iterateEdges()];
+  const ln = edges.length;
+  const max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
   let i;
   for (i = 0; i < max_iterations; i += 1) {
-    let edge_idx = i % ln;
-    let next_edge_idx = (i + 1) % ln;
-    let edge = edges[edge_idx];
+    const edge_idx = i % ln;
+    const next_edge_idx = (i + 1) % ln;
+    const edge = edges[edge_idx];
 
     // Test each limited angle ray in turn for intersection with this segment.
-    let rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
-    let rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
+    const rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
+    const rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
 
     if (rMin_intersects || rMax_intersects) {
       // Flag if we are back at the first intersecting edge.
@@ -528,17 +528,17 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
  * @param {Object}    ix_data       Data tracked in the trace algorithm.
  */
 function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
-  let was_tracing_polygon = ix_data.is_tracing_polygon;
+  const { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
+  const was_tracing_polygon = ix_data.is_tracing_polygon;
 
   if (!ix_data.is_tracing_polygon && ix_data.started_at_rMin) { ix_data.circled_back = true; }
 
   if (pointsEqual(ix, rMin_ix)) {
     ix_data.is_tracing_polygon = true;
   } else {
-    let a = ix;
-    let b = pointsEqual(ix, edge.B) ? edges[next_edge_idx].B : edge.B;
-    let c = rMin_ix;
+    const a = ix;
+    const b = pointsEqual(ix, edge.B) ? edges[next_edge_idx].B : edge.B;
+    const c = rMin_ix;
 
     // Orientation < 0: rMin.B is CW from the edge
     // Orientation > 0: rMin.B is CCW from the edge
@@ -616,14 +616,14 @@ function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
  * @param {Object}    ix_data       Data tracked in the trace algorithm.
  */
 function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  let { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
-  let was_tracing_polygon = ix_data.is_tracing_polygon;
+  const { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
+  const was_tracing_polygon = ix_data.is_tracing_polygon;
 
   if (!ix_data.is_tracing_polygon && !ix_data.started_at_rMin) { ix_data.circled_back = true; }
 
-  let a = ix;
-  let b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
-  let c = origin;
+  const a = ix;
+  const b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
+  const c = origin;
   let orientation = foundry.utils.orient2dFast(a, b, c);
   if (orientation.almostEqual(0)) { // AlmostEqual is important here, if the edge and rMin are colinear
     // Could be that the edge is in line with the ray and origin.

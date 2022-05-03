@@ -51,7 +51,7 @@ export function describeSceneParameters() {
   const reportNumIxFiltered = (s1, s2) => {
     if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
     const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    if (x) reporting_arr.push(x);
+    x && reporting_arr.push(x); // eslint-disable-line no-unused-expressions
   };
 
   findIntersectionsBruteSingle(segments, reportNumIx);
@@ -144,8 +144,6 @@ export async function benchSceneIntersections(n = 100) {
  *                              Usually, angle 2 is greater than 180º and angle is < 180º.
  */
 export async function benchScene(n = 100, { origin, rotation, radius = 60, angle = 80, angle2 = 280 } = {}) {
-  describeSceneParameters();
-
   const t = canvas.tokens.controlled[0];
   origin ||= t?.center;
 

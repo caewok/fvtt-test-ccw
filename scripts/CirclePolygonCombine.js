@@ -156,11 +156,11 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
   poly.close();
   if (!poly.isClockwise) poly.reverse();
 
-  let center = { x: circle.x, y: circle.y };
-  let radius = circle.radius;
+  const center = { x: circle.x, y: circle.y };
+  const radius = circle.radius;
 
   // Store the starting data
-  let ix_data = {
+  const ix_data = {
     pts: [],
     clockwise,
     density,
@@ -172,15 +172,15 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
     bInside: undefined
   };
 
-  let edges = [...poly.iterateEdges()];
-  let ln = edges.length;
-  let max_iterations = ln * 2;
+  const edges = [...poly.iterateEdges()];
+  const ln = edges.length;
+  const max_iterations = ln * 2;
   let first_intersecting_edge_idx = -1;
   let circled_back = false;
   for (let i = 0; i < max_iterations; i += 1) {
-    let edge_idx = i % ln;
-    let edge = edges[edge_idx];
-    let ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
+    const edge_idx = i % ln;
+    const edge = edges[edge_idx];
+    const ixs_result = foundry.utils.lineCircleIntersection(edge.A, edge.B, center, radius);
 
     if (ixs_result.intersections.length) {
       // Flag if we are back at the first intersecting edge.
@@ -227,9 +227,9 @@ export function _tracePolygon(poly, circle, { clockwise = true, density = 60 } =
  * multiple intersections.
  */
 function processIntersection(circle, edge, ix_data, is_second_ix) {
-  let { aInside, bInside, clockwise, ix } = ix_data;
+  const { aInside, bInside, clockwise, ix } = ix_data;
 
-  let was_tracing_segment = ix_data.is_tracing_segment;
+  const was_tracing_segment = ix_data.is_tracing_segment;
   // Determine whether we are now tracing the segment or the circle
   let is_tracing_segment = false;
   if (aInside && bInside) {
@@ -248,7 +248,7 @@ function processIntersection(circle, edge, ix_data, is_second_ix) {
     if (!ix_data.circle_start) {
       console.warn("processIntersection2: undefined circle start circle --> segment");
     }
-    let padding = paddingPoints(ix_data.circle_start, ix, circle, { density: ix_data.density });
+    const padding = paddingPoints(ix_data.circle_start, ix, circle, { density: ix_data.density });
 
     // Convert padding {x, y} to points array
     for (const pt of padding) {
