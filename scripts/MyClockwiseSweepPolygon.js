@@ -701,7 +701,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     }
 
     // *** NEW *** Draw bounding box, if any
-    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox);
+    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox); // eslint-disable-line no-unused-expression
 
     // Draw emitted rays
     for ( const ray of this.rays ) {

@@ -98,7 +98,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     // origin has moved 1+ pixels in either x or y direction.
     this.origin = { x: Math.round(this.origin.x), y: Math.round(this.origin.y) };
 
-    cfg.debug && console.log(`Origin ${this.origin.x},${this.origin.y} with radius ${cfg.radius} and angle ${cfg.angle}`);
+    cfg.debug && console.log(`Origin ${this.origin.x},${this.origin.y} with radius ${cfg.radius} and angle ${cfg.angle}`); // eslint-disable-line no-unused-expression
 
 
     // Reset certain configuration values from what ClockwiseSweep did.
@@ -721,7 +721,7 @@ export class MyClockwiseSweepPolygon2 extends ClockwiseSweepPolygon {
     }
 
     // *** NEW *** Draw bounding box, if any
-    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox.toPolygon());
+    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox.toPolygon()); // eslint-disable-line no-unused-expression
 
     // Draw emitted rays
     for ( const ray of this.rays ) {
