@@ -75,8 +75,6 @@ Intersections (endpoints filtered): ${num_ix_filtered} (brute algorithm)
  * @param {Number} n    Number of iterations to run for each test.
  */
 export async function benchSceneIntersections(n = 100) {
-  describeSceneParameters();
-
   const walls = [...canvas.walls.placeables];
   const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
 
