@@ -2,9 +2,9 @@
 foundry
 */
 
-/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
+/* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
-'use strict';
+"use strict";
 
 /*
 Report intersections between segments using a brute force algorithm.
@@ -27,13 +27,13 @@ Both functions take a callback function that reports intersecting segment pairs.
  */
 export function findIntersectionsBruteSingle(segments, reportFn = (_s1, _s2) => {}) {
   const ln = segments.length;
-  if(!ln) { return; }
+  if (!ln) { return; }
 
-  for(let i = 0; i < ln; i += 1) {
+  for (let i = 0; i < ln; i += 1) {
     const si = segments[i];
-    for(let j = i + 1; j < ln; j += 1) {
+    for (let j = i + 1; j < ln; j += 1) {
       const sj = segments[j];
-      foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
+      foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj); // eslint-disable-line no-unused-expressions
     }
   }
 }
@@ -54,13 +54,13 @@ export function findIntersectionsBruteSingle(segments, reportFn = (_s1, _s2) => 
 export function findIntersectionsBruteRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   const ln1 = red.length;
   const ln2 = black.length;
-  if(!ln1 || !ln2) { return; }
+  if (!ln1 || !ln2) { return; }
 
-  for(let i = 0; i < ln1; i += 1) {
+  for (let i = 0; i < ln1; i += 1) {
     const si = red[i];
-    for(let j = 0; j < ln2; j += 1) {
+    for (let j = 0; j < ln2; j += 1) {
       const sj = black[j];
-      foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);
+      foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj);  // eslint-disable-line no-unused-expressions
     }
   }
 }

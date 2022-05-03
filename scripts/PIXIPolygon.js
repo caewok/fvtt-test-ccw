@@ -4,7 +4,7 @@ foundry,
 ClipperLib,
 */
 
-'use strict';
+"use strict";
 
 /* Additions to the PIXI.Polygon class:
 Getters:
@@ -31,11 +31,16 @@ Helper methods:
 - determineOrientation: Measure the orientation of the polygon
 */
 
+/**
+ * Construct a new PIXI.Polygon from an array of x,y point objects.
+ * @param {Points[]}  points
+ * @return {PIXI.Polygon}
+ */
 function fromPoints(points) {
-  //const out = new this(points.flatMap(pt => [pt.x, pt.y]));
-  // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
+  // Flat map is slow: const out = new this(points.flatMap(pt => [pt.x, pt.y]));
+  // Switch to for loop. https://jsbench.me/eeky2ei5rw
   const pts = [];
-  for(const pt of points) {
+  for (const pt of points) {
     pts.push(pt.x, pt.y);
   }
   const out = new this(...pts);
@@ -53,7 +58,7 @@ function fromPoints(points) {
 function* iteratePoints({close = true} = {}) {
   const dropped = (!this.isClosed || close) ? 0 : 2;
   const ln = this.points.length - dropped;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     yield new PIXI.Point(this.points[i], this.points[i + 1]);
   }
 }
@@ -69,13 +74,12 @@ function* iteratePoints({close = true} = {}) {
  * Edges link, such that edge0.B === edge.1.A.
  */
 function* iterateEdges({close = true} = {}) {
-  // very similar to iteratePoints
+  // Very similar to iteratePoints
   const dropped = (!this.isClosed || close) ? 0 : 2;
   const iter = this.points.length - dropped - 2;
-  for(let i = 0; i < iter; i += 2) {
-    yield { A: { x: this.points[i], y: this.points[i + 1] },
-            B: { x: this.points[i + 2], y: this.points[i + 3] }
-          };
+  for (let i = 0; i < iter; i += 2) {
+    yield { A: { x: this.points[i], y: this.points[i + 1] },       // eslint-disable-line indent
+            B: { x: this.points[i + 2], y: this.points[i + 3] } }; // eslint-disable-line indent
   }
 }
 
@@ -83,8 +87,8 @@ function* iterateEdges({close = true} = {}) {
  * Getter to store the coordinate point set.
  */
 function coordinates() {
-  return this._coordinates ||
-         (this._coordinates = [...this.iteratePoints({close: false})]);
+  return this._coordinates
+         || (this._coordinates = [...this.iteratePoints({close: false})]);
 }
 
 /**
@@ -92,12 +96,12 @@ function coordinates() {
  * @return {boolean}  True if closed.
  */
 function isClosed() {
-  if(typeof this._isClosed === "undefined") {
+  if (typeof this._isClosed === "undefined") {
     const ln = this.points.length;
-    if(ln < 2) return undefined;
+    if (ln < 2) return undefined;
 
-    this._isClosed = this.points[0].almostEqual(this.points[ln - 2]) &&
-                     this.points[1].almostEqual(this.points[ln - 1]);
+    this._isClosed =    this.points[0].almostEqual(this.points[ln - 2])  // eslint-disable-line no-multi-spaces
+                     && this.points[1].almostEqual(this.points[ln - 1]);
   }
   return this._isClosed;
 }
@@ -106,7 +110,7 @@ function isClosed() {
  * Close the polygon by adding the first point to the end.
  */
 function close() {
-  if(this.isClosed == undefined || this.isClosed) return;
+  if (typeof this.isClosed === "undefined" || this.isClosed) return;
   this.points.push(this.points[0], this.points[1]);
   this._isClosed = true;
 }
@@ -115,7 +119,7 @@ function close() {
  * Open the polygon by removing the first point from the end.
  */
 function open() {
-  if(!this.isClosed || this.points.length < 4) return;
+  if (!this.isClosed || this.points.length < 4) return;
   this.points.pop();
   this.points.pop();
   this._isClosed = false;
@@ -127,7 +131,7 @@ function open() {
  * If you already know the polygon convexity, you should set this._isConvex manually.
  */
 function isConvex() {
-  if(typeof this._isConvex === "undefined") {
+  if (typeof this._isConvex === "undefined") {
     this._isConvex = this.determineConvexity();
   }
   return this._isConvex;
@@ -143,13 +147,13 @@ function isConvex() {
  * (meaning it intersects itself, forming 2+ smaller polygons)
  */
 function determineConvexity() {
-  if(!this.isClosed) {
-    console.warn(`Convexity is not defined for open polygons.`);
+  if (!this.isClosed) {
+    console.warn("Convexity is not defined for open polygons.");
     return undefined;
   }
 
-  // if a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)
-  if(this.points.length === 8) return true;
+  // If a closed triangle, then always convex (2 coords / pt * 3 pts + repeated pt)
+  if (this.points.length === 8) return true;
 
   const iter = this.iteratePoints();
   let prev_pt = iter.next().value;
@@ -159,21 +163,26 @@ function determineConvexity() {
 
   const sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
 
-  // if polygon is a triangle, while loop should be skipped and will always return true
-  while( (new_pt = iter.next().value) ) {
+  // If polygon is a triangle, while loop should be skipped and will always return true
+  while ( (new_pt = iter.next().value) ) {
     prev_pt = curr_pt;
     curr_pt = next_pt;
     next_pt = new_pt;
     const new_sign = Math.sign(foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt));
 
-    if(sign !== new_sign) return false;
+    if (sign !== new_sign) return false;
   }
   return true;
 }
 
+/**
+ * Determine if a polygon is oriented clockwise, meaning tracing the polygon
+ * moves in a clockwise direction.
+ * @return {Boolean}  True if clockwise. Cached using ._isClockwise property.
+ */
 function isClockwise() {
-  if(typeof this._isClockwise === "undefined") {
-    // recall that orient2dFast returns positive value if points are ccw
+  if (typeof this._isClockwise === "undefined") {
+    // Recall that orient2dFast returns positive value if points are ccw
     this._isClockwise = this.determineOrientation() < 0;
   }
   return this._isClockwise;
@@ -186,8 +195,8 @@ function isClockwise() {
  * prior point and next point.
  */
 function determineOrientation() {
-  if(this.isConvex) {
-    // can use any point to determine orientation
+  if (this.isConvex) {
+    // Can use any point to determine orientation
     const iter = this.iteratePoints();
     const prev_pt = iter.next().value;
     const curr_pt = iter.next().value;
@@ -195,25 +204,25 @@ function determineOrientation() {
     return foundry.utils.orient2dFast(prev_pt, curr_pt, next_pt);
   }
 
-  // locate the index of the vertex with the smallest x coordinate.
+  // Locate the index of the vertex with the smallest x coordinate.
   // Break ties with smallest y
   const pts = this.points;
-  const ln = this.isClosed ? pts.length - 2 : pts.length; // don't repeat the first point
+  const ln = this.isClosed ? pts.length - 2 : pts.length; // Don't repeat the first point
   let min_x = Number.POSITIVE_INFINITY;
   let min_y = Number.POSITIVE_INFINITY;
   let min_i = 0;
-  for(let i = 0; i < ln; i += 2) {
+  for (let i = 0; i < ln; i += 2) {
     const curr_x = pts[i];
     const curr_y = pts[i+1];
 
-    if(curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
+    if (curr_x < min_x || (curr_x === min_x && curr_y < min_y)) {
       min_x = curr_x;
       min_y = curr_y;
       min_i = i;
     }
   }
 
-  // min_x, min_y are the B (the point on the convex hull)
+  // Min_x, min_y are the B (the point on the convex hull)
   const curr_pt = { x: min_x, y: min_y };
 
   const prev_i = min_i > 1 ? (min_i - 2) : (ln - 2);
@@ -232,11 +241,11 @@ function reverse() {
   const reversed_pts = [];
   const pts = this.points;
   const ln = pts.length - 2;
-  for(let i = ln; i >= 0; i -= 2) {
+  for (let i = ln; i >= 0; i -= 2) {
     reversed_pts.push(pts[i], pts[i + 1]);
   }
   this.points = reversed_pts;
-  if(typeof this._isClockwise !== "undefined") {
+  if (typeof this._isClockwise !== "undefined") {
     this._isClockwise = !this._isClockwise;
   }
 }
@@ -255,12 +264,12 @@ function getBounds() {
       max_x: Math.max(pt.x, prev.max_x),
       max_y: Math.max(pt.y, prev.max_y) };
 
-  }, { min_x: Number.POSITIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY,
-       min_y: Number.POSITIVE_INFINITY, max_y: Number.NEGATIVE_INFINITY });
+    }, { min_x: Number.POSITIVE_INFINITY, max_x: Number.NEGATIVE_INFINITY,    // eslint-disable-line indent
+         min_y: Number.POSITIVE_INFINITY, max_y: Number.NEGATIVE_INFINITY }); // eslint-disable-line indent
 
   return new PIXI.Rectangle(bounds.min_x, bounds.min_y,
-                            bounds.max_x - bounds.min_x,
-                            bounds.max_y - bounds.min_y);
+                            bounds.max_x - bounds.min_x,  // eslint-disable-line indent
+                            bounds.max_y - bounds.min_y); // eslint-disable-line indent
 }
 
 /**
@@ -292,8 +301,8 @@ function getCenter() {
 function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {}) {
   const pts = [...this.points];
   const ln = pts.length;
-  for(let i = 0; i < ln; i += 2) {
-    pts[i]   = (pts[i] - position_dx) / size_dx;
+  for (let i = 0; i < ln; i += 2) {
+    pts[i]   = (pts[i] - position_dx) / size_dx;   // eslint-disable-line no-multi-spaces
     pts[i+1] = (pts[i+1] - position_dy) / size_dy;
   }
 
@@ -325,8 +334,8 @@ function scale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1} = {
 function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } = {}) {
   const pts = [...this.points];
   const ln = pts.length;
-  for(let i = 0; i < ln; i += 2) {
-    pts[i]   = (pts[i] * size_dx) + position_dx;
+  for (let i = 0; i < ln; i += 2) {
+    pts[i]   = (pts[i] * size_dx) + position_dx;   // eslint-disable-line no-multi-spaces
     pts[i+1] = (pts[i+1] * size_dy) + position_dy;
   }
 
@@ -338,25 +347,16 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
   return out;
 }
 
-//
-
-
-
-
 // ---------------- Clipper JS library ---------------------------------------------------
-
-/**
- * getter to store clipper points
-
 
 /**
  * Transform array of X, Y points to a PIXI.Polygon
  */
 function fromClipperPoints(points) {
-  // const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
-  // flat map is slow; switch to for loop. https://jsbench.me/eeky2ei5rw
+  // Flat map is slow: const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
+  // Switch to for loop. https://jsbench.me/eeky2ei5rw
   const pts = [];
-  for(const pt of points) {
+  for (const pt of points) {
     pts.push(pt.X, pt.Y);
   }
   const out = new this(...pts);
@@ -373,7 +373,7 @@ function fromClipperPoints(points) {
  */
 function* iterateClipperLibPoints({close = true} = {}) {
   const dropped = (!this.isClosed || close) ? 0 : 2;
-  for(let i = 0; i < (this.points.length - dropped); i += 2) {
+  for (let i = 0; i < (this.points.length - dropped); i += 2) {
     yield {X: this.points[i], Y: this.points[i + 1]};
   }
 }
@@ -382,8 +382,8 @@ function* iterateClipperLibPoints({close = true} = {}) {
  * Getter to store the clipper coordinate point set.
  */
 function clipperCoordinates() {
-  return this._clipperCoordinates ||
-         (this._clipperCoordinates = [...this.iterateClipperLibPoints({close: false})]);
+  return this._clipperCoordinates
+         || (this._clipperCoordinates = [...this.iterateClipperLibPoints({close: false})]);
 }
 
 /**
@@ -406,15 +406,18 @@ function clipperIsClockwise() {
 
 /**
  * Get bounding box
+ * @return {PIXI.Rectangle}
  */
 function clipperBounds() {
   const path = this.clipperCoordinates;
-  const bounds = ClipperLib.JS.BoundsOfPath(path); // returns ClipperLib.FRect
+  const bounds = ClipperLib.JS.BoundsOfPath(path); // Returns ClipperLib.FRect
 
+  /* eslint-disable indent */
   return new PIXI.Rectangle(bounds.left,
-                              bounds.top,
-                              bounds.right - bounds.left,
-                              bounds.bottom - bounds.top);
+                            bounds.top,
+                            bounds.right - bounds.left,
+                            bounds.bottom - bounds.top);
+  /* eslint-disable indent */
 }
 
 /**
@@ -427,13 +430,12 @@ function clipperClip(poly, { cliptype = ClipperLib.ClipType.ctUnion } = {}) {
 
   const solution = new ClipperLib.Paths();
   const c = new ClipperLib.Clipper();
-  c.AddPath(subj, ClipperLib.PolyType.ptSubject, true); // true to be considered closed
+  c.AddPath(subj, ClipperLib.PolyType.ptSubject, true); // True to be considered closed
   c.AddPath(clip, ClipperLib.PolyType.ptClip, true);
   c.Execute(cliptype, solution);
 
   return PIXI.Polygon.fromClipperPoints(solution[0]);
 }
-
 
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
@@ -457,20 +459,20 @@ export function registerPIXIPolygonMethods() {
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "coordinates", {
-    get: coordinates,
+    get: coordinates
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
-    get: isClosed,
+    get: isClosed
   });
 
 
   Object.defineProperty(PIXI.Polygon.prototype, "isConvex", {
-    get: isConvex,
+    get: isConvex
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-    get: isClockwise,
+    get: isClockwise
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "determineConvexity", {
@@ -528,7 +530,7 @@ export function registerPIXIPolygonMethods() {
   });
 
 
-// ----------------  CLIPPER LIBRARY METHODS ------------------------
+  // ----------------  CLIPPER LIBRARY METHODS ------------------------
 
   Object.defineProperty(PIXI.Polygon.prototype, "iterateClipperLibPoints", {
     value: iterateClipperLibPoints,
@@ -537,7 +539,7 @@ export function registerPIXIPolygonMethods() {
   });
 
   Object.defineProperty(PIXI.Polygon.prototype, "clipperCoordinates", {
-    get: clipperCoordinates,
+    get: clipperCoordinates
   });
 
   Object.defineProperty(PIXI.Polygon, "fromClipperPoints", {
@@ -569,6 +571,4 @@ export function registerPIXIPolygonMethods() {
     writable: true,
     configurable: true
   });
-
-
 }

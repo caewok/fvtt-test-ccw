@@ -1,5 +1,14 @@
 // Double Linked List
+"use strict";
 
+/* eslint no-unused-expressions: ["warn", { "allowShortCircuit": true }] */
+
+/**
+ * Container to hold the data of each element of the list.
+ * Note: Also tested just adding links to the objects of the list directly.
+ *       Not much faster, and requires messing with properties of an unknown object,
+ *       so this container method is preferable.
+ */
 class LLNode {
   constructor(data) {
     this.data = data;
@@ -8,7 +17,17 @@ class LLNode {
   }
 }
 
-
+/**
+ * Basic double linked list.
+ * - Push to the end of the list in O(1) time.
+ * - Shift to the beginning of the list in O(1) time.
+ * - Pop last element in O(1) time
+ * - Unshift the first element in O(1) time.
+ * - Remove a given node in O(1) time.
+ *
+ * To facilitate removal of a node, the node object is returned whenever
+ * data is added using push or shift.
+ */
 export class DoubleLinkedList {
   constructor() {
     this.head = null;
@@ -16,10 +35,14 @@ export class DoubleLinkedList {
     this.length = 0;
   }
 
+  /**
+  * Traverse the list, returning the data at each node in turn.
+  * @return {Object[]}    Array of data in sequential order.
+  */
   inorder() {
     const out = [];
     let curr = this.head;
-    for(let i = 0; i < this.length; i += 1) {
+    for (let i = 0; i < this.length; i += 1) {
       out.push(curr.data);
       curr = curr.next;
     }
@@ -28,7 +51,7 @@ export class DoubleLinkedList {
 
   push(data) {
     const node = new LLNode(data);
-    if(this.length === 0) {
+    if (this.length === 0) {
       this.head = node;
       this.tail = node;
 
@@ -47,14 +70,14 @@ export class DoubleLinkedList {
     this.tail && (this.tail.next = null);
     this.length -= 1;
 
-    if(this.length === 0) { this.head = null; this.tail = null; }
+    if (this.length === 0) { this.head = null; this.tail = null; }
 
     return out.data;
   }
 
   shift(data) {
     const node = new LLNode(data);
-    if(this.length === 0) {
+    if (this.length === 0) {
       this.head = node;
       this.tail = node;
     } else {
@@ -72,12 +95,11 @@ export class DoubleLinkedList {
     this.head && (this.head.prev = null);
     this.length -= 1;
 
-    if(this.length === 0) { this.head = null; this.tail = null; }
+    if (this.length === 0) { this.head = null; this.tail = null; }
     return out.data;
   }
 
   removeNode(node) {
-//     this.length <= 0 && console.error(`DoubleLinkedList length 0; cannot remove node`, node);
     this.head === node && (this.head = node.next);
     this.tail === node && (this.tail = node.prev);
 

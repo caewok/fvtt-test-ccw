@@ -1,3 +1,8 @@
+/*
+Cached values for point on a normalized circle given density values of 12 and 60.
+Used in PIXI.Circle to construct a polygon from a circle.
+*/
+
 export const NORMALIZED_CIRCLE_POINTS_12 =
 [
     {

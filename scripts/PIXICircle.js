@@ -4,12 +4,10 @@ Ray,
 ClockwiseSweepPolygon
 */
 
-'use strict';
+"use strict";
 
-import { NORMALIZED_CIRCLE_POINTS_60,
-         NORMALIZED_CIRCLE_POINTS_12 } from "./NormalizedCirclePoints.js";
-
-import { circle_union, circle_intersect } from "./CirclePolygonCombine.js";
+import { NORMALIZED_CIRCLE_POINTS_60, NORMALIZED_CIRCLE_POINTS_12 } from "./NormalizedCirclePoints.js";
+import { circleUnion, circleIntersect } from "./CirclePolygonCombine.js";
 
 /* Additions to the PIXI.Circle class:
 - toPolygon: convert to an (approximate) PIXI.Polygon
@@ -28,24 +26,26 @@ import { circle_union, circle_intersect } from "./CirclePolygonCombine.js";
  * @return {PIXI.Polygon}
  */
 function toPolygon({ density = 60 } = {}) {
-  const padding = density === 60 ? NORMALIZED_CIRCLE_POINTS_60 :
-              density === 12 ? NORMALIZED_CIRCLE_POINTS_12 :
-              get360PaddingPoints(this.x, this.y, this.radius, { density });
+  const padding = density === 60 ? NORMALIZED_CIRCLE_POINTS_60
+              : density === 12 ? NORMALIZED_CIRCLE_POINTS_12                   // eslint-disable-line indent
+              : get360PaddingPoints(this.x, this.y, this.radius, { density }); // eslint-disable-line indent
 
-  // padding is in {x, y} format; convert to polygon
+  // Padding is in {x, y} format; convert to polygon
   let poly = PIXI.Polygon.fromPoints(padding);
-  if(density === 60 || density === 12) {
-    // re-scale normalized circle to desired center and radius
+  if (density === 60 || density === 12) {
+    // Re-scale normalized circle to desired center and radius
+    /* eslint-disable indent */
     poly = poly.unscale({ position_dx: this.x,
-                   position_dy: this.y,
-                   size_dx: this.radius,
-                   size_dy: this.radius });
+                          position_dy: this.y,
+                          size_dx: this.radius,
+                          size_dy: this.radius });
+    /* eslint-enable indent */
   }
 
-  // close the polygon
-  poly.points.push(poly.points[0], poly.points[1])
+  // Close the polygon
+  poly.points.push(poly.points[0], poly.points[1]);
 
-  // circle polygons have certain qualities
+  // Circle polygons have certain qualities
   poly._isClosed = true;
   poly._isConvex = true;
   poly._isClockwise = true;
@@ -61,8 +61,8 @@ function toPolygon({ density = 60 } = {}) {
  */
 function get360PaddingPoints(x, y, radius, { density = 60 } = {}) {
   const r0 = Ray.fromAngle(x, y, 0, radius);
-  // trick padding method to return 360º of padding
-  const r1 = Ray.fromAngle(x, y, -1e-06, radius)
+  // Trick the padding method into returning 360º of padding
+  const r1 = Ray.fromAngle(x, y, -1e-06, radius);
   const obj = { config: { density }};
   return ClockwiseSweepPolygon.prototype._getPaddingPoints.call(obj, r0, r1);
 }
@@ -76,19 +76,19 @@ export function registerPIXICircleMethods() {
   });
 
   Object.defineProperty(PIXI.Circle.prototype, "polygonUnion", {
-    value: circle_union,
+    value: circleUnion,
     writable: true,
     configurable: true
   });
 
   Object.defineProperty(PIXI.Circle.prototype, "polygonIntersect", {
-    value: circle_intersect,
+    value: circleIntersect,
     writable: true,
     configurable: true
   });
 
   // For equivalence with a PIXI.Polygon
   Object.defineProperty(PIXI.Circle.prototype, "isClosed", {
-    get: () => true,
+    get: () => true
   });
 }

@@ -794,7 +794,7 @@
 
 	ClipperLib.ClipperBase.prototype.RangeTest = function (pt)
 	{
-		if(pt.X > ClipperLib.ClipperBase.maxValue || pt.X < -ClipperLib.ClipperBase.maxValue
+		if (pt.X > ClipperLib.ClipperBase.maxValue || pt.X < -ClipperLib.ClipperBase.maxValue
 		|| pt.Y > ClipperLib.ClipperBase.maxValue || pt.Y < -ClipperLib.ClipperBase.maxValue
 || (pt.X > 0 && pt.X < ClipperLib.ClipperBase.minValue) 
 || (pt.Y > 0 && pt.Y < ClipperLib.ClipperBase.minValue) 
@@ -3114,7 +3114,7 @@
 				var eNext = this.GetNextInAEL(e, dir);
 				this.SwapPositionsInAEL(horzEdge, e);
 				e = eNext;
-			} //end while(e !== null)
+			} //end while (e !== null)
 
 			//Break out of loop if HorzEdge.NextInLML is not also horizontal ...
 			if (horzEdge.NextInLML === null || !ClipperLib.ClipperBase.IsHorizontal(horzEdge.NextInLML))

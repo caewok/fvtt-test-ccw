@@ -1,11 +1,11 @@
 /* globals
 Ray,
 foundry,
+canvas
 */
 
-'use strict';
+"use strict";
 
-import { findIntersectionsBruteSingle } from "./intersectionsBrute.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 /* Utility functions
@@ -19,8 +19,6 @@ Sort two points for locating line-line intersections:
 - compareXY: Sort points nw to se.
 */
 
-
-
 /**
  * Return a set of 4 segments that bisect the canvas horizontally, vertically, diagonally.
  * For testing red-black intersections.
@@ -29,10 +27,10 @@ Sort two points for locating line-line intersections:
 export function generateBisectingCanvasSegments() {
   const { height, width } = canvas.dimensions;
   const segments = [];
-  segments.push(new SimplePolygonEdge({ x: 0, y: 0 }, { x: width, y: height })); // nw to se
-  segments.push(new SimplePolygonEdge({ x: 0, y: height }, { x: width, y: 0 })); // sw to ne
-  segments.push(new SimplePolygonEdge({ x: 0, y: height / 2 }, { x: width, y: height / 2 })); // horizontal
-  segments.push(new SimplePolygonEdge({ x: width / 2, y: height }, { x: width / 2, y: 0 })); // vertical
+  segments.push(new SimplePolygonEdge({ x: 0, y: 0 }, { x: width, y: height })); // Nw to se
+  segments.push(new SimplePolygonEdge({ x: 0, y: height }, { x: width, y: 0 })); // Sw to ne
+  segments.push(new SimplePolygonEdge({ x: 0, y: height / 2 }, { x: width, y: height / 2 })); // Horizontal
+  segments.push(new SimplePolygonEdge({ x: width / 2, y: height }, { x: width / 2, y: 0 })); // Vertical
 
   return segments;
 }
@@ -48,17 +46,17 @@ export function generateBisectingCanvasSegments() {
  * @return {boolean}  True if the points are within √2 / 2 of one another.
  */
 function equivalentPixel(p1, p2) {
-  // to try to improve speed, don't just call almostEqual.
+  // To try to improve speed, don't just call almostEqual.
   // Ultimately need the distance between the two points but first check the easy case
   // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
   const dx = Math.abs(p2.x - p1.x);
-  if(dx > Math.SQRT1_2) return false; // Math.SQRT1_2 === √2 / 2
+  if (dx > Math.SQRT1_2) return false; // Math.SQRT1_2 === √2 / 2
 
   const dy = Math.abs(p2.y - p1.y);
-  if(dy > Math.SQRT1_2) return false;
+  if (dy > Math.SQRT1_2) return false;
 
-  // within the √2 / 2 bounding box
-  // compare distance squared.
+  // Within the √2 / 2 bounding box
+  // Compare distance squared.
   const dist2 = Math.pow(dx, 2) + Math.pow(dy, 2);
   return dist2 < 0.5;
 }
@@ -83,6 +81,13 @@ function orient2dPixelLine(ray, c) {
   return (orientation2 < cutoff) ? 0 : orientation;
 }
 
+/**
+ * Dot product of two segments.
+ * @param {Point} r1
+ * @param {Point} r2
+ * @return {Number}
+ */
+function dot(r1, r2) { return (r1.dx * r2.dx) + (r1.dy * r2.dy); }
 
 /**
  * Is the point c within a pixel of the ray and thereby "contained" by the ray?
@@ -91,67 +96,94 @@ function orient2dPixelLine(ray, c) {
  * @return {boolean}  True if the ray contains the point c.
  */
 export function pixelLineContainsPoint(ray, c) {
-  if(equivalentPixel(ray.A, c) ||
-     equivalentPixel(ray.B, c)) return true;
+  if (equivalentPixel(ray.A, c)
+      || equivalentPixel(ray.B, c)) { return true; }
 
-  if(orient2dPixelLine(ray, c) !== 0) return false;
+  if (orient2dPixelLine(ray, c) !== 0) { return false; }
 
-  // test if point is between the endpoints, given we already established collinearity
-  const dot = function(r1, r2) {
-     return r1.dx * r2.dx + r1.dy * r2.dy;
-  }
-
+  // Test if point is between the endpoints, given we already established collinearity
   const AC = new Ray(ray.A, c);
   const k_ab = dot(ray, ray);
   const k_ac = dot(ray, AC);
 
-  // if k_ac === 0, point p coincides with A (handled by prior check)
-  // if k_ac === k_ab, point p coincides with B (handled by prior check)
+  // If k_ac === 0, point p coincides with A (handled by prior check)
+  // If k_ac === k_ab, point p coincides with B (handled by prior check)
   // k_ac is between 0 and k_ab, point is on the segment
   return k_ac >= 0 && k_ac <= k_ab;
+}
+
+/**
+ * Compare function to sort point by x, then y coordinates.
+ * Does not check for nearly 0, which means this is best used with integers.
+ * @param {Point} a
+ * @param {Point} b
+ * @return {Number} Difference in values, of either x or y
+ */
+export function compareXYInt(a, b) {
+  return (a.x - b.x) || (a.y - b.y);
 }
 
 /**
  * Compare function to sort point by x, then y coordinates
  * @param {Point} a
  * @param {Point} b
- * @return {-1|0|1}
+ * @return {Number} Difference in values of either x or y.
  */
-export function compareXYInt(a, b) {
-  return (a.x - b.x) || (a.y - b.y);
-}
-
 export function compareXY(a, b) {
   const diff_x = a.x - b.x;
-  if(diff_x.almostEqual(0)) {
+  if (diff_x.almostEqual(0)) {
     const diff_y = a.y - b.y;
     return diff_y.almostEqual(0) ? 0 : diff_y;
   }
   return diff_x;
 }
 
+/**
+ * Compare function to sort point by x, then y coordinates.
+ * Requires a and b to have pre-set sortKeys of the form xN + y, where N is the
+ * maximum x-coordinate that could be present.
+ * @param {Point} a
+ * @param {Point} b
+ * @return {Number} Difference in values of either x or y.
+ */
 export function compareXYSortKeys(a, b) {
   const diff = a.sortKey - b.sortKey;
   return diff.almostEqual(0) ? 0 : diff;
 }
 
+/**
+ * Compare function to sort point by x, then y coordinates.
+ * Requires a and b to have pre-set sortKeys of the form xN + y, where N is the
+ * maximum x-coordinate that could be present.
+ * Does not compare for near 0 values, so best used with integers.
+ * @param {Point} a
+ * @param {Point} b
+ * @return {Number} Difference in values of either x or y.
+ */
 export function compareXYSortKeysInt(a, b) {
   return a.sortKey - b.sortKey;
 }
 
 /**
- * Compare function to sort point by y, then x coordinates
+ * Compare function to sort point by y, then x coordinates.
+ * Does not compare for near 0, so best used with integers.
  * @param {Point} a
  * @param {Point} b
- * @return {-1|0|1}
+ * @return {Number} Difference between y values or x values.
  */
 export function compareYXInt(a, b) {
   return (a.y - b.y) || (a.x - b.x);
 }
 
+/**
+ * Compare function to sort point by y, then x coordinates.
+ * @param {Point} a
+ * @param {Point} b
+ * @return {Number} Difference between y values or x values.
+ */
 export function compareYX(a, b) {
   const diff_y = a.y - b.y;
-  if(diff_y.almostEqual(0)) {
+  if (diff_y.almostEqual(0)) {
     const diff_x = a.x - b.x;
     return diff_x.almostEqual(0) ? 0 : diff_x;
   }
@@ -164,18 +196,26 @@ export function compareYX(a, b) {
  * @return {number}   Random integer.
  */
 export function randomPositiveZeroInteger(max) {
-  return Math.floor(Math.random() * max)
+  return Math.floor(Math.random() * max);
 }
 
 /**
  * Calculate the key for a set of integer coordinates
- * See PolygonVertex
+ * See PolygonVertex.
+ * @param {Point} p
+ * @return {Number}
  */
 export function keyForPoint(p) {
   return (Math.round(p.x) << 16) ^ Math.round(p.y);
- }
+}
 
-function keyForSegment(s) {
+/**
+ * Calculate a key for a set of segments, by combining the nw and se keys.
+ * See PolygonVertex.
+ * @param {Segment} s
+ * @return {BigInt}
+ */
+export function keyForSegment(s) {
   return (BigInt(s.nw.key) << 32n) ^ BigInt(s.se.key);
 }
 
@@ -195,33 +235,59 @@ function keyForSegment(s) {
  * @return {boolean}  True if the line blocks the point.
  */
 export function lineBlocksPoint(a, b, p, o) {
-   return (foundry.utils.orient2dFast(a, b, p) * foundry.utils.orient2dFast(a, b, o)) < 0;
+  return (foundry.utils.orient2dFast(a, b, p) * foundry.utils.orient2dFast(a, b, o)) < 0;
 }
 
-export function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)) }
+/**
+ * Test if two points are nearly equal.
+ * @param {Point} p1
+ * @param {Point} p2
+ * @return {Boolean} True if equal or within a small epsilon of equality.
+ */
+export function pointsEqual(p1, p2) { return (p1.x.almostEqual(p2.x) && p1.y.almostEqual(p2.y)); }
 
+/**
+ * Callback function that can be passed to Intersections functions to process
+ * intersections between two segments. Marks the intersections in the
+ * segments' respective intersectsWith Set.
+ * @param {Segment} s1
+ * @param {Segment} s2
+ */
 export function identifyIntersectionsWith(s1, s2) {
-  if(s1 === s2) return; // probably unnecessary
-
-  const {a: a1, b: b1} = s1.vertices;
-  const {a: a2, b: b2} = s2.vertices;
+  if (s1 === s2) return; // Probably unnecessary
 
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if(!x) return; // may not be necessary but may eliminate colinear lines
+  if (!x) return; // May not be necessary but may eliminate colinear lines
   s1.intersectsWith.set(s2, x);
   s2.intersectsWith.set(s1, x);
 }
 
+/**
+ * Callback function that can be passed to Intersections functions to process
+ * intersections between two segments. Marks the intersections in the
+ * segments' respective intersectsWith Set. Skips when the endpoints are equal.
+ * @param {Segment} s1
+ * @param {Segment} s2
+ */
 export function identifyIntersectionsWithNoEndpoint(s1, s2) {
-  if(s1.wallKeys.intersects(s2.wallKeys)) return;
+  if (s1.wallKeys.intersects(s2.wallKeys)) return;
 
   return identifyIntersectionsWith(s1, s2);
 }
 
+/**
+ * Given a segment and an x value, find the point on the underlying line for that
+ * segment at the x coordinate. In other words, the y value given x along the segment.
+ * May or may not be actually between the segment endpoints.
+ * @param {Segment} s
+ * @param {Point}   x
+ * @return {Point|undefined}  Return the point unless the segment is vertical, for which
+ *                            it will return undefined.
+ */
 export function pointForSegmentGivenX(s, x) {
-    const denom = s.B.x - s.A.x;
-    if(!denom) return undefined;
-    return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
-  }
+  const denom = s.B.x - s.A.x;
+  if (!denom) return undefined;
+  return { x: x, y: ((s.B.y - s.A.y) / denom * (x - s.A.x)) + s.A.y };
+}
 
 
