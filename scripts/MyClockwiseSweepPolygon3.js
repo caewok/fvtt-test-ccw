@@ -274,33 +274,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // *** END NEW *** //
   }
 
-  /**
-   * *** NEW ***
-   * Alternative to passing a bbox to canvas.walls.quadtree.
-   * For unknown reasons, quadtree is returning a lot more walls than expected
-   * when using a bbox.
-   * @param {Segment} edge
-   * @return {Boolean}
-   */
-  _edgeIsOutside(edge) {
-    const bbox = this.config.bbox;
-
-    // if either endpoint is within the rectangle, the edge is considered inside.
-    if(bbox.containsPoint(edge.A) || bbox.containsPoint(edge.B)) return false;
-
-    // If both points are on the outside of a single bbox side, then the edge is outside
-    // Otherwise, could either cross multiple sides with endpoints remaining outside or
-    // not cross at all (see segmentIntersects test below).
-    if(bbox.top > edge.A.y && bbox.top > edge.B.y) return true;
-    if(bbox.bottom < edge.A.y && bbox.bottom < edge.B.y) return true;
-    if(bbox.left > edge.A.x && bbox.left > edge.B.x) return true;
-    if(bbox.right < edge.A.x && bbox.right < edge.B.x) return true;
-
-    // To distinguish lines that run  across two sides versus ones that
-    // run completely outside, check for intersections.
-    return !bbox.lineSegmentIntersects(edge.A, edge.B);
-  }
-
   /* -------------------------------------------- */
 
   /**
@@ -313,9 +286,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    */
   _getWalls() {
     // *** NEW *** //
-    return canvas.walls.placeables;
-   //  if ( !this.config.hasCustomBoundary ) return canvas.walls.placeables;
-//     return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
+    if ( !this.config.hasCustomBoundary ) return canvas.walls.placeables;
+    return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
   }
 
   /* -------------------------------------------- */
