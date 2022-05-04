@@ -21,7 +21,7 @@ To test from the console in Foundry VTT:
 let api = game.modules.get('testccw').api;
 api.bench.describeSceneParameters(); // Basic information regarding the scene.
 api.tests.testSceneIntersections(); // Test for walls in the scene
-api.bench.benchSceneIntersections(); // Benchmark using wallsin the scene
+await api.bench.benchSceneIntersections(); // Benchmark using wallsin the scene
 ```
 
 To call a specific function, you can pass an array of segments to the respective function. For sort and Myers sweep, the segments must have nw and se endpoints identified. Converting to `PolygonEdge` (Foundry) or `SimplePolygonEdge` (this package) will suffice. Note that segments with intersecting endpoints are reported unless filtered out by the reporting callback function. For example:
@@ -50,7 +50,7 @@ To run a benchmark of the different algorithms for a given scene, select a token
 ```js
 let api = game.modules.get('testccw').api;
 api.bench.describeSceneParameters(); // Basic information regarding the scene.
-api.bench.benchScene();
+await api.bench.benchScene();
 
 // options:
 // benchScene(n = 100, { origin, rotation, radius = 60, angle = 80, angle2 = 280 }
