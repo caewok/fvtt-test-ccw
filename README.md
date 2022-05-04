@@ -1,112 +1,67 @@
 # Test CCW
 
-Module framework for testing a new vision/lighting algorithm for [Foundry VTT](https://foundryvtt.com).
+Module framework for testing a vision/lighting improvements [Foundry VTT](https://foundryvtt.com).
 
 Add this [Manifest URL](https://github.com/caewok/fvtt-test-ccw/releases/latest/download/module.json) in Foundry to install.
 
-## Basic Use
-To enable:
+## Overview
+
+At present (and subject to change), there are several algorithms explored related to sweep
+and intersecting arrays of segments.
+
+## Intersections
+Brute, sort, and [Myers sweep](https://publications.mpi-cbg.de/Myers_1985_5441.pdf) algorithms are provided. Each have two forms:
+- "Single": The function takes a single array of segments and compares every segment against every other segment for intersections.
+- "Red/Black": The function takes two arrays of segments ("red" and "black") and compares one set to the other for intersections.
+
+In both cases, the function takes a reporting callback function that can vary what is done when the intersecting segments are identified.
+
+To test from the console in Foundry VTT:
 ```js
-old_backend = CONFIG.Canvas.losBackend;
-CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
+let api = game.modules.get('testccw').api;
+api.bench.describeSceneParameters(); // Basic information regarding the scene.
+api.tests.testSceneIntersections(); // Test for walls in the scene
+api.bench.benchSceneIntersections(); // Benchmark using wallsin the scene
 ```
 
-To revert:
+To call a specific function, you can pass an array of segments to the respective function. For sort and Myers sweep, the segments must have nw and se endpoints identified. Converting to `PolygonEdge` (Foundry) or `SimplePolygonEdge` (this package) will suffice. Note that segments with intersecting endpoints are reported unless filtered out by the reporting callback function. For example:
 ```js
-CONFIG.Canvas.losBackend = old_backend;
-``` 
-
-## Visualization of the Algorithm
-To see a visualization of the sweep in real-time:
-```js
-CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
-game.modules.get('testccw').api.debug = true;
+let api = game.modules.get('testccw').api;
+let segments = walls.map(w => api.SimplePolygonEdge.fromWall(w));
+let reportFn = (s1, s2) => console.log(`${s1.id} x ${s2.id}`);
+api.intersections.findIntersectionsBruteSingle(segments, reportFn);
+api.intersections.findIntersectionsSortSingle(segments, reportFn);
+api.intersections.findIntersectionsMyersSingle(segments, reportFn);
 ```
 
-## Benchmarking
-To benchmark from console when you have a single token selected:
-```js
-t = canvas.tokens.controlled[0];
-await game.modules.get('testccw').api.benchmark(10000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation, type: "sight", debug: false});
-```
+## Clockwise Sweep
+Clockwise sweep is modified to accept:
+1. A bounding polygon of any shape.
+2. One or more temporary walls.
 
-To benchmark the lighting (will pick the first light in the scene):
-```js
-l = [...canvas.lighting.sources][0];
-await game.modules.get('testccw').api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"});
-```
+Three variations of the Foundry ClockwiseSweep are provided. Each represents an incremental change to make it easier to work with bounding polygons and temporary walls, and simplifying the underlying sweep algorithm.
+1. The first variation removes all limited radius and limited angle calculations. Temporary walls are used to represent the limited angle. A bounding box is used to trim unneeded walls from the sweep. After the sweep completes, the resulting polygon is intersected with the limited radius circle if necessary.
 
-Benchmark without overlapping wall detection:
-```js
-game.modules.get('testccw').api.detect_intersections = false;
-t = canvas.tokens.controlled[0];
-await game.modules.get('testccw').api.benchmark(10000, t.center, {angle: t.data.sightAngle, rotation: t.data.rotation, type: "sight", debug: false});
-```
+2. The second variation modifies (1) by not using temporary walls to represent the limited angle. Instead, the limited angle is intersected against the resulting sweep algorithm at the end, similar to how the limited radius circle is intersected in (1) and (2).
 
-```js
-game.modules.get('testccw').api.detect_intersections = false;
-l = [...canvas.lighting.sources][0];
-await game.modules.get('testccw').api.benchmark(10000, {x: l.x, y: l.y}, {angle: l.data.angle, debug: false, density: 60, radius: l.radius, rotation: l.rotation, type: "light"});
-```
+3. The third variation modifies (2) by stripping out unnecessary code in the sweep algorithm due to no longer having to consider limited angle (or limited radius circle) at all during the sweep. Consequently, (3) is usually faster than (2).
 
-## All options
+Each of the three variations have strengths and weaknesses depending on the scene and the specific vision/lighting parameters. And all show comparable performance to ClockwiseSweep. In general, (3) is is comparable to or faster than the default ClockwiseSweep and the other algorithms when processing unrestricted vision or when dealing with small limited angles and limited radius vision/lighting. (1) has some advantage in processing limited angles, and so does better when the limited angle is large.
 
-```js
-old_backend = CONFIG.Canvas.losBackend;
-CONFIG.Canvas.losBackend = game.modules.get('testccw').api.CCWSweepPolygon;
+## Additional Details
 
-// Optionally, turn on the faster bezier approximation for drawing circular arcs:
-game.modules.get('testccw').api.use_bezier = true;
+### Circle - Polygon Intersection
+It is assumed that the circle and sweep polygon both encompass a shared origin point. Because of this, and because the circle is convex, it is possible to walk the sweep polygon clockwise, noting where the circle intersects a polygon edge. At each intersection, turn clockwise to intersect the shapes (counter-clockwise would form a union of the two shapes). This means at every intersection, you choose to walk clockwise around the polygon or clockwise around the circle, marking endpoints along the way. The resulting points form the intersecting polygon of the polygon and circle. When tracing the circle, padding points are used to approximate a circle with a polygon shape.
 
-// Optionally, turn off the robust calculation for CCW and use a faster non-robust version:
-game.modules.get('testccw').api.use_robust_ccw = false;
+This turns out to be a fairly quick way to intersect a circle with a polygon, because it takes less than two passes around the polygon and the circle has known properties that do not change regardless of which polygon edge you are testing.
 
-// Optionally, make all lights triangles or squares:
-game.modules.get('testccw').api.light_shape = "triangle";
-game.modules.get('testccw').api.light_shape = "square";
-game.modules.get('testccw').api.light_shape = "circle";
+### Limited Radius - Polygon Intersection
+As above, it is assumed that the limited radius and sweep polygon both encompass (or at least are on) a shared origin point. Because of this and the nature of the limited radius, it is possible to apply the circle-polygon intersection algorithm described above, with only minor variations.
 
-// Optionally, turn off the pre-processing check for overlapping walls. 
-// This will improve speed but light_shape must be "circle"
-game.modules.get('testccw').api.detect_intersections = false;
-
-// Visualization of sweep algorithm
-game.modules.get('testccw').api.debug = true;
-
-// To revert to Foundry version:
-CONFIG.Canvas.losBackend = old_backend;
-```
-
-## What does this do?
-
-Extends the Foundry `PointSourcePolygon` class with `CCWSweepPolygon`. This class is responsible for locating endpoints, sweeping around the field-of-vision to locate walls, and run collision tests. It in turn relies on several classes:
-- `CCWSightRay` extends `Ray` to include a variety of geometric measurement methods, such as a test for whether a ray intersects a circle, and whether a ray is in front of a point in relation to a vision point.
-- `CCWSweepPoint` extends `PIXI.Point`. It represents wall endpoints for the sweep algorithm. 
-- `CCWSweepWall` extends `CCWSightRay`. It represents walls for the sweep algorithm.
-- `BinarySearchTree` sets up a basic binary search tree class.
-- `PotentialWallList` extends `BinarySearchTree` to order walls by closeness to a vision point. 
-- `Bezier` creates a close approximation of circular arcs.
-
-The `CCWSweepPolygon` class is the main work-horse, and is comparable to the Foundry `RadialSweepPolygon` class. Testing suggests `CCWSweepPolygon` is 30% to 70% faster than `RadialSweepPolygon`, depending on setup. 
-
-## How?
-
-The module implements a version of radial sweep that relies on sweeping endpoints in clockwise order around an origin point, comparing points and walls encountered in the sweep against the currently closest wall. Instead of measuring angles, which is time-consuming and prone to numerical approximations, it measures whether a given point is clockwise or counter-clockwise to a given wall.  
-
-Sweep works by getting each counterclockwise-most endpoint, compared to a line from the origin vision/lighting point, in turn. The goal is to create the FOV (field-of-vision) polygon from collision points. For each endpoint:
-- The origin --> endpoint --> end of vision is the sight line. 
-- Sight line sweeps clockwise.
-- Track walls of that endpoint
-- Track of the closest wall to the origin in an ordered binary search tree.
-- At each endpoint, add as a collision point if it is the closest wall endpoint. If another wall is currently in front, don't add. If you have reached the end of the closest wall, find the intersection point to the next-closest wall and add that as a collision point. Update closest wall accordingly.
-
-## Why?
-
-Hopefully get faster or more robust vision methods incorporated into [Foundry VTT](https://foundryvtt.com). Plus, this is a good way to learn Javascript!
+### Sort key for segments
+The sort intersection algorithm and the Myers sweep algorithm requires that segments endpoints be identified as northwest and southeast and sorted accordingly. It is therefore useful to use a simple numeric key instead of constantly comparing x and y coordinates: `xN + y = key`, where `N` is the maximum coordinate that can be encountered.
 
 ## Known issues
 
-This module currently does not attempt to handle walls that overlap but do not share an endpoint. 
-
-Numerous other bugs are likely. I am only one person, and this is a side project! My day job is not programming! 
+Bugs and issues are likely but not known. I am only one person, and this is a side project! My day job is not programming!
 
