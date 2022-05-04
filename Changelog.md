@@ -1,9 +1,15 @@
+# 0.3.0:
+Key changes:
+1. Segment array intersection algorithms: brute, sort, Myers.
+2. Three algorithms for ClockwiseSweep focused on eliminating limited radius and limited angle calculations from the main sweep.
+3. Adding clipper library for intersecting random polygons.
+
 # 0.2.0
 Key changes:
 1. Visualize the sweep algorithm.
 2. New class inheritance: CCWSweepPoint --> CCWPixelPoint --> CCWPoint --> PIXI.Point
 3. New class inheritance: CCWSweepRay --> CCWPixelRay --> CCWRay --> Ray
-4. Re-factor sweep based on two foundational methods: 
+4. Re-factor sweep based on two foundational methods:
    - `_processEndpointInFrontOfWall`
    - `_processEndOfWall`
 5. Use a Priority Queue instead of a Binary Search Tree for storing walls during the sweep.
@@ -11,7 +17,7 @@ Key changes:
 
 CCWSweepPoint --> CCWPixelPoint --> CCWPoint --> PIXI.Point
 - CCWPoint contains methods for testing near equality and orientation of points.
-- CCWPixelPoint forces points to have integer (pixel) coordinates. 
+- CCWPixelPoint forces points to have integer (pixel) coordinates.
 - CCWSweepPoint represents a wall endpoint, and stores connected walls.
 
 CCWSweepRay --> CCWPixelRay --> CCWRay --> Ray:
@@ -53,7 +59,7 @@ IntersectionSweep and related classes:
 - Consistently use CCWSweepWalls.
 - Fixes to treatment of underlying base wall ids.
 
-Add incircle robust function and related tests. Let more functions pass through EPSILON to almostEqual tests. 
+Add incircle robust function and related tests. Let more functions pass through EPSILON to almostEqual tests.
 
 # 0.1.3
 Pre-process walls to detect intersections of overlapping walls.
@@ -63,13 +69,13 @@ Create intersection processing classes with three algorithms:
 - Simple sweep that runs brute force but only for walls within the x values for the left and right endpoints of each wall.
 - Bentley-Ottoman sweep
 
-Modify BinarySearchTree to accept a comparison function. 
+Modify BinarySearchTree to accept a comparison function.
 
 # 0.1.2
 Bug fixes for terrain walls with lighting.
 
 # 0.1.1
-Account for terrain walls. Address edge case where two terrain walls form a triangular point. Add drawing methods for debugging use. 
+Account for terrain walls. Address edge case where two terrain walls form a triangular point. Add drawing methods for debugging use.
 
 # 0.1.0
 Refactor to not rely on libWrapper. Instead, use classes:
@@ -92,7 +98,7 @@ Changes too many to list here, but these are the major additions:
 - `class_BinarySearchTree.js` implementing a basic recursive binary search tree.
 - `class_PotentialWallList.js` extending the binary search tree to store walls by nearness to an origin point
 - `radial_sweep.js`, which does most of the work of implementing a sweep, visiting each endpoint clockwise around an origin point and checking against the current closest wall.
-- `benchmark.js` to run benchmarks using Foundry `benchmarkSight` function. 
+- `benchmark.js` to run benchmarks using Foundry `benchmarkSight` function.
 
 # 0.0.1-alpha
 Initial release for testing.
