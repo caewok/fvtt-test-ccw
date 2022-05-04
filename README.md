@@ -46,6 +46,16 @@ Three variations of the Foundry ClockwiseSweep are provided. Each represents an 
 
 3. The third variation modifies (2) by stripping out unnecessary code in the sweep algorithm due to no longer having to consider limited angle (or limited radius circle) at all during the sweep. Consequently, (3) is usually faster than (2).
 
+To run a benchmark of the different algorithms for a given scene, select a token in the scene and run the provided function, which will cycle through variations of limited angle and limited radius:
+```js
+let api = game.modules.get('testccw').api;
+api.bench.describeSceneParameters(); // Basic information regarding the scene.
+api.bench.benchScene();
+
+// options:
+// benchScene(n = 100, { origin, rotation, radius = 60, angle = 80, angle2 = 280 }
+```
+
 Each of the three variations have strengths and weaknesses depending on the scene and the specific vision/lighting parameters. And all show comparable performance to ClockwiseSweep. In general, (3) is is comparable to or faster than the default ClockwiseSweep and the other algorithms when processing unrestricted vision or when dealing with small limited angles and limited radius vision/lighting. (1) has some advantage in processing limited angles, and so does better when the limited angle is large.
 
 ## Additional Details
