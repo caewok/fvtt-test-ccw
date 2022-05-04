@@ -10,7 +10,7 @@ At present (and subject to change), there are several algorithms explored relate
 and intersecting arrays of segments.
 
 ## Intersections
-Brute, sort, and [Myers sweep](https://publications.mpi-cbg.de/Myers_1985_5441.pdf) algorithms are provided. Each have two forms:
+[Brute](https://github.com/caewok/fvtt-test-ccw/blob/ad475cdf404042924dfd2231e1d7929d99b657df/scripts/IntersectionsBrute.js#L28), [sort](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/IntersectionsSort.js#L35), and [Myers sweep](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/IntersectionsSweepMyers.js#L75) algorithms are provided. Myers sweep is based on this [1985 paper](https://publications.mpi-cbg.de/Myers_1985_5441.pdf). Each have two forms:
 - "Single": The function takes a single array of segments and compares every segment against every other segment for intersections.
 - "Red/Black": The function takes two arrays of segments ("red" and "black") and compares one set to the other for intersections.
 
@@ -40,11 +40,11 @@ Clockwise sweep is modified to accept:
 2. One or more temporary walls.
 
 Three variations of the Foundry ClockwiseSweep are provided. Each represents an incremental change to make it easier to work with bounding polygons and temporary walls, and simplifying the underlying sweep algorithm.
-1. The first variation removes all limited radius and limited angle calculations. Temporary walls are used to represent the limited angle. A bounding box is used to trim unneeded walls from the sweep. After the sweep completes, the resulting polygon is intersected with the limited radius circle if necessary.
+1. The [first variation](https://github.com/caewok/fvtt-test-ccw/blob/master/scripts/MyClockwiseSweepPolygon.js) removes all limited radius and limited angle calculations. Temporary walls are used to represent the limited angle. A bounding box is used to trim unneeded walls from the sweep. After the sweep completes, the resulting polygon is intersected with the limited radius circle if necessary.
 
-2. The second variation modifies (1) by not using temporary walls to represent the limited angle. Instead, the limited angle is intersected against the resulting sweep algorithm at the end, similar to how the limited radius circle is intersected in (1) and (2).
+2. The [second variation](https://github.com/caewok/fvtt-test-ccw/blob/master/scripts/MyClockwiseSweepPolygon2.js) modifies (1) by not using temporary walls to represent the limited angle. Instead, the [limited angle](https://github.com/caewok/fvtt-test-ccw/blob/master/scripts/LimitedAngle.js) is intersected against the resulting sweep algorithm at the end, similar to how the limited radius circle is intersected in (1) and (2).
 
-3. The third variation modifies (2) by stripping out unnecessary code in the sweep algorithm due to no longer having to consider limited angle (or limited radius circle) at all during the sweep. Consequently, (3) is usually faster than (2).
+3. The [third variation](https://github.com/caewok/fvtt-test-ccw/blob/master/scripts/MyClockwiseSweepPolygon3.js) modifies (2) by stripping out unnecessary code in the sweep algorithm due to no longer having to consider limited angle (or limited radius circle) at all during the sweep. Consequently, (3) is usually faster than (2).
 
 To run a benchmark of the different algorithms for a given scene, select a token in the scene and run the provided function, which will cycle through variations of limited angle and limited radius:
 ```js
@@ -60,15 +60,15 @@ Each of the three variations have strengths and weaknesses depending on the scen
 
 ## Additional Details
 
-### Circle - Polygon Intersection
+### [Circle - Polygon Intersection](https://github.com/caewok/fvtt-test-ccw/blob/master/scripts/CirclePolygonCombine.js)
 It is assumed that the circle and sweep polygon both encompass a shared origin point. Because of this, and because the circle is convex, it is possible to walk the sweep polygon clockwise, noting where the circle intersects a polygon edge. At each intersection, turn clockwise to intersect the shapes (counter-clockwise would form a union of the two shapes). This means at every intersection, you choose to walk clockwise around the polygon or clockwise around the circle, marking endpoints along the way. The resulting points form the intersecting polygon of the polygon and circle. When tracing the circle, padding points are used to approximate a circle with a polygon shape.
 
 This turns out to be a fairly quick way to intersect a circle with a polygon, because it takes less than two passes around the polygon and the circle has known properties that do not change regardless of which polygon edge you are testing.
 
-### Limited Radius - Polygon Intersection
+### [Limited Radius - Polygon Intersection](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/LimitedAngle.js#L412)
 As above, it is assumed that the limited radius and sweep polygon both encompass (or at least are on) a shared origin point. Because of this and the nature of the limited radius, it is possible to apply the circle-polygon intersection algorithm described above, with only minor variations.
 
-### Sort key for segments
+### [Sort key](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/SimplePolygonEdge.js#L169) for segments
 The sort intersection algorithm and the Myers sweep algorithm requires that segments endpoints be identified as northwest and southeast and sorted accordingly. It is therefore useful to use a simple numeric key instead of constantly comparing x and y coordinates: `xN + y = key`, where `N` is the maximum coordinate that can be encountered.
 
 ## Known issues
