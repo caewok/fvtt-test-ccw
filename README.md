@@ -27,7 +27,7 @@ await api.bench.benchSceneIntersections(); // Benchmark using wallsin the scene
 To call a specific function, you can pass an array of segments to the respective function. For sort and Myers sweep, the segments must have nw and se endpoints identified. Converting to `PolygonEdge` (Foundry) or `SimplePolygonEdge` (this package) will suffice. Note that segments with intersecting endpoints are reported unless filtered out by the reporting callback function. For example:
 ```js
 let api = game.modules.get('testccw').api;
-let segments = walls.map(w => api.SimplePolygonEdge.fromWall(w));
+let segments = canvas.walls.placeables.map(w => api.SimplePolygonEdge.fromWall(w));
 let reportFn = (s1, s2) => console.log(`${s1.id} x ${s2.id}`);
 api.intersections.findIntersectionsBruteSingle(segments, reportFn);
 api.intersections.findIntersectionsSortSingle(segments, reportFn);
