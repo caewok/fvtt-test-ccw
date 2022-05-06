@@ -1,3 +1,6 @@
+# 0.3.1:
+Do not check vertices for whether they lie outside a boundary. Instead, remove edges that lie outside but if the edge crosses a boundary, keep the edge for the sweep. This fixes issus with an incorrect sweep result with bounded lights or limited angles.
+
 # 0.3.0:
 Key changes:
 1. Segment array intersection algorithms: brute, sort, Myers.
