@@ -140,7 +140,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // BoundaryPolygon is user-provided. It overrides use of the circle radius.
     // Otherwise, if a boundary is required (beyond canvas edges)
     // the limited radius and/or limited circle provide it.
-    // BoundaryPolygon can be combined with limitedRadius.
+    // BoundaryPolygon can be combined with limitedAngle.
 
     // Conceptually, it might make sense to require the boundaryPolygon to be
     // centered at 0,0 and scalable, such that radius 1 gives the boundaryPolygon
@@ -200,7 +200,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     this._executeSweep();
 
     // Step 4 - Build polygon points
-    this._constructPolygonPoints();
+    // *** NEW *** Skip b/c dealt with in executeSweep
+//     this._constructPolygonPoints();
 
     // *** NEW *** //
     // Step 5 - Intersect boundary
@@ -579,7 +580,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // Case 5 - Non-limited edges in both directions
     // edge -> edge
     if ( activeEdges.size && !ccwLimited && !cwLimited && ncw && nccw ) {
-      this.collisions.push(result.target); // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
+      this.points.push(result.target.x, result.target.y); // Probably better off adding the collisions to this.points directly, if also adding points directly from _beginNewEdge
       return;
     }
 
@@ -593,7 +594,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // empty -> limited
     if ( !activeEdges.size || !nccw ) {
       this._beginNewEdge(ray, result, activeEdges, isBinding);
-      this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+      result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
+//       this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
       return;
     }
 
@@ -604,7 +606,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> empty
     if ( !ncw || (nccw && !ccwLimited) ) {
       this._completeCurrentEdge(ray, result, activeEdges, isBinding);
-      this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+      result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
+//       this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
       return;
     }
 
@@ -612,7 +615,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // limited -> edge
 
     this._beginNewEdge(ray, result, activeEdges, isBinding);
-    this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
+    result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
+//     this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
   }
 
   /* -------------------------------------------- */
@@ -674,18 +678,21 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
    * @private
    */
   _constructPolygonPoints() {
-    // TO-DO: Consider not using _constructPolygonPoints at all and instead
-    //        just add collision points to this.points array during the sweep.
-
-    // FlatMap is slow: this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
-    // Use loop instead
-    for (const pt of this.collisions) {
-      this.points.push(pt.x, pt.y);
-    }
-
-    // Ensure the polygon is closed
-    this.close();
+    console.warn("MyClockwiseSweepPolygon does not use _constructPolygonPoints.");
+    super._constructPolygonPoints();
   }
+//     // TO-DO: Consider not using _constructPolygonPoints at all and instead
+//     //        just add collision points to this.points array during the sweep.
+//
+//     // FlatMap is slow: this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
+//     // Use loop instead
+//     for (const pt of this.collisions) {
+//       this.points.push(pt.x, pt.y);
+//     }
+//
+//     // Ensure the polygon is closed
+//     this.close();
+//   }
 
   /* -------------------------------------------- */
 
@@ -742,7 +749,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     }
 
     // *** NEW *** Draw bounding box, if any
-    this.config.bbox && dg.lineStyle(1, 0x808080).drawShape(this.config.bbox.toPolygon()); // eslint-disable-line no-unused-expression
+    this.config.bbox && dg.lineStyle(1, 0x808080).drawShape(this.config.bbox.toPolygon()); // eslint-disable-line no-unused-expressions
 
     // Draw emitted rays
     for ( const ray of this.rays ) {
@@ -837,6 +844,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     /* eslint-disable indent */
     const { boundaryPolygon,
             hasLimitedRadius,
+            limitedAngle,
             limitedRadiusCircle,
             hasCustomBoundary } = this.config;
     /* eslint-enable indent */
@@ -851,6 +859,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     } else if (hasLimitedRadius) {
       bbox = bbox.intersection(limitedRadiusCircle.getBounds());
     }
+
+    limitedAngle && (bbox = bbox.intersection(limitedAngle.getBounds())); // eslint-disable-line no-unused-expressions
 
     // Convert to NormalizedRectangle, which is expected by _getWalls.
     // Should probably be handled by the respective getBounds methods above.
