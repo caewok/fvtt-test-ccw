@@ -322,14 +322,12 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     this._identifyIntersections();
 
     // *** NEW ***
-    if (this.config.hasCustomBoundary) {
-      // Restrict vertices outside the bounding box
-      // const bbox = this.config.bbox;
-      for (const vertex of this.vertices.values()) {
-        vertex.is_outside = this._vertexOutsideBoundary(vertex);
-      }
-    }
-    // *** END NEW ***
+    // Do not remove vertices outside the boundary.
+    // Handle on a per-edge basis in _identifyEdges.
+    // Removing vertices here will fail if there is not actual boundary, as is the case
+    // for limitedCircle. (The circle is later intersected against the sweep polygon,
+    // which will be an incorrect polygon if walls that intersect that boundary are
+    // excluded by having one of their endpoints removed here.)
   }
 
   /* -------------------------------------------- */
@@ -400,36 +398,33 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     for ( const [i, vertex] of vertices.entries() ) {
 
       let result;
-      if (vertex.is_outside) {
-        result = { target: vertex,
-                   cwEdges: vertex.cwEdges,     // eslint-disable-line indent
-                   ccwEdges: vertex.ccwEdges }; // eslint-disable-line indent
-      } else {
-        // Construct a ray towards the target vertex
-        vertex._index = i+1;
+      // *** NEW ***
+      // No test for vertex.is_outside. See removal of is_outside test from _identifyVertices.
 
-        // *** NEW ***
-        const ray = Ray.towardsPointSquared(origin, vertex, radiusMax2);
-        // *** END NEW ***
+      // Construct a ray towards the target vertex
+      vertex._index = i+1;
 
-        this.rays.push(ray);
+      // *** NEW ***
+      const ray = Ray.towardsPointSquared(origin, vertex, radiusMax2);
+      // *** END NEW ***
 
-        // Determine whether the target vertex is behind some other active edge
-        const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
+      this.rays.push(ray);
 
-        // Construct the CollisionResult object
-        result = ray.result = new CollisionResult({
-          target: vertex,
-          cwEdges: vertex.cwEdges,
-          ccwEdges: vertex.ccwEdges,
-          isLimited: vertex.isLimited, // *** NEW ***: No isRequired
-          isBehind,
-          wasLimited
-        });
+      // Determine whether the target vertex is behind some other active edge
+      const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(ray, vertex, activeEdges);
 
-        // Delegate to determine the result of the ray
-        this._determineRayResult(ray, vertex, result, activeEdges);
-      }
+      // Construct the CollisionResult object
+      result = ray.result = new CollisionResult({
+        target: vertex,
+        cwEdges: vertex.cwEdges,
+        ccwEdges: vertex.ccwEdges,
+        isLimited: vertex.isLimited, // *** NEW ***: No isRequired
+        isBehind,
+        wasLimited
+      });
+
+      // Delegate to determine the result of the ray
+      this._determineRayResult(ray, vertex, result, activeEdges);
 
       // Update active edges for the next iteration
       this._updateActiveEdges(result, activeEdges);
@@ -701,7 +696,7 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     }
 
     // *** NEW *** Draw bounding box, if any
-    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox); // eslint-disable-line no-unused-expression
+    this.config.bbox && dg.lineStyle(1, 0xFF0000).drawShape(this.config.bbox); // eslint-disable-line no-unused-expressions
 
     // Draw emitted rays
     for ( const ray of this.rays ) {

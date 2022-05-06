@@ -75,7 +75,7 @@ function equivalentPixel(p1, p2) {
  */
 function orient2dPixelLine(ray, c) {
   const orientation = foundry.utils.orient2dFast(ray.A, ray.B, c);
-  const orientation2 = orientation * orientation;
+  const orientation2 = Math.pow(orientation, 2);
   const cutoff = 0.5 * Math.pow(ray.distance, 2); // 0.5 is (√2 / 2)^2.
 
   return (orientation2 < cutoff) ? 0 : orientation;
