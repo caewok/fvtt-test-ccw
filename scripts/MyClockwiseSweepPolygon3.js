@@ -15,7 +15,7 @@ PolygonVertex
 "use strict";
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { identifyIntersectionsWithNoEndpoint, lineBlocksPoint, keyForPoint } from "./utilities.js";
+import { identifyIntersectionsWithNoEndpoint, lineBlocksPoint } from "./utilities.js";
 import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle } from "./IntersectionsSort.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
@@ -201,7 +201,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     // Step 4 - Build polygon points
     // *** NEW *** Skip b/c dealt with in executeSweep
-//     this._constructPolygonPoints();
 
     // *** NEW *** //
     // Step 5 - Intersect boundary
@@ -336,23 +335,13 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     this._identifyIntersections();
 
     // *** NEW ***
-    if (this.config.hasCustomBoundary) {
-      // Restrict vertices outside the bounding box
-      // but keep the four canvas corners  b/c we may need them to intersect the boundary.
-      // Otherwise, the sweep polygon might not contain the origin, which breaks things.
-      const fourCorners = new Set();
-      canvas.walls.boundaries.forEach(w => {
-        // Foundry will not have always defined w._nw when first loading map
-        // Instead, use w.A and w.B and calculate the keys.
-        fourCorners.add(keyForPoint(w.A));
-        fourCorners.add(keyForPoint(w.B));
-      });
+    // Do not remove vertices outside the boundary.
+    // Handle on a per-edge basis in _identifyEdges.
+    // Removing vertices here will fail if there is not actual boundary, as is the case
+    // for limitedCircle. (The circle is later intersected against the sweep polygon,
+    // which will be an incorrect polygon if walls that intersect that boundary are
+    // excluded by having one of their endpoints removed here.)
 
-      for (const vertex of this.vertices.values()) {
-        vertex.is_outside = !fourCorners.has(vertex.key) && this._vertexOutsideBoundary(vertex);
-      }
-    }
-    // *** END NEW ***
   }
 
   /* -------------------------------------------- */
@@ -552,7 +541,9 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
   _determineRayResult(vertex, result, activeEdges) {
     // *** NEW ***: No Case 1
 
-    if (vertex.is_outside) { return; }
+    // *** NEW ***
+    // No test for vertex.is_outside. See removal of is_outside test from _identifyVertices.
+    //  Otherwise, would have: if (vertex.is_outside) { return; }
 
     const {isBehind, wasLimited} = this._isVertexBehindActiveEdges(vertex, activeEdges);
     result.isBehind = isBehind;
@@ -595,7 +586,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     if ( !activeEdges.size || !nccw ) {
       this._beginNewEdge(ray, result, activeEdges, isBinding);
       result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
-//       this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
       return;
     }
 
@@ -607,7 +597,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     if ( !ncw || (nccw && !ccwLimited) ) {
       this._completeCurrentEdge(ray, result, activeEdges, isBinding);
       result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
-//       this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
       return;
     }
 
@@ -616,7 +605,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
 
     this._beginNewEdge(ray, result, activeEdges, isBinding);
     result.collisions.forEach(pt => this.points.push(pt.x, pt.y));
-//     this.collisions.push(...result.collisions); // Probably better off adding the collisions to this.points directly in _beginNewEdge
   }
 
   /* -------------------------------------------- */
@@ -681,18 +669,6 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     console.warn("MyClockwiseSweepPolygon does not use _constructPolygonPoints.");
     super._constructPolygonPoints();
   }
-//     // TO-DO: Consider not using _constructPolygonPoints at all and instead
-//     //        just add collision points to this.points array during the sweep.
-//
-//     // FlatMap is slow: this.points = this.collisions.flatMap(pt => [pt.x, pt.y]);
-//     // Use loop instead
-//     for (const pt of this.collisions) {
-//       this.points.push(pt.x, pt.y);
-//     }
-//
-//     // Ensure the polygon is closed
-//     this.close();
-//   }
 
   /* -------------------------------------------- */
 
