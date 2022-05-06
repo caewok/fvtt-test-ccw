@@ -140,7 +140,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     // BoundaryPolygon is user-provided. It overrides use of the circle radius.
     // Otherwise, if a boundary is required (beyond canvas edges)
     // the limited radius and/or limited circle provide it.
-    // BoundaryPolygon can be combined with limitedRadius.
+    // BoundaryPolygon can be combined with limitedAngle.
 
     // Conceptually, it might make sense to require the boundaryPolygon to be
     // centered at 0,0 and scalable, such that radius 1 gives the boundaryPolygon
@@ -742,7 +742,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     }
 
     // *** NEW *** Draw bounding box, if any
-    this.config.bbox && dg.lineStyle(1, 0x808080).drawShape(this.config.bbox.toPolygon()); // eslint-disable-line no-unused-expression
+    this.config.bbox && dg.lineStyle(1, 0x808080).drawShape(this.config.bbox.toPolygon()); // eslint-disable-line no-unused-expressions
 
     // Draw emitted rays
     for ( const ray of this.rays ) {
@@ -837,6 +837,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     /* eslint-disable indent */
     const { boundaryPolygon,
             hasLimitedRadius,
+            limitedAngle,
             limitedRadiusCircle,
             hasCustomBoundary } = this.config;
     /* eslint-enable indent */
@@ -851,6 +852,8 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
     } else if (hasLimitedRadius) {
       bbox = bbox.intersection(limitedRadiusCircle.getBounds());
     }
+
+    limitedAngle && (bbox = bbox.intersection(limitedAngle.getBounds())); // eslint-disable-line no-unused-expressions
 
     // Convert to NormalizedRectangle, which is expected by _getWalls.
     // Should probably be handled by the respective getBounds methods above.
