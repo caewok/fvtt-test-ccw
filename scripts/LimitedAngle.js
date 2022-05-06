@@ -508,7 +508,7 @@ function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
     // Only if not circled back
     if (ix_data.is_tracing_polygon) { ix_data.pts.push(edge.B.x, edge.B.y); }
   }
-  if (i >= (max_iterations - 1)) { console.warn(`LimitedAngle trace is at max_iterations ${i}`); }
+  if (!circled_back && i >= (max_iterations - 1)) { console.warn(`LimitedAngle trace is at max_iterations ${i}`); }
 
   return ix_data.pts;
 }
