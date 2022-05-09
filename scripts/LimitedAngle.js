@@ -32,7 +32,7 @@ ClockwiseSweepPolygon,
 
 "use strict";
 
-import { pixelLineContainsPoint, pointsEqual } from "./utilities.js";
+import { pixelLineContainsPoint, pointsEqual, pointFromAngle } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 
 export class LimitedAngleSweepPolygon extends PIXI.Polygon {
@@ -123,10 +123,11 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
    */
   static offsetOrigin(origin, rotation) {
     /* eslint-disable indent */
-    const r = Ray.fromAngle(origin.x,
-                            origin.y,
-                            Math.toRadians(rotation + 90), -1);
-    return { x: Math.round(r.B.x), y: Math.round(r.B.y) };
+//     const r = Ray.fromAngle(origin.x,
+//                             origin.y,
+//                             Math.toRadians(rotation + 90), -1);
+    const r = pointFromAngle(origin, Math.toRadians(rotation + 90), -1)
+    return { x: Math.round(r.x), y: Math.round(r.y) };
   }
 
   /**
