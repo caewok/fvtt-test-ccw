@@ -1,3 +1,9 @@
+# 0.3.2:
+- Treat limitedCircle as one option of boundaryPolygon, when radius is defined and user does not provide a different boundaryPolygon.
+- Incorporate changes to boundaryPolygon and temporary edges used by Light Mask module.
+- Fix to limitedAngle and circle to polygon intersection when the tracing algorithm encounters two intersections for the same edge.
+- Add translate and getBounds methods to PIXI.Polygon, PIXI.Circle, PIXI.Rectangle.
+
 # 0.3.1:
 Do not check vertices for whether they lie outside a boundary. Instead, remove edges that lie outside but if the edge crosses a boundary, keep the edge for the sweep. This fixes issus with an incorrect sweep result with bounded lights or limited angles.
 
