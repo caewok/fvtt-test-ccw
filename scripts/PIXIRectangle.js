@@ -56,10 +56,23 @@ function containsPoint(p, e = 1e-8) {
   if (this.width <= 0 || this.height <= 0) { return false; }
 
   const x_inside = (p.x > this.x && p.x < this.right) || p.x.almostEqual(this.x, e) || p.x.almostEqual(this.right, e);
-  if(!x_inside) return false;
+  if (!x_inside) return false;
 
-  // y inside
+  // Y inside
   return (p.y > this.y && p.y < this.bottom) || p.y.almostEqual(this.y, e) || p.y.almostEqual(this.bottom, e);
+}
+
+/**
+ * Is this segment contained by or intersects the rectangle?
+ * @param {Segment} s   Object with {A: {x, y}, B: {x, y}} coordinates.
+ * @param {Number}  e   Permitted epsilon. Default: 1e-8.
+ * @return {Boolean} Is the segment contained by or intersects the rectangle?
+ */
+function encountersSegment(s, e = 1e-8) {
+  if (this.containsPoint(s.A, e) || this.containsPoint(s.B, e)) return true;
+
+  // Point are both outside the rectangle. Only true if the segment intersects.
+  return this.lineSegmentIntersects(s.A, s.B);
 }
 
 /**
@@ -212,6 +225,17 @@ function rectangleIntersection(other, outRect) {
   return outRect;
 }
 
+/**
+ * Translate a rectangle, shifting it in the x and y direction.
+ * (Basic but useful b/c it is equivalent to polygon.translate)
+ * @param {Number} delta_x  Movement in the x direction.
+ * @param {Number} delta_y  Movement in the y direction.
+ */
+function translate(delta_x, delta_y) {
+  this.x += delta_x;
+  this.y += delta_y;
+}
+
 
 // ----------------  ADD METHODS TO THE PIXI.RECTANGLE PROTOTYPE ------------------------
 export function registerPIXIRectangleMethods() {
@@ -230,6 +254,12 @@ export function registerPIXIRectangleMethods() {
 
   Object.defineProperty(PIXI.Rectangle.prototype, "containsPoint", {
     value: containsPoint,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "encountersSegment", {
+    value: encountersSegment,
     writable: true,
     configurable: true
   });
@@ -285,5 +315,17 @@ export function registerPIXIRectangleMethods() {
   // For equivalence with a PIXI.Polygon
   Object.defineProperty(PIXI.Rectangle.prototype, "isClosed", {
     get: () => true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "translate", {
+    value: translate,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "getBounds", {
+    value: () => this,
+    writable: true,
+    configurable: true
   });
 }
