@@ -1000,11 +1000,11 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
   _intersectPolygons(poly1, poly2) {
     // Use circle method to process intersection if we have a circle
     if (poly1 instanceof PIXI.Circle) {
-      return poly1.polygonIntersect(poly2, { density: this.config.density });
+      return poly1.intersectPolygon(poly2, { density: this.config.density });
     }
 
     if (poly2 instanceof PIXI.Circle) {
-      return poly2.polygonIntersect(poly1, { density: this.config.density });
+      return poly2.intersectPolygon(poly1, { density: this.config.density });
     }
 
     return poly1.clipperClip(poly2, { cliptype: ClipperLib.ClipType.ctIntersection });

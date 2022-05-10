@@ -1000,7 +1000,7 @@ export class MyClockwiseSweepPolygon3 extends ClockwiseSweepPolygon {
       poly = poly.clipperClip(boundaryPolygon, { cliptype: ClipperLib.ClipType.ctIntersection });
 
     } else if (limitedRadiusCircle) {
-      poly = limitedRadiusCircle.polygonIntersect(poly, { density: this.config.density } );
+      poly = limitedRadiusCircle.intersectPolygon(poly, { density: this.config.density } );
     }
 
     limitedAngle && (poly = limitedAngle.intersectPolygon(poly)); // eslint-disable-line no-unused-expressions
