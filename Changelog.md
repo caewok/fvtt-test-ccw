@@ -1,3 +1,7 @@
+# 0.3.3:
+- Add in original and variation on original sort, which still do better than brute and the present sort algorithm.
+- Minor fix for limitedAngle that is nearly 360º.
+
 # 0.3.2:
 - Treat limitedCircle as one option of boundaryPolygon, when radius is defined and user does not provide a different boundaryPolygon.
 - Incorporate changes to boundaryPolygon and temporary edges used by Light Mask module.

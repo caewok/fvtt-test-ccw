@@ -13,6 +13,8 @@ import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
 
+import { findIntersectionsSortOriginalSingle } from "./IntersectionsSortOriginal.js";
+import { findIntersectionsSortAtroposSingle } from "./IntersectionsSortAtropos.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
@@ -93,11 +95,15 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalSingle, "sort original", segments, reportFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposSingle, "sort Atropos", segments, reportFn);
 
   console.log("\nFiltered endpoints");
   await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalSingle, "sort original filtered", segments, reportFilteredFn);
+  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposSingle, "sort Atropos filtered", segments, reportFilteredFn);
 
   console.log("\n\nRed/Black tests");
   console.log("\nAdding a single short segment (20% diagonal nw/se at center)");
