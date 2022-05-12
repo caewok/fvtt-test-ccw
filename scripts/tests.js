@@ -13,8 +13,8 @@ canvas,
 2. ClockwiseSweep?
 */
 
-import { findIntersectionsSortOriginalSingle } from "./IntersectionsSortOriginal.js";
-import { findIntersectionsSortAtroposSingle } from "./IntersectionsSortAtropos.js";
+import { findIntersectionsSortOriginalSingle, findIntersectionsSortOriginalRedBlack } from "./IntersectionsSortOriginal.js";
+import { findIntersectionsSortAtroposSingle, findIntersectionsSortAtroposRedBlack } from "./IntersectionsSortAtropos.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
@@ -152,33 +152,49 @@ export function testSceneIntersections() {
   reporting_arr_brute.length = 0;
   reporting_arr_sort.length = 0;
   reporting_arr_myers.length = 0;
+  reporting_arr_sort_original.length = 0;
+  reporting_arr_sort_atropos.length = 0;
+
   reporting_arr_brute_filtered.length = 0;
   reporting_arr_sort_filtered.length = 0;
   reporting_arr_myers_filtered.length = 0;
+  reporting_arr_sort_original_filtered.length = 0;
+  reporting_arr_sort_atropos_filtered.length = 0;
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBrute);
   findIntersectionsSortRedBlack(segments, black, reportFnSort);
   findIntersectionsMyersRedBlack(segments, black, reportFnMyers);
+  findIntersectionsSortOriginalRedBlack(segments, black, reportFnSortOriginal);
+  findIntersectionsSortAtroposRedBlack(segments, black, reportFnSortAtropos);
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBruteFilterEndpoints);
   findIntersectionsSortRedBlack(segments, black, reportFnSortFilterEndpoints);
   findIntersectionsMyersRedBlack(segments, black, reportFnMyersFilteredEndpoints);
-
+  findIntersectionsSortOriginalRedBlack(segments, black, reportFnSortOriginalFilteredEndpoints);
+  findIntersectionsSortAtroposRedBlack(segments, black, reportFnSortAtroposFilteredEndpoints);
 
   reporting_arr_brute.sort(compareXY);
   reporting_arr_sort.sort(compareXY);
   reporting_arr_myers.sort(compareXY);
+  reporting_arr_sort_original.sort(compareXY);
+  reporting_arr_sort_atropos.sort(compareXY);
+
   reporting_arr_brute_filtered.sort(compareXY);
   reporting_arr_sort_filtered.sort(compareXY);
   reporting_arr_myers_filtered.sort(compareXY);
+  reporting_arr_sort_original_filtered.sort(compareXY);
+  reporting_arr_sort_atropos_filtered.sort(compareXY);
 
   checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
   checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
+  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_original, "Sort Original");
+  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_atropos, "Sort Atropos");
 
   console.log("\n\tFiltered endpoints");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
-
+  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_original_filtered, "Sort Original");
+  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_atropos_filtered, "Sort Atropos");
 }
 
 /**
