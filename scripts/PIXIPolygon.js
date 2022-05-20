@@ -1,7 +1,6 @@
 /* globals
 PIXI,
 foundry,
-ClipperLib,
 */
 
 "use strict";

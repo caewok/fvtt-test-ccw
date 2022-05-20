@@ -8,7 +8,6 @@ NormalizedRectangle,
 CollisionResult,
 PIXI,
 CONFIG,
-ClipperLib,
 PolygonVertex
 */
 
@@ -20,6 +19,7 @@ import { identifyIntersectionsWithNoEndpoint, lineBlocksPoint } from "./utilitie
 import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle } from "./IntersectionsSort.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
+import { ClipperLib } from "./clipper_unminified.js";
 
 
 /*
