@@ -6,6 +6,8 @@ ClipperLib,
 
 "use strict";
 
+import { ClipperLib } from "./clipper_unminified.js";
+
 /* Additions to the PIXI.Polygon class:
 Getters:
 - isClosed: Are the points closed (first and last points are same)?
@@ -87,8 +89,7 @@ function* iterateEdges({close = true} = {}) {
  * Getter to store the coordinate point set.
  */
 function coordinates() {
-  return this._coordinates
-         || (this._coordinates = [...this.iteratePoints({close: false})]);
+  return [...this.iteratePoints({close: false})];
 }
 
 /**
@@ -363,6 +364,20 @@ function translate(delta_x, delta_y) {
 // ---------------- Clipper JS library ---------------------------------------------------
 
 /**
+ * Intersect another polygon
+ */
+function intersectPolygon(other) {
+  return this.clipperClip(other, { cliptype: ClipperLib.ClipType.ctIntersection })
+}
+
+/**
+ * Union another polygon
+ */
+function unionPolygon(other) {
+  return this.clipperClip(other, { cliptype: ClipperLib.ClipType.ctUnion })
+}
+
+/**
  * Transform array of X, Y points to a PIXI.Polygon
  */
 function fromClipperPoints(points) {
@@ -395,8 +410,7 @@ function* iterateClipperLibPoints({close = true} = {}) {
  * Getter to store the clipper coordinate point set.
  */
 function clipperCoordinates() {
-  return this._clipperCoordinates
-         || (this._clipperCoordinates = [...this.iterateClipperLibPoints({close: false})]);
+  return [...this.iterateClipperLibPoints({close: false})];
 }
 
 /**
@@ -450,6 +464,18 @@ function clipperClip(poly, { cliptype = ClipperLib.ClipType.ctUnion } = {}) {
   return PIXI.Polygon.fromClipperPoints(solution[0]);
 }
 
+/**
+ * Area of polygon
+ */
+function area() {
+  return Math.abs(this.clipperArea());
+}
+
+function clipperArea() {
+  const path = this.clipperCoordinates;
+  return ClipperLib.Clipper.Area(path);
+}
+
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
 export function registerPIXIPolygonMethods() {
@@ -471,22 +497,29 @@ export function registerPIXIPolygonMethods() {
     configurable: true
   });
 
-  Object.defineProperty(PIXI.Polygon.prototype, "coordinates", {
-    get: coordinates
-  });
+  if(!PIXI.Polygon.prototype.hasOwnProperty("coordinates")) {
+    Object.defineProperty(PIXI.Polygon.prototype, "coordinates", {
+      get: coordinates
+    });
+  }
 
-  Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
-    get: isClosed
-  });
+  if(!PIXI.Polygon.prototype.hasOwnProperty("isClosed")) {
+    Object.defineProperty(PIXI.Polygon.prototype, "isClosed", {
+      get: isClosed
+    });
+  }
 
+  if(!PIXI.Polygon.prototype.hasOwnProperty("isConvex")) {
+    Object.defineProperty(PIXI.Polygon.prototype, "isConvex", {
+      get: isConvex
+    });
+  }
 
-  Object.defineProperty(PIXI.Polygon.prototype, "isConvex", {
-    get: isConvex
-  });
-
-  Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
-    get: isClockwise
-  });
+  if(!PIXI.Polygon.prototype.hasOwnProperty("isClockwise")) {
+    Object.defineProperty(PIXI.Polygon.prototype, "isClockwise", {
+      get: isClockwise
+    });
+  }
 
   Object.defineProperty(PIXI.Polygon.prototype, "determineConvexity", {
     value: determineConvexity,
@@ -550,15 +583,29 @@ export function registerPIXIPolygonMethods() {
 
   // ----------------  CLIPPER LIBRARY METHODS ------------------------
 
+  Object.defineProperty(PIXI.Polygon.prototype, "intersectPolygon", {
+    value: intersectPolygon,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "unionPolygon", {
+    value: unionPolygon,
+    writable: true,
+    configurable: true
+  });
+
   Object.defineProperty(PIXI.Polygon.prototype, "iterateClipperLibPoints", {
     value: iterateClipperLibPoints,
     writable: true,
     configurable: true
   });
 
-  Object.defineProperty(PIXI.Polygon.prototype, "clipperCoordinates", {
-    get: clipperCoordinates
-  });
+  if(!PIXI.Polygon.prototype.hasOwnProperty("clipperCoordinates")) {
+    Object.defineProperty(PIXI.Polygon.prototype, "clipperCoordinates", {
+      get: clipperCoordinates
+    });
+  }
 
   Object.defineProperty(PIXI.Polygon, "fromClipperPoints", {
     value: fromClipperPoints,
@@ -586,6 +633,18 @@ export function registerPIXIPolygonMethods() {
 
   Object.defineProperty(PIXI.Polygon.prototype, "clipperContains", {
     value: clipperContains,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "area", {
+    value: area,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Polygon.prototype, "clipperArea", {
+    value: clipperArea,
     writable: true,
     configurable: true
   });
