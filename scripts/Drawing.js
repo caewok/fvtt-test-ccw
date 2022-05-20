@@ -63,9 +63,12 @@ export function drawSegment(s, { color = COLORS.blue, alpha = 1, width = 1 } = {
  * @param {Hex}     color   Hex code for the color to use.
  * @param {Number}  width   Width of the line in pixels.
  */
-export function drawPolygon(poly, { color = COLORS.black, width = 1 } = {}) {
-  canvas.controls.debug.lineStyle(width, color).drawShape(poly);
+export function drawShape(shape, { color = COLORS.black, width = 1 } = {}) {
+  canvas.controls.debug.lineStyle(width, color).drawShape(shape);
 }
+
+export function drawPolygon = drawShape;
+
 
 /**
  * Create a text label at a specified position on the canvas.

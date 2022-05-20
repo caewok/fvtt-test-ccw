@@ -24,7 +24,6 @@ const compare = (a, b) => {
   else return a.x - b.x;
 };
 
-
 export function findIntersectionsSortOriginalRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
   black.sort((a, b) => compare(a.nw, b.nw));
   const red_ln = red.length;

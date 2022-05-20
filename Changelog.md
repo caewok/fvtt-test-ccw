@@ -1,5 +1,5 @@
 # 0.3.4:
-- Add red/black versions based on two variations: (1) like original, sorting only the red array and (2) like original, combining red and black arrays and then sorting. (1) appears faster.
+Add red/black versions based on two variations: (1) like original, sorting only the red array and (2) like original, combining red and black arrays and then sorting. (1) appears faster.
 
 # 0.3.3:
 - Add in original and variation on original sort, which still do better than brute and the present sort algorithm.
