@@ -67,7 +67,7 @@ export function drawShape(shape, { color = COLORS.black, width = 1 } = {}) {
   canvas.controls.debug.lineStyle(width, color).drawShape(shape);
 }
 
-export function drawPolygon = drawShape;
+export const drawPolygon = drawShape;
 
 
 /**
