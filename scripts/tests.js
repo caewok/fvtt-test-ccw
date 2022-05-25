@@ -13,8 +13,6 @@ canvas,
 2. ClockwiseSweep?
 */
 
-import { findIntersectionsSortOriginalSingle, findIntersectionsSortOriginalRedBlack } from "./IntersectionsSortOriginal.js";
-import { findIntersectionsSortAtroposSingle, findIntersectionsSortAtroposRedBlack } from "./IntersectionsSortAtropos.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
@@ -36,13 +34,10 @@ export function testIntersections() {
     reporting_arr_brute.length = 0;
     reporting_arr_sort.length = 0;
     reporting_arr_myers.length = 0;
-    reporting_arr_sort_original.length = 0;
-    reporting_arr_sort_atropos.length = 0;
+
     reporting_arr_brute_filtered.length = 0;
     reporting_arr_sort_filtered.length = 0;
     reporting_arr_myers_filtered.length = 0;
-    reporting_arr_sort_original_filtered.length = 0;
-    reporting_arr_sort_atropos_filtered.length = 0;
 
 
     const segments = JSON.parse(str).map(s => new SimplePolygonEdge(s.A, s.B));
@@ -50,39 +45,27 @@ export function testIntersections() {
     findIntersectionsBruteSingle(segments, reportFnBrute);
     findIntersectionsSortSingle(segments, reportFnSort);
     findIntersectionsMyersSingle(segments, reportFnMyers);
-    findIntersectionsSortOriginalSingle(segments, reportFnSortOriginal);
-    findIntersectionsSortAtroposSingle(segments, reportFnSortAtropos);
 
     findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints);
     findIntersectionsSortSingle(segments, reportFnSortFilterEndpoints);
     findIntersectionsMyersSingle(segments, reportFnMyersFilteredEndpoints);
-    findIntersectionsSortOriginalSingle(segments, reportFnSortOriginalFilteredEndpoints);
-    findIntersectionsSortAtroposSingle(segments, reportFnSortAtroposFilteredEndpoints);
 
     reporting_arr_brute.sort(compareXY);
     reporting_arr_sort.sort(compareXY);
     reporting_arr_myers.sort(compareXY);
-    reporting_arr_sort_original.sort(compareXY);
-    reporting_arr_sort_atropos.sort(compareXY);
 
     reporting_arr_brute_filtered.sort(compareXY);
     reporting_arr_sort_filtered.sort(compareXY);
     reporting_arr_myers_filtered.sort(compareXY);
-    reporting_arr_sort_original_filtered.sort(compareXY);
-    reporting_arr_sort_atropos_filtered.sort(compareXY);
 
     const res1 = checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
     const res2 = checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
-    const res1b = checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_original, "Sort Original");
-    const res1c = checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_atropos, "Sort Atropos");
 
     console.log("\n\tFiltered endpoints");
     const res3 = checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
     const res4 = checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
-    const res3b = checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_original_filtered, "Sort Original");
-    const res3c = checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_atropos_filtered, "Sort Atropos");
 
-    passed = passed && res1 && res2 && res3 && res4 && res1b && res1c && res3b && res3c;
+    passed = passed && res1 && res2 && res3 && res4;
 
     if (!passed) break;
   }
@@ -101,49 +84,33 @@ export function testSceneIntersections() {
   reporting_arr_brute.length = 0;
   reporting_arr_sort.length = 0;
   reporting_arr_myers.length = 0;
-  reporting_arr_sort_original.length = 0;
-  reporting_arr_sort_atropos.length = 0;
 
   reporting_arr_brute_filtered.length = 0;
   reporting_arr_sort_filtered.length = 0;
   reporting_arr_myers_filtered.length = 0;
-  reporting_arr_sort_original_filtered.length = 0;
-  reporting_arr_sort_atropos_filtered.length = 0;
 
   findIntersectionsBruteSingle(segments, reportFnBrute);
   findIntersectionsSortSingle(segments, reportFnSort);
   findIntersectionsMyersSingle(segments, reportFnMyers);
-  findIntersectionsSortOriginalSingle(segments, reportFnSortOriginal);
-  findIntersectionsSortAtroposSingle(segments, reportFnSortAtropos);
 
   findIntersectionsBruteSingle(segments, reportFnBruteFilterEndpoints);
   findIntersectionsSortSingle(segments, reportFnSortFilterEndpoints);
   findIntersectionsMyersSingle(segments, reportFnMyersFilteredEndpoints);
-  findIntersectionsSortOriginalSingle(segments, reportFnSortOriginalFilteredEndpoints);
-  findIntersectionsSortAtroposSingle(segments, reportFnSortAtroposFilteredEndpoints);
 
   reporting_arr_brute.sort(compareXY);
   reporting_arr_sort.sort(compareXY);
   reporting_arr_myers.sort(compareXY);
-  reporting_arr_sort_original.sort(compareXY);
-  reporting_arr_sort_atropos.sort(compareXY);
 
   reporting_arr_brute_filtered.sort(compareXY);
   reporting_arr_sort_filtered.sort(compareXY);
   reporting_arr_myers_filtered.sort(compareXY);
-  reporting_arr_sort_original_filtered.sort(compareXY);
-  reporting_arr_sort_atropos_filtered.sort(compareXY);
 
   checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
   checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
-  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_original, "Sort Original");
-  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_atropos, "Sort Atropos");
 
   console.log("\n\tFiltered endpoints");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
-  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_original_filtered, "Sort Original");
-  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_atropos_filtered, "Sort Atropos");
 
   // Check red/black by intersecting the entire scene diagonally, horizontally, vertically
   console.log("\n\nRed/Black (4 segments added)");
@@ -152,49 +119,33 @@ export function testSceneIntersections() {
   reporting_arr_brute.length = 0;
   reporting_arr_sort.length = 0;
   reporting_arr_myers.length = 0;
-  reporting_arr_sort_original.length = 0;
-  reporting_arr_sort_atropos.length = 0;
 
   reporting_arr_brute_filtered.length = 0;
   reporting_arr_sort_filtered.length = 0;
   reporting_arr_myers_filtered.length = 0;
-  reporting_arr_sort_original_filtered.length = 0;
-  reporting_arr_sort_atropos_filtered.length = 0;
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBrute);
   findIntersectionsSortRedBlack(segments, black, reportFnSort);
   findIntersectionsMyersRedBlack(segments, black, reportFnMyers);
-  findIntersectionsSortOriginalRedBlack(segments, black, reportFnSortOriginal);
-  findIntersectionsSortAtroposRedBlack(segments, black, reportFnSortAtropos);
 
   findIntersectionsBruteRedBlack(segments, black, reportFnBruteFilterEndpoints);
   findIntersectionsSortRedBlack(segments, black, reportFnSortFilterEndpoints);
   findIntersectionsMyersRedBlack(segments, black, reportFnMyersFilteredEndpoints);
-  findIntersectionsSortOriginalRedBlack(segments, black, reportFnSortOriginalFilteredEndpoints);
-  findIntersectionsSortAtroposRedBlack(segments, black, reportFnSortAtroposFilteredEndpoints);
 
   reporting_arr_brute.sort(compareXY);
   reporting_arr_sort.sort(compareXY);
   reporting_arr_myers.sort(compareXY);
-  reporting_arr_sort_original.sort(compareXY);
-  reporting_arr_sort_atropos.sort(compareXY);
 
   reporting_arr_brute_filtered.sort(compareXY);
   reporting_arr_sort_filtered.sort(compareXY);
   reporting_arr_myers_filtered.sort(compareXY);
-  reporting_arr_sort_original_filtered.sort(compareXY);
-  reporting_arr_sort_atropos_filtered.sort(compareXY);
 
   checkIntersectionResults(reporting_arr_brute, reporting_arr_sort, "Sort");
   checkIntersectionResults(reporting_arr_brute, reporting_arr_myers, "Myers");
-  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_original, "Sort Original");
-  checkIntersectionResults(reporting_arr_brute, reporting_arr_sort_atropos, "Sort Atropos");
 
   console.log("\n\tFiltered endpoints");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_filtered, "Sort");
   checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_myers_filtered, "Myers");
-  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_original_filtered, "Sort Original");
-  checkIntersectionResults(reporting_arr_brute_filtered, reporting_arr_sort_atropos_filtered, "Sort Atropos");
 }
 
 /**
@@ -224,13 +175,11 @@ function checkIntersectionResults(base, test, label) {
 var reporting_arr_brute = [];
 var reporting_arr_sort = [];
 var reporting_arr_myers = [];
-var reporting_arr_sort_original = [];
-var reporting_arr_sort_atropos = [];
+
 var reporting_arr_brute_filtered = [];
 var reporting_arr_sort_filtered = [];
 var reporting_arr_myers_filtered = [];
-var reporting_arr_sort_original_filtered = [];
-var reporting_arr_sort_atropos_filtered = [];
+
 
 /* eslint-enable no-var */
 
@@ -249,16 +198,6 @@ const reportFnMyers = (s1, s2) => {
   if (x) reporting_arr_myers.push(x); // Avoid pushing null
 };
 
-const reportFnSortOriginal = (s1, s2) => {
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if (x) reporting_arr_sort_original.push(x);
-};
-
-const reportFnSortAtropos = (s1, s2) => {
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if (x) reporting_arr_sort_atropos.push(x);
-};
-
 const reportFnBruteFilterEndpoints = (s1, s2) => {
   if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
@@ -275,18 +214,6 @@ const reportFnMyersFilteredEndpoints = (s1, s2) => {
   if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
   const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
   if (x) reporting_arr_myers_filtered.push(x); // Avoid pushing null
-};
-
-const reportFnSortOriginalFilteredEndpoints = (s1, s2) => {
-  if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if (x) reporting_arr_sort_original_filtered.push(x);
-};
-
-const reportFnSortAtroposFilteredEndpoints = (s1, s2) => {
-  if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
-  const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  if (x) reporting_arr_sort_atropos_filtered.push(x);
 };
 
 

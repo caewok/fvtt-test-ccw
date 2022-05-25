@@ -13,13 +13,12 @@ import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
 import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
 
-import { findIntersectionsSortOriginalSingle, findIntersectionsSortOriginalRedBlack } from "./IntersectionsSortOriginal.js";
-import { findIntersectionsSortAtroposSingle, findIntersectionsSortAtroposRedBlack } from "./IntersectionsSortAtropos.js";
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { pointsEqual, generateBisectingCanvasSegments } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { randomSegment } from "./random.js";
 
 /**
  * Describe in the console.log relevant scene parameters:
@@ -95,15 +94,11 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalSingle, "sort original", segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposSingle, "sort Atropos", segments, reportFn);
 
   console.log("\nFiltered endpoints");
   await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalSingle, "sort original filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposSingle, "sort Atropos filtered", segments, reportFilteredFn);
 
   console.log("\n\nRed/Black tests");
   console.log("\nAdding a single short segment (20% diagonal nw/se at center)");
@@ -113,37 +108,21 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, [short_segment], reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, [short_segment], reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, [short_segment], reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original", segments, [short_segment], reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos", segments, [short_segment], reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original flipped", [short_segment], segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos flipped", [short_segment], segments, reportFn);
 
 
   await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, [short_segment], reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, [short_segment], reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, [short_segment], reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original filtered", segments, [short_segment], reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos filtered", segments, [short_segment], reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original filtered flipped", [short_segment], segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos filtered flipped", [short_segment], segments, reportFilteredFn);
 
   console.log("\nAdding four long segments bisecting canvas");
   const long_segments = generateBisectingCanvasSegments();
   await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, long_segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, long_segments, reportFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, long_segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original", segments, long_segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos", segments, long_segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original flipped", long_segments, segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos flipped", long_segments, segments, reportFn);
 
   await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, long_segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, long_segments, reportFilteredFn);
   await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, long_segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original filtered", segments, long_segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos filtered", segments, long_segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortOriginalRedBlack, "sort original filtered flipped", long_segments, segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortAtroposRedBlack, "sort atropos filtered flipped", long_segments, segments, reportFilteredFn);
 
   console.log("\nAdding a randomly generated segment");
   const setupFn = (segments, reportFn) => [segments, [randomSegment()], reportFn];
@@ -152,18 +131,10 @@ export async function benchSceneIntersections(n = 100) {
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute", segments, reportFn);
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort", segments, reportFn);
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortOriginalRedBlack, "sort original", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortAtroposRedBlack, "sort atropos", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortOriginalRedBlack, "sort original flipped", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortAtroposRedBlack, "sort atropos flipped", segments, reportFn);
 
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute filtered", segments, reportFilteredFn);
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort filtered", segments, reportFilteredFn);
   await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortOriginalRedBlack, "sort original filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortAtroposRedBlack, "sort atropos filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortOriginalRedBlack, "sort original filtered flipped", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortAtroposRedBlack, "sort atropos filtered flipped", segments, reportFilteredFn);
 }
 
 /**
@@ -402,33 +373,3 @@ export async function benchmarkLoop(iterations, thisArg, fn, ...args) {
   Object.defineProperty(f, "name", {value: `${thisArg.name || thisArg.constructor.name}.${fn}`, configurable: true});
   await foundry.utils.benchmark(f, iterations, ...args);
 }
-
-/**
- * Construct a random point with integer coordinates between 0 and max_coord.
- * @param {Number}  max_x   Maximum x-coordinate value.
- * @param {Number}  max_y   Maximum y-coordinate value.
- * @return {Point}  Constructed random point.
- */
-function randomPoint(max_x = canvas.dimensions.width, max_y = canvas.dimensions.height) {
-  return { x: Math.floor(Math.random() * max_x),
-           y: Math.floor(Math.random() * max_y) }; // eslint-disable-line indent
-}
-
-/**
- * Construct a random segment. Will check that the segment has distance greater than 0.
- * @param {Number}  max_x   Maximum x-coordinate value.
- * @param {Number}  max_y   Maximum y-coordinate value.
- * @return {SimplePolygonEdge}  Constructed random segment.
- */
-function randomSegment(max_x = canvas.dimensions.width, max_y = canvas.dimensions.height) {
-  let a = randomPoint(max_x, max_y);
-  let b = randomPoint(max_x, max_y);
-  while (pointsEqual(a, b)) {
-    // Don't create lines of zero length
-    a = randomPoint(max_x, max_y);
-    b = randomPoint(max_x, max_y);
-  }
-  return new SimplePolygonEdge(a, b);
-}
-
-
