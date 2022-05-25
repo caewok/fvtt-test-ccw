@@ -33,66 +33,32 @@ identifying the endpoints.
  *                                segment objects that intersect.
  */
 export function findIntersectionsSortSingle(segments, reportFn = (_s1, _s2) => {}) {
+  segments.sort((a, b) => compare(a.nw, b.nw));
   const ln = segments.length;
-  if (!ln) { return; }
-
-  // In a single pass through the array, build an array of endpoint objects.
-  // Each object contains an endpoint, a link to the underlying segment, and a boolean
-  // Indicator for whether it is the nw or se endpoint.
-  // Sort the new array by the x values, breaking ties by sorting the se point first.
-  // (it is fine if two segments are otherwise equivalent in the sort)
-
-  const endpoints = [];
-  for (let i = 0; i < ln; i += 1) {
-    const s = segments[i];
-    endpoints.push({e: s.nw, s, se: -1},
-                   {e: s.se, s, se: 1}); // eslint-disable-line indent
-  }
-  endpoints.sort(sortEndpoints);
-
-  const ln2 = endpoints.length;
-  for (let i = 0; i < ln2; i += 1) {
-    const endpoint1 = endpoints[i];
-    if (~endpoint1.se) continue; // Avoid duplicating the check
-
-    // Starting j is always i + 1 b/c any segment with an se endpoint after si
-    // would be after si or already processed b/c its ne endpoint was before.
-    const start_j = i + 1;
-    const si = endpoint1.s;
-    for (let j = start_j; j < ln2; j += 1) {
-      const endpoint2 = endpoints[j];
-
-      if (endpoint2.e.x > si.se.x) break; // Segments past here are entirely right of si
-      if (~endpoint2.se) continue;
-
-      const sj = endpoint2.s;
+  for ( let i = 0; i < ln; i++ ) {
+    const si = segments[i];
+    for ( let j = i + 1; j < ln; j++ ) {
+      const sj = segments[j];
+      if ( sj.nw.x > si.se.x ) break; // The sj segments are all entirely to the right of si
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj); // eslint-disable-line no-unused-expressions
     }
   }
 }
 
+
 /**
- * Comparison function for SortSingle
- * Sort each endpoint object by the endpoint x coordinate then sort se first.
- * @param {Object} e1   Endpoint object containing:
- *                      e (endpoint), s (segment), and se (boolean)
- * @param {Object} e2   Endpoint object containing:
- *                      e (endpoint), s (segment), and se (boolean)
- * @return {Number} Number indicating whether to sort e1 before e2 or vice-versa.
- *                  > 0: sort e2 before e1
- *                  < 0: sort e1 before e2
+ * Comparison function for Sort algorithm
+ * This is the faster but potentially less safe version in that x coordinates very
+ * close to one another may be sorted differently when they should be considered the
+ * same. For example, { 1.00001, 2} and { 1.00000, 3} should probably be sorted by
+ * y-coordinates, not their x-coordinates. Thus, this version is best used with integer
+ * coordinates.
+ * @param {Point} a
+ * @param {Point} b
+ * @return {Number} Negative, positive, or 0. Lexigraphically sorts x values before y,
+ *                  so can be used to sort nw points before se points.
  */
-function sortEndpoints(e1, e2) {
-  return e1.e.x - e2.e.x
-         || e2.se - e1.se;
-
-  // If e1.se then we want e1 first or they are equal. So return -
-  // If e2.se then we want e2 first or they are equal. So return +
-  // e2.se - e1.se
-  // e1.se: -1, e2.se: 1. 1 - - 1 = 2; e2 first
-  // e1.se: 1, e2.se: -1. -1 - 1 = -2:; e1 first
-}
-
+const compare = (a, b) => { return (a.x - b.x) || a.y - b.y }
 
 /**
  * Identify intersections between two arrays of segments.
@@ -110,46 +76,15 @@ function sortEndpoints(e1, e2) {
  *                                segment objects that intersect.
  */
 export function findIntersectionsSortRedBlack(red, black, reportFn = (_s1, _s2) => {}) {
-  const ln_red = red.length;
-  const ln_black = black.length;
-  if (!ln_red || !ln_black) return;
-
-  // Build an array of endpoint objects like with SortSingle.
-  // But mark red/black segments so same color segments can be skipped.
-  // By convention, red is true; black is false.
-  // (slightly faster b/c the inner loop gets hit more and so inner tests for true?)
-  // Alternatively, could sort by red/black and then break a bit earlier in
-  // the inner loop. But the check for color => continue is pretty quick and simpler.
-  const endpoints = [];
-  for (let i = 0; i < ln_red; i += 1) {
-    const s = red[i];
-    endpoints.push({e: s.nw, s, se: -1, red: true},
-                   {e: s.se, s, se: 1,  red: true}); // eslint-disable-line indent, no-multi-spaces
-  }
-  for (let i = 0; i < ln_black; i += 1) {
-    const s = black[i];
-    endpoints.push({e: s.nw, s, se: -1, red: false},
-                   {e: s.se, s, se: 1,  red: false}); // eslint-disable-line indent, no-multi-spaces
-  }
-
-  endpoints.sort(sortEndpoints);
-  const ln_endpoints = endpoints.length;
-  for (let i = 0; i < ln_endpoints; i += 1) {
-    const endpoint1 = endpoints[i];
-    if (~endpoint1.se) continue; // Avoid duplicating the check
-
-    // Starting j is always i + 1 b/c any segment with an se endpoint after si
-    // Would be after si or already processed b/c its ne endpoint was before.
-    const start_j = i + 1;
-    const si = endpoint1.s;
-    for (let j = start_j; j < ln_endpoints; j += 1) {
-      const endpoint2 = endpoints[j];
-
-      if (endpoint2.e.x > si.se.x) break; // Segments past here are entirely right of si
-      if (!(endpoint1.red ^ endpoint2.red)) continue; // Only want segments of different color
-      if (~endpoint2.se) continue;
-
-      const sj = endpoint2.s;
+  black.sort((a, b) => compare(a.nw, b.nw));
+  const red_ln = red.length;
+  const black_ln = black.length;
+  for ( let i = 0; i < red_ln; i++ ) {
+    const si = red[i];
+    for ( let j = 0; j < black_ln; j++ ) {
+      const sj = black[j];
+      if ( sj.nw.x > si.se.x ) break; // The sj segments are all entirely to the right of si
+      if ( sj.se.x < si.nw.x ) continue; // This segment is entirely to the left of si
       foundry.utils.lineSegmentIntersects(si.A, si.B, sj.A, sj.B) && reportFn(si, sj); // eslint-disable-line no-unused-expressions
     }
   }
