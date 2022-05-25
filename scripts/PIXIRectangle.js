@@ -146,8 +146,20 @@ function _intersectsTop(a, b) {
     { x: this.right, y: this.y });
 }
 
+function _intersectionTop(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.x, y: this.y },
+    { x: this.right, y: this.y });
+}
+
 function _intersectsRight(a, b) {
   return foundry.utils.lineSegmentIntersects(a, b,
+    { x: this.right, y: this.y },
+    { x: this.right, y: this.bottom });
+}
+
+function _intersectionRight(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
     { x: this.right, y: this.y },
     { x: this.right, y: this.bottom });
 }
@@ -158,11 +170,24 @@ function _intersectsBottom(a, b) {
     { x: this.x, y: this.bottom });
 }
 
+function _intersectionBottom(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.right, y: this.bottom },
+    { x: this.x, y: this.bottom });
+}
+
 function _intersectsLeft(a, b) {
   return foundry.utils.lineSegmentIntersects(a, b,
     { x: this.x, y: this.bottom },
     { x: this.x, y: this.y });
 }
+
+function _intersectionLeft(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.x, y: this.bottom },
+    { x: this.x, y: this.y });
+}
+
 
 /**
  * Use the Cohen-Sutherland algorithm approach to split a rectangle into zones:
@@ -177,7 +202,11 @@ const rectZones = {
   LEFT: 0x0001,
   RIGHT: 0x0010,
   TOP: 0x1000,
-  BOTTOM: 0x0100
+  BOTTOM: 0x0100,
+  TOPLEFT: 0x1001,
+  TOPRIGHT: 0x1010,
+  BOTTOMRIGHT: 0x0110,
+  BOTTOMLEFT: 0x0101
 };
 
 /**
@@ -215,13 +244,39 @@ function lineSegmentIntersects(a, b) {
   // Line likely intersects, but some possibility that the line starts at, say,
   // center left and moves to center top which means it may or may not cross the
   // rectangle
+  switch ( zone_a ) {
+    case rectZones.LEFT: return this._intersectsLeft(a, b);
+    case rectZones.RIGHT: return this._intersectsRight(a, b);
+    case rectZones.BOTTOM: return this._intersectsBottom(a, b);
+    case rectZones.TOP: return this._intersectsTop(a, b);
 
-  // Could just do this and skip the above; but it is a bit faster
-  // to check the easy cases above first.
-  return this._intersectsTop(a, b)
-    || this._intersectsRight(a, b)
-    || this._intersectsBottom(a, b)
-    || this._intersectsLeft(a, b);
+    case rectZones.TOPLEFT: return this._intersectsTop(a, b) || this._intersectsLeft(a, b);
+    case rectZones.TOPRIGHT: return this._intersectsTop(a, b) || this._intersectsRight(a, b);
+    case rectZones.BOTTOMLEFT: return this._intersectsBottom(a, b) || this._intersectsLeft(a, b);
+    case rectZones.BOTTOMRIGHT: return this._intersectsBottom(a, b) || this._intersectsRight(a, b);
+  }
+}
+
+function lineSegmentIntersection(a, b) {
+  const zone_a = this._zone(a);
+  const zone_b = this._zone(b);
+
+  if ( !(zone_a | zone_b) ) { return null; } // Bitwise OR is 0: both points inside rectangle.
+  if ( zone_a & zone_b ) { return null; } // Bitwise AND is not 0: both points share outside zone
+
+  switch ( zone_a ) {
+    case rectZones.LEFT: return this._intersectionLeft(a, b);
+    case rectZones.RIGHT: return this._intersectionRight(a, b);
+    case rectZones.BOTTOM: return this._intersectionBottom(a, b);
+    case rectZones.TOP: return this._intersectionTop(a, b);
+
+    case rectZones.TOPLEFT: return this._intersectionTop(a, b) || this._intersectionLeft(a, b);
+    case rectZones.TOPRIGHT: return this._intersectionTop(a, b) || this._intersectionRight(a, b);
+    case rectZones.BOTTOMLEFT: return this._intersectionBottom(a, b) || this._intersectionLeft(a, b);
+    case rectZones.BOTTOMRIGHT: return this._intersectionBottom(a, b) || this._intersectionRight(a, b);
+  }
+
+
 }
 
 
@@ -320,6 +375,12 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
+  Object.defineProperty(PIXI.Rectangle.prototype, "lineSegmentIntersection", {
+    value: lineSegmentIntersection,
+    writable: true,
+    configurable: true
+  });
+
   Object.defineProperty(PIXI.Rectangle.prototype, "_intersectsTop", {
     value: _intersectsTop,
     writable: true,
@@ -343,6 +404,31 @@ export function registerPIXIRectangleMethods() {
     writable: true,
     configurable: true
   });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionTop", {
+    value: _intersectionTop,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionBottom", {
+    value: _intersectionBottom,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionLeft", {
+    value: _intersectionLeft,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionRight", {
+    value: _intersectionRight,
+    writable: true,
+    configurable: true
+  });
+
 
   Object.defineProperty(PIXI.Rectangle.prototype, "_zone", {
     value: _zone,
@@ -375,7 +461,7 @@ export function registerPIXIRectangleMethods() {
   });
 
   // For equivalence with a PIXI.Polygon
-  if ( !PIXI.Rectangle.prototype.hasOwnProperty("isClosed") ) {
+  if ( !Object.hasOwn(PIXI.Rectangle.prototype, "isClosed") ) {
     Object.defineProperty(PIXI.Rectangle.prototype, "isClosed", {
       get: () => true
     });
