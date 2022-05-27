@@ -5,6 +5,7 @@ foundry
 "use strict";
 
 import { findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
+import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { distanceSquared, pointsEqual } from "./utilities.js";
@@ -293,8 +294,8 @@ class PolygonTraceObject extends TraceObject {
   }
 
   /**
-   * Locate all intersections between an edge and this.shape (polygon) using
-   * findIntersectionsSortRedBlack. Intersections must be sorted to maintain the
+   * Locate all intersections between an edge and this.shape (polygon) using.
+   * Intersections must be sorted to maintain the
    * clockwise direction so that tracing encounters intersections in order.
    * (So intersections closer to A are first in the array)
    * @param {SimplePolygonEdge} edge
@@ -325,7 +326,7 @@ class PolygonTraceObject extends TraceObject {
       });
     };
     const blacks = TraceObject.linkedEdges(this.shape);
-    findIntersectionsSortRedBlack([edge], blacks, callback_fn);
+    findIntersectionsBruteRedBlack([edge], blacks, callback_fn); // Brute appears to do better than sort here, b/c sort with a single segment is too slow
     return ixObjs;
   }
 }
