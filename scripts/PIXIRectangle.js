@@ -389,9 +389,8 @@ rect.lineSegmentIntersection(one.A, one.B);
  * @param {PIXI.Polygon}  poly
  * @return {PIXI.Polygon|[PIXI.Polygon, PIXI.Rectangle]}
  */
-unionPolygon(poly) {
-  const out = tracePolygon(poly, this, { union: true });
-
+function unionPolygon(poly) {
+  return tracePolygon(poly, this, { union: true });
 }
 
 
@@ -400,7 +399,9 @@ unionPolygon(poly) {
  * @param {PIXI.Polygon}  poly
  * @return {PIXI.Polygon|null}
  */
-
+function intersectPolygon(poly) {
+  return tracePolygon(poly, this, { union: false });
+}
 
 /**
  * From PIXI.js mathextras
@@ -551,7 +552,6 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
-
   Object.defineProperty(PIXI.Rectangle.prototype, "_zone", {
     value: _zone,
     writable: true,
@@ -578,6 +578,18 @@ export function registerPIXIRectangleMethods() {
 
   Object.defineProperty(PIXI.Rectangle.prototype, "overlapsCircle", {
     value: overlapsCircle,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "unionPolygon", {
+    value: unionPolygon,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "intersectPolygon", {
+    value: intersectPolygon,
     writable: true,
     configurable: true
   });

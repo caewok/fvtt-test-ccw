@@ -7,6 +7,7 @@ PIXI
 
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { pointsEqual } from "./utilities.js";
+import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 
 // Functions related to creating random shapes, for testing and benchmarking
 
@@ -164,4 +165,23 @@ export function randomPolygon({
   const out = new PIXI.Polygon(pts);
   out.close();
   return out;
+}
+
+
+/**
+ * Construct a limited angle at a random origin with a random angle and random rotation
+ * @param {Point}   origin    Random if not defined.
+ * @param {Number}  minAngle  Minimum angle, in degrees. Default: 0.
+ * @param {Number}  maxAngle  Maximum angle, in degrees. Default: 360.
+ * @param {Number}  rotation  Random if not defined
+ * @return {LimitedAngleSweepPolygon}
+ */
+export function randomLimitedAngle({
+  origin = randomPoint(),
+  minAngle = 0,
+  maxAngle = 360,
+  rotation = randomUniform(0, 360)
+} = {}) {
+  const angle = randomUniform(minAngle, maxAngle);
+  return LimitedAngleSweepPolygon.build(origin, angle, rotation);
 }

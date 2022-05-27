@@ -7,7 +7,7 @@ foundry
 import { findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import { distanceSquared } from "./utilities.js";
+import { distanceSquared, pointsEqual } from "./utilities.js";
 
 /*
 Trace a polygon in the clockwise direction. At each intersection with the other shape,
@@ -36,12 +36,12 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
 //   drawing.drawShape(shape, { color: drawing.COLORS.black });
 //   console.log("Polygon is red; shape is black.")
 
-  const turn_clockwise = !union;
-  const traceObj = buildTraceObject(poly, shape, { density });
-  const edges = TraceObject.linkedEdges(poly);
+  let turn_clockwise = !union;
+  let traceObj = buildTraceObject(poly, shape, { density });
+  let edges = TraceObject.linkedEdges(poly);
 
   // Get all the intersections for edges along the polygon, in order
-  const ixObjs = [];
+  let ixObjs = [];
   for ( const edge of edges ) {
     const arr = traceObj.findIntersections(edge);
     if ( arr.length ) { ixObjs.push(...arr); }
@@ -58,7 +58,7 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   // will move to other shape. Go in desired direction as indicated by union parameter.
   // For union, turn counterclockwise; for intersection turn clockwise.
   let prev_ixObj = ixObjs.shift();
-  const clockwise_for_poly = traceObj.clockwiseForPolygonAtIntersection(prev_ixObj);
+  let clockwise_for_poly = traceObj.clockwiseForPolygonAtIntersection(prev_ixObj);
   let is_tracing_poly = !(turn_clockwise ^ clockwise_for_poly);
  //  console.log(`tracing ${is_tracing_poly ? "poly (red)" : "shape (black)"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}; `);
 //   drawing.drawPoint(prev_ixObj.ix, { color: drawing.COLORS.green, radius: 7 })
@@ -68,7 +68,7 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   for ( const ixObj of ixObjs ) {
     //if ( i > 5 ) break;
     if ( ixObj.crosses ) {
-      const padding = is_tracing_poly
+      let padding = is_tracing_poly
         ? traceObj.polygonPointsBetween(prev_ixObj, ixObj)
         : traceObj.shapePointsBetween(prev_ixObj, ixObj);
       padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
@@ -98,7 +98,7 @@ function buildTraceObject(poly, shape) {
     case PIXI.Polygon: return new PolygonTraceObject(poly, shape);
     case PIXI.Circle: return new CircleTraceObject(poly, shape);
     case PIXI.Rectangle: return new RectangleTraceObject(poly, shape);
-//       case LimitedAngleSweepPolygon: return new LimitedAngleTraceObject(poly, shape);
+    case LimitedAngleSweepPolygon: return new LimitedAngleTraceObject(poly, shape);
   }
   return new TraceObject(poly, shape);
 }
@@ -211,14 +211,28 @@ class TraceObject {
    *    @param {SimplePolygonEdge}  edge    Linked edge of this.poly that contains the intersection
    *    @param {Boolean}            crosses Whether the poly and shape outlines cross here
    */
-   findIntersections(edge) {
-     console.error("findIntersections|Subclass must implement.");
-   }
+  findIntersections(edge) {
+    const ixObjs = this.findIntersectionsForShape(edge);
+    ixObjs.forEach(ixObj => ixObj.edge = edge);
+    ixObjs.sort((a, b) => distanceSquared(edge.A, a.ix) - distanceSquared(edge.A, b.ix));
+    return ixObjs;
+  }
+
+  /**
+   * Version of findIntersections used by the specific shape subclass.
+   * Subclass must return an array of 0 or more objects. Each object
+   * must identify the intersection (ix) and whether the edge crosses (crosses).
+   * @param {SimplePolygonEdge} edge
+   * @return {Object[]}    Each Object should have at least {ix, crosses}.
+   */
+  findIntersectionsForShape(edge) { // eslint-disable-line no-unused-vars
+    console.error("findIntersectionsForShape|Subclass must implement.");
+  }
 }
 
 // Used in PolygonTraceObject.clockwiseForPolygonAtIntersection to facilitate switch.
 // Represents the four combinations of two booleans.
-const TF_OPTIONS = {
+let TF_OPTIONS = {
   FALSE_FALSE: 0,
   FALSE_TRUE: 1,
   TRUE_FALSE: 2,
@@ -234,7 +248,7 @@ class PolygonTraceObject extends TraceObject {
    * @return {Points[]}
    */
   shapePointsBetween(ixObj1, ixObj2) {
-    // same as polygonPointsBetween except for the color
+    // Same as polygonPointsBetween except for the color
     const pts = [];
     let curr_edge = ixObj1.black;
     const target_edge = ixObj2.black;
@@ -260,8 +274,8 @@ class PolygonTraceObject extends TraceObject {
     const redB = edge.B;
     const blackB = black.B;
 
-    const redBEqual = ix.x === redB.x && ix.y === redB.y;
-    const blackBEqual = ix.x === blackB.x && ix.y === blackB.y;
+    const redBEqual = pointsEqual(ix, redB);
+    const blackBEqual = pointsEqual(ix, blackB);
 
     let orient;
     switch ( (redBEqual * 2) + blackBEqual ) {
@@ -286,19 +300,19 @@ class PolygonTraceObject extends TraceObject {
    * @param {SimplePolygonEdge} edge
    * @return {Object[]} Array of Intersection objects.
    */
-  findIntersections(edge) {
+  findIntersectionsForShape(edge) {
     // Get all intersections between this edge and the shape polygon
     const ixObjs = [];
     const callback_fn = (red, black) => {
       const ix = foundry.utils.lineLineIntersection(red.A, red.B, black.A, black.B);
       let crosses = true;
-      if ( ix.x === red.B && ix.y === red.B.y ) {
+      if ( pointsEqual(ix, red.B) ) {
         // If red.A is on the same side of black as red.next.B, then
         // red just "bounced" off black edge.
         const orientA = foundry.utils.orient2dFast(black.A, black.B, red.A);
         const orientB = foundry.utils.orient2dFast(black.A, black.B, red.next.B);
         crosses = (orientA * orientB) < 0; // If both + or both -, mult will be +.
-      } else if ( ix.x === black.B.x && ix.y === black.B.y ) {
+      } else if ( pointsEqual(ix, black.B) ) {
         const orientA = foundry.utils.orient2dFast(red.A, red.B, black.A);
         const orientB = foundry.utils.orient2dFast(red.A, red.B, black.next.B);
         crosses = (orientA * orientB) < 0;
@@ -307,15 +321,11 @@ class PolygonTraceObject extends TraceObject {
       ixObjs.push({
         ix,
         crosses,
-        edge: red,  // For Polygon.prototype.clockwiseForPolygonAtIntersection
         black // For PolygonTraceObject.prototype.pointsBetween
       });
-    }
+    };
     const blacks = TraceObject.linkedEdges(this.shape);
     findIntersectionsSortRedBlack([edge], blacks, callback_fn);
-
-    // Sort intersections based on distance from edge.A
-    ixObjs.sort((a, b) => distanceSquared(edge.A, a.ix) - distanceSquared(edge.A, b.ix));
     return ixObjs;
   }
 }
@@ -358,36 +368,31 @@ class CircleTraceObject extends TraceObject {
    * @param {SimplePolygonEdge} edge
    * @return {Object[]} Array of Intersection objects.
    */
-  findIntersections(edge) {
-    const circle = this.shape
+  findIntersectionsForShape(edge) {
+    const circle = this.shape;
     const bbox = circle.getBounds();
-    const out = [];
-    if ( !bbox.encountersSegment(edge) ) { return []; };
+    if ( !bbox.encountersSegment(edge) ) { return []; }
     const ix_data = foundry.utils.lineCircleIntersection(edge.A, edge.B, circle, circle.radius);
-    if ( ix_data.intersections.length === 0 ) { return []; }
-    if ( ix_data.intersections.length === 1 ) {
-      return [{
-        ix: ix_data.intersections[0],
-        crosses: ix_data.aInside ^ ix_data.bInside,
-        edge,
-        ix_data
-      }];
-    }
-    // Must have 2 intersections
-    // Sort by closeness to A
-    ix_data.intersections.sort((a, b) => distanceSquared(edge.A, a) - distanceSquared(edge.A, b));
+    switch ( ix_data.intersections.length ) {
+      case 0: return [];
+      case 1:
+        return [{
+          ix: ix_data.intersections[0],
+          crosses: ix_data.aInside ^ ix_data.bInside,
+          ix_data
+        }];
 
-    return [{
-      ix: ix_data.intersections[0],
-      crosses: ix_data.aInside ^ ix_data.bInside,
-      edge,
-      ix_data
-      }, {
-      ix: ix_data.intersections[1],
-      crosses: ix_data.aInside ^ ix_data.bInside,
-      edge,
-      ix_data
-      }];
+      case 2:
+        return [{
+          ix: ix_data.intersections[0],
+          crosses: true,
+          ix_data
+        }, {
+          ix: ix_data.intersections[1],
+          crosses: true,
+          ix_data
+        }];
+    }
   }
 }
 
@@ -397,7 +402,7 @@ class CircleTraceObject extends TraceObject {
  * So INSIDE still 0. Can circle from LEFT --> TOP --> RIGHT --> BOTTOM
  * by LEFT << 4 = TOP << 4 = RIGHT << 4 = BOTTOM
  */
-const rectSides = {
+let rectSides = {
   INSIDE: 0x0000,
   LEFT: 0x0001,
   TOP: 0x0010,
@@ -508,8 +513,8 @@ class RectangleTraceObject extends TraceObject {
     return ixObj.bInside;
   }
 
-  findIntersections(edge) {
-    const rect = this.shape
+  findIntersectionsForShape(edge) {
+    const rect = this.shape;
     if ( !rect.lineSegmentIntersects(edge.A, edge.B) ) { return []; }
     const ixs = rect.lineSegmentIntersection(edge.A, edge.B);
     if ( !ixs.length ) { return []; }
@@ -523,24 +528,143 @@ class RectangleTraceObject extends TraceObject {
       return [{
         ix: ixs[0],
         crosses: aInside ^ bInside,
-        edge,
         bInside
       }];
     }
 
-    // Sort by closeness to A
-    ixs.intersections.sort((a, b) => distanceSquared(edge.A, a) - distanceSquared(edge.A, b));
-
     return [{
       ix: ixs[0],
       crosses: true,
-      edge,
       bInside
     }, {
       ix: ixs[1],
       crosses: true,
-      edge,
       bInside
     }];
+  }
+}
+
+class LimitedAngleTraceObject extends TraceObject {
+  /**
+   * Helper to return canvas points as {x, y}
+   */
+  _canvasPoints() {
+    const pts = this.shape.canvas_points;
+    const out = [];
+    const ln = pts.length;
+    for ( let i = 0; i < ln; i += 2) {
+      out.push({ x: pts[i], y: pts[i + 1] });
+    }
+    return out;
+  }
+
+  /**
+   * @param {Object}  ixObj1  Intersection object
+   * @param {Object}  ixObj2  Intersection object
+   * @return {Points[]} Points representing the polygon approximation for the limited
+   *   angle between the two intersections.
+   */
+  shapePointsBetween(ixObj1, ixObj2) {
+    const pts = [];
+    const ix1 = ixObj1.ix;
+    const ix2 = ixObj2.ix;
+
+    switch ( (ixObj1.is_max * 2) + ixObj2.is_max ) {
+      case TF_OPTIONS.FALSE_FALSE:
+        // Path: rMin --> rMin or rMin --> canvas --> rMax --> rMin
+        if ( distanceSquared(this.shape.rMin.B, ix1)
+          < distanceSquared(this.shape.rMin.B, ix2) ) { return []; }
+        if ( !pointsEqual(this.shape.rMin.B, ix1) ) { pts.push(this.shape.rMin.B); }
+        pts.push(...this._canvasPoints());
+        break;
+
+      case TF_OPTIONS.FALSE_TRUE:
+        // Path: rMin --> canvas --> rMax
+        if ( !pointsEqual(this.shape.rMin.B, ix1) ) { pts.push(this.shape.rMin.B); }
+        pts.push(...this._canvasPoints());
+        break;
+
+      case TF_OPTIONS.TRUE_FALSE:
+        // Path: rMax --> rMin
+        if ( !pointsEqual(this.shape.rMax.A, ix1) ) { pts.push(this.shape.rMax.A); }
+        break;
+
+      case TF_OPTIONS.TRUE_TRUE:
+        // Path: rMax --> rMax or rMax --> rMin --> canvas --> rMax
+        if ( distanceSquared(this.shape.rMax.B, ix1)
+          < distanceSquared(this.shape.rMax.B, ix2) ) { return []; }
+        if ( !pointsEqual(this.shape.rMax.A, ix1) ) { pts.push(this.shape.rMax.A); }
+        pts.push(...this._canvasPoints());
+        break;
+    }
+
+    // If the intersection is at an endpoint, drop it
+    if ( pts.length > 0 && pointsEqual(pts[pts.length - 1], ix2) ) { pts.pop(); }
+
+    return pts;
+  }
+
+  /**
+   * @param {Object}  ixObj Intersection object
+   * @return {Boolean}
+   */
+  clockwiseForPolygonAtIntersection(ixObj) {
+    if ( this.shape.containsPoint(ixObj.edge.B) ) return true;
+
+    if ( pointsEqual(ixObj.edge.B, ixObj.ix) ) {
+      return this.shape.containsPoint(ixObj.edge.next.B);
+    }
+
+    return false;
+  }
+
+  /**
+   * The LimitedAngle extends to the canvas edge, which means we only really care
+   * about the minRay and maxRay intersections.
+   * union: Canvas edge is the boundary
+   * intersect: polygon edge is the boundary
+   * @param {SimplePolygonEdge} edge
+   * @return {Object[]} Array of Intersection objects.
+   */
+  findIntersectionsForShape(edge) {
+    const la = this.shape;
+    const rMin = la.rMin;
+    const rMax = la.rMax;
+
+    const intersects_rMin = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
+    const intersects_rMax = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
+
+    let ix_min;
+    let ix_max;
+    intersects_rMin && (ix_min = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMin.A, rMin.B));
+    intersects_rMax && (ix_max = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMax.A, rMax.B));
+
+    switch ( (intersects_rMin * 2) + intersects_rMax ) {
+      case TF_OPTIONS.FALSE_FALSE: return [];
+      case TF_OPTIONS.FALSE_TRUE:
+        return [{
+          ix: ix_max,
+          crosses: la.containsPoint(edge.A) ^ la.containsPoint(edge.B),
+          is_max: true
+        }];
+
+      case TF_OPTIONS.TRUE_FALSE:
+        return [{
+          ix: ix_min,
+          crosses: la.containsPoint(edge.A) ^ la.containsPoint(edge.B),
+          is_max: false
+        }];
+
+      case TF_OPTIONS.TRUE_TRUE:
+        return [{
+          ix: ix_min,
+          crosses: true,
+          is_max: false
+        }, {
+          ix: ix_max,
+          crosses: true,
+          is_max: true
+        }];
+    }
   }
 }

@@ -32,7 +32,7 @@ function toPolygon({ density = 60 } = {}) {
               : get360PaddingPoints(this.x, this.y, this.radius, { density }); // eslint-disable-line indent
 
   // Padding is in {x, y} format; convert to polygon
-  let poly = PIXI.Polygon(padding);
+  let poly = new PIXI.Polygon(padding);
   if (density === 60 || density === 12) {
     // Re-scale normalized circle to desired center and radius
     /* eslint-disable indent */
