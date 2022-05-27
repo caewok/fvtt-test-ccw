@@ -452,10 +452,10 @@ function rectangleIntersection(other, outRect) {
  * (Basic but useful b/c it is equivalent to polygon.translate)
  * @param {Number} delta_x  Movement in the x direction.
  * @param {Number} delta_y  Movement in the y direction.
+ * @param {PIXI.Rectangle}  New rectangle object
  */
 function translate(delta_x, delta_y) {
-  this.x += delta_x;
-  this.y += delta_y;
+  return new this.constructor(this.x + delta_x, this.y + delta_y, this.width, this.height);
 }
 
 
