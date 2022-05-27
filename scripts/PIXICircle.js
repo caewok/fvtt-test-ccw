@@ -105,7 +105,7 @@ function translate(delta_x, delta_y) {
  * @return {PIXI.Polygon}
  */
 function unionPolygon(poly, { density = 60 } = {}) {
-  tracePolygon(this, poly, { union: true, density });
+  return tracePolygon(poly, this, { union: true, density });
 }
 
 /**
@@ -117,7 +117,7 @@ function unionPolygon(poly, { density = 60 } = {}) {
  * @return {PIXI.Polygon}
  */
 function intersectPolygon(poly, { density = 60 } = {}) {
-  tracePolygon(this, poly, { union: false, density });
+  return tracePolygon(poly, this, { union: false, density });
 }
 
 /**

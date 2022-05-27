@@ -545,18 +545,6 @@ class RectangleTraceObject extends TraceObject {
 }
 
 class LimitedAngleTraceObject extends TraceObject {
-  /**
-   * Helper to return canvas points as {x, y}
-   */
-  _canvasPoints() {
-    const pts = this.shape.canvas_points;
-    const out = [];
-    const ln = pts.length;
-    for ( let i = 0; i < ln; i += 2) {
-      out.push({ x: pts[i], y: pts[i + 1] });
-    }
-    return out;
-  }
 
   /**
    * @param {Object}  ixObj1  Intersection object
@@ -568,33 +556,38 @@ class LimitedAngleTraceObject extends TraceObject {
     const pts = [];
     const ix1 = ixObj1.ix;
     const ix2 = ixObj2.ix;
+    const la = this.shape;
 
     switch ( (ixObj1.is_max * 2) + ixObj2.is_max ) {
       case TF_OPTIONS.FALSE_FALSE:
         // Path: rMin --> rMin or rMin --> canvas --> rMax --> rMin
-        if ( distanceSquared(this.shape.rMin.B, ix1)
-          < distanceSquared(this.shape.rMin.B, ix2) ) { return []; }
-        if ( !pointsEqual(this.shape.rMin.B, ix1) ) { pts.push(this.shape.rMin.B); }
-        pts.push(...this._canvasPoints());
+        if ( distanceSquared(la.rMin_ix, ix1)
+          < distanceSquared(la.rMin_ix, ix2) ) { return []; }
+        if ( !pointsEqual(la.rMin_ix, ix1) ) { pts.push(la.rMin_ix); }
+        pts.push(...la.canvas_points);
+        pts.push(la.rMax_ix, la.origin);
         break;
 
       case TF_OPTIONS.FALSE_TRUE:
         // Path: rMin --> canvas --> rMax
-        if ( !pointsEqual(this.shape.rMin.B, ix1) ) { pts.push(this.shape.rMin.B); }
-        pts.push(...this._canvasPoints());
+        if ( !pointsEqual(la.rMin_ix, ix1) ) { pts.push(la.rMin_ix); }
+        pts.push(...la.canvas_points);
+        pts.push(la.rMax_ix);
         break;
 
       case TF_OPTIONS.TRUE_FALSE:
         // Path: rMax --> rMin
-        if ( !pointsEqual(this.shape.rMax.A, ix1) ) { pts.push(this.shape.rMax.A); }
+        if ( !pointsEqual(la.origin, ix1) ) { pts.push(la.origin); }
         break;
 
       case TF_OPTIONS.TRUE_TRUE:
         // Path: rMax --> rMax or rMax --> rMin --> canvas --> rMax
-        if ( distanceSquared(this.shape.rMax.B, ix1)
-          < distanceSquared(this.shape.rMax.B, ix2) ) { return []; }
-        if ( !pointsEqual(this.shape.rMax.A, ix1) ) { pts.push(this.shape.rMax.A); }
-        pts.push(...this._canvasPoints());
+        if ( distanceSquared(la.rMax_ix, ix1)
+          < distanceSquared(la.rMax_ix, ix2) ) { return []; }
+        if ( !pointsEqual(la.origin, ix1) ) { pts.push(la.origin); }
+        pts.push(la.rMin_ix);
+        pts.push(...la.canvas_points);
+        pts.push(la.rMax_ix);
         break;
     }
 
@@ -636,8 +629,8 @@ class LimitedAngleTraceObject extends TraceObject {
 
     let ix_min;
     let ix_max;
-    intersects_rMin && (ix_min = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMin.A, rMin.B));
-    intersects_rMax && (ix_max = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMax.A, rMax.B));
+    intersects_rMin && (ix_min = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMin.A, rMin.B)); // eslint-disable-line no-unused-expressions
+    intersects_rMax && (ix_max = foundry.utils.lineSegmentIntersection(edge.A, edge.B, rMax.A, rMax.B)); // eslint-disable-line no-unused-expressions
 
     switch ( (intersects_rMin * 2) + intersects_rMax ) {
       case TF_OPTIONS.FALSE_FALSE: return [];
