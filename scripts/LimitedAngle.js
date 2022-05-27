@@ -32,8 +32,9 @@ ClockwiseSweepPolygon,
 
 "use strict";
 
-import { pixelLineContainsPoint, pointsEqual, pointFromAngle } from "./utilities.js";
+import { pixelLineContainsPoint, pointFromAngle } from "./utilities.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
+import { tracePolygon } from "./trace_polygon.js";
 
 export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
@@ -71,16 +72,23 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
 
   /**
    * Points between rMin.B and rMax.B along the canvas edge. May be length 0.
-   * @type {Number[]}
+   * @type {Point[]}
    */
   get canvas_points() {
     // Points[0,1]: origin x,y
     // Points[2,3]: rMin.B x,y
     // Points[ln-4, ln-3]: rMax.B x,y
     // Points[ln-2, ln-1]: origin x.y
-    const ln = this.points.length;
-    if (ln < 8) return [];
-    return this.points.slice(4, ln - 4);
+    const pts_ln = this.points.length;
+    if (pts_ln < 8) return [];
+
+    const pts = [];
+    const ln = pts_ln - 4;
+    for ( let i = 4; i < ln; i += 2 ) {
+      pts.push({ x: this.points[i], y: this.points[i + 1] });
+    }
+
+    return pts;
   }
 
   /**
@@ -226,18 +234,14 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
    * @param {PIXI.Polygon}  poly
    * @return {PIXI.Polygon}
    */
-  unionPolygon(poly) {
-    return _combine(poly, this, { clockwise: false });
-  }
+  unionPolygon(poly) { return tracePolygon(poly, this, { union: true }); }
 
   /**
    * Get the polygon representing the intersect between this limited angle and a polygon.
    * @param {PIXI.Polygon}  poly
    * @return {PIXI.Polygon}
    */
-  intersectPolygon(poly) {
-    return _combine(poly, this, { clockwise: true });
-  }
+  intersectPolygon(poly) { return tracePolygon(poly, this, { union: false }); }
 
   /**
    * Determine whether an edge can be excluded (for purposes of ClockwiseSweep).
@@ -332,368 +336,4 @@ export class LimitedAngleSweepPolygon extends PIXI.Polygon {
   orthogonalOriginRay(d = 100) {
     return Ray.fromAngle(this.origin.x, this.origin.y, Math.toRadians(this.rotation + 180), d);
   }
-}
-
-/**
- * Helper for union and intersect methods.
- * @param {PIXI.Polygon} poly
- * @param {LimitedAngle} limitedangle
- * Options:
- * @param {boolean} clockwise  True if the trace should go clockwise at each
- *                             intersection; false to go counterclockwise.
- * @return {PIXI.Polygon}
- * @private
- */
-function _combine(poly, limitedAngle, { clockwise = true } = {}) {
-  const union = !clockwise;
-
-  if (!poly) { return union ? limitedAngle : null; }
-  if (!limitedAngle) { return union ? poly : null; }
-
-  const pts = _tracePolygon(poly, limitedAngle, { clockwise });
-
-  if (pts.length === 0) {
-    // If no intersections, then either the polygons do not overlap (return null)
-    // or one encompasses the other
-
-    if (polyContainsOther(poly, limitedAngle)) {
-      return union ? poly : limitedAngle;
-    }
-
-    if (polyContainsOther(limitedAngle, poly)) {
-      return union ? limitedAngle : poly;
-    }
-
-    return null;
-  }
-
-  const new_poly = new PIXI.Polygon(pts);
-  new_poly.close();
-
-  // Algorithm always outputs a clockwise polygon
-  new_poly._isClockwise = true;
-  return new_poly;
-}
-
-
-/**
- * Test whether all the points of other are contained with the polygon.
- * @param {PIXI.Polygon}  poly
- * @param {PIXI.Polygon}  other
- * @return {Boolean}  True if all points of other are within poly.
- */
-function polyContainsOther(poly, other) {
-  const iter = other.iteratePoints();
-  for (const pt of iter) {
-    if (!poly.contains(pt.x, pt.y)) return false;
-  }
-  return true;
-}
-
-/**
- * Basically the same algorithm as tracing a polygon with a circle.
- *
- * Trace around a polygon in the clockwise direction. At each intersection with
- * the LimitedAngle, select either the clockwise or counterclockwise direction
- * (based on the option). Return each vertex or intersection point encountered.
- *
- * Mark each time the trace jumps from the polygon to the limitedAngle, or back.
- * Note that this can only happen when one of the two angled lines intersect the
- * polygon.
- * When returning to the polygon, fill in the shape of the limited angle, including
- * any additions made by tracing the canvas edge.
- *
- * @param {PIXI.Circle}   circle
- * @param {PIXI.Polygon}  poly
- * @param {boolean} clockwise   True if the trace should go clockwise at each
- *                              intersection; false to go counterclockwise.
- * @return {number[]} Points array, in format [x0, y0, x1, y1, ...]
- */
-function _tracePolygon(poly, limitedAngle, { clockwise = true } = {}) {
-  poly.close();
-  if (!poly.isClockwise) poly.reverse();
-
-  const rMax = limitedAngle.rMax;
-  const rMin = limitedAngle.rMin;
-
-  // Store the starting data
-  const ix_data = {
-    pts: [],
-    clockwise,
-    is_tracing_polygon: undefined,
-    canvas_points: limitedAngle.canvas_points,
-    circled_back: false,
-    started_at_rMin: undefined,
-    prior_ix: undefined,
-    origin: limitedAngle.origin,
-    rMin_ix: limitedAngle.rMin_ix,
-    rMax_ix: limitedAngle.rMax_ix
-  };
-
-  const edges = [...poly.iterateEdges()];
-  const ln = edges.length;
-  const max_iterations = ln * 2;
-  let first_intersecting_edge_idx = -1;
-  let circled_back = false;
-  let i;
-  for (i = 0; i < max_iterations; i += 1) {
-    const edge_idx = i % ln;
-    const next_edge_idx = (i + 1) % ln;
-    const edge = edges[edge_idx];
-
-    // Test each limited angle ray in turn for intersection with this segment.
-    const rMax_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMax.A, rMax.B);
-    const rMin_intersects = foundry.utils.lineSegmentIntersects(edge.A, edge.B, rMin.A, rMin.B);
-
-    if (rMin_intersects || rMax_intersects) {
-      // Flag if we are back at the first intersecting edge.
-      (edge_idx === first_intersecting_edge_idx) && (circled_back = true); // eslint-disable-line no-unused-expressions
-
-      if (!~first_intersecting_edge_idx) {
-        first_intersecting_edge_idx = edge_idx;
-        ix_data.is_tracing_polygon = true;
-      }
-    }
-
-    // Require LimitedAngle to be constructed such that, moving clockwise,
-    // origin --> rMin --> canvas --> rMax --> origin
-    // For union, walk clockwise and turn counterclockwise at each intersection
-    // For intersect, walk clockwise and turn clockwise at each intersection
-    if (rMax_intersects && rMin_intersects) {
-      // Start with the intersection closest to edge.A
-      const ix_min = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
-      const ix_max = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
-
-      // Unclear if this additional check for null is necessary
-      if (!ix_min) {
-        ix_max && processRMaxIntersection(ix_max, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
-      } else if (!ix_max) {
-        ix_min && processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
-      } else if (pointsEqual(ix_min, ix_max)) {
-        // Should only happen at origin
-        // From origin, move to rMin
-        processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
-
-      } else {
-        const dx_min = ix_min.x - edge.A.x;
-        const dy_min = ix_min.y - edge.A.y;
-        const dx_max = ix_max.x - edge.A.x;
-        const dy_max = ix_max.y - edge.A.y;
-
-        const d2_min = (dx_min * dx_min) + (dy_min * dy_min);
-        const d2_max = (dx_max * dx_max) + (dy_max * dy_max);
-
-        if (d2_min < d2_max) {
-          processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
-          if (circled_back) { break; }
-
-          processRMaxIntersection(ix_max, edges, next_edge_idx, edge, ix_data);
-        } else {
-          processRMaxIntersection(ix_max, edges, next_edge_idx, edge, ix_data);
-          if (circled_back) { break; }
-
-          processRMinIntersection(ix_min, edges, next_edge_idx, edge, ix_data);
-        }
-      }
-
-    } else if (rMin_intersects) {
-      const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMin.A, rMin.B);
-      ix && processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
-
-    } else if (rMax_intersects) {
-      const ix = foundry.utils.lineLineIntersection(edge.A, edge.B, rMax.A, rMax.B);
-      ix && processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data); // eslint-disable-line no-unused-expressions
-    }
-
-    if (circled_back) { break; } // Back to first intersecting edge
-
-    // Only if not circled back
-    if (ix_data.is_tracing_polygon) { ix_data.pts.push(edge.B.x, edge.B.y); }
-  }
-  if (!circled_back && i >= (max_iterations - 1)) { console.warn(`LimitedAngle trace is at max_iterations ${i}`); }
-
-  return ix_data.pts;
-}
-
-
-/* Intersection options:
-
-1. The polygon is along the canvas border, and it intersects rMax.B or rMin.B.
-   a. intersects rMin.B --> follow the polygon
-   b. intersects rMax.B --> choose the polygon or rMax based on orientation
-2. The polygon intersects somewhere along rMax or rMin.
-   -- follow rMin/rMax or polygon based on orientation
-3. The polygon intersects at origin (rMax.A/rMin.A)
-   -- follow rMin or polygon based on orientation
-
-*/
-
-/**
- * Process an intersection that occurs on the minimum (left) ray.
- * @param {Point}     ix            Intersection point.
- * @param {Segment[]} edges         Array of polygon edges.
- * @param {Number}    next_edge_idx Index of the next edge after edge.
- * @param {Segment}   edge          Edge that intersects the ray.
- * @param {Object}    ix_data       Data tracked in the trace algorithm.
- */
-function processRMinIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  const { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
-  const was_tracing_polygon = ix_data.is_tracing_polygon;
-
-  if (!ix_data.is_tracing_polygon && ix_data.started_at_rMin) { ix_data.circled_back = true; }
-
-  if (pointsEqual(ix, rMin_ix)) {
-    ix_data.is_tracing_polygon = true;
-  } else {
-    const a = ix;
-    const b = pointsEqual(ix, edge.B) ? edges[next_edge_idx].B : edge.B;
-    const c = rMin_ix;
-
-    // Orientation < 0: rMin.B is CW from the edge
-    // Orientation > 0: rMin.B is CCW from the edge
-    let orientation = foundry.utils.orient2dFast(a, b, c);
-    if (orientation.almostEqual(0)) { // AlmostEqual is important here, where the edge and rMin are colinear
-      // Could be that the edge is in line with the ray and rMin_ix.
-      // Particularly likely if angle = 180º
-      // Try edge.A --> ix --> rMin_ix
-      orientation = foundry.utils.orient2dFast(edge.A, ix, rMin_ix);
-      if (!orientation) return; // Stick with the current path
-    }
-
-    // Switch to other polygon?
-    // If we are tracing one polygon and moving to the other would move
-    //   CW/CCW (depending on union/intersect) then move.
-    // Note desired orientation flips when we are tracing the limitedAngle instead of the poly
-    let change_direction = false;
-    change_direction ||= ix_data.is_tracing_polygon
-      && ((orientation > 0 && !clockwise) || (orientation < 0 && clockwise));
-
-    change_direction ||= !ix_data.is_tracing_polygon
-      && ((orientation < 0 && !clockwise) || (orientation > 0 && clockwise));
-
-    change_direction && (ix_data.is_tracing_polygon = !was_tracing_polygon); // eslint-disable-line no-unused-expressions
-  }
-
-  if (!(was_tracing_polygon ^ ix_data.is_tracing_polygon)) return;
-  if (was_tracing_polygon && !ix_data.is_tracing_polygon) {
-    // We moved from polygon --> limitedAngle
-    // Store the intersection and whether this is rMin or rMax
-    ix_data.prior_ix = ix;
-    ix_data.started_at_rMin = true;
-    ix_data.circled_back = false;
-    return;
-  }
-
-  // We moved from limitedAngle --> polygon
-  // Get the points from the previous intersection to the current
-  // Options:
-  // 1. both previous and current ix are on the same ray: no points to add in between
-  // 2. moved from rMax --> origin/rMin.A --> rMin. Add origin point
-  // 3. moved from rMin --> rMin.B --> canvas --> rMax.B. Add canvas edge point(s)\
-  // 4. both previous and current ix are on the same ray but we circled back around:
-  //    need to add all points between. e.g.,
-  //    (a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
-  //    (b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
-  ix_data.pts.push(ix_data.prior_ix.x, ix_data.prior_ix.y);
-
-  if (ix_data.started_at_rMin) {
-    if (ix_data.circled_back) {
-      // (4)(b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
-      if (!pointsEqual(ix, rMin_ix)) { ix_data.pts.push(rMin_ix.x, rMin_ix.y); }
-      ix_data.pts.push(...canvas_points);
-      ix_data.pts.push(rMax_ix.x, rMax_ix.y);
-      ix_data.pts.push(origin.x, origin.y);
-    }
-    // Otherwise: (1) previous and current ix on the same ray; do nothing
-
-  } else if (!pointsEqual(ix, origin)) { // Started at rMax
-    // (2) rMax --> origin/rMin.A --> rMin
-    ix_data.pts.push(origin.x, origin.y);
-  }
-
-  ix_data.prior_ix = undefined;
-  ix_data.circled_back = false;
-  ix_data.pts.push(ix.x, ix.y);
-}
-
-/**
- * Process an intersection that occurs on the maximum (right) ray.
- * @param {Point}     ix            Intersection point.
- * @param {Segment[]} edges         Array of polygon edges.
- * @param {Number}    next_edge_idx Index of the next edge after edge.
- * @param {Segment}   edge          Edge that intersects the ray.
- * @param {Object}    ix_data       Data tracked in the trace algorithm.
- */
-function processRMaxIntersection(ix, edges, next_edge_idx, edge, ix_data) {
-  const { clockwise, rMin_ix, rMax_ix, origin, canvas_points } = ix_data;
-  const was_tracing_polygon = ix_data.is_tracing_polygon;
-
-  if (!ix_data.is_tracing_polygon && !ix_data.started_at_rMin) { ix_data.circled_back = true; }
-
-  const a = ix;
-  const b = pointsEqual(edge.B, ix) ? edges[next_edge_idx].B : edge.B;
-  const c = origin;
-  let orientation = foundry.utils.orient2dFast(a, b, c);
-  if (orientation.almostEqual(0)) { // AlmostEqual is important here, if the edge and rMin are colinear
-    // Could be that the edge is in line with the ray and origin.
-    // Particularly likely if angle = 180º
-    // Try edge.A --> ix --> origin
-    orientation = foundry.utils.orient2dFast(edge.A, ix, origin);
-    if (!orientation) return; // Stick with the current path
-  }
-
-  let change_direction = false;
-  change_direction ||= ix_data.is_tracing_polygon
-    && ((orientation > 0 && !clockwise) || (orientation < 0 && clockwise));
-
-  change_direction ||= !ix_data.is_tracing_polygon
-    && ((orientation < 0 && !clockwise) || (orientation > 0 && clockwise));
-
-  change_direction && (ix_data.is_tracing_polygon = !was_tracing_polygon); // eslint-disable-line no-unused-expressions
-
-  if (!(was_tracing_polygon ^ ix_data.is_tracing_polygon)) return;
-  if (was_tracing_polygon && !ix_data.is_tracing_polygon) {
-    // We moved from polygon --> limitedAngle
-    // store the intersection and whether this is rMin or rMax
-    ix_data.prior_ix = ix;
-    ix_data.started_at_rMin = false;
-    ix_data.circled_back = false;
-    return;
-  }
-
-  // We moved from limitedAngle --> polygon
-  // Get the points from the previous intersection to the current
-  // Options:
-  // 1. both previous and current ix are on the same ray: no points to add in between
-  // 2. moved from rMax --> rMax.A/origin --> rMin.B Add origin point
-  // 3. moved from rMin --> rMin.B --> canvas --> rMax.B Add canvas edge point(s)\
-  // 4. both previous and current ix are on the same ray but we circled back around:
-  //    need to add all points between. e.g.,
-  //    (a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
-  //    (b) rMin --> rMin.B --> canvas --> rMax.B --> origin/rMin.A
-  ix_data.pts.push(ix_data.prior_ix.x, ix_data.prior_ix.y);
-
-  if (!ix_data.started_at_rMin) {
-    if (ix_data.circled_back) {
-      // (4)(a) rMax --> origin/rMin.A --> rMin.B --> canvas --> rMax.B
-      if (!pointsEqual(ix, origin)) { ix_data.pts.push(origin.x, origin.y); }
-      ix_data.pts.push(rMin_ix.x, rMin_ix.y);
-      ix_data.pts.push(...canvas_points);
-      ix_data.pts.push(rMax_ix.x, rMax_ix.y);
-    }
-    // Otherwise (1) previous and current ix on the same ray
-
-  } else { // Started at rMin
-    // (3) rMin.B --> canvas --> rMax.B
-    if (!pointsEqual(ix, rMin_ix)) {
-      ix_data.pts.push(rMin_ix.x, rMin_ix.y);
-    }
-    ix_data.pts.push(...canvas_points);
-    ix_data.pts.push(rMax_ix.x, rMax_ix.y);
-  }
-
-  ix_data.prior_ix = undefined;
-  ix_data.circled_back = false;
-
-  ix_data.pts.push(ix.x, ix.y);
 }
