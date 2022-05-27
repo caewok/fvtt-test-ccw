@@ -24,30 +24,12 @@ Methods:
 - scale: change each point by (pt - position) / size and return new polygon
 - unscale: change each point by (pt * size) + position and return new polygon
 
-Static methods:
-- fromPoints: Construct from array of {x, y} points.
-
 Helper methods:
 - determineConvexity: Measure if the polygon is convex.
 - determineOrientation: Measure the orientation of the polygon
 */
 
-/**
- * Construct a new PIXI.Polygon from an array of x,y point objects.
- * @param {Points[]}  points
- * @return {PIXI.Polygon}
- */
-function fromPoints(points) {
-  // Flat map is slow: const out = new this(points.flatMap(pt => [pt.x, pt.y]));
-  // Switch to for loop. https://jsbench.me/eeky2ei5rw
-  const pts = [];
-  for (const pt of points) {
-    pts.push(pt.x, pt.y);
-  }
-  const out = new this(...pts);
-  out.close();
-  return out;
-}
+
 
 /**
  * Iterate over the polygon's {x, y} points in order.
@@ -478,11 +460,6 @@ function clipperArea() {
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
 export function registerPIXIPolygonMethods() {
-  Object.defineProperty(PIXI.Polygon, "fromPoints", {
-    value: fromPoints,
-    writable: true,
-    configurable: true
-  });
 
   Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
     value: iteratePoints,

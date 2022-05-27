@@ -23,7 +23,7 @@ import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 
-import { _traceShapes } from "./trace_polygon.js";
+import { tracePolygon } from "./trace_polygon.js";
 
 export const MODULE_ID = "testccw";
 
@@ -62,7 +62,7 @@ Hooks.once("init", async function() {
   game.modules.get(MODULE_ID).api = {
     debug: false, // See also CONFIG.debug.polygons = true
 
-    _traceShapes,
+    tracePolygon,
     bench,
     tests,
     drawing,
