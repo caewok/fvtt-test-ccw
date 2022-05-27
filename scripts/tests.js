@@ -18,6 +18,158 @@ import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./In
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
 import { pointsEqual, compareXY, generateBisectingCanvasSegments } from "./utilities.js";
+import * as drawing from "./drawing.js";
+import * as random from "./random.js";
+import { tracePolygon } from "./trace_polygon.js";
+
+/**
+ * Test trace algorithm for union/intersect polygon against various shapes.
+ * Not easy to test automatically, so these functions draw a random polygon and
+ * shape to let the user verify.
+ * First uses trace algorithm, then uses clipper.
+ * Blue is union; red is intersect.
+ */
+export function testPolygonPolygonUnionIntersect() {
+  drawing.clearDrawings();
+  drawing.clearLabels();
+
+  // Offset origins so the polygons are easier to distinguish
+  const origin = { x: 1000, y: 1000 };
+
+  const poly1 = random.randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
+  const poly2 = random.randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
+
+  const poly_union = tracePolygon(poly1, poly2, { union: true });
+  const poly_intersect = tracePolygon(poly1, poly2, { union: false });
+
+  const clipper_union = poly1.unionPolygon(poly2);
+  const clipper_intersect = poly1.intersectPolygon(poly2);
+
+  drawing.drawShape(poly1, { color: drawing.COLORS.black });
+  drawing.drawShape(poly2, { color: drawing.COLORS.black });
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint(origin, "Trace algorithm");
+
+  // Shift and draw again using clipper
+  const poly1_t = poly1.translate(2000, 0);
+  const poly2_t = poly2.translate(2000, 0);
+  const clipper_union_t = clipper_union.translate(2000, 0);
+  const clipper_intersect_t = clipper_intersect.translate(2000, 0);
+
+  drawing.drawShape(poly1_t, { color: drawing.COLORS.black });
+  drawing.drawShape(poly2_t, { color: drawing.COLORS.black });
+  drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+}
+
+export function testPolygonCircleUnionIntersect() {
+  drawing.clearDrawings();
+  drawing.clearLabels();
+
+  // Offset origins so the polygons are easier to distinguish
+  const origin = { x: 1000, y: 1000 };
+  const origin2 = { x: 1100, y: 1100 };
+
+  const poly = random.randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
+  const circle = random.randomCircle({ origin: origin2, minRadius: 500 });
+
+  const poly_union = circle.unionPolygon(poly);
+  const poly_intersect = circle.intersectPolygon(poly);
+
+  const clipper_union = poly.unionPolygon(circle.toPolygon());
+  const clipper_intersect = poly.intersectPolygon(circle.toPolygon());
+
+  drawing.drawShape(poly, { color: drawing.COLORS.black });
+  drawing.drawShape(circle, { color: drawing.COLORS.black });
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint(origin, "Trace algorithm");
+
+  // Shift and draw again using clipper
+  const poly_t = poly.translate(2000, 0);
+  const circle_t = circle.translate(2000, 0);
+  const clipper_union_t = clipper_union.translate(2000, 0);
+  const clipper_intersect_t = clipper_intersect.translate(2000, 0);
+
+  drawing.drawShape(poly_t, { color: drawing.COLORS.black });
+  drawing.drawShape(circle_t, { color: drawing.COLORS.black });
+  drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+}
+
+export function testPolygonRectangleUnionIntersect() {
+  drawing.clearDrawings();
+  drawing.clearLabels();
+
+  // Offset origins so the polygons are easier to distinguish
+  const origin = { x: 1000, y: 1000 };
+  const origin2 = { x: 1100, y: 1100 };
+
+  const poly = random.randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
+  const rect = random.randomRectangle({ origin: origin2, minWidth: 500, minHeight: 500 });
+
+  const poly_union = rect.unionPolygon(poly);
+  const poly_intersect = rect.intersectPolygon(poly);
+
+  const clipper_union = poly.unionPolygon(rect.toPolygon());
+  const clipper_intersect = poly.intersectPolygon(rect.toPolygon());
+
+  drawing.drawShape(poly, { color: drawing.COLORS.black });
+  drawing.drawShape(rect, { color: drawing.COLORS.black });
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint(origin, "Trace algorithm");
+
+  // Shift and draw again using clipper
+  const poly_t = poly.translate(2000, 0);
+  const rect_t = rect.translate(2000, 0);
+  const clipper_union_t = clipper_union.translate(2000, 0);
+  const clipper_intersect_t = clipper_intersect.translate(2000, 0);
+
+  drawing.drawShape(poly_t, { color: drawing.COLORS.black });
+  drawing.drawShape(rect_t, { color: drawing.COLORS.black });
+  drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+}
+
+export function testPolygonLimitedAngleUnionIntersect() {
+  drawing.clearDrawings();
+  drawing.clearLabels();
+
+  // Offset origins so the polygons are easier to distinguish
+  const origin = { x: 1000, y: 1000 };
+
+  const poly = random.randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
+  const la = random.randomLimitedAngle({ origin });
+
+  const poly_union = la.unionPolygon(poly);
+  const poly_intersect = la.intersectPolygon(poly);
+
+  const clipper_union = poly.unionPolygon(la);
+  const clipper_intersect = poly.intersectPolygon(la);
+
+  drawing.drawShape(poly, { color: drawing.COLORS.black });
+  drawing.drawShape(la, { color: drawing.COLORS.black });
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint(origin, "Trace algorithm");
+
+  // Shift and draw again using clipper
+  const poly_t = poly.translate(2000, 0);
+  const la_t = la.translate(2000, 0);
+  const clipper_union_t = clipper_union.translate(2000, 0);
+  const clipper_intersect_t = clipper_intersect.translate(2000, 0);
+
+  drawing.drawShape(poly_t, { color: drawing.COLORS.black });
+  drawing.drawShape(la_t, { color: drawing.COLORS.black });
+  drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
+  drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+}
 
 /**
  * Test intersections algorithms against a map of pre-set segment arrays.
