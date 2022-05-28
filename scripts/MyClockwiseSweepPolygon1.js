@@ -8,7 +8,8 @@ NormalizedRectangle,
 CollisionResult,
 PIXI,
 CONFIG,
-PolygonVertex
+PolygonVertex,
+ClipperLib
 */
 
 "use strict";

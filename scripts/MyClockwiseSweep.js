@@ -1,5 +1,11 @@
 /* globals
-
+ClockwiseSweepPolygon,
+canvas,
+Ray,
+PIXI,
+NormalizedRectangle,
+PolygonEdge,
+PolygonVertex
 */
 
 "use strict";
@@ -47,8 +53,16 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     this.origin.y = this.origin.y + .5 << 0; // Math.round(this.origin.y)
 
     // Use maximum rays throughout to ensure we always hit the bounding box.
-    cfg.radiusMax = canvas.dimensions.maxR;
-    cfg.radiusMax2 = Math.pow(cfg.radiusMax, 2);
+    // (Only need to change radius2, which is used in _executeSweep to draw the ray)
+    // (Leave cfg.radius so we can create the boundary circle, below)
+    cfg.radius2 = Math.pow(canvas.dimensions.maxR, 2);
+
+    // For now, need to change starting ray and limited angle bounding rays to max radius
+    if ( cfg.hasLimitedAngle ) {
+      cfg.rMax = this._roundRayVertices(Ray.fromAngle(origin.x, origin.y, cfg.aMax, canvas.dimensions.maxR));
+    }
+    cfg.rMin = this._roundRayVertices(Ray.fromAngle(origin.x, origin.y, cfg.aMin, canvas.dimensions.maxR));
+
 
     // For now, the boundary array will only have a circle.
     // Eventually, it could contain many shapes, including shapes passed through config
@@ -73,38 +87,38 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
    * @return {NormalizedRectangle|undefined}
    * @private
    */
-   _constructBoundingBox() {
-     const { boundaryShapes } = this.config;
+  _constructBoundingBox() {
+    const { boundaryShapes } = this.config;
 
-     if ( !boundaryShapes.length ) return undefined;
+    if ( !boundaryShapes.length ) return undefined;
 
-     // Start with the canvas box
-     let bbox = canvas.dimensions.rect;
+    // Start with the canvas box
+    let bbox = canvas.dimensions.rect;
 
-     // Intersect against each shape in turn.
-     for ( const shape of boundaryShapes ) {
-       bbox = bbox.intersection(shape.getBounds());
-     }
+    // Intersect against each shape in turn.
+    for ( const shape of boundaryShapes ) {
+      bbox = bbox.intersection(shape.getBounds());
+    }
 
-     // Convert to NormalizedRectangle, which is expected by _getWalls method.
-     // Use '~~' like Math.floor, to force the box to integer coordinates
-     // Expand by 1 to ensure origin will not fall on a boundary edge
-     // Note: At least one shape must include the origin for sweep to work as expected
-     bbox = new NormalizedRectangle(~~bbox.x, ~~bbox.y, ~~bbox.width, ~~bbox.height);
+    // Convert to NormalizedRectangle, which is expected by _getWalls method.
+    // Use '~~' like Math.floor, to force the box to integer coordinates
+    // Expand by 1 to ensure origin will not fall on a boundary edge
+    // Note: At least one shape must include the origin for sweep to work as expected
+    bbox = new NormalizedRectangle(~~bbox.x, ~~bbox.y, ~~bbox.width, ~~bbox.height);
 
-     // Expand by 1 to ensure origin will not fall on a boundary edge
-     // Note: At least one shape must include the origin for sweep to work as expected
-     bbox.pad(1);
+    // Expand by 1 to ensure origin will not fall on a boundary edge
+    // Note: At least one shape must include the origin for sweep to work as expected
+    bbox.pad(1);
 
-     return bbox;
-   }
+    return bbox;
+  }
 
   /**
    * Changes to compute:
    * - Add intersectBoundary step
    */
   _compute() {
-    super();
+    super._compute();
 
     // *** NEW *** //
     // Step 5 - Intersect boundary
@@ -180,9 +194,52 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     super._constrainEdgesByRadius();
   }
 
+  /**
+   * Changes to _identifyIntersections:
+   * - Don't check for whether the intersection point is contained within the radius
+   */
+  _identifyIntersections(wallEdgeMap) {
+    const processed = new Set();
+    const { angle, hasLimitedAngle, rMin, rMax } = this.config;
+    for ( let edge of this.edges ) {
 
+      // If the edge has no intersections, skip it
+      if ( !edge.wall?.intersectsWith.size ) continue;
 
+      // Check each intersecting wall
+      for ( let [wall, i] of edge.wall.intersectsWith.entries() ) {
 
+        // Some other walls may not be included in this polygon
+        const other = wallEdgeMap.get(wall.id);
+        if ( !other || processed.has(other) ) continue;
 
+        // *** NEW: Don't verify whether intersection is within radius
+
+        // Register the intersection point as a vertex
+        let v = PolygonVertex.fromPoint(i);
+        if ( this.vertices.has(v.key) ) v = this.vertices.get(v.key);
+        else {
+          // Ensure the intersection is still inside our limited angle
+          if ( hasLimitedAngle && !this.constructor.pointBetweenRays(v, rMin, rMax, angle) ) continue;
+          v._inLimitedAngle = true;
+          this.vertices.set(v.key, v);
+        }
+
+        // Attach edges to the intersection vertex
+        if ( !v.edges.has(edge) ) v.attachEdge(edge, 0);
+        if ( !v.edges.has(other) ) v.attachEdge(other, 0);
+      }
+      processed.add(edge);
+    }
+  }
+
+  /**
+   * Changes to visualize:
+   * - draw the bounding box, if any
+   */
+  visualize() {
+    super.visualize();
+    this.config.bbox && canvas.controls.debug.lineStyle(1, 0xFF0000).drawShape(this.config.bbox); // eslint-disable-line no-unused-expressions
+  }
 
 }
