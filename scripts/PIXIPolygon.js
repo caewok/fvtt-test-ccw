@@ -24,30 +24,12 @@ Methods:
 - scale: change each point by (pt - position) / size and return new polygon
 - unscale: change each point by (pt * size) + position and return new polygon
 
-Static methods:
-- fromPoints: Construct from array of {x, y} points.
-
 Helper methods:
 - determineConvexity: Measure if the polygon is convex.
 - determineOrientation: Measure the orientation of the polygon
 */
 
-/**
- * Construct a new PIXI.Polygon from an array of x,y point objects.
- * @param {Points[]}  points
- * @return {PIXI.Polygon}
- */
-function fromPoints(points) {
-  // Flat map is slow: const out = new this(points.flatMap(pt => [pt.x, pt.y]));
-  // Switch to for loop. https://jsbench.me/eeky2ei5rw
-  const pts = [];
-  for (const pt of points) {
-    pts.push(pt.x, pt.y);
-  }
-  const out = new this(...pts);
-  out.close();
-  return out;
-}
+
 
 /**
  * Iterate over the polygon's {x, y} points in order.
@@ -351,13 +333,22 @@ function unscale({ position_dx = 0, position_dy = 0, size_dx = 1, size_dy = 1 } 
  * Translate, shifting it in the x and y direction.
  * @param {Number} delta_x  Movement in the x direction.
  * @param {Number} delta_y  Movement in the y direction.
+ * @return {PIXI.Polygon} A new polygon object.
  */
 function translate(delta_x, delta_y) {
+  const pts = [];
   const ln = this.points.length;
   for (let i = 0; i < ln; i += 2) {
-    this.points[i] = this.points[i] + delta_x;
-    this.points[i + 1] = this.points[i + 1] + delta_y;
+    pts.push(
+      this.points[i] + delta_x,
+      this.points[i + 1] + delta_y
+    );
   }
+  const out = new this.constructor(pts);
+  out._isClockwise = this._isClockwise;
+  out._isConvex = this._isConvex;
+  out._isClosed = this._isClosed;
+  return out;
 }
 
 // ---------------- Clipper JS library ---------------------------------------------------
@@ -478,11 +469,6 @@ function clipperArea() {
 
 // ----------------  ADD METHODS TO THE PIXI.POLYGON PROTOTYPE --------------------------
 export function registerPIXIPolygonMethods() {
-  Object.defineProperty(PIXI.Polygon, "fromPoints", {
-    value: fromPoints,
-    writable: true,
-    configurable: true
-  });
 
   Object.defineProperty(PIXI.Polygon.prototype, "iteratePoints", {
     value: iteratePoints,

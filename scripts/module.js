@@ -4,6 +4,7 @@
 import * as tests from "./tests.js";
 import * as bench from "./benchmark.js";
 import * as drawing from "./drawing.js";
+import * as random from "./random.js";
 
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
 import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
@@ -16,11 +17,13 @@ import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
-import * as ClipperLib from "./lib/clipper_unminified.js"; // eslint-disable-line no-unused-vars
+import { ClipperLib } from "./clipper_unminified.js"; // eslint-disable-line no-unused-vars
 
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
+
+import { tracePolygon } from "./trace_polygon.js";
 
 export const MODULE_ID = "testccw";
 
@@ -59,9 +62,12 @@ Hooks.once("init", async function() {
   game.modules.get(MODULE_ID).api = {
     debug: false, // See also CONFIG.debug.polygons = true
 
+    tracePolygon,
     bench,
     tests,
     drawing,
+    random,
+    ClipperLib,
     intersections: {
       findIntersectionsBruteSingle,
       findIntersectionsBruteRedBlack,

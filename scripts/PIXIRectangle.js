@@ -5,6 +5,8 @@ foundry
 
 "use strict";
 
+import { tracePolygon } from "./trace_polygon.js";
+
 /* Additions to the PIXI.Rectangle class:
 - getCenter: center point of the rectangle
 - toPolygon: convert to a PIXI.Polygon
@@ -146,8 +148,20 @@ function _intersectsTop(a, b) {
     { x: this.right, y: this.y });
 }
 
+function _intersectionTop(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.x, y: this.y },
+    { x: this.right, y: this.y });
+}
+
 function _intersectsRight(a, b) {
   return foundry.utils.lineSegmentIntersects(a, b,
+    { x: this.right, y: this.y },
+    { x: this.right, y: this.bottom });
+}
+
+function _intersectionRight(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
     { x: this.right, y: this.y },
     { x: this.right, y: this.bottom });
 }
@@ -158,11 +172,24 @@ function _intersectsBottom(a, b) {
     { x: this.x, y: this.bottom });
 }
 
+function _intersectionBottom(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.right, y: this.bottom },
+    { x: this.x, y: this.bottom });
+}
+
 function _intersectsLeft(a, b) {
   return foundry.utils.lineSegmentIntersects(a, b,
     { x: this.x, y: this.bottom },
     { x: this.x, y: this.y });
 }
+
+function _intersectionLeft(a, b) {
+  return foundry.utils.lineSegmentIntersection(a, b,
+    { x: this.x, y: this.bottom },
+    { x: this.x, y: this.y });
+}
+
 
 /**
  * Use the Cohen-Sutherland algorithm approach to split a rectangle into zones:
@@ -177,7 +204,11 @@ const rectZones = {
   LEFT: 0x0001,
   RIGHT: 0x0010,
   TOP: 0x1000,
-  BOTTOM: 0x0100
+  BOTTOM: 0x0100,
+  TOPLEFT: 0x1001,
+  TOPRIGHT: 0x1010,
+  BOTTOMRIGHT: 0x0110,
+  BOTTOMLEFT: 0x0101
 };
 
 /**
@@ -215,15 +246,162 @@ function lineSegmentIntersects(a, b) {
   // Line likely intersects, but some possibility that the line starts at, say,
   // center left and moves to center top which means it may or may not cross the
   // rectangle
+  switch ( zone_a ) {
+    case rectZones.LEFT: return this._intersectsLeft(a, b);
+    case rectZones.RIGHT: return this._intersectsRight(a, b);
+    case rectZones.BOTTOM: return this._intersectsBottom(a, b);
+    case rectZones.TOP: return this._intersectsTop(a, b);
 
-  // Could just do this and skip the above; but it is a bit faster
-  // to check the easy cases above first.
-  return this._intersectsTop(a, b)
-    || this._intersectsRight(a, b)
-    || this._intersectsBottom(a, b)
-    || this._intersectsLeft(a, b);
+    case rectZones.TOPLEFT: return this._intersectsTop(a, b) || this._intersectsLeft(a, b);
+    case rectZones.TOPRIGHT: return this._intersectsTop(a, b) || this._intersectsRight(a, b);
+    case rectZones.BOTTOMLEFT: return this._intersectsBottom(a, b) || this._intersectsLeft(a, b);
+    case rectZones.BOTTOMRIGHT: return this._intersectsBottom(a, b) || this._intersectsRight(a, b);
+  }
 }
 
+function lineSegmentIntersection(a, b) {
+  const rect = this;
+  const zone_a = rect._zone(a);
+  const zone_b = rect._zone(b);
+
+  if ( !(zone_a | zone_b) ) { return []; } // Bitwise OR is 0: both points inside rectangle.
+  if ( zone_a & zone_b ) { return []; } // Bitwise AND is not 0: both points share outside zone
+
+  // Depending on the zone of the endpoints, the segment may intersect one or two
+  // sides of the rectangle
+  let ixs = [];
+  ixs.push(...intersectionProximateToZone(rect, a, b, zone_a));
+  ixs.push(...intersectionProximateToZone(rect, a, b, zone_b));
+  ixs = ixs.filter(elem => elem); // Drop any null entries
+
+  // intersections can duplicate if segment runs through a corner
+  if ( ixs.length === 2 && ixs[0].x === ixs[1].x && ixs[0].y === ixs[1].y ) {
+    ixs.pop();
+  }
+
+  return ixs;
+}
+
+function intersectionProximateToZone(rect, a, b, zone) {
+  const ixs = [];
+
+  switch ( zone ) {
+    case rectZones.LEFT: ixs.push(rect._intersectionLeft(a, b)); break;
+    case rectZones.RIGHT: ixs.push(rect._intersectionRight(a, b)); break;
+    case rectZones.BOTTOM: ixs.push(rect._intersectionBottom(a, b)); break;
+    case rectZones.TOP: ixs.push(rect._intersectionTop(a, b)); break;
+
+    case rectZones.TOPLEFT:
+      ixs.push(rect._intersectionTop(a, b));
+      ixs.push(rect._intersectionLeft(a, b));
+      break;
+
+    case rectZones.TOPRIGHT:
+      ixs.push(rect._intersectionTop(a, b));
+      ixs.push(rect._intersectionRight(a, b));
+      break;
+
+    case rectZones.BOTTOMLEFT:
+      ixs.push(rect._intersectionBottom(a, b));
+      ixs.push(rect._intersectionLeft(a, b));
+      break;
+
+    case rectZones.BOTTOMRIGHT:
+      ixs.push(rect._intersectionBottom(a, b));
+      ixs.push(rect._intersectionRight(a, b));
+      break;
+  }
+  return ixs;
+}
+
+/* Test intersections
+api = game.modules.get('testccw').api;
+d = api.drawing
+
+rect = new PIXI.Rectangle(0, 0, 1000, 1000);
+d.drawShape(rect)
+
+// vertical
+none = new PolygonEdge({ x: 500, y: 1500 }, { x: 500, y: 2000 });
+d.drawSegment(none)
+rect.lineSegmentIntersects(none.A, none.B);
+rect.lineSegmentIntersection(none.A, none.B);
+
+one = new PolygonEdge({ x: 500, y: 500 }, { x: 500, y: 2000 })
+d.drawSegment(one)
+rect.lineSegmentIntersects(one.A, one.B);
+rect.lineSegmentIntersection(one.A, one.B);
+
+two = new PolygonEdge({ x: 500, y: -500 }, { x: 500, y: 2000 })
+d.drawSegment(two)
+rect.lineSegmentIntersects(two.A, two.B);
+rect.lineSegmentIntersection(two.A, two.B);
+
+// horizonal
+none = new PolygonEdge({ x: 1500, y: 500 }, { x: 2000, y: 500 });
+d.drawSegment(none)
+rect.lineSegmentIntersects(none.A, none.B);
+rect.lineSegmentIntersection(none.A, none.B);
+
+one = new PolygonEdge({ x: 500, y: 500 }, { x: 2000, y: 500 })
+d.drawSegment(one)
+rect.lineSegmentIntersects(one.A, one.B);
+rect.lineSegmentIntersection(one.A, one.B);
+
+two = new PolygonEdge({ x: -500, y: 500 }, { x: 2000, y: 500 })
+d.drawSegment(two)
+rect.lineSegmentIntersects(two.A, two.B);
+rect.lineSegmentIntersection(two.A, two.B);
+
+
+// diagonal bottom / right
+none = new PolygonEdge({ x: 500, y: 1500 }, { x: 2000, y: 500 });
+d.drawSegment(none)
+rect.lineSegmentIntersects(none.A, none.B);
+rect.lineSegmentIntersection(none.A, none.B);
+
+one = new PolygonEdge({ x: 500, y: 1500 }, { x: 900, y: 900 })
+d.drawSegment(one)
+rect.lineSegmentIntersects(one.A, one.B);
+rect.lineSegmentIntersection(one.A, one.B);
+
+two = new PolygonEdge({ x: 500, y: 1500 }, { x: 1100, y: 600 })
+d.drawSegment(two)
+rect.lineSegmentIntersects(two.A, two.B);
+rect.lineSegmentIntersection(two.A, two.B);
+
+// diagonal hitting corner
+one = new PolygonEdge({ x: 500, y: 1500 }, { x: 1000, y: 1000 })
+d.drawSegment(one)
+rect.lineSegmentIntersects(one.A, one.B);
+rect.lineSegmentIntersection(one.A, one.B);
+
+one = new PolygonEdge({ x: 500, y: 1500 }, { x: 1100, y: 900 })
+d.drawSegment(one)
+rect.lineSegmentIntersects(one.A, one.B);
+rect.lineSegmentIntersection(one.A, one.B);
+
+*/
+
+
+/**
+ * Union this rectangle with a polygon.
+ * @param {PIXI.Polygon}  poly
+ * @return {PIXI.Polygon|[PIXI.Polygon, PIXI.Rectangle]}
+ */
+function unionPolygon(poly) {
+  return tracePolygon(poly, this, { union: true });
+}
+
+
+/**
+ * Intersect this rectangle with a polygon.
+ * @param {PIXI.Polygon}  poly
+ * @return {PIXI.Polygon|null}
+ */
+function intersectPolygon(poly) {
+  return tracePolygon(poly, this, { union: false });
+}
 
 /**
  * From PIXI.js mathextras
@@ -274,10 +452,10 @@ function rectangleIntersection(other, outRect) {
  * (Basic but useful b/c it is equivalent to polygon.translate)
  * @param {Number} delta_x  Movement in the x direction.
  * @param {Number} delta_y  Movement in the y direction.
+ * @param {PIXI.Rectangle}  New rectangle object
  */
 function translate(delta_x, delta_y) {
-  this.x += delta_x;
-  this.y += delta_y;
+  return new this.constructor(this.x + delta_x, this.y + delta_y, this.width, this.height);
 }
 
 
@@ -320,6 +498,12 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
+  Object.defineProperty(PIXI.Rectangle.prototype, "lineSegmentIntersection", {
+    value: lineSegmentIntersection,
+    writable: true,
+    configurable: true
+  });
+
   Object.defineProperty(PIXI.Rectangle.prototype, "_intersectsTop", {
     value: _intersectsTop,
     writable: true,
@@ -340,6 +524,30 @@ export function registerPIXIRectangleMethods() {
 
   Object.defineProperty(PIXI.Rectangle.prototype, "_intersectsRight", {
     value: _intersectsRight,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionTop", {
+    value: _intersectionTop,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionBottom", {
+    value: _intersectionBottom,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionLeft", {
+    value: _intersectionLeft,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "_intersectionRight", {
+    value: _intersectionRight,
     writable: true,
     configurable: true
   });
@@ -374,8 +582,20 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
+  Object.defineProperty(PIXI.Rectangle.prototype, "unionPolygon", {
+    value: unionPolygon,
+    writable: true,
+    configurable: true
+  });
+
+  Object.defineProperty(PIXI.Rectangle.prototype, "intersectPolygon", {
+    value: intersectPolygon,
+    writable: true,
+    configurable: true
+  });
+
   // For equivalence with a PIXI.Polygon
-  if ( !PIXI.Rectangle.prototype.hasOwnProperty("isClosed") ) {
+  if ( !Object.hasOwn(PIXI.Rectangle.prototype, "isClosed") ) {
     Object.defineProperty(PIXI.Rectangle.prototype, "isClosed", {
       get: () => true
     });
