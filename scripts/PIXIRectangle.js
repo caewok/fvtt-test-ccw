@@ -1,6 +1,5 @@
 /* globals
-PIXI,
-foundry
+PIXI
 */
 
 "use strict";
@@ -49,8 +48,6 @@ function rectangleIntersection(other, outRect) {
 
   return outRect;
 }
-
-
 
 // ----------------  ADD METHODS TO THE PIXI.RECTANGLE PROTOTYPE ------------------------
 export function registerPIXIRectangleMethods() {
