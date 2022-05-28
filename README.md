@@ -9,6 +9,20 @@ Add this [Manifest URL](https://github.com/caewok/fvtt-test-ccw/releases/latest/
 At present (and subject to change), there are several algorithms explored related to sweep
 and intersecting arrays of segments.
 
+## Enabling Clockwise Sweep
+
+
+```js
+// Enable as the line-of-sight backend
+CONFIG.Canvas.losBackend = game.modules.get('testccw').api.MyClockwiseSweepPolygon;
+
+// Turn on visualization for debugging
+CONFIG.debug.polygons = true
+
+// Benchmark (after selecting token to set the origin point)
+await game.modules.get('testccw').api.api.bench.benchScene();
+```
+
 ## Intersections
 [Brute](https://github.com/caewok/fvtt-test-ccw/blob/ad475cdf404042924dfd2231e1d7929d99b657df/scripts/IntersectionsBrute.js#L28), [sort](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/IntersectionsSort.js#L35), and [Myers sweep](https://github.com/caewok/fvtt-test-ccw/blob/4884d459b81856c0308206023d2a305302dfe84b/scripts/IntersectionsSweepMyers.js#L75) algorithms are provided. Myers sweep is based on this [1985 paper](https://publications.mpi-cbg.de/Myers_1985_5441.pdf). Each have two forms:
 - "Single": The function takes a single array of segments and compares every segment against every other segment for intersections.
