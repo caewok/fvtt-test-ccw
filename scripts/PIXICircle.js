@@ -8,7 +8,6 @@ foundry
 "use strict";
 
 import { NORMALIZED_CIRCLE_POINTS_60, NORMALIZED_CIRCLE_POINTS_12 } from "./NormalizedCirclePoints.js";
-import { tracePolygon } from "./trace_polygon.js";
 
 /* Additions to the PIXI.Circle class:
 - toPolygon: convert to an (approximate) PIXI.Polygon

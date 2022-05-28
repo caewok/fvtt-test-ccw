@@ -10,127 +10,6 @@ CONFIG
 "use strict";
 
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
-import { MyClockwiseSweepPolygon2 } from "./MyClockwiseSweepPolygon2.js";
-import { MyClockwiseSweepPolygon3 } from "./MyClockwiseSweepPolygon3.js";
-
-import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
-import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
-import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
-import { generateBisectingCanvasSegments } from "./utilities.js";
-import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
-import {
-  randomSegment,
-  randomPolygon,
-  randomCircle,
-  randomRectangle,
-  randomLimitedAngle } from "./random.js";
-
-import { tracePolygon } from "./trace_polygon.js";
-
-
-/**
- * Test clipper and trace algorithm for union/intersect of polygon with shapes.
- */
-export async function benchUnionIntersectPolygon(N = 1000) {
-
-  // Polygons
-  function setupRandomPolygons() {
-    const origin = {x: 1000, y: 1000};
-    const origin2 = {x: 1100, y: 1100};
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-    const poly2 = randomPolygon({ origin: origin2, minPts: 50, maxPts: 75, minRadius: 500});
-    return [poly1, poly2];
-  }
-
-  function clipperIntersect(poly1, poly2) {
-    return poly1.intersectPolygon(poly2);
-  }
-
-  function clipperUnion(poly1, poly2) {
-    return poly1.unionPolygon(poly2);
-  }
-
-  function traceUnion(poly1, poly2) {
-    return tracePolygon(poly1, poly2, { union: true });
-  }
-
-  function traceIntersect(poly1, poly2) {
-    return tracePolygon(poly1, poly2, { union: false });
-  }
-
-  console.log("\nPolygon x Polygon");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomPolygons, traceUnion, "trace union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomPolygons, clipperUnion, "clipper union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomPolygons, traceIntersect, "trace intersect");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomPolygons, clipperIntersect, "clipper intersect");
-
-  // Circles
-  function setupRandomCircles() {
-    const origin = { x: 1000, y: 1000 };
-    const origin2 = { x: 1100, y: 1100 };
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-    const poly2 = randomCircle({ origin: origin2, minRadius: 500 });
-    return [poly1, poly2];
-  }
-
-  function setupRandomCirclesClipper() {
-    const origin = { x: 1000, y: 1000 };
-    const origin2 = { x: 1100, y: 1100 };
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-    const poly2 = randomCircle({ origin: origin2, minRadius: 500 }).toPolygon({ density: 60 });
-    return [poly1, poly2];
-  }
-
-  console.log("\nPolygon x Circle");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomCircles, traceUnion, "trace union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomCirclesClipper, clipperUnion, "clipper union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomCircles, traceIntersect, "trace intersect");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomCirclesClipper, clipperIntersect, "clipper intersect");
-
-  // Rectangles
-  function setupRandomRectangles() {
-    const origin = { x: 1000, y: 1000 };
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-
-    const origin2 = { x: 1100, y: 1100 };
-    origin2.x = origin2.x - 1000;
-    origin2.y = origin2.y - 1000;
-    const rect = randomRectangle({ origin: origin2, minWidth: 500, minHeight: 500 });
-    return [poly1, rect];
-  }
-
-  function setupRandomRectanglesClipper() {
-    const origin = { x: 1000, y: 1000 };
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-
-    const origin2 = { x: 1100, y: 1100 };
-    origin2.x = origin2.x - 1000;
-    origin2.y = origin2.y - 1000;
-    const rect = randomRectangle({ origin: origin2, minWidth: 500, minHeight: 500 }).toPolygon();
-    return [poly1, rect];
-  }
-
-  console.log("\nPolygon x Rectangle");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomRectangles, traceUnion, "trace union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomRectanglesClipper, clipperUnion, "clipper union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomRectangles, traceIntersect, "trace intersect");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomRectanglesClipper, clipperIntersect, "clipper intersect");
-
-
-  // Limited Angles
-  function setupRandomLimitedAngle() {
-    const origin = {x: 1000, y: 1000};
-    const poly1 = randomPolygon({ origin, minPts: 50, maxPts: 75, minRadius: 500});
-    const la = randomLimitedAngle({ origin });
-    return [poly1, la];
-  }
-
-  console.log("\nPolygon x Limited Angle");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomLimitedAngle, traceUnion, "trace union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomLimitedAngle, clipperUnion, "clipper union");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomLimitedAngle, traceIntersect, "trace intersect");
-  await QBenchmarkLoopWithSetupFn(N, setupRandomLimitedAngle, clipperIntersect, "clipper intersect");
-}
 
 /**
  * Describe in the console.log relevant scene parameters:
@@ -142,9 +21,6 @@ export async function benchUnionIntersectPolygon(N = 1000) {
  * - number of filtered intersections (brute algorithm)
  */
 export function describeSceneParameters() {
-  const walls = [...canvas.walls.placeables];
-  const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
-
   // Determine the unique number of endpoints, which tells us something about
   // how many segments intersect at endpoints here.
   const numEndpoints = new Set();
@@ -154,109 +30,14 @@ export function describeSceneParameters() {
     numEndpoints.add(WallEndpoint.getKey(c[2], c[3]));
   });
 
-  // Reporting function to get number of intersections using brute
-  const reporting_arr = [];
-  const reportNumIx = (s1, s2) => {
-    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    if (x) reporting_arr.push(x);
-  };
-
-  const reportNumIxFiltered = (s1, s2) => {
-    if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
-    const x = foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-    x && reporting_arr.push(x); // eslint-disable-line no-unused-expressions
-  };
-
-  findIntersectionsBruteSingle(segments, reportNumIx);
-  const num_ix = reporting_arr.length;
-
-  reporting_arr.length = 0;
-  findIntersectionsBruteSingle(segments, reportNumIxFiltered);
-  const num_ix_filtered = reporting_arr.length;
 
   console.log(`Scene ${canvas.scene.name}
 Walls: ${canvas.walls.placeables.length}
 Endpoints: ${numEndpoints.size}
 Canvas dimensions: ${canvas.dimensions.width}x${canvas.dimensions.height}
-Intersections: ${num_ix} (brute algorithm)
-Intersections (endpoints filtered): ${num_ix_filtered} (brute algorithm)
 `);
 }
 
-/**
- * Run a pre-set group of benchmarks for intersections of walls within a scene.
- * @param {Number} n    Number of iterations to run for each test.
- */
-export async function benchSceneIntersections(n = 100) {
-  const walls = [...canvas.walls.placeables];
-  const segments = walls.map(w => SimplePolygonEdge.fromWall(w));
-
-  // Relatively realistic benchmark should include getting the ix point
-  // but cannot push to an outside array b/c it would likely grow rather large
-  // during benchmark repetitions.
-  const reportFn = (s1, s2) => {
-    return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  };
-
-  const reportFilteredFn = (s1, s2) => {
-    if (s1.wallKeys.has(s2.A.key) || s1.wallKeys.has(s2.B.key)) return;
-    return foundry.utils.lineLineIntersection(s1.A, s1.B, s2.A, s2.B);
-  };
-
-  await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute", segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort", segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers", segments, reportFn);
-
-  console.log("\nFiltered endpoints");
-  await QBenchmarkLoopFn(n, findIntersectionsBruteSingle, "brute filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortSingle, "sort filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersSingle, "myers filtered", segments, reportFilteredFn);
-
-  console.log("\n\nRed/Black tests");
-  console.log("\nAdding a single short segment (20% diagonal nw/se at center)");
-  // Diagonal from 40% x/y to 60% x/y in the center
-  const { height, width } = canvas.dimensions;
-  const short_segment = new SimplePolygonEdge({ x: width * 0.4, y: height * 0.4 }, { x: width * 0.6, y: height * 0.6 });
-  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, [short_segment], reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, [short_segment], reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, [short_segment], reportFn);
-
-
-  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, [short_segment], reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, [short_segment], reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, [short_segment], reportFilteredFn);
-
-  console.log("\nAdding four long segments bisecting canvas");
-  const long_segments = generateBisectingCanvasSegments();
-  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute", segments, long_segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort", segments, long_segments, reportFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers", segments, long_segments, reportFn);
-
-  await QBenchmarkLoopFn(n, findIntersectionsBruteRedBlack, "brute filtered", segments, long_segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsSortRedBlack, "sort filtered", segments, long_segments, reportFilteredFn);
-  await QBenchmarkLoopFn(n, findIntersectionsMyersRedBlack, "myers filtered", segments, long_segments, reportFilteredFn);
-
-  console.log("\nAdding a randomly generated segment (single segment is black)");
-  const setupFn = (segments, reportFn) => [segments, [randomSegment()], reportFn];
-  const setupFlippedFn = (segments, reportFn) => [[randomSegment()], segments, reportFn];
-
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers", segments, reportFn);
-
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsBruteRedBlack, "brute filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsSortRedBlack, "sort filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFn, findIntersectionsMyersRedBlack, "myers filtered", segments, reportFilteredFn);
-
-  console.log("\nAdding a randomly generated segment (single segment is red)");
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsBruteRedBlack, "brute", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortRedBlack, "sort", segments, reportFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsMyersRedBlack, "myers", segments, reportFn);
-
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsBruteRedBlack, "brute filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsSortRedBlack, "sort filtered", segments, reportFilteredFn);
-  await QBenchmarkLoopWithSetupFn(n, setupFlippedFn, findIntersectionsMyersRedBlack, "myers filtered", segments, reportFilteredFn);
-}
 
 /**
  * Run a pre-set group of benchmarks for ClockwiseSweep variations on a given scene.
@@ -325,8 +106,6 @@ export async function benchSweep(n = 100, ...args) {
 
   await ClockwiseSweepPolygon.benchmark(n, ...args);
   MyClockwiseSweepPolygon.benchmark(n, ...args);
-  MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  MyClockwiseSweepPolygon3.benchmark(n, ...args);
 }
 
 /*
@@ -341,8 +120,6 @@ export async function quantileBenchSweep(n=100, ...args) {
 
   await QBenchmarkLoop(n, ClockwiseSweepPolygon, "create", ...args);
   await QBenchmarkLoop(n, MyClockwiseSweepPolygon, "create", ...args);
-  await QBenchmarkLoop(n, MyClockwiseSweepPolygon2, "create", ...args);
-  await QBenchmarkLoop(n, MyClockwiseSweepPolygon3, "create", ...args);
 }
 
 
