@@ -66,7 +66,6 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
   }
 
-
   /**
    * New method
    * Construct a bounding box from one or more boundary shapes.
@@ -99,5 +98,19 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
      return bbox;
    }
+
+  /**
+   * Changes to compute:
+   * - Add intersectBoundary step
+   */
+  _compute() {
+    super();
+
+    // *** NEW *** //
+    // Step 5 - Intersect boundary
+    this._intersectBoundary();
+  }
+
+
 
 }
