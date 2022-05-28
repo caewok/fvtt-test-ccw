@@ -90,7 +90,7 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   }
 
   // If never switched shapes, return the shape
-  if ( last_ixObj === prev_ixObj ) { return is_tracing_polygon ? poly : shape; }
+  if ( last_ixObj === prev_ixObj ) { return is_tracing_poly ? poly : shape; }
 
   // Fill in padding to the first intersection
   let padding = is_tracing_poly
