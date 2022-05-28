@@ -31,12 +31,6 @@ shape.
 export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   poly.close();
 
-  // let drawing = game.modules.get("testccw").api.drawing;
-//   drawing.clearDrawings();
-//   drawing.drawShape(poly, { color: drawing.COLORS.red });
-//   drawing.drawShape(shape, { color: drawing.COLORS.black });
-//   console.log("Polygon is red; shape is black.")
-
   // CCW: orientation is positive
   // CW: orientation is negative
   // Want to turn CCW to form union
@@ -52,19 +46,13 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   }
   if ( !ixObjs.length ) { return null; }
 
-  // Draw the intersections
-//   ixObjs.forEach(ixObj => drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.blue, alpha: .2 }));
-
   // For starting intersection, determine if moving clockwise will stay on the poly or
   // will move to other shape. Go in desired direction as indicated by union parameter.
   // For union, turn counterclockwise; for intersection turn clockwise.
   let prev_ixObj = ixObjs[0];
   const last_ixObj = prev_ixObj; // Repeat the last object to close the points at the end
-//   drawing.drawPoint(prev_ixObj.ix, { color: drawing.COLORS.green, radius: 7 })
-
   const orient = traceObj.polygonOrientationAtIntersection(prev_ixObj);
   let is_tracing_poly = (orient * turn_direction) >= 0;
-//   console.log(`tracing ${is_tracing_poly ? "poly (red)" : "shape (black)"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}; `);
 
   const pts = [prev_ixObj];
   const ln = ixObjs.length;
@@ -84,12 +72,8 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
         : traceObj.shapePointsBetween(prev_ixObj, ixObj);
       padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
       pts.push(ixObj);
-//       padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
-//       drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
       prev_ixObj = ixObj;
-
-//       console.log(`${i}\ttracing ${is_tracing_poly ? "poly" : "shape"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}`);
     }
   }
 
@@ -101,12 +85,10 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
 
   // Fill in padding to the first intersection
   const padding = is_tracing_poly
-        ? traceObj.polygonPointsBetween(prev_ixObj, last_ixObj)
-        : traceObj.shapePointsBetween(prev_ixObj, last_ixObj);
+    ? traceObj.polygonPointsBetween(prev_ixObj, last_ixObj)
+    : traceObj.shapePointsBetween(prev_ixObj, last_ixObj);
   padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
   pts.push(last_ixObj);
-//   padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
-//   drawing.drawPoint(last_ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
   return new PIXI.Polygon(pts);
 }

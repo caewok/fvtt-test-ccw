@@ -42,7 +42,7 @@ export function drawPoint(p, { color = COLORS.red, alpha = 1, radius = 5 } = {})
 }
 
 export function drawPolygonPoints(poly, { color = COLORS.red, alpha = 1, radius = 5 } = {}) {
-  for (pt of poly.iteratePoints()) { drawPoint(pt, { color, alpha, radius}); }
+  for ( const pt of poly.iteratePoints() ) { drawPoint(pt, { color, alpha, radius}); }
 }
 
 /**

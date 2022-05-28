@@ -42,10 +42,10 @@ export function testPolygonUnionIntersectDifficultShapes() {
 
   const expected_poly_union = new PIXI.Polygon([
     2000, 1000,
-    2000, 2000, // technically not needed for union (collinear)
+    2000, 2000, // Technically not needed for union (collinear)
     2000, 3000,
     0, 1000,
-    1000, 1000, // technically not needed for union (collinear)
+    1000, 1000, // Technically not needed for union (collinear)
     2000, 1000
   ]);
 
@@ -61,9 +61,9 @@ export function testPolygonUnionIntersectDifficultShapes() {
   const poly_intersect = tracePolygon(square, triangle, { union: false });
 
   drawing.drawShape(square, { color: drawing.COLORS.black });
-  drawing.drawShape(triangle, { color: drawing.COLORS.black })
-  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 })
-  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 })
+  drawing.drawShape(triangle, { color: drawing.COLORS.black });
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 });
 
   if ( !polygonsEquivalent(expected_poly_union, poly_union) ) {
     console.warn("Polygon x Polygon union failed.", poly_union);
@@ -88,21 +88,21 @@ export function testPolygonUnionIntersectDifficultShapes() {
 
   // Rectangle
   const rect = new PIXI.Rectangle(3000, 500, 500, 1000);
-  const square_t = square.translate(2000,0);
+  const square_t = square.translate(2000, 0);
   const rect_union = tracePolygon(square_t, rect, { union: true });
   const rect_intersect = tracePolygon(square_t, rect, { union: false });
 
   drawing.drawShape(square_t, { color: drawing.COLORS.black });
-  drawing.drawShape(rect, { color: drawing.COLORS.black })
-  drawing.drawShape(rect_union, { color: drawing.COLORS.blue, width: 2 })
-  drawing.drawShape(rect_intersect, { color: drawing.COLORS.red, width: 2 })
+  drawing.drawShape(rect, { color: drawing.COLORS.black });
+  drawing.drawShape(rect_union, { color: drawing.COLORS.blue, width: 2 });
+  drawing.drawShape(rect_intersect, { color: drawing.COLORS.red, width: 2 });
 
   const expected_rect_union = new PIXI.Polygon([
     3500, 1000,
     4000, 1000,
     4000, 2000,
     3000, 2000,
-    3000, 1500, // technically not needed for union (collinear)
+    3000, 1500, // Technically not needed for union (collinear)
     3000, 500,
     3500, 500,
     3500, 1000
@@ -112,7 +112,6 @@ export function testPolygonUnionIntersectDifficultShapes() {
     3500, 1000,
     3500, 1500,
     3000, 1500,
-//     3000, 1500,  // unnecessarily duplicated but difficult to avoid
     3000, 1000,
     3500, 1000
   ]);
