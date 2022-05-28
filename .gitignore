@@ -16,3 +16,5 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+
+v10_sync_to_module.sh
