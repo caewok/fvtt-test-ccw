@@ -4,7 +4,6 @@ foundry
 */
 "use strict";
 
-import { findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
 import { SimplePolygonEdge } from "./SimplePolygonEdge.js";
@@ -32,11 +31,11 @@ shape.
 export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   poly.close();
 
-  let drawing = game.modules.get("testccw").api.drawing;
-  drawing.clearDrawings();
-  drawing.drawShape(poly, { color: drawing.COLORS.red });
-  drawing.drawShape(shape, { color: drawing.COLORS.black });
-  console.log("Polygon is red; shape is black.")
+  // let drawing = game.modules.get("testccw").api.drawing;
+//   drawing.clearDrawings();
+//   drawing.drawShape(poly, { color: drawing.COLORS.red });
+//   drawing.drawShape(shape, { color: drawing.COLORS.black });
+//   console.log("Polygon is red; shape is black.")
 
   let turn_clockwise = union ? -1 : 1;
   let traceObj = buildTraceObject(poly, shape, { density });
@@ -48,26 +47,26 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
     const arr = traceObj.findIntersections(edge);
     if ( arr.length ) { ixObjs.push(...arr); }
   }
-//   if ( !ixObjs.length ) { return null; }
+  if ( !ixObjs.length ) { return null; }
 
   // Draw the intersections
-  ixObjs.forEach(ixObj => drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.blue, alpha: .2 }));
+//   ixObjs.forEach(ixObj => drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.blue, alpha: .2 }));
 
   // For starting intersection, determine if moving clockwise will stay on the poly or
   // will move to other shape. Go in desired direction as indicated by union parameter.
   // For union, turn counterclockwise; for intersection turn clockwise.
   let prev_ixObj = ixObjs.shift();
   let last_ixObj = prev_ixObj; // Repeat the last object to close the points at the end
-  drawing.drawPoint(prev_ixObj.ix, { color: drawing.COLORS.green, radius: 7 })
+//   drawing.drawPoint(prev_ixObj.ix, { color: drawing.COLORS.green, radius: 7 })
 
   let orient = traceObj.polygonOrientationAtIntersection(prev_ixObj);
   let is_tracing_poly = (orient * turn_clockwise) >= 0;
-  console.log(`tracing ${is_tracing_poly ? "poly (red)" : "shape (black)"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}; `);
+//   console.log(`tracing ${is_tracing_poly ? "poly (red)" : "shape (black)"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}; `);
 
   let pts = [prev_ixObj.ix];
-  let i = 0;
+//   let i = 0;
   for ( const ixObj of ixObjs ) {
-    drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.green, radius: 7, alpha: .5 })
+//     drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.green, radius: 7, alpha: .5 })
     let orient = traceObj.polygonOrientationAtIntersection(ixObj);
     let was_tracing_poly = is_tracing_poly;
     is_tracing_poly = (orient * turn_clockwise) >= 0;
@@ -79,14 +78,14 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
         : traceObj.shapePointsBetween(prev_ixObj, ixObj);
       padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
       pts.push(ixObj.ix);
-      padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
-      drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
+//       padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
+//       drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
       prev_ixObj = ixObj;
 
-      console.log(`${i}\ttracing ${is_tracing_poly ? "poly" : "shape"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}`);
+//       console.log(`${i}\ttracing ${is_tracing_poly ? "poly" : "shape"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}`);
     }
-    i += 1;
+//     i += 1;
   }
 
   // If never switched shapes, return the shape
@@ -98,14 +97,27 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
         : traceObj.shapePointsBetween(prev_ixObj, last_ixObj);
   padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
   pts.push(last_ixObj.ix);
-  padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
-  drawing.drawPoint(last_ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
+//   padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
+//   drawing.drawPoint(last_ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
-  return new PIXI.Polygon(pts);
+  // Simplify points in case of overlap
+  const clean_pts = [pts[0]];
+  const ln = pts.length;
+  let last_pt = pts[0];
+  for ( let i = 1; i < ln; i += 1 ) {
+    // If consecutive points are nearly the same, skip
+    if ( pointsEqual(pts[i], last_pt) ) { continue; }
+
+    // If the consecutive points form a line, skip
+    const next_i = (i + 1) % ln;
+    if ( !foundry.utils.orient2dFast(last_pt, pts[i], pts[next_i]) ) { continue; }
+
+    clean_pts.push(pts[i]);
+    last_pt = pts[i];
+  }
+
+  return new PIXI.Polygon(clean_pts);
 }
-
-
-
 
 /**
  * Helper to build a TraceObject of the correct subtype, given a shape.
@@ -303,7 +315,6 @@ class PolygonTraceObject extends TraceObject {
     const redBEqual = pointsEqual(ix, redB);
     const blackBEqual = pointsEqual(ix, blackB);
 
-    let orient;
     switch ( (redBEqual * 2) + blackBEqual ) {
       case TF_OPTIONS.FALSE_FALSE:
         return foundry.utils.orient2dFast(ix, redB, blackB);
@@ -517,8 +528,8 @@ class RectangleTraceObject extends TraceObject {
   }
 
   polygonOrientationAtIntersection(ixObj) {
-    const bInside = rect.contains(ixObj.edge.B.x, ixObj.edge.B.y);
-    return bInside ? -1 : 1;
+    const bInside = this.shape.contains(ixObj.edge.B.x, ixObj.edge.B.y);
+    return bInside ? 1 : -1;
   }
 
   findIntersectionsForShape(edge) {
@@ -599,7 +610,7 @@ class LimitedAngleTraceObject extends TraceObject {
    * @return {Boolean}
    */
   polygonOrientationAtIntersection(ixObj) {
-    return this.shape.containsPoint(ixObj.edge.B) ? -1 : 1;
+    return this.shape.containsPoint(ixObj.edge.B) ? 1 : -1;
   }
 
   /**

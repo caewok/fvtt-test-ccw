@@ -1,6 +1,7 @@
 /* globals
 foundry,
 canvas,
+PIXI
 */
 "use strict";
 
@@ -21,6 +22,105 @@ import { pointsEqual, compareXY, generateBisectingCanvasSegments } from "./utili
 import * as drawing from "./drawing.js";
 import * as random from "./random.js";
 import { tracePolygon } from "./trace_polygon.js";
+
+/**
+ * Test difficult, overlapping shapes for union and intersect trace algorithm
+ */
+export function testPolygonUnionIntersectDifficultShapes() {
+  const square = new PIXI.Polygon([
+    1000, 1000,
+    2000, 1000,
+    2000, 2000,
+    1000, 2000
+  ]);
+
+  const triangle = new PIXI.Polygon([
+    0, 1000,
+    2000, 1000,
+    2000, 3000
+  ]);
+
+  let trace_union = tracePolygon(square, triangle, { union: true });
+  let trace_intersect = tracePolygon(square, triangle, { union: false });
+
+  drawing.drawShape(square, { color: drawing.COLORS.black });
+  drawing.drawShape(triangle, { color: drawing.COLORS.black })
+  drawing.drawShape(trace_union, { color: drawing.COLORS.blue, width: 2 })
+  drawing.drawShape(trace_intersect, { color: drawing.COLORS.red, width: 2 })
+
+  if ( !polygonsEquivalent(triangle, trace_union) ) {
+    console.warn("Polygon x Polygon union failed.", trace_union);
+  }
+
+  if ( !polygonsEquivalent(square, trace_intersect) ) {
+    console.warn("Polygon x Polygon intersect failed.", trace_intersect);
+  }
+
+  // Null shapes
+  const triangle_t = triangle.translate(2000, 2000);
+  trace_union = tracePolygon(square, triangle_t, { union: true });
+  trace_intersect = tracePolygon(square, triangle_t, { union: false });
+
+  if ( trace_union !== null ) {
+    console.warn("Polygon x Polygon null union failed.", trace_union);
+  }
+
+  if ( trace_intersect !== null ) {
+    console.warn("Polygon x Polygon null intersect failed.", trace_intersect);
+  }
+
+  // Rectangle
+  const rect = new PIXI.Rectangle(1000, 500, 500, 1000);
+  trace_union = tracePolygon(square, rect, { union: true });
+  trace_intersect = tracePolygon(square, rect, { union: false });
+
+  const expected_rect_union = new PIXI.Polygon([
+    1000, 500,
+    1500, 500,
+    1500, 1000,
+    2000, 1000,
+    2000, 2000,
+    1000, 2000
+  ]);
+
+  const expected_rect_ix = new PIXI.Polygon([
+    1000, 1000,
+    1500, 1000,
+    1500, 1500,
+    1500, 1000
+  ]);
+
+  if ( !polygonsEquivalent(trace_union, expected_rect_union) ) {
+    console.warn("Polygon x Rectangle union failed.", trace_union);
+  }
+  if ( !polygonsEquivalent(trace_intersect, expected_rect_ix) ) {
+    console.warn("Polygon x Rectangle intersect failed.", trace_intersect);
+  }
+
+  // Null shapes
+  const rect_t = new PIXI.Rectangle(3000, 3500, 500, 1000);
+  trace_union = tracePolygon(square, rect_t, { union: true });
+  trace_intersect = tracePolygon(square, rect_t, { union: false });
+
+  if ( trace_union !== null ) {
+    console.warn("Polygon x Rectangle null union failed.", trace_union);
+  }
+
+  if ( trace_intersect !== null ) {
+    console.warn("Polygon x Rectangle null intersect failed.", trace_intersect);
+  }
+
+
+}
+
+function polygonsEquivalent(poly1, poly2) {
+  const ln = poly1.points.length;
+  if ( ln !== poly2.points.length ) { return false; }
+  for ( let i = 0; i < ln; i += 1 ) {
+    if ( !poly1.points[i].almostEqual(poly2.points[i]) ) { return false; }
+  }
+  return true;
+}
 
 /**
  * Test trace algorithm for union/intersect polygon against various shapes.
