@@ -111,6 +111,78 @@ export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
     this._intersectBoundary();
   }
 
+  /**
+   * New method
+   * Given the computed sweep polygon, intersect against each boundary shape.
+   */
+  _intersectBoundary() {
+    const { boundaryShapes } = this.config;
+
+    // Jump early if nothing to intersect
+    // Need three points to form a polygon
+    if (this.points.length < 6) return;
+
+    // TO-DO: Require each shape to have an intersectPolygon method.
+    // Call that instead of calling toPolygon on each shape.
+    // This allows for certain shapes, like circle, to use a faster specialized
+    // intersection method.
+    let poly = this;
+    for ( const shape of boundaryShapes ) {
+      const poly_shape = shape instanceof PIXI.Polygon ? shape : shape.toPolygon();
+      poly = poly.intersectPolygon(poly_shape); // See PIXI.Polygon: uses ClipperLib
+    }
+
+    this.points = poly.points;
+  }
+
+  /**
+   * Changes to _identifyEdges:
+   * - Do not constrain edges to a limited radius (handled by _getWalls + intersectBoundary)
+   */
+  _identifyEdges() {
+    const {type, hasLimitedAngle} = this.config;
+
+    // Add edges for placed Wall objects
+    const walls = this._getWalls();
+    for ( let wall of walls ) {
+      if ( !this.constructor.testWallInclusion(wall, this.origin, type) ) continue;
+      const edge = PolygonEdge.fromWall(wall, type);
+      this.edges.add(edge);
+    }
+
+    // Add edges for the canvas boundary
+    for ( let boundary of canvas.walls.boundaries ) {
+      this.edges.add(PolygonEdge.fromWall(boundary, type));
+    }
+
+    // Restrict edges to a limited angle
+    if ( hasLimitedAngle ) {
+      this._restrictEdgesByAngle();
+    }
+
+    // *** NEW: No constrain by limited radius ***
+  }
+
+  /**
+   * Changes to _getWalls:
+   * - Use the custom bbox to limit walls instead of constructing one here
+   */
+  _getWalls() {
+    if ( !this.config.bbox ) return canvas.walls.placeables;
+    return Array.from(canvas.walls.quadtree.getObjects(this.config.bbox).values());
+  }
+
+  /**
+   * Deprecated method
+   */
+  _constrainEdgesByRadius() {
+    console.warn("MyClockwiseSweepPolygon does not use _constrainEdgesByRadius.");
+    super._constrainEdgesByRadius();
+  }
+
+
+
+
 
 
 }
