@@ -40,74 +40,101 @@ export function testPolygonUnionIntersectDifficultShapes() {
     2000, 3000
   ]);
 
-  let trace_union = tracePolygon(square, triangle, { union: true });
-  let trace_intersect = tracePolygon(square, triangle, { union: false });
+  const expected_poly_union = new PIXI.Polygon([
+    2000, 1000,
+    2000, 2000, // technically not needed for union (collinear)
+    2000, 3000,
+    0, 1000,
+    1000, 1000, // technically not needed for union (collinear)
+    2000, 1000
+  ]);
+
+  const expected_poly_intersect = new PIXI.Polygon([
+    1000, 1000,
+    2000, 1000,
+    2000, 2000,
+    1000, 2000,
+    1000, 1000
+  ]);
+
+  const poly_union = tracePolygon(square, triangle, { union: true });
+  const poly_intersect = tracePolygon(square, triangle, { union: false });
 
   drawing.drawShape(square, { color: drawing.COLORS.black });
   drawing.drawShape(triangle, { color: drawing.COLORS.black })
-  drawing.drawShape(trace_union, { color: drawing.COLORS.blue, width: 2 })
-  drawing.drawShape(trace_intersect, { color: drawing.COLORS.red, width: 2 })
+  drawing.drawShape(poly_union, { color: drawing.COLORS.blue, width: 2 })
+  drawing.drawShape(poly_intersect, { color: drawing.COLORS.red, width: 2 })
 
-  if ( !polygonsEquivalent(triangle, trace_union) ) {
-    console.warn("Polygon x Polygon union failed.", trace_union);
+  if ( !polygonsEquivalent(expected_poly_union, poly_union) ) {
+    console.warn("Polygon x Polygon union failed.", poly_union);
   }
 
-  if ( !polygonsEquivalent(square, trace_intersect) ) {
-    console.warn("Polygon x Polygon intersect failed.", trace_intersect);
+  if ( !polygonsEquivalent(expected_poly_intersect, poly_intersect) ) {
+    console.warn("Polygon x Polygon intersect failed.", poly_intersect);
   }
 
   // Null shapes
   const triangle_t = triangle.translate(2000, 2000);
-  trace_union = tracePolygon(square, triangle_t, { union: true });
-  trace_intersect = tracePolygon(square, triangle_t, { union: false });
+  const null_poly_union = tracePolygon(square, triangle_t, { union: true });
+  const null_poly_intersect = tracePolygon(square, triangle_t, { union: false });
 
-  if ( trace_union !== null ) {
-    console.warn("Polygon x Polygon null union failed.", trace_union);
+  if ( null_poly_union !== null ) {
+    console.warn("Polygon x Polygon null union failed.", null_poly_union);
   }
 
-  if ( trace_intersect !== null ) {
-    console.warn("Polygon x Polygon null intersect failed.", trace_intersect);
+  if ( null_poly_intersect !== null ) {
+    console.warn("Polygon x Polygon null intersect failed.", null_poly_intersect);
   }
 
   // Rectangle
-  const rect = new PIXI.Rectangle(1000, 500, 500, 1000);
-  trace_union = tracePolygon(square, rect, { union: true });
-  trace_intersect = tracePolygon(square, rect, { union: false });
+  const rect = new PIXI.Rectangle(3000, 500, 500, 1000);
+  const square_t = square.translate(2000,0);
+  const rect_union = tracePolygon(square_t, rect, { union: true });
+  const rect_intersect = tracePolygon(square_t, rect, { union: false });
+
+  drawing.drawShape(square_t, { color: drawing.COLORS.black });
+  drawing.drawShape(rect, { color: drawing.COLORS.black })
+  drawing.drawShape(rect_union, { color: drawing.COLORS.blue, width: 2 })
+  drawing.drawShape(rect_intersect, { color: drawing.COLORS.red, width: 2 })
 
   const expected_rect_union = new PIXI.Polygon([
-    1000, 500,
-    1500, 500,
-    1500, 1000,
-    2000, 1000,
-    2000, 2000,
-    1000, 2000
+    3500, 1000,
+    4000, 1000,
+    4000, 2000,
+    3000, 2000,
+    3000, 1500, // technically not needed for union (collinear)
+    3000, 500,
+    3500, 500,
+    3500, 1000
   ]);
 
   const expected_rect_ix = new PIXI.Polygon([
-    1000, 1000,
-    1500, 1000,
-    1500, 1500,
-    1500, 1000
+    3500, 1000,
+    3500, 1500,
+    3000, 1500,
+//     3000, 1500,  // unnecessarily duplicated but difficult to avoid
+    3000, 1000,
+    3500, 1000
   ]);
 
-  if ( !polygonsEquivalent(trace_union, expected_rect_union) ) {
-    console.warn("Polygon x Rectangle union failed.", trace_union);
+  if ( !polygonsEquivalent(rect_union, expected_rect_union) ) {
+    console.warn("Polygon x Rectangle union failed.", rect_union);
   }
-  if ( !polygonsEquivalent(trace_intersect, expected_rect_ix) ) {
-    console.warn("Polygon x Rectangle intersect failed.", trace_intersect);
+  if ( !polygonsEquivalent(rect_intersect, expected_rect_ix) ) {
+    console.warn("Polygon x Rectangle intersect failed.", rect_intersect);
   }
 
   // Null shapes
   const rect_t = new PIXI.Rectangle(3000, 3500, 500, 1000);
-  trace_union = tracePolygon(square, rect_t, { union: true });
-  trace_intersect = tracePolygon(square, rect_t, { union: false });
+  const null_rect_union = tracePolygon(square, rect_t, { union: true });
+  const null_rect_intersect = tracePolygon(square, rect_t, { union: false });
 
-  if ( trace_union !== null ) {
-    console.warn("Polygon x Rectangle null union failed.", trace_union);
+  if ( null_rect_union !== null ) {
+    console.warn("Polygon x Rectangle null union failed.", null_rect_union);
   }
 
-  if ( trace_intersect !== null ) {
-    console.warn("Polygon x Rectangle null intersect failed.", trace_intersect);
+  if ( null_rect_intersect !== null ) {
+    console.warn("Polygon x Rectangle null intersect failed.", null_rect_intersect);
   }
 
 
@@ -162,6 +189,8 @@ export function testPolygonPolygonUnionIntersect() {
   drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
   drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
   drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+
+  return [poly1, poly2];
 }
 
 export function testPolygonCircleUnionIntersect() {
@@ -198,6 +227,8 @@ export function testPolygonCircleUnionIntersect() {
   drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
   drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
   drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+
+  return [poly, circle];
 }
 
 export function testPolygonRectangleUnionIntersect() {
@@ -234,6 +265,8 @@ export function testPolygonRectangleUnionIntersect() {
   drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
   drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
   drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+
+  return [poly, rect];
 }
 
 export function testPolygonLimitedAngleUnionIntersect() {
@@ -269,6 +302,8 @@ export function testPolygonLimitedAngleUnionIntersect() {
   drawing.drawShape(clipper_union_t, { color: drawing.COLORS.blue, width: 2 });
   drawing.drawShape(clipper_intersect_t, { color: drawing.COLORS.red, width: 2 });
   drawing.labelPoint({x: 3000, y: 1000}, "Clipper algorithm");
+
+  return [poly, la];
 }
 
 /**

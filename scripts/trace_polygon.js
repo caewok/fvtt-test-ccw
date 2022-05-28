@@ -37,12 +37,15 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
 //   drawing.drawShape(shape, { color: drawing.COLORS.black });
 //   console.log("Polygon is red; shape is black.")
 
-  let turn_clockwise = union ? -1 : 1;
-  let traceObj = buildTraceObject(poly, shape, { density });
-  let edges = TraceObject.linkedEdges(poly);
+  // CCW: orientation is positive
+  // CW: orientation is negative
+  // Want to turn CCW to form union
+  const turn_direction = union ? 1 : -1;
+  const traceObj = buildTraceObject(poly, shape, { density });
+  const edges = TraceObject.linkedEdges(poly);
 
   // Get all the intersections for edges along the polygon, in order
-  let ixObjs = [];
+  const ixObjs = [];
   for ( const edge of edges ) {
     const arr = traceObj.findIntersections(edge);
     if ( arr.length ) { ixObjs.push(...arr); }
@@ -55,29 +58,32 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
   // For starting intersection, determine if moving clockwise will stay on the poly or
   // will move to other shape. Go in desired direction as indicated by union parameter.
   // For union, turn counterclockwise; for intersection turn clockwise.
-  let prev_ixObj = ixObjs.shift();
-  let last_ixObj = prev_ixObj; // Repeat the last object to close the points at the end
+  let prev_ixObj = ixObjs[0];
+  const last_ixObj = prev_ixObj; // Repeat the last object to close the points at the end
 //   drawing.drawPoint(prev_ixObj.ix, { color: drawing.COLORS.green, radius: 7 })
 
-  let orient = traceObj.polygonOrientationAtIntersection(prev_ixObj);
-  let is_tracing_poly = (orient * turn_clockwise) >= 0;
+  const orient = traceObj.polygonOrientationAtIntersection(prev_ixObj);
+  let is_tracing_poly = (orient * turn_direction) >= 0;
 //   console.log(`tracing ${is_tracing_poly ? "poly (red)" : "shape (black)"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}; `);
 
-  let pts = [prev_ixObj.ix];
-//   let i = 0;
-  for ( const ixObj of ixObjs ) {
-//     drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.green, radius: 7, alpha: .5 })
-    let orient = traceObj.polygonOrientationAtIntersection(ixObj);
-    let was_tracing_poly = is_tracing_poly;
-    is_tracing_poly = (orient * turn_clockwise) >= 0;
-    let switch_shapes = was_tracing_poly ^ is_tracing_poly;
+  const pts = [prev_ixObj];
+  const ln = ixObjs.length;
+  for ( let i = 1; i < ln; i += 1) {
+    let ixObj = ixObjs[i];
 
-    if ( switch_shapes ) {
-      let padding = was_tracing_poly
+    // If consecutive points are nearly the same, skip
+    if ( pointsEqual(ixObj, prev_ixObj) ) { continue; } // Could skip for better performance (just repeated points in the polygon)
+
+    const orient = traceObj.polygonOrientationAtIntersection(ixObj);
+    const was_tracing_poly = is_tracing_poly;
+    is_tracing_poly = (orient * turn_direction) >= 0;
+
+    if ( was_tracing_poly ^ is_tracing_poly ) {
+      const padding = was_tracing_poly
         ? traceObj.polygonPointsBetween(prev_ixObj, ixObj)
         : traceObj.shapePointsBetween(prev_ixObj, ixObj);
       padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
-      pts.push(ixObj.ix);
+      pts.push(ixObj);
 //       padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
 //       drawing.drawPoint(ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
@@ -85,38 +91,24 @@ export function tracePolygon(poly, shape, { union = true, density = 60 } = {}) {
 
 //       console.log(`${i}\ttracing ${is_tracing_poly ? "poly" : "shape"} from ${prev_ixObj.ix.x},${prev_ixObj.ix.y}`);
     }
-//     i += 1;
   }
 
   // If never switched shapes, return the shape
   if ( last_ixObj === prev_ixObj ) { return is_tracing_poly ? poly : shape; }
 
+  // If the last point repeats, we are done
+  if ( pointsEqual(prev_ixObj, last_ixObj) ) { return new PIXI.Polygon(pts); }
+
   // Fill in padding to the first intersection
-  let padding = is_tracing_poly
+  const padding = is_tracing_poly
         ? traceObj.polygonPointsBetween(prev_ixObj, last_ixObj)
         : traceObj.shapePointsBetween(prev_ixObj, last_ixObj);
   padding.length && pts.push(...padding); // eslint-disable-line no-unused-expressions
-  pts.push(last_ixObj.ix);
+  pts.push(last_ixObj);
 //   padding.forEach(pt => drawing.drawPoint(pt, { color: drawing.COLORS.gray, alpha: .8 }));
 //   drawing.drawPoint(last_ixObj.ix, { color: drawing.COLORS.gray, alpha: .8 });
 
-  // Simplify points in case of overlap
-  const clean_pts = [pts[0]];
-  const ln = pts.length;
-  let last_pt = pts[0];
-  for ( let i = 1; i < ln; i += 1 ) {
-    // If consecutive points are nearly the same, skip
-    if ( pointsEqual(pts[i], last_pt) ) { continue; }
-
-    // If the consecutive points form a line, skip
-    const next_i = (i + 1) % ln;
-    if ( !foundry.utils.orient2dFast(last_pt, pts[i], pts[next_i]) ) { continue; }
-
-    clean_pts.push(pts[i]);
-    last_pt = pts[i];
-  }
-
-  return new PIXI.Polygon(clean_pts);
+  return new PIXI.Polygon(pts);
 }
 
 /**
@@ -172,6 +164,9 @@ class TraceObject {
     const pts = [];
     let curr_edge = ixObj1.edge;
     const target_edge = ixObj2.edge;
+    if ( TraceObject.edgesEqual(curr_edge, target_edge) ) return [];
+    pointsEqual(curr_edge.B, ixObj1) && (curr_edge = curr_edge.next); // eslint-disable-line no-unused-expressions
+
     const max_iterations = this.poly.points.length;
     let iter = 0;
     while ( !TraceObject.edgesEqual(curr_edge, target_edge) && iter < max_iterations) {
@@ -179,6 +174,9 @@ class TraceObject {
       pts.push(curr_edge.B);
       curr_edge = curr_edge.next;
     }
+
+    pts.length && pointsEqual(pts[pts.length - 1], ixObj2) && pts.pop(); // eslint-disable-line no-unused-expressions
+
     return pts;
   }
 
@@ -247,7 +245,7 @@ class TraceObject {
   findIntersections(edge) {
     const ixObjs = this.findIntersectionsForShape(edge);
     ixObjs.forEach(ixObj => ixObj.edge = edge);
-    ixObjs.sort((a, b) => distanceSquared(edge.A, a.ix) - distanceSquared(edge.A, b.ix));
+    ixObjs.sort((a, b) => distanceSquared(edge.A, a) - distanceSquared(edge.A, b));
     return ixObjs;
   }
 
@@ -290,6 +288,9 @@ class PolygonTraceObject extends TraceObject {
     const pts = [];
     let curr_edge = ixObj1.black;
     const target_edge = ixObj2.black;
+    if ( TraceObject.edgesEqual(curr_edge, target_edge) ) return [];
+    pointsEqual(curr_edge.B, ixObj1) && (curr_edge = curr_edge.next); // eslint-disable-line no-unused-expressions
+
     const max_iterations = this.shape.points.length;
     let iter = 0;
     while ( !TraceObject.edgesEqual(curr_edge, target_edge) && iter < max_iterations ) {
@@ -297,6 +298,8 @@ class PolygonTraceObject extends TraceObject {
       pts.push(curr_edge.B);
       curr_edge = curr_edge.next;
     }
+    pts.length && pointsEqual(pts[pts.length - 1], ixObj2) && pts.pop(); // eslint-disable-line no-unused-expressions
+
     return pts;
   }
 
@@ -308,22 +311,22 @@ class PolygonTraceObject extends TraceObject {
    * @return {Boolean}
    */
   polygonOrientationAtIntersection(ixObj) {
-    const { edge, black, ix } = ixObj;
-    const redB = edge.B;
-    const blackB = black.B;
+    const { edge: red, black } = ixObj;
+    const redB = red.B; // The polygon
+    const blackB = black.B; // The other shape (other polygon)
 
-    const redBEqual = pointsEqual(ix, redB);
-    const blackBEqual = pointsEqual(ix, blackB);
+    const redBEqual = pointsEqual(ixObj, redB);
+    const blackBEqual = pointsEqual(ixObj, blackB);
 
     switch ( (redBEqual * 2) + blackBEqual ) {
       case TF_OPTIONS.FALSE_FALSE:
-        return foundry.utils.orient2dFast(ix, redB, blackB);
+        return foundry.utils.orient2dFast(ixObj, blackB, redB);
       case TF_OPTIONS.FALSE_TRUE:
-        return foundry.utils.orient2dFast(ix, redB, black.next.B);
+        return foundry.utils.orient2dFast(ixObj, black.next.B, redB);
       case TF_OPTIONS.TRUE_FALSE:
-        return foundry.utils.orient2dFast(ix, edge.next.B, blackB);
+        return foundry.utils.orient2dFast(ixObj, blackB, red.next.B);
       case TF_OPTIONS.TRUE_TRUE:
-        return foundry.utils.orient2dFast(ix, edge.next.B, black.next.B);
+        return foundry.utils.orient2dFast(ixObj, black.next.B, red.next.B);
     }
   }
 
@@ -340,10 +343,8 @@ class PolygonTraceObject extends TraceObject {
     const ixObjs = [];
     const callback_fn = (red, black) => {
       const ix = foundry.utils.lineLineIntersection(red.A, red.B, black.A, black.B);
-      ixObjs.push({
-        ix,
-        black // For PolygonTraceObject.prototype.pointsBetween
-      });
+      ix.black = black; // For PolygonTraceObject.prototype.pointsBetween
+      ixObjs.push(ix);
     };
     const blacks = TraceObject.linkedEdges(this.shape);
     findIntersectionsBruteRedBlack([edge], blacks, callback_fn); // Brute appears to do better than sort here, b/c sort with a single segment is too slow
@@ -368,7 +369,7 @@ class CircleTraceObject extends TraceObject {
    */
   shapePointsBetween(ixObj1, ixObj2) {
     const pts = [];
-    const padding = PIXI.Circle.pointsForArc(ixObj1.ix, ixObj2.ix, this.shape, { density: this.density });
+    const padding = PIXI.Circle.pointsForArc(ixObj1, ixObj2, this.shape, { density: this.density });
     for ( const pt of padding ) { pts.push(pt); }
     return pts;
   }
@@ -380,7 +381,7 @@ class CircleTraceObject extends TraceObject {
    * @return {Boolean}
    */
   polygonOrientationAtIntersection(ixObj) {
-    return ixObj.bInside ? 1 : -1;
+    return ixObj.bInside ? -1 : 1;
   }
 
   /**
@@ -397,17 +398,21 @@ class CircleTraceObject extends TraceObject {
     switch ( ix_data.intersections.length ) {
       case 0: return [];
       case 1:
+
         return [{
-          ix: ix_data.intersections[0],
+          x: ix_data.intersections[0].x,
+          y: ix_data.intersections[0].y,
           bInside: ix_data.bInside
         }];
 
       case 2:
         return [{
-          ix: ix_data.intersections[0],
+          x: ix_data.intersections[0].x,
+          y: ix_data.intersections[0].y,
           bInside: ix_data.bInside
         }, {
-          ix: ix_data.intersections[1],
+          x: ix_data.intersections[1].x,
+          y: ix_data.intersections[1].y,
           bInside: ix_data.bInside
         }];
     }
@@ -505,50 +510,42 @@ class RectangleTraceObject extends TraceObject {
     // Locate which side the first intersection is on, and trace around clockwise to the
     // side of the second intersection.
     // Handle points very near the side and points very near the corners.
-    const side1 = this._side(ixObj1.ix);
+    const side1 = this._side(ixObj1);
     if ( !side1 ) {
       console.error("RectangleTraceObject|pointsBetween ixObj1 not on the rectangle.");
       return [];
     }
 
-    const side2 = this._side(ixObj2.ix);
+    const side2 = this._side(ixObj2);
     if ( !side2 ) {
       console.error("RectangleTraceObject|pointsBetween ixObj2 not on the rectangle.");
       return [];
     }
 
     let curr_side = side1;
+    if ( curr_side === side2 ) return [];
+    pointsEqual(this.clockwiseCornerForSide(curr_side), ixObj1) && (curr_side = this._nextSide(curr_side)); // eslint-disable-line no-unused-expressions
+
     const pts = [];
     while ( curr_side !== side2 ) {
       pts.push(this.clockwiseCornerForSide(curr_side));
       curr_side = this._nextSide(curr_side);
     }
 
+    pts.length && pointsEqual(pts[pts.length - 1], ixObj2) && pts.pop(); // eslint-disable-line no-unused-expressions
+
     return pts;
   }
 
   polygonOrientationAtIntersection(ixObj) {
     const bInside = this.shape.contains(ixObj.edge.B.x, ixObj.edge.B.y);
-    return bInside ? 1 : -1;
+    return bInside ? -1 : 1;
   }
 
   findIntersectionsForShape(edge) {
     const rect = this.shape;
     if ( !rect.lineSegmentIntersects(edge.A, edge.B) ) { return []; }
-    const ixs = rect.lineSegmentIntersection(edge.A, edge.B);
-    if ( !ixs.length ) { return []; }
-
-    if ( ixs.length === 1 ) {
-      return [{
-        ix: ixs[0]
-      }];
-    }
-
-    return [{
-      ix: ixs[0]
-    }, {
-      ix: ixs[1]
-    }];
+    return rect.lineSegmentIntersection(edge.A, edge.B);
   }
 }
 
@@ -562,45 +559,45 @@ class LimitedAngleTraceObject extends TraceObject {
    */
   shapePointsBetween(ixObj1, ixObj2) {
     const pts = [];
-    const ix1 = ixObj1.ix;
-    const ix2 = ixObj2.ix;
     const la = this.shape;
+    const rMin_ix = la.rMin_ix;
+    const rMax_ix = la.rMax_ix;
 
     switch ( (ixObj1.is_max * 2) + ixObj2.is_max ) {
       case TF_OPTIONS.FALSE_FALSE:
         // Path: rMin --> rMin or rMin --> canvas --> rMax --> rMin
-        if ( distanceSquared(la.rMin_ix, ix1)
-          < distanceSquared(la.rMin_ix, ix2) ) { return []; }
-        if ( !pointsEqual(la.rMin_ix, ix1) ) { pts.push(la.rMin_ix); }
+        if ( distanceSquared(rMin_ix, ixObj1)
+          < distanceSquared(rMin_ix, ixObj2) ) { return []; }
+        if ( !pointsEqual(rMin_ix, ixObj1) ) { pts.push(rMin_ix); }
         pts.push(...la.canvas_points);
-        pts.push(la.rMax_ix, la.origin);
+        pts.push(rMax_ix, la.origin);
         break;
 
       case TF_OPTIONS.FALSE_TRUE:
         // Path: rMin --> canvas --> rMax
-        if ( !pointsEqual(la.rMin_ix, ix1) ) { pts.push(la.rMin_ix); }
+        if ( !pointsEqual(rMin_ix, ixObj1) ) { pts.push(rMin_ix); }
         pts.push(...la.canvas_points);
-        pts.push(la.rMax_ix);
+        pts.push(rMax_ix);
         break;
 
       case TF_OPTIONS.TRUE_FALSE:
         // Path: rMax --> rMin
-        if ( !pointsEqual(la.origin, ix1) ) { pts.push(la.origin); }
+        if ( !pointsEqual(la.origin, ixObj1) ) { pts.push(la.origin); }
         break;
 
       case TF_OPTIONS.TRUE_TRUE:
         // Path: rMax --> rMax or rMax --> rMin --> canvas --> rMax
-        if ( distanceSquared(la.rMax_ix, ix1)
-          < distanceSquared(la.rMax_ix, ix2) ) { return []; }
-        if ( !pointsEqual(la.origin, ix1) ) { pts.push(la.origin); }
-        pts.push(la.rMin_ix);
+        if ( distanceSquared(rMax_ix, ixObj1)
+          < distanceSquared(rMax_ix, ixObj2) ) { return []; }
+        if ( !pointsEqual(la.origin, ixObj1) ) { pts.push(la.origin); }
+        pts.push(rMin_ix);
         pts.push(...la.canvas_points);
-        pts.push(la.rMax_ix);
+        pts.push(rMax_ix);
         break;
     }
 
     // If the intersection is at an endpoint, drop it
-    if ( pts.length > 0 && pointsEqual(pts[pts.length - 1], ix2) ) { pts.pop(); }
+    if ( pts.length > 0 && pointsEqual(pts[pts.length - 1], ixObj2) ) { pts.pop(); }
 
     return pts;
   }
@@ -610,7 +607,7 @@ class LimitedAngleTraceObject extends TraceObject {
    * @return {Boolean}
    */
   polygonOrientationAtIntersection(ixObj) {
-    return this.shape.containsPoint(ixObj.edge.B) ? 1 : -1;
+    return this.shape.containsPoint(ixObj.edge.B) ? -1 : 1;
   }
 
   /**
@@ -637,25 +634,17 @@ class LimitedAngleTraceObject extends TraceObject {
     switch ( (intersects_rMin * 2) + intersects_rMax ) {
       case TF_OPTIONS.FALSE_FALSE: return [];
       case TF_OPTIONS.FALSE_TRUE:
-        return [{
-          ix: ix_max,
-          is_max: true
-        }];
+        ix_max.is_max = true;
+        return [ix_max];
 
       case TF_OPTIONS.TRUE_FALSE:
-        return [{
-          ix: ix_min,
-          is_max: false
-        }];
+        ix_min.is_max = false;
+        return [ix_min];
 
       case TF_OPTIONS.TRUE_TRUE:
-        return [{
-          ix: ix_min,
-          is_max: false
-        }, {
-          ix: ix_max,
-          is_max: true
-        }];
+        ix_min.is_max = false;
+        ix_max.is_max = true;
+        return [ix_min, ix_max];
     }
   }
 }
