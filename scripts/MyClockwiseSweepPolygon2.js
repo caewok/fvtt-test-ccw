@@ -18,7 +18,6 @@ import { identifyIntersectionsWithNoEndpoint } from "./utilities.js";
 import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle } from "./IntersectionsSort.js";
 import { LimitedAngleSweepPolygon } from "./LimitedAngle.js";
-import { ClipperLib } from "./clipper_unminified.js";
 
 /*
 Basic concept:

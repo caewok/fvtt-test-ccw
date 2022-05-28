@@ -17,8 +17,6 @@ import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
-import { ClipperLib } from "./clipper_unminified.js"; // eslint-disable-line no-unused-vars
-
 import { findIntersectionsBruteSingle, findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
 import { findIntersectionsSortSingle, findIntersectionsSortRedBlack } from "./IntersectionsSort.js";
 import { findIntersectionsMyersSingle, findIntersectionsMyersRedBlack } from "./IntersectionsSweepMyers.js";
@@ -67,7 +65,6 @@ Hooks.once("init", async function() {
     tests,
     drawing,
     random,
-    ClipperLib,
     intersections: {
       findIntersectionsBruteSingle,
       findIntersectionsBruteRedBlack,
