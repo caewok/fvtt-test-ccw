@@ -27,6 +27,7 @@ each shape object must provide a getBounds() method and the rectangle object
 must have a method to intersect against other rectangles.
 
 */
+
 export class MyClockwiseSweepPolygon extends ClockwiseSweepPolygon {
 
   /**

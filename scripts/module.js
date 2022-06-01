@@ -5,6 +5,7 @@ import * as bench from "./benchmark.js";
 import * as drawing from "./drawing.js";
 
 import { MyClockwiseSweepPolygon } from "./MyClockwiseSweepPolygon.js";
+import { ClockwiseSweepPolygonNew } from "./clockwise-sweep.js";
 
 import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
@@ -51,5 +52,6 @@ Hooks.once("init", async function() {
     drawing,
 
     MyClockwiseSweepPolygon,
+    ClockwiseSweepPolygonNew
   };
 });
