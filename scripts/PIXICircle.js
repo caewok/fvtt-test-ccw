@@ -26,29 +26,41 @@ import { NORMALIZED_CIRCLE_POINTS_60, NORMALIZED_CIRCLE_POINTS_12 } from "./Norm
  * @return {PIXI.Polygon}
  */
 function toPolygon({ density = 60 } = {}) {
-  const padding = density === 60 ? NORMALIZED_CIRCLE_POINTS_60
-    : density === 12 ? NORMALIZED_CIRCLE_POINTS_12
-    : get360PaddingPoints(this.x, this.y, this.radius, { density });
 
-  // Padding is in {x, y} format; convert to polygon
-  let poly = new PIXI.Polygon(padding);
-  if (density === 60 || density === 12) {
-    // Re-scale normalized circle to desired center and radius
-    /* eslint-disable indent */
-    poly = poly.unscale({ position_dx: this.x,
-                          position_dy: this.y,
-                          size_dx: this.radius,
-                          size_dy: this.radius });
-    /* eslint-enable indent */
+  const points = [];
+  const delta = (2 * Math.PI) / density;
+  for ( let i=0; i<density; i++ ) {
+    const dx = Math.cos(i * delta);
+    const dy = Math.sin(i * delta);
+    points.push(this.x + (dx * this.radius), this.y + (dy * this.radius));
   }
+  const polygon = new PIXI.Polygon(...points);
+  polygon.close();
+  return polygon;
 
-  // Close the polygon
-  poly.points.push(poly.points[0], poly.points[1]);
-
-  // Circle polygons have certain qualities
-  poly._isClosed = true;
-
-  return poly;
+//   const padding = density === 60 ? NORMALIZED_CIRCLE_POINTS_60
+//     : density === 12 ? NORMALIZED_CIRCLE_POINTS_12
+//     : get360PaddingPoints(this.x, this.y, this.radius, { density });
+//
+//   // Padding is in {x, y} format; convert to polygon
+//   let poly = new PIXI.Polygon(padding);
+//   if (density === 60 || density === 12) {
+//     // Re-scale normalized circle to desired center and radius
+//     /* eslint-disable indent */
+//     poly = poly.unscale({ position_dx: this.x,
+//                           position_dy: this.y,
+//                           size_dx: this.radius,
+//                           size_dy: this.radius });
+//     /* eslint-enable indent */
+//   }
+//
+//   // Close the polygon
+//   poly.points.push(poly.points[0], poly.points[1]);
+//
+//   // Circle polygons have certain qualities
+//   poly._isClosed = true;
+//
+//   return poly;
 }
 
 /**
