@@ -25,9 +25,7 @@ export function describeSceneParameters() {
   // how many segments intersect at endpoints here.
   const numEndpoints = new Set();
   canvas.walls.placeables.forEach(w => {
-    const c = w.data.c;
-    numEndpoints.add(WallEndpoint.getKey(c[0], c[1]));
-    numEndpoints.add(WallEndpoint.getKey(c[2], c[3]));
+    w.wallKeys.forEach(k => numEndpoints.add(k));
   });
 
 
@@ -62,7 +60,7 @@ export async function benchScene(n = 100, { origin, rotation, radius = 60, angle
   }
   console.log(`Origin: ${origin.x},${origin.y}`);
 
-  rotation ||= t.data.rotation;
+  rotation ||= t.document.rotation;
   if (typeof rotation === "undefined") {
     console.log("Please select a token or use a rotation parameter.");
     return;
@@ -70,7 +68,7 @@ export async function benchScene(n = 100, { origin, rotation, radius = 60, angle
   console.log(`Rotation: ${rotation}`);
 
   console.log("\n----- Full Vision");
-  let config = {angle: 360, rotation: t.data.rotation, type: "sight"};
+  let config = {angle: 360, rotation, type: "sight"};
   await quantileBenchSweep(n, origin, config);
 
   console.log(`\n----- Limited Radius ${radius}`);
