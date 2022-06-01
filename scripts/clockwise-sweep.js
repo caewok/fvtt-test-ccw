@@ -111,7 +111,7 @@ export class ClockwiseSweepPolygonNew extends PointSourcePolygon {
    * @param {ClockwiseSweepPolygonConfig} config  The provided configuration object
    */
   initialize(origin, config) {
-    super.initialize(origin, config);
+    super.initialize(origin, {...config});
     const cfg = this.config;
 
     // Round the origin point
@@ -775,7 +775,7 @@ export class ClockwiseSweepPolygonNew extends PointSourcePolygon {
    * @private
    */
   _constructPolygonPoints() {
-    const {hasLimitedAngle, hasLimitedRadius} = this.config;
+    const {hasLimitedAngle} = this.config;
     this.points = [];
 
     // Open a limited shape
@@ -783,49 +783,10 @@ export class ClockwiseSweepPolygonNew extends PointSourcePolygon {
       this.points.push(this.origin.x, this.origin.y);
     }
 
-    // We must have at least 2 rays with collision points, otherwise supplementary rays are needed
-    if ( hasLimitedRadius ) {
-
-      // Determine whether supplementary rays are required
-      let n = 0;
-      for ( let r of this.rays ) {
-        if ( r.result.collisions.length ) n++;
-        if ( n > 1 ) break;
-      }
-
-      // Add minimum and maximum rays
-      if ( n < 2 ) {
-        const rMin = this.config.rMin;
-        const vMin = PolygonVertex.fromPoint(rMin.B, {distance: 1});
-        rMin.result = new CollisionResult({target: vMin, collisions: [vMin]});
-        this.rays.unshift(rMin);
-
-        const rMax = Ray.fromAngle(this.origin.x, this.origin.y, this.config.aMax, this.config.radius);
-        const vMax = PolygonVertex.fromPoint(rMax.B, {distance: 1});
-        rMax.result = new CollisionResult({target: vMax, collisions: [vMax]});
-        this.rays.push(rMax);
-      }
-    }
-
-    // We need padding points before a ray if the prior ray reached its termination and has no clockwise edges
-    const needsPadding = lastRay => {
-      if ( !hasLimitedRadius || !lastRay ) return false;
-      const r = lastRay.result;
-      const c = r.collisions[r.collisions.length-1];
-      return c.isTerminal && !c.cwEdges.size;
-    };
-
     // Add points for rays in the sweep
     let lastRay = null;
     for ( let ray of this.rays ) {
       if ( !ray.result.collisions.length ) continue;
-
-      // Add padding points
-      if ( needsPadding(lastRay) ) {
-        for ( let p of this._getPaddingPoints(lastRay, ray) ) {
-          this.points.push(p.x, p.y);
-        }
-      }
 
       // Add collision points for the ray
       for ( let c of ray.result.collisions ) {
@@ -839,13 +800,6 @@ export class ClockwiseSweepPolygonNew extends PointSourcePolygon {
       this.points.push(this.origin.x, this.origin.y);
     }
 
-    // Final padding rays, if necessary
-    else if ( needsPadding(lastRay) ) {
-      const firstRay = this.rays.find(r => r.result.collisions.length);
-      for ( let p of this._getPaddingPoints(lastRay, firstRay) ) {
-        this.points.push(p.x, p.y);
-      }
-    }
   }
 
   /* -------------------------------------------- */
