@@ -124,7 +124,8 @@ export class ClockwiseSweepPolygonNew extends PointSourcePolygon {
     cfg.radius = cfg.radius ?? canvas.dimensions.maxR;
     cfg.radius2 = Math.pow(cfg.radius, 2);
     cfg.radiusE = 0.5 / cfg.radius;
-    cfg.rayDistance = Math.pow(canvas.dimensions.maxR, 2);
+    //cfg.rayDistance = Math.pow(canvas.dimensions.maxR, 2);
+    cfg.rayDistance = cfg.radius;
 
     // Configure limited angle
     cfg.aMin = -Math.PI;
