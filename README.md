@@ -20,7 +20,7 @@ CONFIG.Canvas.losBackend = game.modules.get('testccw').api.MyClockwiseSweepPolyg
 CONFIG.debug.polygons = true
 
 // Benchmark (after selecting token to set the origin point)
-await game.modules.get('testccw').api.api.bench.benchScene();
+await game.modules.get('testccw').api.bench.benchScene();
 ```
 
 ## Intersections
