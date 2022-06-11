@@ -16,6 +16,12 @@ import { tracePolygon } from "./trace_polygon.js";
 
 export const MODULE_ID = "testccw";
 
+// Toggle settings
+export const SETTINGS = {
+  debug = false,
+  testVisibility = true
+}
+
 /**
  * Basic log to console function for debugging.
  */
@@ -49,7 +55,7 @@ Hooks.once("init", async function() {
    * {Class}     LimitedAngleSweepPolygon  Represents a limited angle in the sweep.
    */
   game.modules.get(MODULE_ID).api = {
-    debug: false, // See also CONFIG.debug.polygons = true
+    SETTINGS, // See also CONFIG.debug.polygons = true
 
     tracePolygon,
     bench,
