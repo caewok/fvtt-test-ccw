@@ -232,11 +232,11 @@ function findCircleCircleIntersections(red, black) {
 
 // ----------------  ADD METHODS TO THE PIXI.CIRCLE PROTOTYPE ------------------------
 export function registerPIXICircleMethods() {
-  Object.defineProperty(PIXI.Circle.prototype, "toPolygon", {
-    value: toPolygon,
-    writable: true,
-    configurable: true
-  });
+//   Object.defineProperty(PIXI.Circle.prototype, "toPolygon", {
+//     value: toPolygon,
+//     writable: true,
+//     configurable: true
+//   });
 
   Object.defineProperty(PIXI.Circle.prototype, "unionPolygon", {
     value: unionPolygon,
