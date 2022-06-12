@@ -20,20 +20,34 @@ import {
 
 import { tracePolygon } from "./trace_polygon.js";
 
+import { SETTINGS } from "./module.js";
 
 /**
- * Run a set of benchmarks, one for each ClockwiseSweep alternative + default.
- * @param {Number} n    Number of iterations for each benchmark.
- * @param ...args       Arguments passed to ClockwiseSweep. Typically origin and config.
+ * Benchmark token visibility.
+ * For each token in the scene:
+ * - control the token
+ * - test visibility of all other tokens
  */
-export async function benchSweep(n = 100, ...args) {
-  game.modules.get("testccw").api.debug = false;
-  CONFIG.debug.polygons = false;
+export async function benchTokenVisibility(n = 100) {
+  const default_setting = SETTINGS.testVisibility;
 
-  await ClockwiseSweepPolygon.benchmark(n, ...args);
-  MyClockwiseSweepPolygon.benchmark(n, ...args);
-  MyClockwiseSweepPolygon2.benchmark(n, ...args);
-  MyClockwiseSweepPolygon3.benchmark(n, ...args);
+  const tokens = canvas.tokens.placeables.filter(t => !t.controlled);
+  const testFn = function(tokens) {
+    const out = [];
+    for ( const token of tokens ) {
+       const tolerance = token.document.iconSize / 4;
+       out.push(canvas.effects.visibility.testVisibility(token.center, { tolerance, object: token }));
+    }
+    return out;
+  }
+  console.log(`Benching token visibility for ${tokens.length} tokens.`);
+  SETTINGS.testVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.testVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+
+   SETTINGS.testVisibility = default_setting;
 }
 
 /*

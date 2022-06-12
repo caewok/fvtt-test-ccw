@@ -371,12 +371,13 @@ function unionPolygon(other) {
 function fromClipperPoints(points) {
   // Flat map is slow: const out = new this(points.flatMap(pt => [pt.X, pt.Y]));
   // Switch to for loop. https://jsbench.me/eeky2ei5rw
+  if ( !points || !points.length ) return new this();
+
   const pts = [];
   for (const pt of points) {
     pts.push(pt.X, pt.Y);
   }
   const out = new this(...pts);
-
 
   out.close();
   return out;

@@ -468,11 +468,11 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
-  Object.defineProperty(PIXI.Rectangle.prototype, "toPolygon", {
-    value: toPolygon,
-    writable: true,
-    configurable: true
-  });
+//   Object.defineProperty(PIXI.Rectangle.prototype, "toPolygon", {
+//     value: toPolygon,
+//     writable: true,
+//     configurable: true
+//   });
 
   Object.defineProperty(PIXI.Rectangle.prototype, "containsPoint", {
     value: containsPoint,
@@ -558,11 +558,11 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
-  Object.defineProperty(PIXI.Rectangle.prototype, "intersection", {
-    value: rectangleIntersection,
-    writable: true,
-    configurable: true
-  });
+//   Object.defineProperty(PIXI.Rectangle.prototype, "intersection", {
+//     value: rectangleIntersection,
+//     writable: true,
+//     configurable: true
+//   });
 
   Object.defineProperty(PIXI.Rectangle.prototype, "overlapsPolygon", {
     value: overlapsPolygon,
@@ -607,9 +607,9 @@ export function registerPIXIRectangleMethods() {
     configurable: true
   });
 
-  Object.defineProperty(PIXI.Rectangle.prototype, "getBounds", {
-    value: () => this,
-    writable: true,
-    configurable: true
-  });
+//   Object.defineProperty(PIXI.Rectangle.prototype, "getBounds", {
+//     value: () => { return this },
+//     writable: true,
+//     configurable: true
+//   });
 }

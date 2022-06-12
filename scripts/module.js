@@ -12,32 +12,47 @@ import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
+import { registerLibWrapperMethods } from "./patching.js";
+
 import { tracePolygon } from "./trace_polygon.js";
 
 export const MODULE_ID = "testccw";
 
 // Toggle settings
 export const SETTINGS = {
-  debug = false,
-  testVisibility = true
-}
+  debug: false,
+  testVisibility: true
+};
 
 /**
- * Basic log to console function for debugging.
+ * Log message only when debug flag is enabled from DevMode module.
+ * @param {Object[]} args  Arguments passed to console.log.
  */
 export function log(...args) {
   try {
-    // If using DevMode: const isDebugging = game.modules.get('_dev-mode')?.api?.getPackageDebugValue(MODULE_ID);
-    if (game.modules.get(MODULE_ID).api.debug) {
+    const isDebugging = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
+    if ( isDebugging ) {
       console.log(MODULE_ID, "|", ...args);
     }
-  } catch(e) { }
+  } catch(e) {
+    // Empty
+  }
 }
+
+/**
+ * Tell DevMode that we want a flag for debugging this module.
+ * https://github.com/League-of-Foundry-Developers/foundryvtt-devMode
+ */
+Hooks.once("devModeReady", ({ registerPackageDebugFlag }) => {
+  registerPackageDebugFlag(MODULE_ID);
+});
 
 Hooks.once("init", async function() {
   registerPIXIPolygonMethods();
   registerPIXIRectangleMethods();
   registerPIXICircleMethods();
+
+  registerLibWrapperMethods();
 
   /**
    * API switches

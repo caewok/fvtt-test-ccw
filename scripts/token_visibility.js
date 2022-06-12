@@ -1,10 +1,12 @@
 /* globals
-
+Token,
+canvas,
+game,
+ClockwiseSweepPolygon
 */
 "use strict";
 
-import { SETTINGS } from "./module.js";
-import { findIntersectionsBruteRedBlack } from "./IntersectionsBrute.js";
+import { SETTINGS, log } from "./module.js";
 
 /* Proposed algorithm:
 
@@ -73,109 +75,82 @@ If the origin is still present after all walls are added, return true.
  * @param {PIXI.DisplayObject} [options.object] An optional reference to the object whose visibility is being tested
  * @returns {boolean}                   Whether the point is currently visible.
  */
-export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) {
-  if ( !object || !(object instanceof Token) ) return wrapped();
-  if ( !SETTINGS.testVisibility ) return wrapped();
+export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { // eslint-disable-line no-unused-vars
+  if ( !object || !(object instanceof Token) ) return wrapped(point, {tolerance, object});
+  if ( !SETTINGS.testVisibility ) return wrapped(point, {tolerance, object});
 
   const { lightSources, visionSources } = canvas.effects;
   if ( !visionSources.size ) return game.user.isGM;
 
-  // TO-DO: Is it more efficient to first test whether lines cross the rays between
-  // point and bounding box corners? Could determine relevant corners by checking the
-  // location of the point in relation to the bbox rectangle.
-  // See [Cohen-Sutherland](https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm) zones.
+  log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
 
-  // 1. Intersect the token shape with its line-of-sight, to eliminate portions overlapping
-  //    a wall.
-  const bbox = object.getBounds();
-  const los = object.vision.los;
+  const constrained = constrainedTokenShape(object);
+
+  // If the point is entirely inside the buffer region, it may be hidden from view
+  // In this case, the canvas scene rectangle must contain at least one polygon point
+  // for the polygon to be in view
+  // Cannot call this.#inBuffer from libWrapper
+  // if ( !this.#inBuffer && !constrained.points.some(p =>
+  //   canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
+
+  // Test each vision source
+  // TO-DO: Unclear why we would need to test FOV and LOS, as FOV is a subset of LOS, right?
+  let hasLOS = false;
+  let hasFOV = canvas.scene.globalLight;
+
+  for ( const visionSource of visionSources.values() ) {
+    hasLOS ||= sourceSeesPolygon(visionSource.los, constrained);
+    hasFOV ||= sourceSeesPolygon(visionSource.fov, constrained);
+    if ( hasLOS && hasFOV ) return true;
+
+  }
+
+  // Test each light source that provides vision
+  for ( const lightSource of lightSources.values() ) {
+    if ( !lightSource.active || lightSource.disabled ) continue;
+    if ( (hasLOS || lightSource.data.vision) && sourceSeesPolygon(lightSource.los, constrained) ) {
+      if ( lightSource.data.vision ) hasLOS = true;
+      hasFOV = true;
+    }
+    if ( hasLOS && hasFOV ) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Intersect the token bounds against line-of-sight polygon to trim the token bounds
+ * to only that portion that does not overlap a wall.
+ * @param {Token} token
+ * @return {PIXI.Polygon}
+ */
+function constrainedTokenShape(token) {
+  const bbox = token.bounds;
+  const los = token.vision.los;
   let constrained;
   if ( !los ) {
     // Token likely does not have Vision enabled
-    constrained = new ClockwiseSweepPolygon();
-    constrained.initialize(object.center, { type: sight, source: object.vision, boundaryShapes = [bbox] });
+    constrained = new ClockwiseSweepPolygon;
+    constrained.initialize(token.center, { type: "sight", source: token.vision, boundaryShapes: [bbox] });
     constrained.compute();
   } else {
     constrained = los.intersectPolygon(bbox.toPolygon());
   }
 
-  // If the point is entirely inside the buffer region, it may be hidden from view
-  // In this case, the canvas scene rectangle must contain at least one polygon point
-  // for the polygon to be in view
-  if ( !this.#inBuffer && !constrained.points.some(p => canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
-
-  // 2. Determine key points.
-  // TO-DO: Is there an easy way to know if constrained equals the bbox? Maybe just
-  // compare the points?
-
-  // For the polygon, test ray to origin point for whether it intersects any edges.
-  // Organize the points such that the first is the leftmost key point.
-  const constrained_edges = [...constrained.iterateEdges()];
-  const key_points = [];
-  let non_key_found = false;
-  for ( const pt of constrained.iteratePoints() ) {
-    const ray = new Ray(pt, point);
-    if ( !findIntersection(constrained_edges, ray) ) {
-      if ( non_key_found ) {
-        key_points.shift(pt);
-      } else {
-        key_points.push(pt);
-      }
-
-    } else {
-      non_key_found = true;
-    }
-  }
-
-  // Step 3: Construct visibility polygon and rays
-  // Because key points are ordered, origin --> last key point --> other points --> first key point
-  // is clockwise.
-  const visibility_polygon = new PIXI.Polygon(...key_points, point);
-//   visible_polygon._clockwise = false; // for testing, don't set
-
-  const ray1 = new Ray(point, key_points[0]);
-  const ray2 = new Ray(point, key_points[key_points.length - 1]);
-
-
-  // Step 4: Get walls
-  const visibility_bbox = visibility_polygon.getBounds();
-  const walls = canvas.walls.quadtree.getObjects(bounds).values();
-  if ( !walls.length ) { return true; }
-
-  // Filter walls
-  // Catch when we can return early
-  let ray1_intersected = false;
-  let ray2_intersected = false;
-  const constrained_walls = [];
-  for ( wall of walls ) {
-    // keep if wall intersects either ray or is contained between the rays
-    const r1_ix = foundry.utils.lineSegmentIntersects(ray1.A, ray1.B, wall.A, wall.B);
-    const r2_ix = foundry.utils.lineSegmentIntersects(ray1.A, ray1.B, wall.A, wall.B);
-
-    // If wall completely bisects the visibility polygon, we know it blocks sight from the
-    // origin point.
-    if ( r1_ix && r2_ix ) return false;
-
-    ray1_intersected ||= r1_ix;
-    ray2_intersected ||= r2_ix;
-
-
-
-  }
-
-
-
-
-
-
-
+  return constrained;
 }
 
-function findIntersection(edges, ray) {
-  const ln = edges.length;
-  for (let i = 0; i < ln; i += 1) {
-    const si = edges[i];
-    if ( foundry.utils.lineSegmentIntersects(si.A, si.B, ray.A, ray.B )) { return true; }
-  }
-  return false;
+/**
+ * For a given source of vision, test whether its fov or los polygon
+ * contains any part of a given polygon shape
+ * @param {VisionSource} source
+ * @param {PIXI.Polygon} poly
+ * @return {Boolean} True if contained within.
+ */
+function sourceSeesPolygon(source, poly) {
+  // TO-DO: Would it be faster to test if any edge of the polygon intersects any edge
+  // of the source? What happens if edges just overlap, as we might expect if a wall
+  // separated the two?
+  const intersection = source.intersectPolygon(poly);
+  return intersection.points.length;
 }
