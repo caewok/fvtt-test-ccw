@@ -2,12 +2,12 @@
 Token,
 canvas,
 game,
-ClockwiseSweepPolygon
+ClockwiseSweepPolygon,
+foundry
 */
 "use strict";
 
 import { SETTINGS, log } from "./module.js";
-import { hasIntersectionBruteRedBlack } from "./IntersectionsBrute.js"
 
 /* Proposed algorithm:
 
@@ -85,6 +85,24 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
 
+  // if unconstrained token shape:
+  // vision source contains center point: los
+  // rays are origin --> corner1 and corner2
+  // LOS test: walls block, los fails, can return false
+  // no walls: has los
+  // walls only on one side: has los
+  // walls don't intersect rays: has los
+  //
+  // need to test fov
+
+  // if constrained token shape:
+  // LOS test: walls block, los fails, can return false
+  // no walls: has los
+  // otherwise, not clear whether has los
+  // need to test los and fov
+
+
+
   const constrained = constrainedTokenShape(object);
 
   // If the point is entirely inside the buffer region, it may be hidden from view
@@ -92,21 +110,29 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // for the polygon to be in view
   // Cannot call this.#inBuffer from libWrapper
   // if ( !this.#inBuffer && !constrained.points.some(p =>
-  //   canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
+//     canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
 
   // Test each vision source
-  // TO-DO: Unclear why we would need to test FOV and LOS, as FOV is a subset of LOS, right?
+  // https://ptb.discord.com/channels/170995199584108546/956307084931112960/985541410495283250
+  // Atropos — Today at 6:49 AM
+  // Yeah, there is a piece you are missing here. For a point to be visible it must be in both
+  // line of sight as well as in a FOV polygon. From the perspective of only one vision source,
+  // only testing FOV would be sufficient, but it gets more complex when you have other light
+  // sources in the scene which provide additional FOV polygons but with different LOS.
+  // Consider, for example, an object which is outside of the Token's FOV, but inside the
+  // Token's LOS. If that object is inside the FOV of a light source, it will still be visible.
   let hasLOS = false;
   let hasFOV = canvas.scene.globalLight;
 
   const constrained_edges = [...constrained.iterateEdges()];
+  const constrained_bbox = constrained.getBounds();
 
   for ( const visionSource of visionSources.values() ) {
-//     hasLOS ||= hasIntersectionBruteRedBlack([...visionSource.los.iterateEdges()], constrained_edges);
-//     hasFOV ||= hasIntersectionBruteRedBlack([...visionSource.fov.iterateEdges()], constrained_edges);
+    hasLOS ||= sourceIntersectsPolygonBounds(visionSource.los, constrained_bbox, constrained_edges);
+    hasFOV ||= sourceIntersectsPolygonBounds(visionSource.fov, constrained_bbox, constrained_edges);
 
-    hasLOS ||= sourceSeesPolygon(visionSource.los, constrained);
-    hasFOV ||= sourceSeesPolygon(visionSource.fov, constrained);
+//     hasLOS ||= sourceSeesPolygon(visionSource.los, constrained);
+//     hasFOV ||= sourceSeesPolygon(visionSource.fov, constrained);
     if ( hasLOS && hasFOV ) return true;
 
   }
@@ -114,8 +140,8 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // Test each light source that provides vision
   for ( const lightSource of lightSources.values() ) {
     if ( !lightSource.active || lightSource.disabled ) continue;
-//     if ( (hasLOS || lightSource.data.vision) && hasIntersectionBruteRedBlack([...lightSource.los.iterateEdges()], constrained_edges) ) {
-    if ( (hasLOS || lightSource.data.vision) && sourceSeesPolygon(lightSource.los, constrained) ) {
+    if ( (hasLOS || lightSource.data.vision) && sourceIntersectsPolygonBounds(lightSource.los, constrained_bbox, constrained_edges) ) {
+//     if ( (hasLOS || lightSource.data.vision) && sourceSeesPolygon(lightSource.los, constrained) ) {
       if ( lightSource.data.vision ) hasLOS = true;
       hasFOV = true;
     }
@@ -123,6 +149,65 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   }
 
   return false;
+}
+
+
+function sourceIntersectsBounds(source, bbox, source_edges) {
+  for ( const si of source.iterateEdges() ) {
+    if ( bbox.lineSegmentIntersects(si.A, si.B) ) return true;
+  }
+
+  return false;
+}
+
+
+/**
+ * Stricter intersection test between polygon and a constrained token bounds.
+ * 1. Overlapping edges are not considered intersecting.
+ * 2. endpoints that overlap the other segment are not considered intersecting.
+ * 3. bounds rectangle used to skip edges
+ *
+ * (1) and (2) are to avoid situations in which the boundary polygon and the source polygon
+ * are separated by a wall.
+ */
+function sourceIntersectsPolygonBounds(source, bbox, bounds_edges) {
+  const ln2 = bounds_edges.length;
+
+  for ( const si of source.iterateEdges() ) {
+    // Only if the segment intersects the bounding box or is completely inside, test each edge
+    if ( !bbox.lineSegmentIntersects(si.A, si.B, { inside: true }) ) { continue; }
+
+    for (let j = 0; j < ln2; j += 1) {
+      const sj = bounds_edges[j];
+      if ( altLineSegmentIntersects(si.A, si.B, sj.A, sj.B) ) { return true; }
+    }
+  }
+  return false;
+}
+
+/**
+ * Alternative lineSegmentIntersects test that rejects collinear lines as well
+ * as lines that intersect at an endpoint.
+ */
+function altLineSegmentIntersects(a, b, c, d) {
+  // First test the orientation of A and B with respect to CD to reject collinear cases
+  const xa = orient2dPixelLine(a, b, c);
+  const xb = orient2dPixelLine(a, b, d);
+  if ( !xa || !xb ) return false;
+  const xab = (xa * xb) < 0;
+
+  // Also require an intersection of CD with respect to AB
+  const xcd = (foundry.utils.orient2dFast(c, d, a) * foundry.utils.orient2dFast(c, d, b)) < 0;
+  return xab && xcd;
+}
+
+
+/**
+ * Fast version that tests rays against the bounding box corners
+ * If inconclusive, resort to slower test.
+ */
+function testBBox(origin, bbox) {
+
 }
 
 /**
@@ -157,5 +242,86 @@ function sourceSeesPolygon(source, poly) {
   const intersection = source.intersectPolygon(poly);
   return intersection.points.length;
 }
+
+/**
+ * Measure whether two coordinates could be the same pixel.
+ * Points within √2 / 2 distance of one another will be considered equal.
+ * Consider coordinates on a square grid: √2 / 2 is the distance from any
+ * corner of the square to the center. Thus, any coordinate within the square that
+ * is within √2 / 2 of a corner can be "claimed" by the pixel at that corner.
+ * @param {Point} p1
+ * @param {Point} p2
+ * @return {boolean}  True if the points are within √2 / 2 of one another.
+ */
+function equivalentPixel(p1, p2) {
+  // To try to improve speed, don't just call almostEqual.
+  // Ultimately need the distance between the two points but first check the easy case
+  // if points exactly vertical or horizontal, the x/y would need to be within √2 / 2
+  const dx = Math.abs(p2.x - p1.x);
+  if ( dx > Math.SQRT1_2 ) return false; // Math.SQRT1_2 === √2 / 2
+
+  const dy = Math.abs(p2.y - p1.y);
+  if ( dy > Math.SQRT1_2 ) return false;
+
+  // Within the √2 / 2 bounding box
+  // Compare distance squared.
+  const dist2 = Math.pow(dx, 2) + Math.pow(dy, 2);
+  return dist2 < 0.5;
+}
+
+/**
+ * Dot product of two segments.
+ * @param {Point} r1
+ * @param {Point} r2
+ * @return {Number}
+ */
+function dot(r1, r2) { return (r1.dx * r2.dx) + (r1.dy * r2.dy); }
+
+
+/**
+ * Is point c counterclockwise, clockwise, or colinear w/r/t ray with endpoints A|B?
+ * If the point is within ± √2 / 2 of the line, it will be considered collinear.
+ * See equivalentPixel function for further discussion on the choice of √2 / 2.
+ * @param {Point} a   First endpoint of the segment
+ * @param {Point} b   Second endpoint of the segment
+ * @param {Point} c   Point to test
+ * @return {number}   Same as foundry.utils.orient2dFast
+ *                    except 0 if within √2 /2 of the ray.
+ *                    Positive: c counterclockwise/left of A|B
+ *                    Negative: c clockwise/right of A|B
+ *                    Zero: A|B|C collinear.
+ */
+function orient2dPixelLine(a, b, c) {
+  const orientation = foundry.utils.orient2dFast(a, b, c);
+  const dist2 = Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2);
+  const orientation2 = Math.pow(orientation, 2);
+  const cutoff = 0.5 * dist2; // 0.5 is (√2 / 2)^2.
+
+  return (orientation2 < cutoff) ? 0 : orientation;
+}
+
+
+/**
+ * Is the point c within a pixel of the segment and thereby "contained" by the segment?
+ * @param {Point} a   First endpoint of the segment
+ * @param {Point} b   Second endpoint of the segment
+ * @param {Point} c
+ * @return {boolean}  True if the segment contains the point c.
+ */
+// function pixelLineContainsPoint(a, b, c) {
+//   if (equivalentPixel(a, c)
+//       || equivalentPixel(b, c)) { return true; }
+//
+//   if (orient2dPixelLine(a, b, c) !== 0) { return false; }
+//
+//   // Test if point is between the endpoints, given we already established collinearity
+//   const ab = dot(a, b);
+//   const ac = dot(a, c);
+//
+//   // If ac === 0, point p coincides with A (handled by prior check)
+//   // If ac === ab, point p coincides with B (handled by prior check)
+//   // ac is between 0 and ab, point is on the segment
+//   return ac >= 0 && ac <= ab;
+// }
 
 
