@@ -7,6 +7,7 @@ ClockwiseSweepPolygon
 "use strict";
 
 import { SETTINGS, log } from "./module.js";
+import { hasIntersectionBruteRedBlack } from "./IntersectionsBrute.js"
 
 /* Proposed algorithm:
 
@@ -98,7 +99,12 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   let hasLOS = false;
   let hasFOV = canvas.scene.globalLight;
 
+  const constrained_edges = [...constrained.iterateEdges()];
+
   for ( const visionSource of visionSources.values() ) {
+//     hasLOS ||= hasIntersectionBruteRedBlack([...visionSource.los.iterateEdges()], constrained_edges);
+//     hasFOV ||= hasIntersectionBruteRedBlack([...visionSource.fov.iterateEdges()], constrained_edges);
+
     hasLOS ||= sourceSeesPolygon(visionSource.los, constrained);
     hasFOV ||= sourceSeesPolygon(visionSource.fov, constrained);
     if ( hasLOS && hasFOV ) return true;
@@ -108,6 +114,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // Test each light source that provides vision
   for ( const lightSource of lightSources.values() ) {
     if ( !lightSource.active || lightSource.disabled ) continue;
+//     if ( (hasLOS || lightSource.data.vision) && hasIntersectionBruteRedBlack([...lightSource.los.iterateEdges()], constrained_edges) ) {
     if ( (hasLOS || lightSource.data.vision) && sourceSeesPolygon(lightSource.los, constrained) ) {
       if ( lightSource.data.vision ) hasLOS = true;
       hasFOV = true;
@@ -126,16 +133,12 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
  */
 function constrainedTokenShape(token) {
   const bbox = token.bounds;
-  const los = token.vision.los;
-  let constrained;
-  if ( !los ) {
-    // Token likely does not have Vision enabled
-    constrained = new ClockwiseSweepPolygon;
-    constrained.initialize(token.center, { type: "sight", source: token.vision, boundaryShapes: [bbox] });
-    constrained.compute();
-  } else {
-    constrained = los.intersectPolygon(bbox.toPolygon());
-  }
+  const walls = canvas.walls.quadtree.getObjects(bbox);
+  if ( !walls.size ) return bbox.toPolygon();
+
+  const constrained = new ClockwiseSweepPolygon();
+  constrained.initialize(token.center, { type: "sight", source: token.vision, boundaryShapes: [bbox] });
+  constrained.compute();
 
   return constrained;
 }
@@ -154,3 +157,5 @@ function sourceSeesPolygon(source, poly) {
   const intersection = source.intersectPolygon(poly);
   return intersection.points.length;
 }
+
+
