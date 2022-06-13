@@ -65,6 +65,16 @@ If the origin is no longer part of the polygon, then we know the origin cannot s
 If the origin is still present after all walls are added, return true.
 */
 
+/**
+ * Wrap Token.prototype.updateVisionSource
+ */
+export function tokenUpdateVisionSource(wrapped, { defer=false, deleted=false }={}) {
+  log("tokenUpdateVisionSource");
+  // Remove the prior constrained shape, if any
+  this._constrainedTokenShape = undefined;
+  return wrapped({ defer, deleted });
+}
+
 const containsTestFn = function(poly, point) { return poly.contains(point.x, point.y); }
 const areaTestFn = function(poly, bounds_poly, percentArea) {
   const seen_area = sourceSeesPolygon(poly, bounds_poly);
@@ -244,7 +254,6 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
       const hasA = ClockwiseSweepPolygon.getRayCollisions(rA, { type: "sight", mode: "any"} );
       hasA && debug && drawing.drawSegment(rA, { color: drawing.COLORS.blue });
 
-
       if ( notConstrained && !hasA ) {
         // Walls on, at most, one side only
         hasLOS = true;
@@ -320,7 +329,10 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   return res.hasFOV && res.hasLOS;
 }
 
-function testCenterPoint() {
+
+//
+function testWalls(source) {
+  const keyPoints = bboxKeyCornersForOrigin(constrained_bbox, src)
 
 }
 
@@ -454,8 +466,52 @@ function wallBlocksVisibilityPolygon(bbox, source) {
 }
 
 /**
+ * Returns the two points of the polygon that are on the edge of the viewable perimeter
+ * as seen from an origin.
+ * @param {PIXI.Polygon} poly
+ * @param {Point} origin
+ * @return {Point[]|null} Returns null if origin is inside the polygon
+ */
+function polygonKeyPointsForOrigin(poly, origin) {
+  // key point is a line from origin to the point that does not intersect the polygon
+  // the outermost key points are the most ccw and cw of the key points.
+
+  const keyPoints = [];
+  for ( const pt of poly.iteratePoints({ close: false }) ) {
+    if ( foundry.utils.lineSegmentIntersects(origin, pt)) {}
+  }
+}
+
+
+/** Benchmark Minkowski difference vs polygon intersect
+[source] = canvas.effects.visionSources;
+los = source.los
+token = canvas.tokens.placeables.find(t => t.isTargeted);
+constrained = token._constrainedTokenShape || constrainedTokenShape(token);
+constrained_poly = constrained instanceof PIXI.Polygon ? constrained : constrained.toPolygon()
+
+function minkowskiDiff(poly1, poly2) {
+  const subj = poly1.clipperCoordinates;
+  const clip = poly2.clipperCoordinates;
+  return ClipperLib.Clipper.MinkowskiDiff(subj, clip, true);
+}
+
+QBenchmarkLoopFn = api.bench.QBenchmarkLoopFn
+QBenchmarkLoop = api.bench.QBenchmarkLoop
+
+n = 1000
+await QBenchmarkLoopFn(n, minkowskiDiff, "Minkowski Diff", los, constrained_poly); // much slower
+await QBenchmarkLoop(n, los, "intersectPolygon", constrained_poly);
+
+intersect = los.intersectPolygon(constrained_poly);
+md = minkowskiDiff(los, constrained_poly)
+
+*/
+
+
+/**
  * Returns the two corners of the bounding box that are on the edge of the viewable
- * perimeter of the bounding box, as seen from the origin.
+ * perimeter of the bounding box, as seen from an origin.
  * @param {PIXI.Rectangle} bbox
  * @param {Point} origin
  * @return {Point[]|null} Returns null if origin is inside the bounding box.
@@ -613,15 +669,7 @@ function bboxAltIntersectsLeft(bbox, a, b) {
     { x: bbox.x, y: bbox.y });
 }
 
-/**
- * Wrap Token.prototype.updateVisionSource
- */
-export function tokenUpdateVisionSource(wrapped, { defer=false, deleted=false }={}) {
-  log("tokenUpdateVisionSource");
-  // Remove the prior constrained shape, if any
-  this._constrainedTokenShape = undefined;
-  return wrapped({ defer, deleted });
-}
+
 
 /**
  * Intersect the token bounds against line-of-sight polygon to trim the token bounds
