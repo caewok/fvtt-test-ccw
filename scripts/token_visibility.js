@@ -190,8 +190,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   if ( percentArea <= .50 ) {
     // If less than 50% of the token area is required to be viewable, then
     // if the center point is viewable, the token is viewable from that source.
-    const testFn = (poly) => poly.contains(point.x, point.y);
-    const res = testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn, point);
+    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
     hasFOV = res.hasFOV;
     hasLOS = res.hasLOS;
 
