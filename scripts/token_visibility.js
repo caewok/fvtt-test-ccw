@@ -208,7 +208,10 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     log(`After center point test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
   }
 
-  const constrained = constrainedTokenShape(object);
+  // Construct the constrained token shape if not yet present.
+  // Store in token so it can be re-used (wrapped updateVisionSource will remove it when necessary)
+  object._constrainedTokenShape ||= constrainedTokenShape(object);
+  const constrained = object._constrainedTokenShape;
   const constrained_bbox = constrained.getBounds();
   const notConstrained = constrained instanceof PIXI.Rectangle;
 
@@ -608,6 +611,16 @@ function bboxAltIntersectsLeft(bbox, a, b) {
   return altLineSegmentIntersects(a, b,
     { x: bbox.x, y: bbox.bottom },
     { x: bbox.x, y: bbox.y });
+}
+
+/**
+ * Wrap Token.prototype.updateVisionSource
+ */
+export function tokenUpdateVisionSource(wrapped, { defer=false, deleted=false }={}) {
+  log("tokenUpdateVisionSource");
+  // Remove the prior constrained shape, if any
+  this._constrainedTokenShape = undefined;
+  return wrapped({ defer, deleted });
 }
 
 /**

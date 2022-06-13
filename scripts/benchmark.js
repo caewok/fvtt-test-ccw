@@ -148,6 +148,10 @@ export async function benchTokenVisibility(n = 100) {
   SETTINGS.testWallsBlock = true;
   await testOriginalVsPerfect(n);
 
+  // Reset
+  SETTINGS.testCenterPoint = true;
+  SETTINGS.testWalls = true;
+  SETTINGS.testWallsBlock = true;
 
   // ***** Area Percentage = .75
   console.log("\nArea percentage .75")
@@ -175,6 +179,10 @@ export async function benchTokenVisibility(n = 100) {
   SETTINGS.testWallsBlock = true;
   await testOriginalVsPerfect(n);
 
+  // Reset
+  SETTINGS.testCenterPoint = true;
+  SETTINGS.testWalls = true;
+  SETTINGS.testWallsBlock = true;
 
   // ***** Area Percentage = 1
   console.log("\nArea percentage 1")
