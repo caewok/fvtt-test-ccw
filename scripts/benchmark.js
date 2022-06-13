@@ -81,6 +81,28 @@ export async function benchTokenVisibility(n = 100) {
   await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
   SETTINGS.areaTestOnly = false;
 
+  console.log("Filtered Area test only");
+  SETTINGS.areaTestOnly = true;
+  SETTINGS.filteredAreaTestOnly = true;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  SETTINGS.areaTestOnly = false;
+  SETTINGS.filteredAreaTestOnly = false;
+
+  console.log("Debug Area test only");
+  SETTINGS.debugAreaTestOnly = true;
+  SETTINGS.areaTestOnly = true;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  SETTINGS.areaTestOnly = false;
+  SETTINGS.debugAreaTestOnly = false;
+
   console.log("\nArea percentage .25")
   SETTINGS.percentArea = 0.25;
   SETTINGS.useTestVisibility = false;

@@ -95,7 +95,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { percentArea, areaTestOnly, fastTestOnly } = SETTINGS;
+  const { percentArea, areaTestOnly, fastTestOnly, filteredAreaTestOnly, debugAreaTestOnly } = SETTINGS;
 
 
 
@@ -138,11 +138,25 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
 
+  // Note: Converting to arrays and filtering not much of a slowdown.
+  // Takes maybe 0.0001 ms and checks have to be made eventually.
   lightSources = [...lightSources]; // So we can filter, etc.
   visionSources = [...visionSources];
   visionSources = visionSources.filter(visionSource => visionSource.active);
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
 
+  if ( filteredAreaTestOnly ) {
+    const constrained = constrainedTokenShape(object);
+    const notConstrained = constrained instanceof PIXI.Rectangle;
+    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
+    hasFOV = res.hasFOV;
+    hasLOS = res.hasLOS;
+
+    return hasLOS && hasFOV;
+  }
+
+  // note: setting debug (and same for log function) not a noticeable slowdown
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID)
   if ( debug) {
     drawing.clearDrawings();
@@ -154,6 +168,17 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     lightSources.forEach(l => {
       drawing.drawShape(l.los, { color: drawing.COLORS.lightyellow });
     });
+  }
+
+  if ( debugAreaTestOnly ) {
+    const constrained = constrainedTokenShape(object);
+    const notConstrained = constrained instanceof PIXI.Rectangle;
+    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
+    hasFOV = res.hasFOV;
+    hasLOS = res.hasLOS;
+
+    return hasLOS && hasFOV;
   }
 
   // Ignoring the somewhat artificial case of a token centered on a wall or corner, currently

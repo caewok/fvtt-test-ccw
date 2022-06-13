@@ -25,7 +25,9 @@ export const SETTINGS = {
   boundsScale: 1,
   percentArea: 0,
   areaTestOnly: false,
-  fastTestOnly: false
+  fastTestOnly: false,
+  filteredAreaTestOnly: false,
+  debugAreaTestOnly: false
 };
 
 /**
