@@ -84,7 +84,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { useTestVisibility, percentArea } = SETTINGS;
+  const { useTestVisibility, percentArea, areaTestOnly } = SETTINGS;
   if ( !useTestVisibility ) return wrapped(point, {tolerance, object});
 
   let { lightSources, visionSources } = canvas.effects;
@@ -116,6 +116,27 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   }
 
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
+
+  if ( areaTestOnly ) {
+    log("Testing percent area");
+    const constrained = constrainedTokenShape(object);
+    const notConstrained = constrained instanceof PIXI.Rectangle;
+    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+
+    const testFn = (poly, source) => {
+      const seen_area = sourceSeesPolygon(poly, bounds_poly);
+      log(`Seen area of ${seen_area} from ${source.object?.name || source.object.id}`);
+      return seen_area > percentArea;
+    }
+
+    const res = testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn);
+    hasFOV = res.hasFOV;
+    hasLOS = res.hasLOS;
+
+    log(`After final test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
+
+    return hasLOS && hasFOV;
+  }
 
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID)
   if ( debug) {
@@ -281,6 +302,48 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   return hasLOS && hasFOV;
 }
 
+/* Benchmark quadtree
+PIXI.Rectangle.prototype.overlaps = function(other) {
+    return (other.right >= this.left)
+      && (other.left <= this.right)
+      && (other.bottom >= this.top)
+      && (other.top <= this.bottom);
+  }
+
+QBenchmarkLoopFn = api.bench.QBenchmarkLoopFn
+QBenchmarkLoop = api.bench.QBenchmarkLoop
+
+
+[src] = canvas.effects.visionSources
+constrained = constrainedTokenShape(object);
+constrained_bbox = constrained.getBounds();
+keyPoints = bboxKeyCornersForOrigin(constrained_bbox, src);
+rA = new Ray(src, keyPoints[0]);
+rB = new Ray(src, keyPoints[1]);
+ClockwiseSweepPolygon.getRayCollisions(rA, { type: "sight", mode: "any"} );
+ClockwiseSweepPolygon.getRayCollisions(rB, { type: "sight", mode: "any"} );
+visibility_poly = new PIXI.Polygon(src.x, src.y, rA.B.x, rA.B.y, rB.B.x, rB.B.y, src.x, src.y)
+
+Array.from(canvas.walls.quadtree.getObjects(constrained_bbox).values());
+Array.from(canvas.walls.quadtree.getObjects(rA.bounds).values());
+Array.from(canvas.walls.quadtree.getObjects(rB.bounds).values());
+Array.from(canvas.walls.quadtree.getObjects(visibility_poly.getBounds()).values());
+
+quadFn = function(bbox) { return Array.from(canvas.walls.quadtree.getObjects(bbox).values()); }
+
+n = 1000
+await QBenchmarkLoopFn(n, constrainedTokenShape, "Constrained", object);
+await QBenchmarkLoopFn(n, bboxKeyCornersForOrigin, "Key Points", constrained_bbox, src);
+await QBenchmarkLoop(n, ClockwiseSweepPolygon, "getRayCollisions", rA, { type: "sight", mode: "any"});
+await QBenchmarkLoop(n, ClockwiseSweepPolygon, "getRayCollisions", rB, { type: "sight", mode: "any"});
+
+await QBenchmarkLoopFn(n, quadFn, "Quad Constrained", constrained_bbox);
+await QBenchmarkLoopFn(n, quadFn, "Quad rA", rA.bounds);
+await QBenchmarkLoopFn(n, quadFn, "Quad rB", rB.bounds);
+await QBenchmarkLoopFn(n, quadFn, "Quad Poly", visibility_poly.getBounds());
+
+*/
+
 function testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn) {
   for ( const visionSource of visionSources ) {
     if ( !hasFOV && testFn(visionSource.fov, visionSource) ) {
@@ -292,10 +355,8 @@ function testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn) {
   }
 
   for ( const lightSource of lightSources ) {
-    if ( (hasLOS || lightSource.data.vision)
-      && testFn(lightSource.los, lightSource) ) {
-      // HasLOS and hasFOV must both be true
-      return { hasLOS, hasFOV };
+    if ( (hasLOS || lightSource.data.vision) ) {
+      return { hasLOS: true, hasFOV: true };
     }
   }
 

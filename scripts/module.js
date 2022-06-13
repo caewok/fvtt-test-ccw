@@ -23,7 +23,8 @@ export const SETTINGS = {
   debug: false,
   useTestVisibility: true,
   boundsScale: 1,
-  percentArea: 0
+  percentArea: 0,
+  areaTestOnly: false
 };
 
 /**
