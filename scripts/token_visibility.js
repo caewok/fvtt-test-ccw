@@ -97,7 +97,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { percentArea, areaTestOnly, fastTestOnly, filteredAreaTestOnly, debugAreaTestOnly } = SETTINGS;
+  const { percentArea, areaTestOnly, areaTestOnlyFiltered, fastTestOnly, testCenterPoint, testWalls, testWallsBlock } = SETTINGS;
 
 
 
@@ -138,7 +138,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     return hasLOS && hasFOV;
   }
 
-  log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
+
 
   // Note: Converting to arrays and filtering not much of a slowdown.
   // Takes maybe 0.0001 ms and checks have to be made eventually.
@@ -147,7 +147,8 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   visionSources = visionSources.filter(visionSource => visionSource.active);
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
 
-  if ( filteredAreaTestOnly ) {
+
+  if ( areaTestOnlyFiltered ) {
     const constrained = constrainedTokenShape(object);
     const notConstrained = constrained instanceof PIXI.Rectangle;
     const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
@@ -161,6 +162,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // note: setting debug (and same for log function) not a noticeable slowdown
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID)
   if ( debug) {
+    log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
     drawing.clearDrawings();
     drawing.drawPoint(point)
     visionSources.forEach(v => {
@@ -172,47 +174,39 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     });
   }
 
-  if ( debugAreaTestOnly ) {
-    const constrained = constrainedTokenShape(object);
-    const notConstrained = constrained instanceof PIXI.Rectangle;
-    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
-    hasFOV = res.hasFOV;
-    hasLOS = res.hasLOS;
-
-    return hasLOS && hasFOV;
-  }
-
   // Ignoring the somewhat artificial case of a token centered on a wall or corner, currently
   // ignored. Or a token that has walked through a wall at a corner.
   // Seems very difficult to construct a scenario in which the center point does not
   // control visibility as defined below.
   // TO-DO: Move constraint test here? Would be much slower.
 
-  if ( percentArea <= .50 ) {
-    // If less than 50% of the token area is required to be viewable, then
-    // if the center point is viewable, the token is viewable from that source.
-    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
-    hasFOV = res.hasFOV;
-    hasLOS = res.hasLOS;
 
-    if ( hasFOV && hasLOS ) {
-      log(`Returning true after testing center point with percentArea of ${percentArea}`);
-      return true;
-    }
+  if ( testCenterPoint ) {
+    if ( percentArea <= .50 ) {
+      // If less than 50% of the token area is required to be viewable, then
+      // if the center point is viewable, the token is viewable from that source.
+      const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
+      hasFOV = res.hasFOV;
+      hasLOS = res.hasLOS;
 
-  } else { // Includes the 50% case at the moment
-    // If more than 50% of the token area is required to be viewable, then
-    // the center point must be viewable for the token to be viewable from that source.
-    // (necessary but not sufficient)
-    visionSources.filter(visionSource => visionSource.fov.contains(point.x, point.y));
-    lightSources = lightSources.filter(lightSource => lightSource.containsPoint(point.x, point.y));
-    if ( !visionSources.length && !lightSources.length ) {
-      log(`Returning false after testing center point with percentArea of ${percentArea}`);
-      return false;
+      if ( hasFOV && hasLOS ) {
+        log(`Returning true after testing center point with percentArea of ${percentArea}`);
+        return true;
+      }
+
+    } else { // Includes the 50% case at the moment
+      // If more than 50% of the token area is required to be viewable, then
+      // the center point must be viewable for the token to be viewable from that source.
+      // (necessary but not sufficient)
+      visionSources.filter(visionSource => visionSource.fov.contains(point.x, point.y));
+      lightSources = lightSources.filter(lightSource => lightSource.containsPoint(point.x, point.y));
+      if ( !visionSources.length && !lightSources.length ) {
+        log(`Returning false after testing center point with percentArea of ${percentArea}`);
+        return false;
+      }
     }
+    log(`After center point test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
   }
-  log(`After center point test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
 
   const constrained = constrainedTokenShape(object);
   const constrained_bbox = constrained.getBounds();
@@ -235,7 +229,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // no walls: has los
   // otherwise, not clear whether has los
 
-  if ( percentArea === 0) {
+  if ( testWalls && percentArea === 0) {
     const srcs = [...visionSources, ...lightSources];
     for ( const src of srcs ) {
       const keyPoints = bboxKeyCornersForOrigin(constrained_bbox, src);
@@ -281,7 +275,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // A wall that completely blocks the visibility polygon means that source cannot provide
   // los.
-  if ( !hasLOS ) {
+  if ( testWallsBlock && !hasLOS ) {
     visionSources.filter(v => !wallBlocksVisibilityPolygon(constrained_bbox, v));
     lightSources.filter(l => !wallBlocksVisibilityPolygon(constrained_bbox, l));
 
@@ -321,6 +315,10 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   log(`After final test| hasLOS: ${res.hasLOS}; hasFOV: ${res.hasFOV}`);
 
   return res.hasFOV && res.hasLOS;
+}
+
+function testCenterPoint() {
+
 }
 
 /* Benchmark quadtree
