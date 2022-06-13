@@ -21,7 +21,9 @@ export const MODULE_ID = "testccw";
 // Toggle settings
 export const SETTINGS = {
   debug: false,
-  testVisibility: true
+  useTestVisibility: true,
+  boundsScale: 1,
+  percentArea: 0
 };
 
 /**

@@ -29,7 +29,8 @@ import { SETTINGS } from "./module.js";
  * - test visibility of all other tokens
  */
 export async function benchTokenVisibility(n = 100) {
-  const default_setting = SETTINGS.testVisibility;
+  const default_setting = SETTINGS.useTestVisibility;
+  const default_percent_area = SETTINGS.percentArea;
 
   const tokens = canvas.tokens.placeables.filter(t => !t.controlled);
   const testFn = function(tokens) {
@@ -41,13 +42,41 @@ export async function benchTokenVisibility(n = 100) {
     return out;
   }
   console.log(`Benching token visibility for ${tokens.length} tokens.`);
-  SETTINGS.testVisibility = false;
+  console.log("Area percentage 0")
+  SETTINGS.percentArea = 0;
+  SETTINGS.useTestVisibility = false;
   await QBenchmarkLoopFn(n, testFn, "Original", tokens);
 
-  SETTINGS.testVisibility = true;
+  SETTINGS.useTestVisibility = true;
   await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
 
-   SETTINGS.testVisibility = default_setting;
+  console.log("\nArea percentage .25")
+  SETTINGS.percentArea = 0.25;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+
+  console.log("\nArea percentage .75")
+  SETTINGS.percentArea = .75;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+
+
+  console.log("\nArea percentage 1")
+  SETTINGS.percentArea = 1;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+
+  SETTINGS.useTestVisibility = default_setting;
+  SETTINGS.percentArea = default_percent_area;
 }
 
 /*
