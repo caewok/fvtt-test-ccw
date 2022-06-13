@@ -70,6 +70,8 @@ const areaTestFn = function(poly, bounds_poly, percentArea) {
   const seen_area = sourceSeesPolygon(poly, bounds_poly);
   return seen_area > percentArea;
 }
+const sourceIntersectsBoundsTestFn = function(poly, bbox) { return sourceIntersectsBounds(poly, bbox); }
+const sourceIntersectsPolygonTestFn = function(poly, bbox, edges) { return sourceIntersectsPolygonBounds(poly, bbox, edges); }
 
 /**
  * Wrap CanvasVisibility.prototype.testVisibility.
@@ -219,8 +221,6 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 });
   debug && drawing.drawShape(constrained, { color: drawing.COLORS.red });
 
-
-
   // Test the bounding box for line-of-sight for easy cases
   // Draw ray from source to the two corners that are at the edge of the viewable
   // bounding box.
@@ -302,33 +302,25 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // From this point, we are left testing remaining sources by checking whether the
   // polygon intersects the constrained bounding box.
 
-  let testFn;
+  let res;
   if ( percentArea !== 0 ) {
     log("Testing percent area");
     const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    testFn = (poly, source) => {
-      const seen_area = sourceSeesPolygon(poly, bounds_poly);
-      log(`Seen area of ${seen_area} from ${source.object?.name || source.object.id}`);
-      return seen_area > percentArea;
-    }
+    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
 
   } else if ( notConstrained ) {
     log("Testing unconstrained boundary")
-    testFn = (poly) => sourceIntersectsBounds(poly, constrained_bbox);
+    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, sourceIntersectsBoundsTestFn, constrained_bbox);
 
   } else {
     log("Testing constrained boundary");
     const constrained_edges = [...constrained.iterateEdges()];
-    testFn = (poly) => sourceIntersectsPolygonBounds(poly, constrained_bbox, constrained_edges);
+    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, sourceIntersectsPolygonTestFn, constrained_bbox, constrained_edges);
   }
 
-  const res = testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn);
-  hasFOV = res.hasFOV;
-  hasLOS = res.hasLOS;
+  log(`After final test| hasLOS: ${res.hasLOS}; hasFOV: ${res.hasFOV}`);
 
-  log(`After final test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
-
-  return hasLOS && hasFOV;
+  return res.hasFOV && res.hasLOS;
 }
 
 /* Benchmark quadtree
