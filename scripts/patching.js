@@ -7,5 +7,5 @@ import { testVisibility } from "./token_visibility.js";
 import { MODULE_ID } from "./module.js";
 
 export function registerLibWrapperMethods() {
-  libWrapper.register(MODULE_ID, "CanvasVisibility.prototype.testVisibility", testVisibility, "MIXED");
+  libWrapper.register(MODULE_ID, "CanvasVisibility.prototype.testVisibility", testVisibility, "MIXED", {perf_mode: libWrapper.PERF_FAST});
 }

@@ -65,6 +65,12 @@ If the origin is no longer part of the polygon, then we know the origin cannot s
 If the origin is still present after all walls are added, return true.
 */
 
+const containsTestFn = function(poly, point) { return poly.contains(point.x, point.y); }
+const areaTestFn = function(poly, bounds_poly, percentArea) {
+  const seen_area = sourceSeesPolygon(poly, bounds_poly);
+  return seen_area > percentArea;
+}
+
 /**
  * Wrap CanvasVisibility.prototype.testVisibility.
  * For now, override only for testing token vs token
@@ -80,19 +86,18 @@ If the origin is still present after all walls are added, return true.
  * @returns {boolean}                   Whether the point is currently visible.
  */
 export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { // eslint-disable-line no-unused-vars
-  if ( !object || !(object instanceof Token) ) return wrapped(point, {tolerance, object});
+  if ( !object || !(object instanceof Token) || !SETTINGS.useTestVisibility ) return wrapped(point, {tolerance, object});
+
+
+
+  let { lightSources, visionSources } = canvas.effects;
+  if ( !visionSources.size ) return game.user.isGM;
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { useTestVisibility, percentArea, areaTestOnly } = SETTINGS;
-  if ( !useTestVisibility ) return wrapped(point, {tolerance, object});
-
-  let { lightSources, visionSources } = canvas.effects;
-  lightSources = [...lightSources]; // So we can filter, etc.
-  visionSources = [...visionSources];
+  const { percentArea, areaTestOnly, fastTestOnly } = SETTINGS;
 
 
-  log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
 
   // Test each vision source
   // https://ptb.discord.com/channels/170995199584108546/956307084931112960/985541410495283250
@@ -107,36 +112,36 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   let hasLOS = false;
   let hasFOV = canvas.scene.globalLight;
 
-
-  // Filter the vision and light sources
-  visionSources = visionSources.filter(visionSource => visionSource.active);
-  if ( !visionSources.length ) {
-    log("No vision sources found.");
-    return game.user.isGM;
-  }
-
-  lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
-
-  if ( areaTestOnly ) {
-    log("Testing percent area");
-    const constrained = constrainedTokenShape(object);
-    const notConstrained = constrained instanceof PIXI.Rectangle;
-    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-
-    const testFn = (poly, source) => {
-      const seen_area = sourceSeesPolygon(poly, bounds_poly);
-      log(`Seen area of ${seen_area} from ${source.object?.name || source.object.id}`);
-      return seen_area > percentArea;
-    }
-
-    const res = testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn);
+  if ( fastTestOnly ) {
+//     const testFn = (poly) => poly.contains(point.x, point.y);
+    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
     hasFOV = res.hasFOV;
     hasLOS = res.hasLOS;
 
-    log(`After final test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
+    if ( hasFOV && hasLOS ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  if ( areaTestOnly ) {
+    const constrained = constrainedTokenShape(object);
+    const notConstrained = constrained instanceof PIXI.Rectangle;
+    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
+    hasFOV = res.hasFOV;
+    hasLOS = res.hasLOS;
 
     return hasLOS && hasFOV;
   }
+
+  log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
+
+  lightSources = [...lightSources]; // So we can filter, etc.
+  visionSources = [...visionSources];
+  visionSources = visionSources.filter(visionSource => visionSource.active);
+  lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
 
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID)
   if ( debug) {
@@ -344,6 +349,25 @@ await QBenchmarkLoopFn(n, quadFn, "Quad Poly", visibility_poly.getBounds());
 
 */
 
+function testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, testFn, ...args) {
+  for ( const visionSource of visionSources ) {
+    if ( !hasFOV && testFn(visionSource.fov, ...args) ) {
+      hasFOV = true;
+      hasLOS = true;
+    }
+    hasLOS ||= testFn(visionSource.los, ...args);
+    if ( hasLOS && hasFOV ) return { hasLOS, hasFOV };
+  }
+
+  for ( const lightSource of lightSources ) {
+    if ( (hasLOS || lightSource.data.vision) && testFn(lightSource.los, ...args) ) {
+      return { hasLOS: true, hasFOV: true };
+    }
+  }
+
+  return { hasLOS, hasFOV };
+}
+
 function testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn) {
   for ( const visionSource of visionSources ) {
     if ( !hasFOV && testFn(visionSource.fov, visionSource) ) {
@@ -355,7 +379,7 @@ function testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn) {
   }
 
   for ( const lightSource of lightSources ) {
-    if ( (hasLOS || lightSource.data.vision) ) {
+    if ( (hasLOS || lightSource.data.vision) && testFn(lightSource.los, lightSource) ) {
       return { hasLOS: true, hasFOV: true };
     }
   }

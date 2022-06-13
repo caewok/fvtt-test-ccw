@@ -16,11 +16,16 @@ import {
   randomPolygon,
   randomCircle,
   randomRectangle,
-  randomLimitedAngle } from "./random.js";
+  randomLimitedAngle,
+  randomUniform } from "./random.js";
 
 import { tracePolygon } from "./trace_polygon.js";
 
 import { SETTINGS } from "./module.js";
+
+function randomInteger(min, max) {
+  return Math.roundFast((Math.random() + min) * max)
+}
 
 /**
  * Benchmark token visibility.
@@ -37,11 +42,28 @@ export async function benchTokenVisibility(n = 100) {
     const out = [];
     for ( const token of tokens ) {
        const tolerance = token.document.iconSize / 4;
-       out.push(canvas.effects.visibility.testVisibility(token.center, { tolerance, object: token }));
+
+       // randomize a bit to try to limit caching
+       const center = {
+         x: token.center.x + Math.roundFast(randomUniform(-10, 10)),
+         y: token.center.y + Math.roundFast(randomUniform(-10, 10))
+       };
+
+       out.push(canvas.effects.visibility.testVisibility(center, { tolerance, object: token }));
     }
     return out;
   }
   console.log(`Benching token visibility for ${tokens.length} tokens.`);
+  console.log("Fast test")
+
+  SETTINGS.fastTestOnly = true;
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
+
+  SETTINGS.useTestVisibility = true;
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  SETTINGS.fastTestOnly = false;
+
   console.log("Area percentage 0")
   SETTINGS.percentArea = 0;
   SETTINGS.useTestVisibility = false;

@@ -24,7 +24,8 @@ export const SETTINGS = {
   useTestVisibility: true,
   boundsScale: 1,
   percentArea: 0,
-  areaTestOnly: false
+  areaTestOnly: false,
+  fastTestOnly: false
 };
 
 /**
