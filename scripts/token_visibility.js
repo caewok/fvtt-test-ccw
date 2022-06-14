@@ -5,7 +5,8 @@ game,
 ClockwiseSweepPolygon,
 foundry,
 PIXI,
-Ray
+Ray,
+CONST
 */
 "use strict";
 
@@ -75,13 +76,17 @@ export function tokenUpdateVisionSource(wrapped, { defer=false, deleted=false }=
   return wrapped({ defer, deleted });
 }
 
-const containsTestFn = function(poly, point) { return poly.contains(point.x, point.y); }
+const containsTestFn = function(poly, point) { return poly.contains(point.x, point.y); };
 const areaTestFn = function(poly, bounds_poly, percentArea) {
   const seen_area = sourceSeesPolygon(poly, bounds_poly);
   return seen_area > percentArea;
-}
-const sourceIntersectsBoundsTestFn = function(poly, bbox) { return sourceIntersectsBounds(poly, bbox); }
-const sourceIntersectsPolygonTestFn = function(poly, bbox, edges) { return sourceIntersectsPolygonBounds(poly, bbox, edges); }
+};
+const sourceIntersectsBoundsTestFn = function(poly, bbox) {
+  return sourceIntersectsBounds(poly, bbox);
+};
+const sourceIntersectsPolygonTestFn = function(poly, bbox, edges) {
+  return sourceIntersectsPolygonBounds(poly, bbox, edges);
+};
 
 /**
  * Wrap CanvasVisibility.prototype.testVisibility.
@@ -98,18 +103,16 @@ const sourceIntersectsPolygonTestFn = function(poly, bbox, edges) { return sourc
  * @returns {boolean}                   Whether the point is currently visible.
  */
 export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { // eslint-disable-line no-unused-vars
-  if ( !object || !(object instanceof Token) || !SETTINGS.useTestVisibility ) return wrapped(point, {tolerance, object});
-
-
+  if ( !object || !(object instanceof Token) || !SETTINGS.useTestVisibility ) {
+    return wrapped(point, {tolerance, object});
+  }
 
   let { lightSources, visionSources } = canvas.effects;
   if ( !visionSources.size ) return game.user.isGM;
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { percentArea, areaTestOnly, areaTestOnlyFiltered, fastTestOnly, testCenterPoint, testWalls, testWallsBlock } = SETTINGS;
-
-
+  const { percentArea, areaTestOnly, areaTestOnlyFiltered, fastTestOnly, testCenterPoint, testWalls } = SETTINGS;
 
   // Test each vision source
   // https://ptb.discord.com/channels/170995199584108546/956307084931112960/985541410495283250
@@ -121,34 +124,20 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // Consider, for example, an object which is outside of the Token's FOV, but inside the
   // Token's LOS. If that object is inside the FOV of a light source, it will still be visible.
 
-  let hasLOS = false;
-  let hasFOV = canvas.scene.globalLight;
+  const result = { hasLOS: false, hasFOV: canvas.scene.globalLight };
 
   if ( fastTestOnly ) {
-//     const testFn = (poly) => poly.contains(point.x, point.y);
-    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
-    hasFOV = res.hasFOV;
-    hasLOS = res.hasLOS;
-
-    if ( hasFOV && hasLOS ) {
-      return true;
-    } else {
-      return false;
-    }
+    testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
+    return result.hasFOV && result.hasLOS;
   }
 
   if ( areaTestOnly ) {
     const constrained = constrainedTokenShape(object);
     const notConstrained = constrained instanceof PIXI.Rectangle;
     const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
-    hasFOV = res.hasFOV;
-    hasLOS = res.hasLOS;
-
-    return hasLOS && hasFOV;
+    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
+    return result.hasFOV && result.hasLOS;
   }
-
-
 
   // Note: Converting to arrays and filtering not much of a slowdown.
   // Takes maybe 0.0001 ms and checks have to be made eventually.
@@ -157,24 +146,20 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   visionSources = visionSources.filter(visionSource => visionSource.active);
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
 
-
   if ( areaTestOnlyFiltered ) {
     const constrained = constrainedTokenShape(object);
     const notConstrained = constrained instanceof PIXI.Rectangle;
     const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
-    hasFOV = res.hasFOV;
-    hasLOS = res.hasLOS;
-
-    return hasLOS && hasFOV;
+    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
+    return result.hasFOV && result.hasLOS;
   }
 
-  // note: setting debug (and same for log function) not a noticeable slowdown
-  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID)
+  // Note: setting debug (and same for log function) not a noticeable slowdown
+  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
   if ( debug) {
-    log(`testVisibility at ${point.x},${point.y} for ${object.name}`, object);
+    log(`testVisibility at ${point.x},${point.y} for ${object.name} hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`, object);
     drawing.clearDrawings();
-    drawing.drawPoint(point)
+    drawing.drawPoint(point);
     visionSources.forEach(v => {
       drawing.drawShape(v.los, { color: drawing.COLORS.lightblue });
       drawing.drawShape(v.fov, { color: drawing.COLORS.lightgreen });
@@ -195,11 +180,9 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     if ( percentArea <= .50 ) {
       // If less than 50% of the token area is required to be viewable, then
       // if the center point is viewable, the token is viewable from that source.
-      const res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, containsTestFn, point);
-      hasFOV = res.hasFOV;
-      hasLOS = res.hasLOS;
+      testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
 
-      if ( hasFOV && hasLOS ) {
+      if ( result.hasFOV && result.hasLOS ) {
         log(`Returning true after testing center point with percentArea of ${percentArea}`);
         return true;
       }
@@ -215,7 +198,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
         return false;
       }
     }
-    log(`After center point test| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
+    log(`After center point test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
   }
 
   // Construct the constrained token shape if not yet present.
@@ -225,8 +208,8 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   const constrained_bbox = constrained.getBounds();
   const notConstrained = constrained instanceof PIXI.Rectangle;
 
-  debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 });
-  debug && drawing.drawShape(constrained, { color: drawing.COLORS.red });
+  debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 }); // eslint-disable-line no-unused-expressions
+  debug && drawing.drawShape(constrained, { color: drawing.COLORS.red }); // eslint-disable-line no-unused-expressions
 
   // Test the bounding box for line-of-sight for easy cases
   // Draw ray from source to the two corners that are at the edge of the viewable
@@ -242,61 +225,14 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // no walls: has los
   // otherwise, not clear whether has los
 
-  if ( testWalls && percentArea === 0) {
-    const srcs = [...visionSources, ...lightSources];
-    for ( const src of srcs ) {
-      const keyPoints = bboxKeyCornersForOrigin(constrained_bbox, src);
-      if ( !keyPoints ) { continue; }
-
-      const rA = new Ray(src, keyPoints[0]);
-      debug && drawing.drawSegment(rA, { color: drawing.COLORS.lightblue });
-
-      const hasA = ClockwiseSweepPolygon.getRayCollisions(rA, { type: "sight", mode: "any"} );
-      hasA && debug && drawing.drawSegment(rA, { color: drawing.COLORS.blue });
-
-      if ( notConstrained && !hasA ) {
-        // Walls on, at most, one side only
-        hasLOS = true;
-        break;
-      }
-
-      const rB = new Ray(src, keyPoints[1]);
-      debug && drawing.drawSegment(rB, { color: drawing.COLORS.lightgreen });
-
-      const hasB = ClockwiseSweepPolygon.getRayCollisions(rB, { type: "sight", mode: "any"} );
-      hasB && debug && drawing.drawSegment(rB, { color: drawing.COLORS.green });
-      if ( notConstrained && (!hasB || !hasA) ) {
-        // Either no walls or walls on one side only
-        hasLOS = true;
-        break;
-      }
-
-      if ( !notConstrained && !hasB && !hasA) {
-        // No walls intersect
-        hasLOS = true;
-        break;
-      }
-
-      if ( hasFOV && hasLOS ) {
-        log(`Returning true after testing source ${src.object?.name || src.object.id}`)
-        return true;
-      }
-    }
-    log(`After key points| hasLOS: ${hasLOS}; hasFOV: ${hasFOV}`);
+  if ( testWalls ) {
+    visionSources.filter(src =>
+      testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
+    lightSources.filter(src => testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
+    log(`After key points| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+    if ( result.hasFOV && result.hasLOS ) { return true; }
+    if ( !visionSources.length && !lightSources.length ) { return false; }
   }
-
-  // A wall that completely blocks the visibility polygon means that source cannot provide
-  // los.
-  if ( testWallsBlock && !hasLOS ) {
-    visionSources.filter(v => !wallBlocksVisibilityPolygon(constrained_bbox, v));
-    lightSources.filter(l => !wallBlocksVisibilityPolygon(constrained_bbox, l));
-
-    if ( !visionSources.length && !lightSources.length ) {
-      log("Returning false after filtering for walls that completely block visibility polygon.")
-      return false;
-    }
-  }
-
 
   // If the point is entirely inside the buffer region, it may be hidden from view
   // In this case, the canvas scene rectangle must contain at least one polygon point
@@ -308,32 +244,104 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // From this point, we are left testing remaining sources by checking whether the
   // polygon intersects the constrained bounding box.
 
-  let res;
   if ( percentArea !== 0 ) {
     log("Testing percent area");
     const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, areaTestFn, bounds_poly, percentArea);
+    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
 
   } else if ( notConstrained ) {
-    log("Testing unconstrained boundary")
-    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, sourceIntersectsBoundsTestFn, constrained_bbox);
+    log("Testing unconstrained boundary");
+    testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
 
   } else {
     log("Testing constrained boundary");
     const constrained_edges = [...constrained.iterateEdges()];
-    res = testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, sourceIntersectsPolygonTestFn, constrained_bbox, constrained_edges);
+    testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
+      constrained_bbox, constrained_edges);
   }
 
-  log(`After final test| hasLOS: ${res.hasLOS}; hasFOV: ${res.hasFOV}`);
+  log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
 
-  return res.hasFOV && res.hasLOS;
+  return result.hasFOV && result.hasLOS;
 }
 
 
-//
-function testWalls(source) {
-  const keyPoints = bboxKeyCornersForOrigin(constrained_bbox, src)
+/**
+ * Test whether walls block the source with regard to LOS.
+ * Sets result.LOS to true if the source definitely provides LOS.
+ * @param {PIXI.Polygon|PIXI.Rectangle} constrained   Token shape
+ * @param {Point} origin                              Viewpoint to test for whether constrained can be seen
+ * @param {hasLOS: {Boolean}, hasFOV: {Boolean}}
+ * @return {Boolean} Returns false if the source definitely cannot provide LOS; true otherwise.
+ */
+function testWallsForSource(constrained, origin, src, result, { noAreaTest = true } = {}) {
+  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
+  const keyPoints = keyCorners(constrained, origin);
+  if ( !keyPoints || !keyPoints.length ) { return; }
+  const rayA = new Ray(src, keyPoints[0]);
+  const rayB = new Ray(src, keyPoints[1]);
+  debug && drawing.drawSegment(rayA, { color: drawing.COLORS.lightblue }); // eslint-disable-line no-unused-expressions
+  debug && drawing.drawSegment(rayB, { color: drawing.COLORS.lightgreen }); // eslint-disable-line no-unused-expressions
 
+  // Find the walls that could intersect the two rays.
+  // If a wall intersects both, this source cannot provide vision; return false.
+  // If all the walls intersect only 1 ray, this source provides LOS.
+  // If no walls, this source provides LOS.
+
+  // If limited walls are present:
+  // - single limited can be ignored
+  // - double limited count as a wall intersecting one side
+  // - limited that intersects both sides:
+  //   - if two limited intersect both sides, treat same as non-limited wall
+  //   - if only one, unknown
+  //   - obv. if limited and non-limited wall intersect both, treat same
+
+  const [wallsA, limitedA] = getWallsForRay(rayA);
+  const [wallsB, limitedB] = getWallsForRay(rayB);
+
+  const hasA = wallsA.size || limitedA.size > 1;
+  const hasB = wallsB.size || limitedB.size > 1;
+
+  const wallsBoth = wallsA.intersect(wallsB);
+  const limitedBoth = limitedA.intersect(limitedB);
+
+  switch ( hasA + hasB ) {
+    case 0: result.LOS = noAreaTest; return true; // No walls
+    case 1: result.LOS = noAreaTest; return true; // Walls only one side
+  }
+
+  if ( wallsBoth.size || limitedBoth.size > 1 ) {
+    return false; // Walls on both sides; source cannot provide LOS.
+  }
+
+  return true;
+}
+
+/**
+ * Simpler version of ClockwiseSweep.getRayCollisions
+ * @param {Ray} ray
+ * @return {[{Set Wall}, {Wall[]}]} Returns the set of walls and the set of limited walls
+ */
+function getWallsForRay(ray) {
+  const walls = canvas.walls.quadtree.getObjects(ray.bounds);
+  const limited = new Set();
+  walls.forEach(w => {
+    if ( foundry.utils.lineSegmentIntersects(w.A, w.B, ray.A, ray.B)
+      || !ClockwiseSweepPolygon.testWallInclusion(w, ray.A, "sight") ) { walls.delete(w); return; }
+
+    // The wall intersects and counts for sight. Remove if limited; store separately
+    if (w.document.sight === CONST.WALL_SENSE_TYPES.LIMITED) {
+      walls.delete(w);
+      limited.set(w);
+    }
+  });
+  return [walls, limited];
+}
+
+function keyCorners(constrained, origin) {
+  return (constrained instanceof PIXI.Polygon)
+    ? polygonKeyPointsForOrigin(constrained, origin)
+    : bboxKeyCornersForOrigin(constrained, origin);
 }
 
 /* Benchmark quadtree
@@ -378,92 +386,26 @@ await QBenchmarkLoopFn(n, quadFn, "Quad Poly", visibility_poly.getBounds());
 
 */
 
-function testLOSFOVFast(visionSources, lightSources, hasLOS, hasFOV, testFn, ...args) {
+function testLOSFOV(visionSources, lightSources, result, testFn, ...args) {
   for ( const visionSource of visionSources ) {
-    if ( !hasFOV && testFn(visionSource.fov, ...args) ) {
-      hasFOV = true;
-      hasLOS = true;
+    if ( !result.hasFOV && testFn(visionSource.fov, ...args) ) {
+      result.hasFOV = true;
+      result.hasLOS = true;
+      return;
     }
-    hasLOS ||= testFn(visionSource.los, ...args);
-    if ( hasLOS && hasFOV ) return { hasLOS, hasFOV };
+    result.hasLOS ||= testFn(visionSource.los, ...args);
+    if ( result.hasLOS && result.hasFOV ) return;
   }
 
   for ( const lightSource of lightSources ) {
-    if ( (hasLOS || lightSource.data.vision) && testFn(lightSource.los, ...args) ) {
-      return { hasLOS: true, hasFOV: true };
+    if ( (result.hasLOS || lightSource.data.vision) && testFn(lightSource.los, ...args) ) {
+      result.hasLOS = true;
+      result.hasFOV = true;
+      return;
     }
   }
-
-  return { hasLOS, hasFOV };
 }
 
-function testLOSFOV(visionSources, lightSources, hasLOS, hasFOV, testFn) {
-  for ( const visionSource of visionSources ) {
-    if ( !hasFOV && testFn(visionSource.fov, visionSource) ) {
-      hasFOV = true;
-      hasLOS = true;
-    }
-    hasLOS ||= testFn(visionSource.los, visionSource);
-    if ( hasLOS && hasFOV ) return { hasLOS, hasFOV };
-  }
-
-  for ( const lightSource of lightSources ) {
-    if ( (hasLOS || lightSource.data.vision) && testFn(lightSource.los, lightSource) ) {
-      return { hasLOS: true, hasFOV: true };
-    }
-  }
-
-  return { hasLOS, hasFOV };
-}
-
-/**
- * For a given source, construct the rays for the visibility polygon.
- * source --> bbox corner and source --> other bbox corner.
- * Test if a wall intersects both, thus blocking the source LOS from bbox entirely.
- * @param {PIXI.Rectangle} bbox
- * @param {PointSource} source
- * @return {Boolean|undefined}
- */
-function wallBlocksVisibilityPolygon(bbox, source) {
-
-  const keyPoints = bboxKeyCornersForOrigin(bbox, source);
-  if ( !keyPoints ) { return undefined; }
-
-  log(`wallBlocksVisibilityPolygon`, bbox, keyPoints);
-  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
-
-  const rA = new Ray(source, keyPoints[0]);
-  const rB = new Ray(source, keyPoints[1]);
-
-  debug && drawing.drawSegment(rA, {color: drawing.COLORS.lightblue} );
-  debug && drawing.drawSegment(rB, {color: drawing.COLORS.lightgreen} );
-
-  const collisionsA = ClockwiseSweepPolygon.getRayCollisions(rA, { type: "sight", mode: "all" });
-  const collisionsB = ClockwiseSweepPolygon.getRayCollisions(rB, { type: "sight", mode: "all" });
-
-  if ( !collisionsA.length || !collisionsB.length ) { return false; }
-
-  log(`${collisionsA.length} wallsA found; ${collisionsB.length} found.`, collisionsA, collisionsB);
-  const wallsA = [];
-  const wallsB = [];
-
-  collisionsA.forEach(c => wallsA.push(...c.edges));
-  collisionsB.forEach(c => wallsB.push(...c.edges));
-
-  log(`${wallsA.length} wallsA found; ${wallsB.length} found.`, wallsA, wallsB);
-
-  if ( debug ) {
-    wallsA.forEach(w => drawing.drawSegment(w, { color: drawing.COLORS.red, width: 5 }));
-    wallsB.forEach(w => drawing.drawSegment(w, { color: drawing.COLORS.orange, width: 5}));
-  }
-
-
-
-  for ( const w of wallsB ) {
-    if ( wallsA.includes(w) ) { return true; }
-  }
-  return false;
-}
 
 /**
  * Returns the two points of the polygon that are on the edge of the viewable perimeter
@@ -473,14 +415,78 @@ function wallBlocksVisibilityPolygon(bbox, source) {
  * @return {Point[]|null} Returns null if origin is inside the polygon
  */
 function polygonKeyPointsForOrigin(poly, origin) {
-  // key point is a line from origin to the point that does not intersect the polygon
+  // Key point is a line from origin to the point that does not intersect the polygon
   // the outermost key points are the most ccw and cw of the key points.
 
+  // Possible paths:
+  // 1. n   n   n   key key key
+  // 2. key key key n   n   n
+  // 3. key key n   n   key  <-- last key(s) should be shifted to beginning of array
+  // 4. n   n   key key key n
+
   const keyPoints = [];
+  let foundNonKeyFirst = false;
+  let foundNonKeyAfter = false;
+  let foundKey = false;
   for ( const pt of poly.iteratePoints({ close: false }) ) {
-    if ( foundry.utils.lineSegmentIntersects(origin, pt)) {}
+    let isKey = true;
+
+    for ( const edge of poly.iterateEdges() ) {
+      if ( (edge.A.x === pt.x && edge.A.y === pt.y)
+        || (edge.B.x === pt.x && edge.B.y === pt.y) ) { continue; }
+
+      if ( foundry.utils.lineSegmentIntersects(origin, pt, edge.A, edge.B )) {
+        isKey = false;
+        break;
+      }
+    }
+
+    if ( isKey ) {
+      foundKey = true;
+      !foundNonKeyAfter && keyPoints.push(pt); // eslint-disable-line no-unused-expressions
+      foundNonKeyAfter && keyPoints.shift(pt); // eslint-disable-line no-unused-expressions
+    } else { // !isKey
+      foundNonKeyFirst ||= !foundKey;
+      foundNonKeyAfter ||= foundKey;
+      if ( foundNonKeyFirst && foundKey ) { break; } // Finished the key sequence
+    }
   }
+
+  return [keyPoints[0], keyPoints[keyPoints.length - 1]];
 }
+
+/* Testing keyPoints
+QBenchmarkLoopFn = api.bench.QBenchmarkLoopFn
+QBenchmarkLoop = api.bench.QBenchmarkLoop
+
+let [tokenA, tokenB] = canvas.tokens.controlled;
+polyA = constrainedTokenShape(tokenA)
+polyA = polyA instanceof PIXI.Polygon ? polyA : polyA.toPolygon()
+
+polyB = constrainedTokenShape(tokenB)
+polyB = polyB instanceof PIXI.Polygon ? polyB : polyB.toPolygon()
+
+api.drawing.clearDrawings()
+api.drawing.drawShape(polyA, {color: api.drawing.COLORS.red})
+keyPoints = polygonKeyPointsForOrigin(polyA, tokenB.center)
+api.drawing.drawSegment({A: tokenB.center, B: keyPoints[0]}, {color: api.drawing.COLORS.blue})
+api.drawing.drawSegment({A: tokenB.center, B: keyPoints[1]}, {color: api.drawing.COLORS.green})
+
+api.drawing.clearDrawings()
+api.drawing.drawShape(polyB, {color: api.drawing.COLORS.red})
+keyPoints = polygonKeyPointsForOrigin(polyB, tokenA.center)
+api.drawing.drawSegment({A: tokenA.center, B: keyPoints[0]}, {color: api.drawing.COLORS.blue})
+api.drawing.drawSegment({A: tokenA.center, B: keyPoints[1]}, {color: api.drawing.COLORS.green})
+
+
+n = 10000
+await QBenchmarkLoopFn(n, polygonKeyPointsForOrigin, "poly", polyB, tokenA.center);
+await QBenchmarkLoopFn(n, polygonKeyPointsForOrigin, "poly", polyA, tokenB.center);
+
+await QBenchmarkLoopFn(n, bboxKeyCornersForOrigin, "bbox", tokenB.bounds, tokenA.center);
+await QBenchmarkLoopFn(n, bboxKeyCornersForOrigin, "bbox", tokenA.bounds, tokenB.center);
+
+*/
 
 
 /** Benchmark Minkowski difference vs polygon intersect
@@ -668,8 +674,6 @@ function bboxAltIntersectsLeft(bbox, a, b) {
     { x: bbox.x, y: bbox.bottom },
     { x: bbox.x, y: bbox.y });
 }
-
-
 
 /**
  * Intersect the token bounds against line-of-sight polygon to trim the token bounds
