@@ -70,7 +70,7 @@ If the origin is still present after all walls are added, return true.
  * Wrap Token.prototype.updateVisionSource
  */
 export function tokenUpdateVisionSource(wrapped, { defer=false, deleted=false }={}) {
-  log("tokenUpdateVisionSource");
+//   log("tokenUpdateVisionSource");
   // Remove the prior constrained shape, if any
   this._constrainedTokenShape = undefined;
   return wrapped({ defer, deleted });
@@ -107,8 +107,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     return wrapped(point, {tolerance, object});
   }
 
-  let { lightSources, visionSources } = canvas.effects;
-  if ( !visionSources.size ) return game.user.isGM;
+  if ( !canvas.effects.visionSources.size ) return game.user.isGM;
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
@@ -127,36 +126,34 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   const result = { hasLOS: false, hasFOV: canvas.scene.globalLight };
 
   if ( fastTestOnly ) {
-    testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
+    testLOSFOV(canvas.effects.visionSources, canvas.effects.lightSources, result, containsTestFn, point);
     return result.hasFOV && result.hasLOS;
   }
 
   // Note: Converting to arrays and filtering not much of a slowdown.
-  // Takes maybe 0.0001 ms and checks have to be made eventually.
-  lightSources = [...lightSources]; // So we can filter, etc.
-  visionSources = [...visionSources];
-  visionSources = visionSources.filter(visionSource => visionSource.active);
-  lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
+  // Takes maybe 0.001 ms and checks have to be made eventually.
+  const visionSources = new Set();
+  const lightSources = new Set();
 
-  if ( fastFilterOnly ) {
-    testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
-    return result.hasFOV && result.hasLOS;
-  }
+  // Filter for relevant sources
+  canvas.effects.visionSources.forEach(v => v.active && visionSources.add(v));
+  canvas.effects.lightSources.forEach(l => l.active && !l.disabled && lightSources.add(l));
+
 
   // Note: setting debug (and same for log function) not a noticeable slowdown
-  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
-  if ( debug) {
-    log(`testVisibility at ${point.x},${point.y} for ${object.name} hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`, object);
-    drawing.clearDrawings();
-    drawing.drawPoint(point);
-    visionSources.forEach(v => {
-      drawing.drawShape(v.los, { color: drawing.COLORS.lightblue });
-      drawing.drawShape(v.fov, { color: drawing.COLORS.lightgreen });
-    });
-    lightSources.forEach(l => {
-      drawing.drawShape(l.los, { color: drawing.COLORS.lightyellow });
-    });
-  }
+//   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
+//   if ( debug) {
+//     log(`testVisibility at ${point.x},${point.y} for ${object.name} hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`, object);
+//     drawing.clearDrawings();
+//     drawing.drawPoint(point);
+//     visionSources.forEach(v => {
+//       drawing.drawShape(v.los, { color: drawing.COLORS.lightblue });
+//       drawing.drawShape(v.fov, { color: drawing.COLORS.lightgreen });
+//     });
+//     lightSources.forEach(l => {
+//       drawing.drawShape(l.los, { color: drawing.COLORS.lightyellow });
+//     });
+//   }
 
   // Ignoring the somewhat artificial case of a token centered on a wall or corner, currently
   // ignored. Or a token that has walked through a wall at a corner.
@@ -164,6 +161,10 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // control visibility as defined below.
   // TO-DO: Move constraint test here? Would be much slower.
 
+  if ( fastFilterOnly ) {
+    testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
+    return result.hasFOV && result.hasLOS;
+  }
 
   if ( testCenterPoint ) {
     if ( percentArea <= .50 ) {
@@ -172,7 +173,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
       testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
 
       if ( result.hasFOV && result.hasLOS ) {
-        log(`Returning true after testing center point with percentArea of ${percentArea}`);
+//         log(`Returning true after testing center point with percentArea of ${percentArea}`);
         return true;
       }
 
@@ -180,14 +181,15 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
       // If more than 50% of the token area is required to be viewable, then
       // the center point must be viewable for the token to be viewable from that source.
       // (necessary but not sufficient)
-      visionSources.filter(visionSource => visionSource.fov.contains(point.x, point.y));
-      lightSources = lightSources.filter(lightSource => lightSource.containsPoint(point.x, point.y));
-      if ( !visionSources.length && !lightSources.length ) {
-        log(`Returning false after testing center point with percentArea of ${percentArea}`);
+      visionSources.forEach(v => v.fov.contains(point.x, point.y) || visionSources.delete(v));
+      lightSources.forEach(l => l.containsPoint(point) || lightSources.delete(l));
+
+      if ( !visionSources.size && !lightSources.size ) {
+//         log(`Returning false after testing center point with percentArea of ${percentArea}`);
         return false;
       }
     }
-    log(`After center point test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+//     log(`After center point test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
   }
 
   // Construct the constrained token shape if not yet present.
@@ -198,8 +200,8 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     const constrained_bbox = constrained.getBounds();
     const notConstrained = constrained instanceof PIXI.Rectangle;
 
-    debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 }); // eslint-disable-line no-unused-expressions
-    debug && drawing.drawShape(constrained, { color: drawing.COLORS.red }); // eslint-disable-line no-unused-expressions
+    // debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 }); // eslint-disable-line no-unused-expressions
+//     debug && drawing.drawShape(constrained, { color: drawing.COLORS.red }); // eslint-disable-line no-unused-expressions
 
     // Test the bounding box for line-of-sight for easy cases
     // Draw ray from source to the two corners that are at the edge of the viewable
@@ -219,7 +221,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
       visionSources.filter(src =>
         testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
       lightSources.filter(src => testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
-      log(`After key points| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+//       log(`After key points| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
       if ( result.hasFOV && result.hasLOS ) { return true; }
       if ( !visionSources.length && !lightSources.length ) { return false; }
     }
@@ -237,22 +239,22 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     if ( finalTest ) {
 
       if ( areaTestOnly || percentArea !== 0 ) {
-        log("Testing percent area");
+//         log("Testing percent area");
         const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
         testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
 
       } else if ( notConstrained ) {
-        log("Testing unconstrained boundary");
+//         log("Testing unconstrained boundary");
         testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
 
       } else {
-        log("Testing constrained boundary");
+//         log("Testing constrained boundary");
         const constrained_edges = [...constrained.iterateEdges()];
         testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
           constrained_bbox, constrained_edges);
       }
 
-      log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+//       log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
     }
   }
   return result.hasFOV && result.hasLOS;
@@ -268,13 +270,13 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
  * @return {Boolean} Returns false if the source definitely cannot provide LOS; true otherwise.
  */
 function testWallsForSource(constrained, origin, src, result, { noAreaTest = true } = {}) {
-  const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
+//   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
   const keyPoints = keyCorners(constrained, origin);
   if ( !keyPoints || !keyPoints.length ) { return; }
   const rayA = new Ray(src, keyPoints[0]);
   const rayB = new Ray(src, keyPoints[1]);
-  debug && drawing.drawSegment(rayA, { color: drawing.COLORS.lightblue }); // eslint-disable-line no-unused-expressions
-  debug && drawing.drawSegment(rayB, { color: drawing.COLORS.lightgreen }); // eslint-disable-line no-unused-expressions
+//   debug && drawing.drawSegment(rayA, { color: drawing.COLORS.lightblue }); // eslint-disable-line no-unused-expressions
+//   debug && drawing.drawSegment(rayB, { color: drawing.COLORS.lightgreen }); // eslint-disable-line no-unused-expressions
 
   // Find the walls that could intersect the two rays.
   // If a wall intersects both, this source cannot provide vision; return false.
@@ -716,7 +718,7 @@ function constrainedTokenShape(token) {
  * @return {Number} 0 if not seen; percent of the polygon seen otherwise
  */
 function sourceSeesPolygon(source, poly) {
-  log(`sourceSeesPolygon|source: ${source.points.length} points; poly: ${poly.points.length}`, source, poly);
+//   log(`sourceSeesPolygon|source: ${source.points.length} points; poly: ${poly.points.length}`, source, poly);
 
   const intersect = source.intersectPolygon(poly);
 
