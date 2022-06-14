@@ -12,7 +12,7 @@ import { registerPIXIPolygonMethods } from "./PIXIPolygon.js";
 import { registerPIXIRectangleMethods } from "./PIXIRectangle.js";
 import { registerPIXICircleMethods } from "./PIXICircle.js";
 
-import { registerLibWrapperMethods } from "./patching.js";
+import { registerLibWrapperMethods, patchHelperMethods } from "./patching.js";
 
 import { tracePolygon } from "./trace_polygon.js";
 
@@ -61,6 +61,7 @@ Hooks.once("init", async function() {
   registerPIXICircleMethods();
 
   registerLibWrapperMethods();
+  patchHelperMethods();
 
   /**
    * API switches

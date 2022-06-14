@@ -11,4 +11,13 @@ export function registerLibWrapperMethods() {
   libWrapper.register(MODULE_ID, "Token.prototype.updateVisionSource", tokenUpdateVisionSource, libWrapper.WRAPPER);
 }
 
+export function patchHelperMethods() {
+  function setUnion(b) { return new Set([...this, ...a]); }
+  Object.defineProperty(Set.prototype, "union", {
+    value: setUnion,
+    writable: true,
+    configurable: true
+  });
+}
+
 
