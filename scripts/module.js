@@ -28,7 +28,8 @@ export const SETTINGS = {
   fastTestOnly: false,
   testWalls: true,
   testCenterPoint: true,
-  finalTest: true
+  finalTest: true,
+  fastFilterOnly: false
 };
 
 /**

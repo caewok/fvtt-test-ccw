@@ -112,7 +112,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { percentArea, areaTestOnly, fastTestOnly, testCenterPoint, testWalls, finalTest } = SETTINGS;
+  const { percentArea, areaTestOnly, fastTestOnly, fastFilterOnly, testCenterPoint, testWalls, finalTest } = SETTINGS;
 
   // Test each vision source
   // https://ptb.discord.com/channels/170995199584108546/956307084931112960/985541410495283250
@@ -137,6 +137,11 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   visionSources = [...visionSources];
   visionSources = visionSources.filter(visionSource => visionSource.active);
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
+
+  if ( fastFilterOnly ) {
+    testLOSFOV(visionSources, lightSources, result, containsTestFn, point);
+    return result.hasFOV && result.hasLOS;
+  }
 
   // Note: setting debug (and same for log function) not a noticeable slowdown
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
@@ -187,66 +192,68 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // Construct the constrained token shape if not yet present.
   // Store in token so it can be re-used (wrapped updateVisionSource will remove it when necessary)
-  object._constrainedTokenShape ||= constrainedTokenShape(object);
-  const constrained = object._constrainedTokenShape;
-  const constrained_bbox = constrained.getBounds();
-  const notConstrained = constrained instanceof PIXI.Rectangle;
+  if ( testWalls || finalTest ) {
+    object._constrainedTokenShape ||= constrainedTokenShape(object);
+    const constrained = object._constrainedTokenShape;
+    const constrained_bbox = constrained.getBounds();
+    const notConstrained = constrained instanceof PIXI.Rectangle;
 
-  debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 }); // eslint-disable-line no-unused-expressions
-  debug && drawing.drawShape(constrained, { color: drawing.COLORS.red }); // eslint-disable-line no-unused-expressions
+    debug && drawing.drawShape(constrained_bbox, { color: drawing.COLORS.lightred, width: 5 }); // eslint-disable-line no-unused-expressions
+    debug && drawing.drawShape(constrained, { color: drawing.COLORS.red }); // eslint-disable-line no-unused-expressions
 
-  // Test the bounding box for line-of-sight for easy cases
-  // Draw ray from source to the two corners that are at the edge of the viewable
-  // bounding box.
-  // Test if walls intersect the rays or are between the rays
+    // Test the bounding box for line-of-sight for easy cases
+    // Draw ray from source to the two corners that are at the edge of the viewable
+    // bounding box.
+    // Test if walls intersect the rays or are between the rays
 
-  // If unconstrained token shape (rectangle):
-  // no walls: has los
-  // walls only on one side: has los
-  // walls don't intersect rays: has los
+    // If unconstrained token shape (rectangle):
+    // no walls: has los
+    // walls only on one side: has los
+    // walls don't intersect rays: has los
 
-  // If constrained token shape:
-  // no walls: has los
-  // otherwise, not clear whether has los
+    // If constrained token shape:
+    // no walls: has los
+    // otherwise, not clear whether has los
 
-  if ( testWalls ) {
-    visionSources.filter(src =>
-      testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
-    lightSources.filter(src => testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
-    log(`After key points| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
-    if ( result.hasFOV && result.hasLOS ) { return true; }
-    if ( !visionSources.length && !lightSources.length ) { return false; }
-  }
-
-  // If the point is entirely inside the buffer region, it may be hidden from view
-  // In this case, the canvas scene rectangle must contain at least one polygon point
-  // for the polygon to be in view
-  // Cannot call this.#inBuffer from libWrapper
-  // if ( !this.#inBuffer && !constrained.points.some(p =>
-  //   canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
-
-  // From this point, we are left testing remaining sources by checking whether the
-  // polygon intersects the constrained bounding box.
-
-  if ( finalTest ) {
-
-    if ( areaTestOnly || percentArea !== 0 ) {
-      log("Testing percent area");
-      const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-      testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
-
-    } else if ( notConstrained ) {
-      log("Testing unconstrained boundary");
-      testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
-
-    } else {
-      log("Testing constrained boundary");
-      const constrained_edges = [...constrained.iterateEdges()];
-      testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
-        constrained_bbox, constrained_edges);
+    if ( testWalls ) {
+      visionSources.filter(src =>
+        testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
+      lightSources.filter(src => testWallsForSource(constrained_bbox, point, src, result, { noAreaTest: !percentArea } ));
+      log(`After key points| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+      if ( result.hasFOV && result.hasLOS ) { return true; }
+      if ( !visionSources.length && !lightSources.length ) { return false; }
     }
 
-    log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+    // If the point is entirely inside the buffer region, it may be hidden from view
+    // In this case, the canvas scene rectangle must contain at least one polygon point
+    // for the polygon to be in view
+    // Cannot call this.#inBuffer from libWrapper
+    // if ( !this.#inBuffer && !constrained.points.some(p =>
+    //   canvas.dimensions.sceneRect.contains(p.x, p.y)) ) return false;
+
+    // From this point, we are left testing remaining sources by checking whether the
+    // polygon intersects the constrained bounding box.
+
+    if ( finalTest ) {
+
+      if ( areaTestOnly || percentArea !== 0 ) {
+        log("Testing percent area");
+        const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+        testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
+
+      } else if ( notConstrained ) {
+        log("Testing unconstrained boundary");
+        testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
+
+      } else {
+        log("Testing constrained boundary");
+        const constrained_edges = [...constrained.iterateEdges()];
+        testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
+          constrained_bbox, constrained_edges);
+      }
+
+      log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
+    }
   }
   return result.hasFOV && result.hasLOS;
 }

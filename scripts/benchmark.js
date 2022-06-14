@@ -66,28 +66,33 @@ export async function benchTokenVisibility(n = 100) {
   }
 
   const testCenter = async function() {
-    console.log("\tTest Center Point");
     SETTINGS.testCenterPoint = true;
     SETTINGS.testWalls = false;
     SETTINGS.finalTest = false;
-    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+    await QBenchmarkLoopFn(n, testFn, "\tCenter only", tokens);
   }
 
   const testWalls = async function() {
-    console.log("\tTest Walls ");
     SETTINGS.testCenterPoint = false;
     SETTINGS.testWalls = true;
     SETTINGS.finalTest = false;
-    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+    await QBenchmarkLoopFn(n, testFn, "\tWalls only", tokens);
   }
 
   const testFinal = async function() {
-    console.log("\tFinal test only");
     SETTINGS.testCenterPoint = false;
     SETTINGS.testWalls = false;
     SETTINGS.finalTest = true;
-    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+    await QBenchmarkLoopFn(n, testFn, "\tFinal only", tokens);
   }
+
+  const testCenterPlusFinal = async function() {
+    SETTINGS.testCenterPoint = true;
+    SETTINGS.testWalls = false;
+    SETTINGS.finalTest = true;
+    await QBenchmarkLoopFn(n, testFn, "\tCenter+Final", tokens);
+  }
+
   reset();
 
   SETTINGS.useTestVisibility = false;
@@ -95,10 +100,13 @@ export async function benchTokenVisibility(n = 100) {
   SETTINGS.useTestVisibility = true;
 
   // ***** Fast Test
-  console.log("Fast test")
   SETTINGS.fastTestOnly = true;
-  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  await QBenchmarkLoopFn(n, testFn, "Fast", tokens);
   SETTINGS.fastTestOnly = false;
+
+  SETTINGS.fastFilterOnly = true;
+  await QBenchmarkLoopFn(n, testFn, "Fast Filter", tokens);
+  SETTINGS.fastFilterOnly = false;
 
   // ***** Area Percentage = 0 ***********
   console.log("Area percentage 0")
@@ -106,15 +114,16 @@ export async function benchTokenVisibility(n = 100) {
   await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
 
   // ********** Area Test Only
-  console.log("\tArea test only");
   SETTINGS.areaTestOnly = true;
-  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  await QBenchmarkLoopFn(n, testFn, "\tArea only", tokens);
   await testFinal();
+  await testCenterPlusFinal();
   SETTINGS.areaTestOnly = false;
 
   await testCenter();
   await testWalls();
   await testFinal();
+  await testCenterPlusFinal();
   reset();
 
   // ***** Area Percentage = .25 ***********
@@ -125,6 +134,7 @@ export async function benchTokenVisibility(n = 100) {
   await testCenter();
   await testWalls();
   await testFinal();
+  await testCenterPlusFinal();
   reset();
 
   // ***** Area Percentage = .75 ***********
@@ -135,6 +145,7 @@ export async function benchTokenVisibility(n = 100) {
   await testCenter();
   await testWalls();
   await testFinal();
+  await testCenterPlusFinal();
   reset();
 
   // ***** Area Percentage = 1 ***********
@@ -145,6 +156,7 @@ export async function benchTokenVisibility(n = 100) {
   await testCenter();
   await testWalls();
   await testFinal();
+  await testCenterPlusFinal();
   reset();
 
   // One more original to finish it off
