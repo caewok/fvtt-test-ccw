@@ -93,34 +93,23 @@ export async function benchTokenVisibility(n = 100) {
   console.log("\tArea test only v2");
   SETTINGS.testCenterPoint = false;
   SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = false;
   await testOriginalVsPerfect(n);
 
   // ********** Test Center Point
   console.log("\tTest Center Point");
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = false;
   await testOriginalVsPerfect(n);
 
   // ********** Test Walls
   console.log("\tTest Walls ");
   SETTINGS.testCenterPoint = false;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = false;
-  await testOriginalVsPerfect(n);
-
-  // ********** Test Walls Block
-  console.log("\tTest Walls Block");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = true;
   await testOriginalVsPerfect(n);
 
   // Reset
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = true;
 
   // ***** Area Percentage = .25
   console.log("\nArea percentage .25")
@@ -131,27 +120,17 @@ export async function benchTokenVisibility(n = 100) {
   console.log("\tTest Center Point");
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = false;
   await testOriginalVsPerfect(n);
 
   // ********** Test Walls
   console.log("\tTest Walls ");
   SETTINGS.testCenterPoint = false;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = false;
-  await testOriginalVsPerfect(n);
-
-  // ********** Test Walls Block
-  console.log("\tTest Walls Block");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = true;
   await testOriginalVsPerfect(n);
 
   // Reset
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = true;
 
   // ***** Area Percentage = .75
   console.log("\nArea percentage .75")
@@ -162,27 +141,23 @@ export async function benchTokenVisibility(n = 100) {
   console.log("\tTest Center Point");
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = false;
   await testOriginalVsPerfect(n);
 
   // ********** Test Walls
   console.log("\tTest Walls ");
   SETTINGS.testCenterPoint = false;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = false;
   await testOriginalVsPerfect(n);
 
   // ********** Test Walls Block
   console.log("\tTest Walls Block");
   SETTINGS.testCenterPoint = false;
   SETTINGS.testWalls = false;
-  SETTINGS.testWallsBlock = true;
   await testOriginalVsPerfect(n);
 
   // Reset
   SETTINGS.testCenterPoint = true;
   SETTINGS.testWalls = true;
-  SETTINGS.testWallsBlock = true;
 
   // ***** Area Percentage = 1
   console.log("\nArea percentage 1")

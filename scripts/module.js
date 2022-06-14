@@ -27,7 +27,6 @@ export const SETTINGS = {
   areaTestOnly: false,
   areaTestOnlyFiltered: false,
   fastTestOnly: false,
-  testWallsBlock: true,
   testWalls: true,
   testCenterPoint: true
 };
