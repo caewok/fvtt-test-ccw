@@ -35,7 +35,12 @@ function randomInteger(min, max) {
  */
 
 
-async function testOriginalVsPerfect(n) {
+export async function benchTokenVisibility(n = 100) {
+  const default_setting = SETTINGS.useTestVisibility;
+  const default_percent_area = SETTINGS.percentArea;
+
+  console.log(`Benching token visibility for ${canvas.tokens.placeables.length - 1} tokens.`);
+
   const tokens = canvas.tokens.placeables.filter(t => !t.controlled);
   const testFn = function(tokens) {
     const out = [];
@@ -53,116 +58,98 @@ async function testOriginalVsPerfect(n) {
     return out;
   }
 
+  const reset = function() {
+    // Reset
+    SETTINGS.testCenterPoint = true;
+    SETTINGS.testWalls = true;
+    SETTINGS.finalTest = true;
+  }
+
+  const testCenter = async function() {
+    console.log("\tTest Center Point");
+    SETTINGS.testCenterPoint = true;
+    SETTINGS.testWalls = false;
+    SETTINGS.finalTest = false;
+    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  }
+
+  const testWalls = async function() {
+    console.log("\tTest Walls ");
+    SETTINGS.testCenterPoint = false;
+    SETTINGS.testWalls = true;
+    SETTINGS.finalTest = false;
+    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  }
+
+  const testFinal = async function() {
+    console.log("\tFinal test only");
+    SETTINGS.testCenterPoint = false;
+    SETTINGS.testWalls = false;
+    SETTINGS.finalTest = true;
+    await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  }
+  reset();
+
   SETTINGS.useTestVisibility = false;
   await QBenchmarkLoopFn(n, testFn, "Original", tokens);
-
   SETTINGS.useTestVisibility = true;
-  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
-}
-
-export async function benchTokenVisibility(n = 100) {
-  const default_setting = SETTINGS.useTestVisibility;
-  const default_percent_area = SETTINGS.percentArea;
-
-  console.log(`Benching token visibility for ${canvas.tokens.placeables.length - 1} tokens.`);
 
   // ***** Fast Test
   console.log("Fast test")
   SETTINGS.fastTestOnly = true;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
   SETTINGS.fastTestOnly = false;
 
-  // ***** Area Percentage = 0
+  // ***** Area Percentage = 0 ***********
   console.log("Area percentage 0")
   SETTINGS.percentArea = 0;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
 
   // ********** Area Test Only
   console.log("\tArea test only");
   SETTINGS.areaTestOnly = true;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+  await testFinal();
   SETTINGS.areaTestOnly = false;
 
-  // ********** Area Test Only Filtered
-  console.log("\tArea test only filtered");
-  SETTINGS.areaTestOnlyFiltered = true;
-  await testOriginalVsPerfect(n);
-  SETTINGS.areaTestOnlyFiltered = false;
+  await testCenter();
+  await testWalls();
+  await testFinal();
+  reset();
 
-  // ********** Area Test Only v2
-  console.log("\tArea test only v2");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = false;
-  await testOriginalVsPerfect(n);
-
-  // ********** Test Center Point
-  console.log("\tTest Center Point");
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = false;
-  await testOriginalVsPerfect(n);
-
-  // ********** Test Walls
-  console.log("\tTest Walls ");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = true;
-  await testOriginalVsPerfect(n);
-
-  // Reset
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = true;
-
-  // ***** Area Percentage = .25
+  // ***** Area Percentage = .25 ***********
   console.log("\nArea percentage .25")
   SETTINGS.percentArea = 0.25;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
 
-  // ********** Test Center Point
-  console.log("\tTest Center Point");
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = false;
-  await testOriginalVsPerfect(n);
+  await testCenter();
+  await testWalls();
+  await testFinal();
+  reset();
 
-  // ********** Test Walls
-  console.log("\tTest Walls ");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = true;
-  await testOriginalVsPerfect(n);
-
-  // Reset
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = true;
-
-  // ***** Area Percentage = .75
+  // ***** Area Percentage = .75 ***********
   console.log("\nArea percentage .75")
   SETTINGS.percentArea = .75;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
 
-  // ********** Test Center Point
-  console.log("\tTest Center Point");
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = false;
-  await testOriginalVsPerfect(n);
+  await testCenter();
+  await testWalls();
+  await testFinal();
+  reset();
 
-  // ********** Test Walls
-  console.log("\tTest Walls ");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = true;
-  await testOriginalVsPerfect(n);
-
-  // ********** Test Walls Block
-  console.log("\tTest Walls Block");
-  SETTINGS.testCenterPoint = false;
-  SETTINGS.testWalls = false;
-  await testOriginalVsPerfect(n);
-
-  // Reset
-  SETTINGS.testCenterPoint = true;
-  SETTINGS.testWalls = true;
-
-  // ***** Area Percentage = 1
+  // ***** Area Percentage = 1 ***********
   console.log("\nArea percentage 1")
   SETTINGS.percentArea = 1;
-  await testOriginalVsPerfect(n);
+  await QBenchmarkLoopFn(n, testFn, "PixelPerfect", tokens);
+
+  await testCenter();
+  await testWalls();
+  await testFinal();
+  reset();
+
+  // One more original to finish it off
+  SETTINGS.useTestVisibility = false;
+  await QBenchmarkLoopFn(n, testFn, "Original", tokens);
 
   // Reset settings
   SETTINGS.useTestVisibility = default_setting;

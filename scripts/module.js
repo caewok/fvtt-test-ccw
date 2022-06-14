@@ -25,10 +25,10 @@ export const SETTINGS = {
   boundsScale: 1,
   percentArea: 0,
   areaTestOnly: false,
-  areaTestOnlyFiltered: false,
   fastTestOnly: false,
   testWalls: true,
-  testCenterPoint: true
+  testCenterPoint: true,
+  finalTest: true
 };
 
 /**

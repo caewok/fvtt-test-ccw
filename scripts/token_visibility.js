@@ -112,7 +112,7 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
 
   // PercentArea: Percent of the token that must be visible to count.
   // BoundsScale: Scale the bounds of the token before considering visibility.
-  const { percentArea, areaTestOnly, areaTestOnlyFiltered, fastTestOnly, testCenterPoint, testWalls } = SETTINGS;
+  const { percentArea, areaTestOnly, fastTestOnly, testCenterPoint, testWalls, finalTest } = SETTINGS;
 
   // Test each vision source
   // https://ptb.discord.com/channels/170995199584108546/956307084931112960/985541410495283250
@@ -131,28 +131,12 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
     return result.hasFOV && result.hasLOS;
   }
 
-  if ( areaTestOnly ) {
-    const constrained = constrainedTokenShape(object);
-    const notConstrained = constrained instanceof PIXI.Rectangle;
-    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
-    return result.hasFOV && result.hasLOS;
-  }
-
   // Note: Converting to arrays and filtering not much of a slowdown.
   // Takes maybe 0.0001 ms and checks have to be made eventually.
   lightSources = [...lightSources]; // So we can filter, etc.
   visionSources = [...visionSources];
   visionSources = visionSources.filter(visionSource => visionSource.active);
   lightSources = lightSources.filter(lightSource => lightSource.active && !lightSource.disabled);
-
-  if ( areaTestOnlyFiltered ) {
-    const constrained = constrainedTokenShape(object);
-    const notConstrained = constrained instanceof PIXI.Rectangle;
-    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
-    return result.hasFOV && result.hasLOS;
-  }
 
   // Note: setting debug (and same for log function) not a noticeable slowdown
   const debug = game.modules.get("_dev-mode")?.api?.getPackageDebugValue(MODULE_ID);
@@ -244,24 +228,26 @@ export function testVisibility(wrapped, point, {tolerance=2, object=null}={}) { 
   // From this point, we are left testing remaining sources by checking whether the
   // polygon intersects the constrained bounding box.
 
-  if ( percentArea !== 0 ) {
-    log("Testing percent area");
-    const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
-    testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
+  if ( finalTest ) {
 
-  } else if ( notConstrained ) {
-    log("Testing unconstrained boundary");
-    testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
+    if ( areaTestOnly || percentArea !== 0 ) {
+      log("Testing percent area");
+      const bounds_poly = notConstrained ? constrained.toPolygon() : constrained;
+      testLOSFOV(visionSources, lightSources, result, areaTestFn, bounds_poly, percentArea);
 
-  } else {
-    log("Testing constrained boundary");
-    const constrained_edges = [...constrained.iterateEdges()];
-    testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
-      constrained_bbox, constrained_edges);
+    } else if ( notConstrained ) {
+      log("Testing unconstrained boundary");
+      testLOSFOV(visionSources, lightSources, result, sourceIntersectsBoundsTestFn, constrained_bbox);
+
+    } else {
+      log("Testing constrained boundary");
+      const constrained_edges = [...constrained.iterateEdges()];
+      testLOSFOV(visionSources, lightSources, result, sourceIntersectsPolygonTestFn,
+        constrained_bbox, constrained_edges);
+    }
+
+    log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
   }
-
-  log(`After final test| hasLOS: ${result.hasLOS}; hasFOV: ${result.hasFOV}, visionSources: ${visionSources.length}, lightSources: ${lightSources.length}`);
-
   return result.hasFOV && result.hasLOS;
 }
 
